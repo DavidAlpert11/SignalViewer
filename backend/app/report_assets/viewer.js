@@ -269,6 +269,7 @@
     }); });
     if (!(hi > lo)) { var bar0 = document.getElementById("rp"); if (bar0) bar0.hidden = true; return; }
     var span = hi - lo;
+    var storyHash = /[#&]story=1/.test(location.hash || "");    // P10: a link that starts the Story
     var m = /[#&]t=(-?[\d.]+)/.exec(location.hash || "");      // a link to a later moment wins
     if (m && isFinite(+m[1])) RP.t = +m[1];
     if (RP.t === null || !isFinite(RP.t)) RP.t = lo;
@@ -316,7 +317,7 @@
     var timeAt = function (x) { var b = track.getBoundingClientRect(); return lo + Math.min(1, Math.max(0, (x - b.left) / b.width)) * span; };
     track.addEventListener("pointerdown", function (e) {
       if (e.button !== 0) return;
-      stop(); track.setPointerCapture(e.pointerId); setTime(timeAt(e.clientX));
+      endStory(); stop(); track.setPointerCapture(e.pointerId); setTime(timeAt(e.clientX));
       var move = function (ev) { setTime(timeAt(ev.clientX)); };
       var up = function (ev) { track.removeEventListener("pointermove", move); track.removeEventListener("pointerup", up); setTime(timeAt(ev.clientX), true); };
       track.addEventListener("pointermove", move); track.addEventListener("pointerup", up);
@@ -335,7 +336,7 @@
     };
     var label = function () { playBtn.innerHTML = playing ? "&#10074;&#10074;" : "&#9654;"; var l = playing ? T.rpPause : T.rpPlay; playBtn.title = l + " (Space)"; playBtn.setAttribute("aria-label", l); playBtn.setAttribute("aria-pressed", String(playing)); };
     function stop() { if (!playing) return; playing = false; cancelAnimationFrame(raf); label(); setTime(RP.t, true); }
-    var play = function () { if (playing) { stop(); return; } if (RP.t >= hi) RP.t = lo; playing = true; label(); last = performance.now(); raf = requestAnimationFrame(tick); };
+    var play = function () { endStory(); if (playing) { stop(); return; } if (RP.t >= hi) RP.t = lo; playing = true; label(); last = performance.now(); raf = requestAnimationFrame(tick); };
     playBtn.addEventListener("click", play);
     document.getElementById("rp-start").addEventListener("click", function () { stop(); setTime(lo, true); });
     // Space plays anywhere but in a field - also right after a click on the bar's own buttons (a focused
@@ -352,8 +353,80 @@
     renderTab = function (i) { shown(i); setTime(RP.t, true); };
     // a map's or a 3D view's page asks for a moment (its relation box: "Closest in")
     addEventListener("message", function (e) { var m = e.data; if (m && m.sv === "replay-seek" && isFinite(m.t)) { stop(); setTime(+m.t, true); } });
-    window.__replay = { get t() { return RP.t; }, lo: lo, hi: hi, get playing() { return playing; } };   // for tests
+    /* P10: Story mode - the flight tells itself. The time runs so the whole recording takes about
+       RP.storyLength s (x1 to x60), at x1 from 3 s before a moment to 2 s after it, and stops 4 s on the moment
+       with its card; the map frames fly to the moment's object (and back to the reader's camera at the end).
+       Esc or a click on the timeline ends it; a click on the card stays there; #story=1 starts it. */
+    var storyAll = RP.story || [], curTab = 0, story = { on: false, index: -1, next: 0, list: [], pauseUntil: 0, raf: 0, last: 0 };
+    var sbtn = document.getElementById("rp-storybtn"), card = document.getElementById("rp-story");
+    var CLOSE = { steepest: 1, largest_error: 1, takeoff: 1, landing: 1 };
+    var focusFrames = function (m, keep) { frames().forEach(function (f) { tell(f, { focus: m ? { object: m.object, close: !!CLOSE[m.kind] } : null, keep: !!keep }); }); };
+    var showCard = function (k) {
+      var m = story.list[k]; if (!m) return;
+      story.index = k;
+      card.hidden = false; card.className = m.level || "info";
+      document.getElementById("rp-story-title").textContent = m.title;
+      document.getElementById("rp-story-text").textContent = m.kind === "event" ? m.t.toFixed(dec) + " s" : m.text;
+      document.getElementById("rp-story-n").textContent = (k + 1) + " / " + story.list.length;
+      focusFrames(m);
+    };
+    var endStory = function (keep) {
+      if (!story.on) return;
+      story.on = false; cancelAnimationFrame(story.raf); sbtn.classList.remove("on"); sbtn.setAttribute("aria-pressed", "false");
+      card.hidden = true; story.index = -1; focusFrames(null, keep); setTime(RP.t, true);
+    };
+    var storyTick = function (now) {
+      var dt = Math.min(0.25, (now - story.last) / 1000); story.last = now;
+      if (now < story.pauseUntil) { story.raf = requestAnimationFrame(storyTick); return; }
+      var m = story.list[story.next], prev = story.list[story.next - 1];
+      var rate = Math.min(60, Math.max(1, span / (RP.storyLength || 90)));
+      var slow = (m && RP.t >= m.t - 3) || (prev && RP.t <= prev.t + 2);
+      var v = RP.t + dt * (slow ? 1 : rate);
+      if (m && v >= m.t) { setTime(m.t, true); showCard(story.next); story.next++; story.pauseUntil = now + 4000; }
+      else if (v >= hi) { setTime(hi, true); endStory(); return; }
+      else setTime(v);
+      story.raf = requestAnimationFrame(storyTick);
+    };
+    var startStory = function () {
+      if (!story.list.length) return;
+      stop();
+      if (story.on) { endStory(); return; }
+      story.on = true; sbtn.classList.add("on"); sbtn.setAttribute("aria-pressed", "true");
+      if (RP.t >= story.list[story.list.length - 1].t) setTime(lo, true);
+      story.next = 0; while (story.next < story.list.length && story.list[story.next].t < RP.t - 1e-6) story.next++;
+      story.pauseUntil = 0; story.last = performance.now(); story.raf = requestAnimationFrame(storyTick);
+    };
+    var goMoment = function (k) {
+      if (k < 0 || k >= story.list.length) return;
+      if (!story.on) { story.on = true; sbtn.classList.add("on"); story.last = performance.now(); story.raf = requestAnimationFrame(storyTick); }
+      setTime(story.list[k].t, true); showCard(k); story.next = k + 1; story.pauseUntil = performance.now() + 4000;
+    };
+    var paintStory = function () {
+      Array.prototype.slice.call(marks.querySelectorAll("i.story")).forEach(function (x) { x.remove(); });
+      story.list = (storyAll[curTab] || []).filter(function (m) { return m.t >= lo && m.t <= hi; });
+      sbtn.hidden = !story.list.length;
+      story.list.forEach(function (m, k) {
+        var i = document.createElement("i");
+        i.className = "story"; i.style.left = frac(m.t) * 100 + "%"; i.title = m.t.toFixed(dec) + " s · " + m.title;
+        i.addEventListener("pointerdown", function (e) { e.stopPropagation(); stop(); goMoment(k); });
+        marks.appendChild(i);
+      });
+    };
+    sbtn.textContent = "\u25B6 " + (T.rpStory || "Story"); sbtn.title = T.rpStoryHint || ""; sbtn.setAttribute("aria-pressed", "false");
+    sbtn.addEventListener("click", startStory);
+    document.getElementById("rp-story-prev").title = T.rpStoryPrev || ""; document.getElementById("rp-story-next").title = T.rpStoryNext || "";
+    document.getElementById("rp-story-prev").addEventListener("click", function (e) { e.stopPropagation(); goMoment(story.index - 1); });
+    document.getElementById("rp-story-next").addEventListener("click", function (e) { e.stopPropagation(); goMoment(story.index + 1); });
+    card.title = T.rpStoryStay || "";
+    card.addEventListener("click", function () { endStory(true); });                 // stay here and look around
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && story.on) endStory(); });
+    var shownStory = renderTab;
+    renderTab = function (i) { endStory(); curTab = i; shownStory(i); paintStory(); };
+    paintStory();
+    window.__replay = { get t() { return RP.t; }, lo: lo, hi: hi, get playing() { return playing; },
+      get story() { return { on: story.on, index: story.index, count: story.list.length }; } };   // for tests
     setTime(RP.t, true);
+    if (storyHash) setTimeout(startStory, 600);
   })();
   renderTab(0);
   if (RP) setTime(RP.t, true);

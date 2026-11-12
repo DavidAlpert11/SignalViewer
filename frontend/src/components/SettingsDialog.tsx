@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { api, type StorageInfo, type StorageKind } from "../api";
 import { actions, LINE_STYLES, useApp, type LineStyle } from "../store";
 import { useT, type TKey } from "../i18n";
 import { Icon } from "../icons";
 import { fmtSize } from "../values";
 import { useEscape } from "./Overlays";
+import { elevationFolder, MAP_CHOICES, resetMapPrefs, setElevationFolder, setIconFor, setMapPref, type ObjClassKey } from "../mapDefaults";
+import { pickPath } from "../store";
 
 /** What the app keeps on disk for speed (the CSV cache, copies of dropped files, map tiles), each
  *  with its size and a Clear button. A choice made once in a while: it lives in Settings. */
@@ -44,6 +46,43 @@ function StorageSection() {
       ))}
       {note && <p className="hint" role="status">{note}</p>}
     </div>
+  );
+}
+
+/** P8: Settings > Map and objects - choices for new objects, new Maps and the next export (mapDefaults.ts). */
+function MapSection({ seg }: { seg: <V extends string | number>(value: V, opts: [V, string][], set: (v: V) => void, label: string) => ReactElement }) {
+  const t = useT();
+  const m = useApp((s) => s.mapPrefs);
+  const [elev, setElev] = useState(elevationFolder());
+  const row = (label: TKey, ctl: ReactElement, hint?: TKey) => <div className="set-row"><span>{t(label)}{hint && <small>{t(hint)}</small>}</span>{ctl}</div>;
+  return (
+    <section className="set-map" aria-label={t("setMap")}>
+      <div className="set-group-head"><h3>{t("setMap")}</h3>
+        <button className="linkbtn set-map-reset" onClick={() => { resetMapPrefs(); setElev(""); }}>{t("setMapReset")}</button></div>
+      <p className="hint">{t("setMapNew")}</p>
+      <div className="set-row set-map-icons"><span>{t("setMapIcon")}<small>{t("setMapIconHint")}</small></span>
+        <span className="set-icons">{(["truth", "navigation", "receiver", "other"] as ObjClassKey[]).map((c) => (
+          <label key={c}>{t(`setCls_${c}` as TKey)} <select className={`set-icon-${c}`} value={m.icon[c]} onChange={(e) => setIconFor(c, e.target.value as never)}>
+            {MAP_CHOICES.kinds.map((k) => <option key={k} value={k}>{t(`obj_${k}` as TKey)}</option>)}</select></label>
+        ))}</span></div>
+      {row("setMapCamera", seg(m.camera, [["free", t("g3CamFree")], ["top", t("g3CamTop")], ["centre", t("g3CamCentre")], ["chase", t("g3CamChase")]], (v) => setMapPref("camera", v), t("setMapCamera")))}
+      {row("setMapDrawing", seg(m.drawing, [["auto", t("setMapDrawAuto")], ["flat", t("setMapDrawFlat")]], (v) => setMapPref("drawing", v), t("setMapDrawing")), "setMapDrawingHint")}
+      {row("setMapRelation", seg(m.relation, [["shown", t("setShown")], ["hidden", t("setHidden")]], (v) => setMapPref("relation", v), t("setMapRelation")))}
+      {row("setMapNames", seg(m.names, [["shown", t("setShown")], ["hidden", t("setHidden")]], (v) => setMapPref("names", v), t("setMapNames")))}
+      {row("setMapTrack", seg(m.trackWidth, MAP_CHOICES.trackWidth.map((w) => [w, `\u2066${w} px\u2069`] as [number, string]), (v) => setMapPref("trackWidth", v), t("setMapTrack")))}
+      {row("setMapModel", seg(m.modelSize, [[26, t("setSizeMedium")], [18, t("setSizeSmall")], [36, t("setSizeLarge")]], (v) => setMapPref("modelSize", v), t("setMapModel")))}
+      {row("setMapUnits", seg(m.units, [["metric", t("setUnitsMetric")], ["imperial", t("setUnitsImperial")]], (v) => setMapPref("units", v), t("setMapUnits")))}
+      {row("setMapCoords", seg(m.coords, [["dd", t("setCoordsDd")], ["dms", t("setCoordsDms")], ["mgrs", t("setCoordsMgrs")]], (v) => setMapPref("coords", v), t("setMapCoords")), "setMapCoordsHint")}
+      {row("setMapElev", <span className="set-elev">
+        <input dir="ltr" value={elev} placeholder="~/.signalviewer/terrain" aria-label={t("setMapElev")} onChange={(e) => setElev(e.target.value)} onBlur={() => setElevationFolder(elev)} />
+        <button className="btn sm" onClick={async () => { const f = await pickPath({ mode: "folder", title: t("setMapElev") }); if (f) { setElev(f); setElevationFolder(f); } }}>{t("setMapElevPick")}</button>
+      </span>, "setMapElevHint")}
+      {row("setMapRate", seg(m.rate, MAP_CHOICES.rate.map((r) => [r, `\u2066${r}${t("setMapRateUnit")}\u2069`] as [number, string]), (v) => setMapPref("rate", v), t("setMapRate")))}
+      {row("setMapStory", <span className="set-story">
+        {seg(m.story, [["on", t("setOn")], ["off", t("setOff")]], (v) => setMapPref("story", v), t("setMapStory"))}
+        {m.story === "on" && seg(m.storyLength, [[90, t("setStory90")], [45, t("setStory45")], [180, t("setStory180")]], (v) => setMapPref("storyLength", v), t("setMapStory"))}
+      </span>, "setMapStoryHint")}
+    </section>
   );
 }
 
@@ -98,6 +137,7 @@ export default function SettingsDialog() {
             </span></div>
           <div className="set-row"><span>{t("setSmoothFollow")}<small>{t("setSmoothFollowHint")}</small></span>
             {seg(smoothFollow ? "on" : "off", [["on", t("setSmoothFollowOn")], ["off", t("setSmoothFollowOff")]], (v) => useApp.setState({ smoothFollow: v === "on" }), t("setSmoothFollow"))}</div>
+          <MapSection seg={seg} />
           <p className="hint">{t("setKept")}</p>
           <StorageSection />
         </div>

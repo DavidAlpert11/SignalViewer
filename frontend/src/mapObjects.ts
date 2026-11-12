@@ -1,4 +1,5 @@
 import type { RunInfo } from "./api";
+import { fmtDistance as fmtDistanceUnits } from "./mapDefaults";
 import type { MapObject } from "./store";
 import { detectObjects } from "./objectDetect";
 
@@ -245,6 +246,30 @@ export function bearing(lat1: number, lon1: number, lat2: number, lon2: number):
 }
 /** Metres as "850 m" / "12.35 km". */
 export function fmtDistance(m: number, lang: string): string {
-  const loc = lang === "he" ? "he-IL" : "en-US";
-  return Math.abs(m) < 1000 ? `${Math.round(m).toLocaleString(loc)} m` : `${(m / 1000).toLocaleString(loc, { maximumFractionDigits: 2, minimumFractionDigits: 2 })} km`;
+  return fmtDistanceUnits(m, lang);                // P8: metres / km or feet / NM - mapDefaults.ts is the one formatter
+}
+
+/** P6: the objects a map draws - every one not hidden. Drawing loops and Fit use this; lookups of
+ *  another object (a borrowed attitude, the pair) use the whole list. */
+export function shownObjects(plot: { objects?: MapObject[] }): MapObject[] {
+  return (plot.objects ?? []).filter((o) => !o.hidden);
+}
+
+/** P4 (1.26): the Map is the 3D view. A plot is "the Map" when it is a 3D map, or a map ("geo") with objects
+ *  (a 2D-era map: drawn in 3D, From above). A map without objects stays the plain lon / lat X-Y on a map. */
+export function isMapPlot(p: { mode?: string; objects?: MapObject[] }): boolean {
+  return p.mode === "3d" || (p.mode === "geo" && (p.objects?.length ?? 0) > 0);
+}
+
+export type MapCamera = "free" | "top" | "centre" | "chase" | "lookat" | "cockpit";
+
+/** P4: the Map's camera - General, From above, On the object, Chase (Look at: from one object to another).
+ *  Saved values are unchanged: absent on a "geo" plot = From above (it was a 2D map), absent on a "3d" plot
+ *  = General or, with a followed object, On the object (as before). */
+export function mapCamera(p: { mode?: string; camera?: string; followObject?: string | null }): MapCamera {
+  if (p.camera === "top") return "top";
+  if (p.camera === "free") return "free";
+  if (!p.camera && p.mode === "geo") return "top";
+  if (!p.followObject) return "free";
+  return p.camera === "chase" ? "chase" : p.camera === "lookat" ? "lookat" : p.camera === "cockpit" ? "cockpit" : "centre";
 }

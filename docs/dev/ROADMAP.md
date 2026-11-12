@@ -867,3 +867,17 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] Every HTML report is live (one time bar; tables and a zoom per plot kept). Done 2026-11-11.
 - [x] Python / CLI (`scene_image`, `scene_html`, `map --3d`), docs, README. Done 2026-11-11.
 - [ ] XYZ live in the page; shared tiles and a size budget per page; the app's screenshot as the static 3D picture (next round).
+
+## Milestone 30 — the Map in 3D worth a "wow", Tacview that opens, damaged logs that still load (owner's round 2026-11-12). Spec: docs/dev/AGENT_PROMPT_2026-11-12.md.
+- [x] P1 Tacview: `Name` a model Tacview draws, `CallSign` the name, 3-field `T=` without attitude, the ACMI checker; Tacview CSV and KML in one *Export the flight* submenu. Done 2026-11-12.
+- [x] P2 One "is this a position" rule (0, 0 / out of range / not finite is a gap); *Add all* leaves such objects out. Done 2026-11-12.
+- [x] P3 A .bin with one faulty message type loads (a mis-written length, an FMT whose names do not match, no FMT). Done 2026-11-12.
+- [x] P4 One Map, drawn in 3D (From above for 2D; flat only where 3D cannot draw); the mouse readout. Done 2026-11-12.
+- [x] P5 Relief anywhere (terrarium tiles when the network is allowed, `.hgt` files); the page's far ground, sky, fog. Done 2026-11-12.
+- [x] P6 Hide / show objects (the eye; the pages' legend). Done 2026-11-12.
+- [x] P7 Places: My places + the session's, the Places panel, import / export, drawn everywhere, the readout and relation box know them. Done 2026-11-12.
+- [x] P8 Settings > Map and objects (`mapDefaults.ts`; m-km / ft-NM, decimal / DMS / MGRS). Done 2026-11-12.
+- [x] P9 The wow: sun, sky, shadows, drop lines, the last 10 s, flights, Cockpit, the flight display, the mini-map, the error surface. Done 2026-11-12.
+- [x] P10 Story mode: moments (`svcore/story.py`), the live page's player, the app's Story, PDF / Word "The flight in N moments". Done 2026-11-12.
+- [x] P11 Docs, guides, README pictures 36 / 37, the full backend and e2e runs. Done 2026-11-12.
+- [ ] Next (owner to choose): the default theme / language of an exported page, *Ask before closing with unsaved changes*, the app's *Heights* (Cesium exaggeration with the tracks), arrows in 3D, the mouse readout in the offline 3D page, the frame-rate check of P9 on a real graphics card; the ideas of the spec's §H.

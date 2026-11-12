@@ -155,3 +155,25 @@ def test_both_pages_share_the_toolbar_and_the_relation_box(rid):
     assert d3["pair"] == d2["pair"] == {"primary": "GPS[0]", "secondary": "POS"}
     assert [o["track"] for o in d3["objects"]] == [o["track"] for o in d2["objects"]] == [None, "points"]
     assert d2["S"]["camClose"] == "מרדף" and d3["S"]["camClose"] == "Chase"            # the app's words (g3CamChase)
+
+
+def test_sun_where_it_was():
+    """P9: NOAA's low-precision sun - two known values (within 0.5°) and the fixed mid-morning sun."""
+    import datetime as dt
+    f = lambda *a: dt.datetime(*a, tzinfo=dt.timezone.utc).timestamp()     # noqa: E731
+    az, el = scene3d.sun_position(f(2026, 6, 21, 12, 0), 51.48, 0.0)          # Greenwich at the solstice, noon
+    assert el == pytest.approx(90 - 51.48 + 23.44, abs=0.5) and az == pytest.approx(180, abs=2)
+    az, el = scene3d.sun_position(f(2026, 3, 20, 12, 7), 0.0, 0.0)           # the equator at the equinox, solar noon
+    assert el == pytest.approx(90, abs=1.0)
+    s = scene3d.scene_sun(150.0, 32.69, 35.39)                                # no date: 10:00 local solar at the equinox
+    assert not s["dated"] and 90 < s["az"] < 150 and 35 < s["el"] < 55
+    s = scene3d.scene_sun(f(2026, 6, 21, 6, 0), 32.0, 35.0)                   # a dated recording: its own sun
+    assert s["dated"] and s["az"] == pytest.approx(85, abs=3) and s["el"] == pytest.approx(41, abs=2)
+
+
+def test_scene_page_has_its_sun_and_wow(rid):
+    sd = scene3d.scene_data(store, spec3d(rid))
+    assert set(sd["sun"]) == {"az", "el", "dated"}
+    html = scene3d.build_html(sd, "light", "en", fallback_png=b"x")
+    for k in ('data-cam="cockpit"', 'id="disp"', 'id="errs"', 'id="mini"', "glideTo", '"sun":'):
+        assert k in html, k

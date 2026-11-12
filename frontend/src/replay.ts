@@ -67,7 +67,9 @@ export function replayInfo(lang: Lang, compact: boolean) {
     t: findingTime(f) + (st.logs[r.id]?.timeOffset || 0), text: findingText(tr, f), level: f.level })));
   const shown = Object.values(st.ranges)[0] ?? null;
   return { t: replayMoment(st.cursor, shown), extent: recordingExtent(st.runs), events: replayEvents(logs, findings, st.ws.notes ?? []),
-    compact, link: compact };
+    compact, link: compact,
+    // P10: the page's ▶ Story, as Settings > Map and objects says (on / off, how long)
+    story: st.mapPrefs.story === "on", storyLength: st.mapPrefs.storyLength };
 }
 
 /** What the server needs (POST /api/report with `replay`). */

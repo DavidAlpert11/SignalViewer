@@ -1,9 +1,10 @@
 import { translate, type TKey } from "./i18n";
+import { newObjectLook } from "./mapDefaults";
 import { TRACE_COLORS, uid, useApp, type MapObject, type Plot } from "./store";
 import { createFrameGroup, frameGroupName } from "./frames";
 import { trackOfClass } from "./mapObjects";
 import { ATT_ROLES, QUAT, VEC_ROLES, type Candidate, type DetRole } from "./objectDetect";
-import type { SignalInfo } from "./api";
+import { api, type SignalInfo } from "./api";
 
 /* N5: what the found list adds, and the words of its *Why?* - shared by the dialog and the template. */
 
@@ -78,7 +79,8 @@ export async function candidateObject(c: Candidate, color: string, name = c.name
     [lat, lon, alt] = [f[0], f[1], f[2] ?? null];
   }
   return {
-    id: uid("o"), name, kind: "aircraft", color, lat: lat!, lon: lon!, alt,
+    // P8: the icon (and size) a new object of its class gets - Settings > Map and objects
+    id: uid("o"), name, ...newObjectLook(c.cls), color, lat: lat!, lon: lon!, alt,
     yaw: id("yaw"), pitch: id("pitch"), roll: id("roll"), qw: id("qw"), qx: id("qx"), qy: id("qy"), qz: id("qz"),
     angleUnit: "auto", trail: true, cls: c.cls,
     ...(c.picks.vn && c.picks.ve ? { vel: [c.picks.vn.id, c.picks.ve.id, c.picks.vd?.id ?? null] as [string, string, string | null] } : {}),
@@ -99,6 +101,42 @@ export function linkAttitudes(pairs: { c: Candidate; o: MapObject; from?: string
     if (src) p.o.attitudeSource = { object: src.id };
   }
   return pairs.map((p) => p.o);
+}
+
+/** P2: how many of a candidate's samples are positions (the backend's one rule: 0, 0 / out of range /
+ *  not finite is no position). Only latitude / longitude candidates are asked; a position in metres
+ *  (made into lat / lon by a frame group) is taken as having positions. Detection itself stays by names. */
+export type PositionCounts = Record<string, { valid: number; total: number }>;
+export async function positionCounts(cands: Candidate[]): Promise<PositionCounts> {
+  const ask = cands.filter((c) => c.pos === "lla" && c.picks.lat && c.picks.lon);
+  if (!ask.length) return {};
+  try {
+    const r = await api.objectPositions(ask.map((c) => ({ lat: c.picks.lat!.id, lon: c.picks.lon!.id })));
+    return Object.fromEntries(ask.map((c, i) => [c.key, r.objects[i]]));
+  } catch { return {}; }                          // not known: nothing is held back
+}
+
+/** P2: the candidates split by their positions: none (not added), few (< 2 % valid: added, with a
+ *  note), the rest. Unknown counts are kept. */
+export function byPosition<C extends { key: string }>(cands: C[], counts: PositionCounts) {
+  const none: C[] = [], few: C[] = [], keep: C[] = [];
+  for (const c of cands) {
+    const n = counts[c.key];
+    if (n && n.valid === 0) none.push(c);
+    else {
+      keep.push(c);
+      if (n && n.total > 0 && n.valid / n.total < 0.02) few.push(c);
+    }
+  }
+  return { keep, none, few };
+}
+
+/** P2: the toast's note on the objects left out / added with few positions ("" when none). */
+export function positionNote(none: { name: string }[], few: { name: string }[], lang: Lang): string {
+  const out: string[] = [];
+  if (none.length) out.push(translate(lang, none.length === 1 ? "objNoPositionOne" : "objNoPositionN", { list: none.map((c) => c.name).join(", ") }));
+  if (few.length) out.push(translate(lang, "objFewPositions", { list: few.map((c) => c.name).join(", ") }));
+  return out.join(" ");
 }
 
 /** "phys (truth), nav (navigation), gps (receiver)" - for a toast. */

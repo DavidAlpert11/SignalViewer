@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import app  # noqa: E402
 from svcore.acmi import acmi_color, text, write_acmi  # noqa: E402
+from svcore.acmi_check import check  # noqa: E402
 
 client = TestClient(app)
 EX = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "three_objects.csv")
@@ -27,10 +28,11 @@ def test_a_known_small_file():
         "0,ReferenceTime=2000-01-01T00:00:00Z\n0,ReferenceLongitude=35\n0,ReferenceLatitude=32\n"
         "0,DataSource=Signal Viewer 1.24.0\n0,DataRecorder=Signal Viewer 1.24.0\n0,Title=Test\n"
         "#0\n"
-        "101,T=0.25|0.5|100|10|1|350,Type=Air+FixedWing,Name=Truth\\, main,Color=Blue\n"
-        "102,T=0.3|0.6|0,Type=Sea+Watercraft,Name=Boat,Color=Orange\n"
+        "101,T=0.25|0.5|100|10|1|350,Type=Air+FixedWing,Name=C172,CallSign=Truth\\, main,Color=Blue\n"
+        "102,T=0.3|0.6|0,Type=Sea+Watercraft,Name=Zodiac,CallSign=Boat,Color=Orange\n"
         "#0.5\n101,T=0.25|0.5001|101|20|2|0\n102,T=0.3|0.6|0\n"
-        "#1\n101,T=0.25|0.5002|102|30|3|10\n-102\n")
+        "#1\n-102\n101,T=0.25|0.5002|102|30|3|10\n")
+    assert check(body) == []
 
 
 def test_epoch_times_set_the_reference_time_and_angles_wrap():
@@ -40,8 +42,8 @@ def test_epoch_times_set_the_reference_time_and_angles_wrap():
     lines = write_acmi([o], rate=1).splitlines()
     assert "0,ReferenceTime=2023-11-14T22:13:20Z" in lines
     assert "0,ReferenceLongitude=-71" in lines and "0,ReferenceLatitude=-11" in lines
-    assert lines[lines.index("#0.25") + 1].startswith("101,T=0.75|0.5|5|-170|0|359,Type=Air+Rotorcraft,Name=A,Color=Green")
-    assert lines[lines.index("#1.25") + 1] == "101,T=0.75|0.5|5|-170||1"    # 190 is -170; no pitch: left empty (kept)
+    assert lines[lines.index("#0.25") + 1].startswith("101,T=0.75|0.5|5|-170|0|359,Type=Air+Rotorcraft,Name=DJI300,CallSign=A,Color=Green")
+    assert lines[lines.index("#1.25") + 1] == "101,T=0.75|0.5|5|-170|0|1"    # 190 is -170; no pitch: level, never an empty field
 
 
 def test_colours_and_text():
@@ -68,7 +70,8 @@ def test_export_the_objects_of_a_recording(tmp_path):
         assert raw.startswith(b"\xef\xbb\xbfFileType=text/acmi/tacview\nFileVersion=2.2\n") and b"\r\n" not in raw
         lines = raw.decode("utf-8-sig").splitlines()
         first = next(x for x in lines if x.startswith("101,"))
-        assert ",Type=Air+FixedWing,Name=phys,Color=Blue,Group=truth" in first
+        assert ",Type=Air+FixedWing,Name=C172,CallSign=phys,Color=Blue,Group=truth" in first
+        assert check(raw.decode("utf-8-sig")) == []
         f = first.split(",")[1][2:].split("|")
         assert len(f) == 6 and abs(float(f[3]) + 31.46) < 0.01 and abs(float(f[2]) - 300) < 0.01   # roll, altitude
         assert any(x.startswith("102,") and "Group=receiver" in x for x in lines)

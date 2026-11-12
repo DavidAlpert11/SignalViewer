@@ -1,4 +1,4 @@
-"""1.26: one Map with a 2D | 3D switch ("3D" alone is XYZ); the 3D view is in reports (it was left out without a
+"""1.26: one Map - P4: it is the 3D view, "2D" is its From above camera (no 2D | 3D switch; "3D" alone is XYZ); the 3D view is in reports (it was left out without a
 word); an HTML report is one live page - its bar moves the time plots and the 3D view (which falls back to its
 picture where the browser has no WebGL).
 
@@ -21,16 +21,16 @@ def map_and_line(pg):
       s.commit((ws) => { const p = ws.tabs[0].plots[1]; p.mode = 'geo';
         p.objects = [{ id: 'o1', name: 'Plane', kind: 'aircraft', color: '#e5677a', lat: run.id + '/Lat', lon: run.id + '/Lon' },
                      { id: 'o2', name: 'Chase', kind: 'aircraft', color: '#3d8bfd', track: 'dash', lat: run.id + '/Lat', lon: run.id + '/Lon' }]; return ws; }); }""")
-    pg.wait_for_selector(".plot .map-view")
+    pg.wait_for_selector(".plot .map-bar")
 
 
-def test_one_map_two_views(pg):
+def test_one_map(pg):
+    """P4 (adapted from test_one_map_two_views): no 2D | 3D switch - a map with objects is the Map (the 3D
+    view; here, without WebGL, its flat drawing with its quiet line)."""
     map_and_line(pg)
     geo = pg.locator(".plot").nth(1)
     assert geo.locator(".mode-btn").inner_text().strip() == "Map"
-    geo.locator(".map-view button", has_text="3D").click()
-    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[1].mode === '3d'")
-    assert geo.locator(".mode-btn").inner_text().strip() == "Map"                  # still the Map, seen in 3D
+    assert geo.locator(".map-view").count() == 0
     assert S(pg, "s.ws.tabs[0].plots[1].objects.length") == 2                       # the objects stay
     # 1.26: the relation box in 3D as on the 2D map; the same Relation button hides / shows it in both
     pg.wait_for_selector(".plot .rel-panel")
@@ -42,17 +42,14 @@ def test_one_map_two_views(pg):
     assert any("Map" in i for i in items) and any(i.strip().startswith("3D (XYZ)") for i in items)
     assert not any(i.strip() == "3D" for i in items)                                 # no second "3D" kind
     pg.keyboard.press("Escape")
-    geo.locator(".map-view button", has_text="2D").click()
-    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[1].mode === 'geo'")
-    assert pg.locator(".plot .rel-panel").count() == 0                             # hidden on the 2D map too
     geo.locator(".rel-toggle").click()
     pg.wait_for_selector(".plot .rel-panel")
 
 
-def test_one_bar_for_2d_and_3d(pg):
-    """1.26: the map's bar is the same in 2D and in 3D - camera General / On the object / Chase on the chosen
-    object, + − fit, Relation - and the camera stays when the view changes; Chase in 2D is close and track up;
-    "Closest in" in the relation box moves the cursor."""
+def test_one_bar(pg):
+    """P4 (adapted from test_one_bar_for_2d_and_3d): the Map's bar - camera General / From above / On the
+    object / Chase on the chosen object, + − fit, Relation; a 2D-era map opens From above; Chase in the flat
+    drawing is close and track up."""
     map_and_line(pg)
     geo = pg.locator(".plot").nth(1)
     def bar():
@@ -61,22 +58,20 @@ def test_one_bar_for_2d_and_3d(pg):
         return [b.locator(".g3-seg").first.locator("button").all_inner_texts(), b.locator(".geo-zoom-in, .geo-zoom-out, .geo-fit, .rel-toggle").count(),
                 b.locator("select.geo-follow option").all_inner_texts()]
     two = bar()
-    assert two == [["General", "On the object", "Chase"], 4, ["Plane", "Chase"]], two
+    assert two == [["General", "From above", "On the object", "Chase", "Cockpit"], 4, ["Plane", "Chase"]], two   # P9: Cockpit
+    assert "on" in (geo.locator(".map-bar .g3-cam-top").get_attribute("class") or "")   # a 2D-era map: From above
     geo.locator(".map-bar .g3-cam-chase").click()
     pg.wait_for_function("(() => { const p = window.__sv.state().ws.tabs[0].plots[1]; return p.camera === 'chase' && p.followObject === 'o1'; })()")
-    assert "on" in (geo.locator(".geo-up").get_attribute("class") or "")             # Chase in 2D: track up
-    geo.locator(".map-view button", has_text="3D").click()
-    pg.wait_for_selector(".plot .globe3d-bar")
-    assert bar() == two                                                               # the same bar in 3D
-    assert "on" in (geo.locator(".globe3d-bar .g3-cam-chase").get_attribute("class") or "")   # the camera kept
+    if geo.locator(".geo-up").count():
+        assert "on" in (geo.locator(".geo-up").get_attribute("class") or "")         # Chase, drawn flat: track up
     geo.locator(".map-bar button", has_text="General").click()
-    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[1].followObject === null")
+    pg.wait_for_function("(() => { const p = window.__sv.state().ws.tabs[0].plots[1]; return p.followObject === null && p.camera === 'free'; })()")
+    geo.locator(".map-bar .g3-cam-top").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[1].camera === 'top'")
 
 
 def test_live_html_report_with_the_3d_view(pg):
-    map_and_line(pg)
-    pg.locator(".plot").nth(1).locator(".map-view button", has_text="3D").click()
-    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[1].mode === '3d'")
+    map_and_line(pg)                                                                  # P4: the Map goes out as the 3D page
     pg.click(".rail [aria-label='Report'], .rail button:has-text('Report')")
     assert pg.locator(".rplot").count() == 2                                         # the 3D view is listed
     pg.locator(".btn.primary", has_text="Create interactive HTML").click()
@@ -110,6 +105,6 @@ def test_live_html_report_with_the_3d_view(pg):
         fr.locator("#trail").select_option("20")
         assert fr.evaluate("window.__page.trail()") == 20
         # the same toolbar in the 3D page as in the 2D map's page, with the app's words
-        assert fr.locator("#cam button").all_inner_texts() == ["General", "On the object", "Chase"]
+        assert fr.locator("#cam button").all_inner_texts()[:3] == ["General", "On the object", "Chase"]   # (+ Cockpit in 3D, P9)
     finally:
         page.close()

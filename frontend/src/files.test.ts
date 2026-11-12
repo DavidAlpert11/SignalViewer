@@ -13,7 +13,7 @@ vi.mock("./api", async (orig) => {
     listRuns: vi.fn(async () => [restored]),
   } };
 });
-const { applyState, currentState, legacyUnitNames } = await import("./files");
+const { applyState, currentState, faultyNotes, legacyUnitNames } = await import("./files");
 
 describe("legacyUnitNames (sessions of 1.20 and before)", () => {
   const runs = [{ id: "r1", format: "bin", signals: [{ name: "ATT.Yaw [deg]" }, { name: "MSG.Message" }] }];
@@ -49,5 +49,29 @@ describe("applyState", () => {
     const s = currentState();
     expect(Object.keys(s).sort()).toEqual(["derived", "journal", "runs", "transforms", "ui", "ws"]);
     expect(s.runs[0]).toMatchObject({ id: "r1", path: restored.path });
+  });
+});
+
+describe("faultyNotes (P3: one message type written with the wrong length)", () => {
+  test("names the type and both lengths, en and he; an unreadable type; the readable share", () => {
+    const rep = { faultyMessages: [{ name: "CTUN", declared: 43, written: 47 }, { name: "XKQ", declared: 20 }], readableShare: 0.624 };
+    const en = faultyNotes(rep, "en");
+    expect(en[0]).toContain("CTUN");
+    expect(en[0]).toContain("47");
+    expect(en[0]).toContain("43");
+    expect(en[1]).toBe("Message XKQ could not be read and was left out");
+    expect(en[2]).toBe("62 % of the log was readable");
+    const he = faultyNotes(rep, "he");
+    expect(he).toHaveLength(3);
+    expect(he[0]).toContain("CTUN");
+  });
+  test("the owner's fault: more column names than values; a type with no format", () => {
+    const en = faultyNotes({ faultyMessages: [{ name: "CTUN", names: 12, fields: 9 }, { name: "#141", written: 43, noFormat: true }] }, "en");
+    expect(en[0]).toContain("CTUN lists 12 column names for 9 values");
+    expect(en[1]).toBe("A message type with no format (#141, 43 bytes) was skipped; everything else is read.");
+    expect(faultyNotes({ faultyMessages: [{ name: "CTUN", names: 12, fields: 9 }] }, "he")[0]).toContain("12");
+  });
+  test("a clean report: nothing", () => {
+    expect(faultyNotes({}, "en")).toEqual([]);
   });
 });

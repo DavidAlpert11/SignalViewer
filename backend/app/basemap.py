@@ -16,6 +16,7 @@ import json
 import math
 import os
 import threading
+import time
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -390,17 +391,31 @@ def terrain_tile(z: int, x: int, y: int) -> Optional[bytes]:
     w, n = -180 + x * d, 90 - y * d
     lon = np.linspace(w, w + d, TERRAIN_SIZE)
     lat = np.clip(np.linspace(n, n - d, TERRAIN_SIZE), -85, 85)
-    H, _ = _sample_grid(lat, lon, d / (TERRAIN_SIZE - 1))
+    H, G = _sample_grid(lat, lon, d / (TERRAIN_SIZE - 1))
+    step_m = d / (TERRAIN_SIZE - 1) * 111_320
+    if step_m < 5_000 and (G == 0).any():                # P5: where only the world grid had it, finer sources
+        LA, LO = np.meshgrid(lat, lon, indexing="ij")
+        m = G == 0
+        v = _extra_heights(LA[m].astype(np.float64), LO[m].astype(np.float64), step_m)
+        H[m] = np.where(np.isfinite(v), v, H[m])
     return _sea_level(H, lat, lon).astype(np.float32).tobytes()
 
 
-def ground_at(lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
-    """Ground height (m above sea level) under each point, from the finest grid that has it."""
+def ground_at(lat: np.ndarray, lon: np.ndarray, step_m: Optional[float] = None, fetch: bool = True) -> np.ndarray:
+    """Ground height (m above sea level) under each point: a bundled fine grid, else the user's elevation
+    files or terrarium tiles (P5; `step_m`: the spacing wanted - a coarse grid asks coarser tiles), else the
+    bundled world grid."""
+    lat = np.asarray(lat, dtype=np.float64)
+    lon = np.asarray(lon, dtype=np.float64)
     if not available():
         return np.full(len(lat), np.nan, dtype=np.float32)
     _load()
     out = np.full(len(lat), np.nan, dtype=np.float32)
     for g in reversed(_grids or []):
+        if g["name"] == "world":
+            todo = np.isnan(out)
+            if todo.any():
+                out[todo] = _extra_heights(lat[todo], lon[todo], step_m, fetch)
         s, w, n, e = g["b"]
         todo = np.isnan(out) & np.isfinite(lat) & np.isfinite(lon) & (lat >= s) & (lat <= n) & (lon >= w) & (lon <= e)
         if not todo.any():
@@ -415,3 +430,243 @@ def ground_at(lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
              + h[r0 + 1, c0] * (1 - fc) * fr + h[r0 + 1, c0 + 1] * fc * fr)
         out[todo] = v
     return _sea_level(out, lat, lon).astype(np.float32)
+
+
+# ------------------------------------------------------------------ P5: elevation beyond the bundled grids
+# The ground is the finest of: a bundled fine grid (the packs) -> the user's elevation files (SRTM .hgt) ->
+# terrarium tiles (fetched only when the network is allowed, kept in the tile cache like any online
+# layer) -> the bundled coarse world grid (11 km). A fetch never blocks: an answer comes from what is
+# there now and the next request is finer; `terrain_version()` changes when new heights arrived.
+TERRARIUM_Z = 12                                      # ~38 m a pixel at the equator
+_TR_MEM: "Dict[Tuple[int, int, int], Optional[np.ndarray]]" = {}
+_TR_PENDING: set = set()
+_TR_LOCK = threading.Lock()
+_TR_THREADS: List[threading.Thread] = []
+_terrain_version = 0
+_HGT: "Dict[str, Tuple[float, Optional[np.ndarray]]]" = {}
+
+
+def terrain_version() -> int:
+    """Changes each time fetched elevation arrives (the 3D view asks its terrain again)."""
+    return _terrain_version
+
+
+def elevation_folder() -> str:
+    """The folder of the user's elevation files (Settings *Elevation files*; default ~/.signalviewer/terrain)."""
+    from app import prefs
+    try:
+        f = prefs.ui_settings().get("elevationFolder")
+    except Exception:
+        f = None
+    return os.path.expanduser(f) if isinstance(f, str) and f.strip() else os.path.join(prefs.APP_DIR, "terrain")
+
+
+def elevation_files() -> List[dict]:
+    """The .hgt files found (SRTM: 1201 x 1201 = 3", 3601 x 3601 = 1"): [{name, lat, lon, step}] - the
+    Settings list them."""
+    folder = elevation_folder()
+    out = []
+    try:
+        names = sorted(os.listdir(folder))
+    except OSError:
+        return []
+    for n in names:
+        key = _hgt_key(n)
+        if key is None:
+            continue
+        size = os.path.getsize(os.path.join(folder, n))
+        side = {1201 * 1201 * 2: 1201, 3601 * 3601 * 2: 3601}.get(size)
+        if side:
+            out.append({"name": n, "lat": key[0], "lon": key[1], "step": round(111_320 / (side - 1), 1)})
+    return out
+
+
+def _hgt_key(name: str) -> Optional[Tuple[int, int]]:
+    import re as _re
+    m = _re.fullmatch(r"([NS])(\d{2})([EW])(\d{3})\.hgt", name, flags=_re.I)
+    if not m:
+        return None
+    lat = int(m.group(2)) * (1 if m.group(1).upper() == "N" else -1)
+    lon = int(m.group(4)) * (1 if m.group(3).upper() == "E" else -1)
+    return lat, lon
+
+
+def _hgt_name(lat0: int, lon0: int) -> str:
+    return f"{'N' if lat0 >= 0 else 'S'}{abs(lat0):02d}{'E' if lon0 >= 0 else 'W'}{abs(lon0):03d}.hgt"
+
+
+def _hgt(lat0: int, lon0: int) -> Optional[np.ndarray]:
+    """The heights of one .hgt file (north row first), NaN for its voids; None when there is none."""
+    folder = elevation_folder()
+    path = os.path.join(folder, _hgt_name(lat0, lon0))
+    if not os.path.isfile(path):
+        path = os.path.join(folder, _hgt_name(lat0, lon0).lower())
+        if not os.path.isfile(path):
+            return None
+    mt = os.path.getmtime(path)
+    got = _HGT.get(path)
+    if got and got[0] == mt:
+        return got[1]
+    raw = np.fromfile(path, dtype=">i2")
+    side = int(round(math.sqrt(len(raw))))
+    arr = None
+    if side * side == len(raw) and side in (1201, 3601):
+        arr = raw.reshape(side, side).astype(np.float32)
+        arr[arr == -32768] = np.nan
+    _HGT[path] = (mt, arr)
+    return arr
+
+
+def _hgt_heights(lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
+    out = np.full(len(lat), np.nan, dtype=np.float32)
+    ok = np.isfinite(lat) & np.isfinite(lon)
+    if not ok.any() or not os.path.isdir(elevation_folder()):
+        return out
+    la0, lo0 = np.floor(lat[ok]).astype(int), np.floor(lon[ok]).astype(int)
+    idx = np.flatnonzero(ok)
+    for a, b in set(zip(la0.tolist(), lo0.tolist())):
+        h = _hgt(a, b)
+        if h is None:
+            continue
+        sel = (la0 == a) & (lo0 == b)
+        n = h.shape[0] - 1
+        r = (a + 1 - lat[idx[sel]]) * n
+        c = (lon[idx[sel]] - b) * n
+        out[idx[sel]] = _bilinear(h, r, c)
+    return out
+
+
+def _bilinear(h: np.ndarray, r: np.ndarray, c: np.ndarray) -> np.ndarray:
+    r0 = np.clip(np.floor(r).astype(int), 0, h.shape[0] - 2)
+    c0 = np.clip(np.floor(c).astype(int), 0, h.shape[1] - 2)
+    fr, fc = np.clip(r - r0, 0, 1), np.clip(c - c0, 0, 1)
+    return (h[r0, c0] * (1 - fc) * (1 - fr) + h[r0, c0 + 1] * fc * (1 - fr)
+            + h[r0 + 1, c0] * (1 - fc) * fr + h[r0 + 1, c0 + 1] * fc * fr).astype(np.float32)
+
+
+def _tr_path(z: int, x: int, y: int) -> str:
+    from app import tiles
+    return os.path.join(tiles.CACHE, "terrarium", str(z), str(x), f"{y}.png")
+
+
+def _tr_decode(data: bytes) -> Optional[np.ndarray]:
+    try:
+        from PIL import Image
+        import io as _io
+        a = np.asarray(Image.open(_io.BytesIO(data)).convert("RGB"), dtype=np.float32)
+    except Exception:
+        return None
+    return a[:, :, 0] * 256.0 + a[:, :, 1] + a[:, :, 2] / 256.0 - 32768.0
+
+
+def _tr_tile(z: int, x: int, y: int, fetch: bool) -> Optional[np.ndarray]:
+    """A terrarium tile's heights: memory, then the tile cache; when missing (and allowed), fetched in the
+    background - this call answers None now."""
+    key = (z, x, y)
+    if key in _TR_MEM:
+        return _TR_MEM[key]
+    path = _tr_path(z, x, y)
+    if os.path.isfile(path):
+        with open(path, "rb") as f:
+            arr = _tr_decode(f.read())
+        if len(_TR_MEM) > 256:
+            _TR_MEM.clear()
+        _TR_MEM[key] = arr
+        return arr
+    if fetch:
+        _tr_fetch_later(z, x, y)
+    return None
+
+
+def _tr_fetch_later(z: int, x: int, y: int) -> None:
+    from app import tiles
+    if not tiles.network_allowed():
+        return
+    with _TR_LOCK:
+        if (z, x, y) in _TR_PENDING or len(_TR_PENDING) > 64:
+            return
+        _TR_PENDING.add((z, x, y))
+
+    def run():
+        global _terrain_version
+        try:
+            got = tiles.tile("terrarium", z, x, y)          # the cache, the policy, the fetch: one place
+            if got:
+                _terrain_version += 1
+        finally:
+            with _TR_LOCK:
+                _TR_PENDING.discard((z, x, y))
+    th = threading.Thread(target=run, daemon=True)
+    _TR_THREADS.append(th)
+    th.start()
+
+
+def wait_terrain(timeout: float = 10.0) -> None:
+    """Wait for the background fetches started so far (tests; a report that wants the finer ground)."""
+    end = time.time() + timeout
+    while _TR_THREADS:
+        th = _TR_THREADS.pop()
+        th.join(max(0.0, end - time.time()))
+
+
+def _terrarium_z(step_m: Optional[float]) -> int:
+    """The tile level whose pixel is about half of `step_m` (no finer than TERRARIUM_Z)."""
+    if not step_m:
+        return TERRARIUM_Z
+    z = int(math.floor(math.log2(156_543.0 / max(step_m / 2, 1.0))))
+    return max(0, min(TERRARIUM_Z, z))
+
+
+def _terrarium_heights(lat: np.ndarray, lon: np.ndarray, z: int = TERRARIUM_Z, fetch: bool = True) -> np.ndarray:
+    out = np.full(len(lat), np.nan, dtype=np.float32)
+    ok = np.isfinite(lat) & np.isfinite(lon) & (np.abs(lat) < 85)
+    if not ok.any():
+        return out
+    n = 2 ** z
+    fx = (lon[ok] + 180) / 360 * n
+    fy = (1 - np.arcsinh(np.tan(np.radians(lat[ok]))) / math.pi) / 2 * n
+    tx, ty = np.floor(fx).astype(int) % n, np.clip(np.floor(fy).astype(int), 0, n - 1)
+    idx = np.flatnonzero(ok)
+    keys = set(zip(tx.tolist(), ty.tolist()))
+    if len(keys) > 400:                               # far too many tiles for this level: the caller's grid is coarse
+        return out
+    for x, y in keys:
+        h = _tr_tile(z, x, y, fetch)
+        if h is None:
+            continue
+        sel = (tx == x) & (ty == y)
+        size = h.shape[0]
+        out[idx[sel]] = _bilinear(h, (fy[sel] - y) * size - 0.5, (fx[sel] - x) * size - 0.5)
+    return out
+
+
+def _extra_heights(lat: np.ndarray, lon: np.ndarray, step_m: Optional[float] = None, fetch: bool = True) -> np.ndarray:
+    """The user's .hgt files, then terrarium tiles: NaN where neither has the point."""
+    out = _hgt_heights(lat, lon)
+    todo = np.isnan(out)
+    if todo.any():
+        out[todo] = _terrarium_heights(lat[todo], lon[todo], _terrarium_z(step_m), fetch)
+    return out
+
+
+def step_at(lat: float, lon: float) -> float:
+    """The step in metres of the best elevation source at a point (what the 3D view says about its ground).
+    Never fetches."""
+    _load()
+    for g in reversed(_grids or []):
+        if g["name"] == "world":
+            continue
+        s, w, n, e = g["b"]
+        if s <= lat <= n and w <= lon <= e:
+            return float(round(g["step"] * 111_320))
+    a, b = math.floor(lat), math.floor(lon)
+    h = _hgt(a, b)
+    if h is not None:
+        return float(round(111_320 / (h.shape[0] - 1)))
+    nz = 2 ** TERRARIUM_Z
+    x = int((lon + 180) / 360 * nz) % nz
+    y = int((1 - math.asinh(math.tan(math.radians(max(-85.0, min(85.0, lat))))) / math.pi) / 2 * nz)
+    if os.path.isfile(_tr_path(TERRARIUM_Z, x, y)):
+        return float(round(156_543.0 * math.cos(math.radians(lat)) / nz))
+    world = next((g for g in (_grids or []) if g["name"] == "world"), None)
+    return float(round((world["step"] if world else 0.1) * 111_320))

@@ -51,6 +51,47 @@ def _decimate(t: np.ndarray, *cols: np.ndarray, n: int = 3000):
     return (t[idx], *(c[idx] for c in cols))
 
 
+def page_places(geo: Dict) -> List[Dict]:
+    """P7: the places a page or picture draws (the app sends its shown ones): cleaned (svcore/places.py), a
+    point keeping the icon the app drew (an SVG data URL, small) for the offline pages."""
+    from svcore.places import clean_all
+    raw = [p for p in (geo.get("places") or []) if isinstance(p, dict)]
+    imgs = {str(p.get("id")): p.get("img") for p in raw}
+    out = [p for p in clean_all(raw) if p["kind"] != "view" and not p.get("hidden")]
+    for p in out:
+        im = imgs.get(p["id"])
+        if isinstance(im, str) and im.startswith("data:image/svg+xml") and len(im) < 8000:
+            p["img"] = im
+    return out
+
+
+def page_look(geo: Dict) -> Dict:
+    """P8: how the app's settings draw a map outside it - names shown, the track's width (px), units."""
+    tw = geo.get("trackWidth")
+    return {"names": geo.get("names") is not False, "trackWidth": float(tw) if isinstance(tw, (int, float)) and 0.5 <= tw <= 8 else 2.5,
+            "units": "imperial" if geo.get("units") == "imperial" else "metric"}
+
+
+def _draw_places(ax, places: List[Dict], scale: float, ink: str, paper: str) -> None:
+    """P7: the places on a flat picture - lines / areas, and points as a marker with the name."""
+    for p in places:
+        col = p.get("color") or "#d29922"
+        if p.get("points"):
+            la = [q[0] for q in p["points"]] + ([p["points"][0][0]] if p["kind"] == "area" else [])
+            lo = [q[1] for q in p["points"]] + ([p["points"][0][1]] if p["kind"] == "area" else [])
+            X, Y = mx(np.asarray(lo)), my(np.asarray(la))
+            if p["kind"] == "area":
+                ax.fill(X, Y, color=col, alpha=0.2, zorder=1.5, lw=0)
+            ax.plot(X, Y, color=col, lw=1.6 * scale, zorder=1.6)
+            k = len(p["points"]) // 2
+            x0, y0 = float(mx(p["points"][k][1])), float(my(p["points"][k][0]))
+        else:
+            x0, y0 = float(mx(p["lon"])), float(my(p["lat"]))
+            ax.plot([x0], [y0], marker="v", ms=8 * scale, mfc=col, mec=paper, mew=1.2 * scale, zorder=4)
+        ax.annotate(p["name"], (x0, y0), xytext=(6 * scale, 6 * scale), textcoords="offset points", fontsize=7.5 * scale,
+                    color=ink, zorder=4.5, bbox=dict(boxstyle="round,pad=0.15", fc=paper, ec="none", alpha=0.7))
+
+
 def map_data(store, spec: Dict) -> Dict:
     """The objects' tracks (decimated, finite points only), their markers at the cursor and the bounds."""
     from svcore.analysis import align_to
@@ -73,17 +114,18 @@ def map_data(store, spec: Dict) -> Dict:
             continue
         cols = [tl[ok], la[ok], lo[ok]] + ([al[ok]] if al is not None else [])
         d = _decimate(*cols)
-        objs.append({"name": str(o.get("name") or ""), "color": str(o.get("color") or "#3d8bfd"),
+        objs.append({"name": str(o.get("name") or ""), "color": str(o.get("color") or "#3d8bfd"), "hidden": bool(o.get("hidden")),
                      "track": o.get("track") if o.get("track") in ("dash", "points") else None,
                      "t": d[0], "lat": d[1], "lon": d[2], "alt": d[3] if al is not None else None})
     if not objs:
         raise ValueError("The map has no object with a position to draw.")
+    shown = [o for o in objs if not o["hidden"]] or objs      # P6: Fit leaves hidden objects out
     b = geo.get("bounds")
     if b and len(b) == 4 and all(isinstance(v, (int, float)) for v in b):
         s_, w_, n_, e_ = (float(v) for v in b)
     else:
-        lat_all = np.concatenate([o["lat"] for o in objs])
-        lon_all = np.concatenate([o["lon"] for o in objs])
+        lat_all = np.concatenate([o["lat"] for o in shown])
+        lon_all = np.concatenate([o["lon"] for o in shown])
         s_, n_, w_, e_ = float(lat_all.min()), float(lat_all.max()), float(lon_all.min()), float(lon_all.max())
     cur = geo.get("cursor")
     for o in objs:
@@ -91,7 +133,8 @@ def map_data(store, spec: Dict) -> Dict:
         o["at"] = k
     base = str(geo.get("base") or "offline")
     return {"title": spec.get("title") or "", "objects": objs, "bounds": (s_, w_, n_, e_), "cursor": cur,
-            "base": base if base in ATTRIB else "offline", "pair": {"primary": geo.get("primary"), "secondary": geo.get("secondary")}}
+            "base": base if base in ATTRIB else "offline", "pair": {"primary": geo.get("primary"), "secondary": geo.get("secondary")},
+            "places": page_places(geo), **page_look(geo)}
 
 
 # ---- tiles ---------------------------------------------------------------------------------------
@@ -188,13 +231,20 @@ def render(mdata: Dict, fmt: str = "png", theme: str = "light", scale: float = 1
     ax.set_ylim(y1, y0)
     # tracks, then the markers and names at the cursor
     for o in mdata["objects"]:
+        if o.get("hidden"):
+            continue                                   # P6: a hidden object is not drawn
         X, Y = mx(o["lon"]), my(o["lat"])
-        ax.plot(X, Y, color=paper, lw=3.2 * scale, alpha=0.7, zorder=2, solid_capstyle="round")
-        ax.plot(X, Y, color=o["color"], lw=1.8 * scale, zorder=3, label=o["name"], solid_capstyle="round")
+        tw = mdata.get("trackWidth", 2.5) / 2.5          # P8: the track's width (2.5 px = as before)
+        ax.plot(X, Y, color=paper, lw=3.2 * scale * tw, alpha=0.7, zorder=2, solid_capstyle="round")
+        ax.plot(X, Y, color=o["color"], lw=1.8 * scale * tw, zorder=3, label=o["name"], solid_capstyle="round")
         k = o["at"]
         ax.plot([X[k]], [Y[k]], marker="o", ms=7 * scale, mfc=o["color"], mec=paper, mew=1.5 * scale, zorder=5)
-        ax.annotate(o["name"], (X[k], Y[k]), xytext=(7 * scale, 5 * scale), textcoords="offset points", fontsize=8 * scale,
-                    color=ink, zorder=6, bbox=dict(boxstyle="round,pad=0.2", fc=paper, ec="none", alpha=0.75))
+        if mdata.get("names", True):                       # P8: Names on the Map
+            ax.annotate(o["name"], (X[k], Y[k]), xytext=(7 * scale, 5 * scale), textcoords="offset points", fontsize=8 * scale,
+                        color=ink, zorder=6, bbox=dict(boxstyle="round,pad=0.2", fc=paper, ec="none", alpha=0.75))
+    _draw_places(ax, mdata.get("places") or [], scale, ink, paper)
+    ax.set_xlim(x0, x1)
+    ax.set_ylim(y1, y0)
     leg = ax.legend(loc="upper left", fontsize=8 * scale, framealpha=0.85, facecolor=paper, edgecolor="none")
     for txt in leg.get_texts():
         txt.set_color(ink)
@@ -231,26 +281,40 @@ PAGE_STRINGS = {
            "camCloseHint": "Close to the chosen object (in 3D: behind it, looking where it goes)",
            "object": "Object", "zin": "Zoom in", "zout": "Zoom out", "fit": "Fit all tracks", "theme": "Light / dark",
            "relation": "Relation", "relationHint": "Show / hide the relation box (reference and compared object)",
+           "legendHint": "Click: hide / show on the map · Alt+click: only this one (again: all)",
            "ref": "Reference", "cmp": "Compared with", "swap": "Swap reference and compared", "hide": "Hide the box",
            "fold": "Fold the box", "unfold": "Unfold the box", "noTime": "— not both at this time —",
            "range": "Range", "horiz": "Horizontal", "dalt": "Δalt", "bearing": "Bearing", "relBearing": "Rel. bearing",
            "closure": "Closure", "tca": "Closest in", "hdgDiff": "Heading Δ", "time": "Time",
            "help": "Drag: move · wheel: zoom", "help3d": "Drag: turn · right-drag or Shift: move · wheel: zoom", "top": "From above", "ex": "Heights",
            "noGl": "This browser cannot draw 3D (WebGL is off) - the picture shows the moment the page was made.",
-           "agl": "above ground"},
+           "coarse": "Only coarse heights here ({grid} grid) – allow the network or add elevation files in Settings for real relief.",
+           "flat": "flat here – try ×2 or ×5", "terrain": "terrain: {grid} grid",
+           "agl": "above ground",
+           "camCockpit": "Cockpit", "camCockpitHint": "From the object, looking where it points, rolling with it",
+           "display": "Display", "displayHint": "The flight display of the object the camera is on: attitude, speed, altitude, heading",
+           "errs": "Error surface", "errsHint": "Between the two tracks of one vehicle (truth and a solution): coloured by their distance",
+           "gs": "GS", "alt": "ALT"},
     "he": {"camera": "מצלמה", "camFree": "כללית", "camCentre": "על האובייקט", "camClose": "מרדף",
            "trail": "שובל", "trailAll": "כולו", "tcaGo": "לעבור לרגע הכי קרוב",
            "camFreeHint": "להזיז את התצוגה בעצמכם", "camCentreHint": "האובייקט שנבחר באמצע",
            "camCloseHint": "קרוב לאובייקט שנבחר (בתלת-ממד: מאחוריו, מסתכל לאן שהוא טס)",
            "object": "אובייקט", "zin": "התקרבות", "zout": "התרחקות", "fit": "כל המסלולים", "theme": "בהיר / כהה",
            "relation": "יחס", "relationHint": "הצגה / הסתרה של תיבת היחס (בסיס ומושווה)",
+           "legendHint": "לחיצה: הסתרה / הצגה במפה · Alt+לחיצה: רק את זה (שוב: את כולם)",
            "ref": "בסיס", "cmp": "מושווה", "swap": "החלפת הבסיס והמושווה", "hide": "הסתרת התיבה",
            "fold": "קיפול התיבה", "unfold": "פתיחת התיבה", "noTime": "— לא שניהם בזמן הזה —",
            "range": "טווח", "horiz": "אופקי", "dalt": "Δגובה", "bearing": "כיוון", "relBearing": "כיוון יחסי",
            "closure": "קצב התקרבות", "tca": "הכי קרוב בעוד", "hdgDiff": "Δכיוון", "time": "זמן",
            "help": "גרירה: הזזה · גלגלת: זום", "help3d": "גרירה: סיבוב · גרירה ימנית או Shift: הזזה · גלגלת: זום", "top": "מלמעלה", "ex": "גבהים",
            "noGl": "הדפדפן הזה לא יכול לצייר תלת-ממד (WebGL כבוי) - התמונה מראה את הרגע שבו הדף נוצר.",
-           "agl": "מעל הקרקע"},
+           "coarse": "כאן יש רק גבהים גסים (רשת של {grid}) – אפשר רשת או הוסף קובצי גובה בהגדרות לתבליט אמיתי.",
+           "flat": "שטוח כאן – נסה ×2 או ×5", "terrain": "קרקע: רשת של {grid}",
+           "agl": "מעל הקרקע",
+           "camCockpit": "תא טייס", "camCockpitHint": "מהאובייקט, מסתכל לאן שהוא מכוון, מתגלגל איתו",
+           "display": "תצוגה", "displayHint": "תצוגת הטיסה של האובייקט שהמצלמה עליו: מצב, מהירות, גובה, כיוון",
+           "errs": "משטח שגיאה", "errsHint": "בין שני המסלולים של כלי אחד (אמת ופתרון): צבוע לפי המרחק ביניהם",
+           "gs": "מה\"ק", "alt": "גובה"},
 }
 
 
@@ -299,12 +363,13 @@ def build_html(mdata: Dict, theme: str = "light", budget: int = 15 * 1024 * 1024
     alt, light / dark. Says in a comment and in its footer what was embedded."""
     light_t, light_lv, used_l = _tiles_for(mdata, False, budget // 2)
     dark_t, dark_lv, used_d = _tiles_for(mdata, True, budget // 2)
-    objs = [{"name": o["name"], "color": o["color"], "track": o.get("track"), "t": np.round(o["t"], 3).tolist(), "lat": np.round(o["lat"], 7).tolist(),
+    objs = [{"name": o["name"], "color": o["color"], "track": o.get("track"), "hidden": bool(o.get("hidden")), "t": np.round(o["t"], 3).tolist(), "lat": np.round(o["lat"], 7).tolist(),
              "lon": np.round(o["lon"], 7).tolist(), "alt": None if o["alt"] is None else np.round(o["alt"], 2).tolist()} for o in mdata["objects"]]
     data = {"title": mdata["title"], "objects": objs, "bounds": list(_padded(mdata["bounds"])), "cursor": mdata["cursor"],
             "tiles": {"light": light_t, "dark": dark_t}, "levels": {"light": light_lv, "dark": dark_lv},
             "attribution": " · ".join(ATTRIB[s] for s in sorted((used_l | used_d) or {"offline"})), "dark": theme == "dark",
-            "pair": mdata.get("pair") or {}, "S": PAGE_STRINGS["he" if lang == "he" else "en"]}
+            "pair": mdata.get("pair") or {}, "S": {**PAGE_STRINGS["he" if lang == "he" else "en"], "units": mdata.get("units", "metric")},
+            "places": mdata.get("places") or [], "names": mdata.get("names", True), "trackWidth": mdata.get("trackWidth", 2.5)}
     note = (f"Embedded: {len(light_t)} light and {len(dark_t)} dark map tiles, zoom levels {light_lv or '-'} / {dark_lv or '-'} "
             f"(budget {budget // (1024 * 1024)} MB); {len(objs)} tracks of at most 3000 points.")
     with open(os.path.join(os.path.dirname(__file__), "report_assets", "map.html"), encoding="utf-8") as f:

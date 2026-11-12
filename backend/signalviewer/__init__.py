@@ -379,6 +379,29 @@ def scene_html(rec: "Recording", objects=None, path: str = "view3d.html", theme:
     return path
 
 
+def tacview_csv(rec: "Recording", objects=None, folder: str = "tacview", rate: float = 10.0) -> List[str]:
+    """Tacview CSV files (P1, 1.26): one per object, named "Model (name) [Colour].csv" as Tacview's CSV
+    import wants them; in Tacview: File > Open the first, File > Merge the others (Tacview Standard).
+    Returns the paths. Objects with no position (0, 0 for the whole recording) are left out."""
+    from app.routes.export import acmi_objects
+    from svcore.acmi import fit_rate
+    from svcore.tacview_csv import write_csvs
+    objs = acmi_objects(_scene_spec(rec, objects)["scene"]["objects"], rec._store)
+    return write_csvs(objs, folder, fit_rate(objs, rate))
+
+
+def kml(rec: "Recording", objects=None, path: str = "flight.kml", rate: float = 10.0, places: Optional[Sequence[Dict]] = None) -> str:
+    """The objects as one KML file for Google Earth (P1, 1.26): a timed track per object when the recording
+    has real dates, else a line; `places`: [{name, lat, lon, alt?}] as points."""
+    from app.routes.export import acmi_objects
+    from svcore.acmi import fit_rate
+    from svcore.kml import write_kml
+    objs = acmi_objects(_scene_spec(rec, objects)["scene"]["objects"], rec._store)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(write_kml(objs, places, rate=fit_rate(objs, rate), title=rec.name))
+    return path
+
+
 def report(rec: "Recording", path: str, compare: Optional[Comparison] = None, map: bool = True, title: str = "", lang: str = "en") -> str:
     """A report as the app makes it (.html / .pdf / .docx by the extension): the map of the objects, and for a
     comparison its error plots (one per quantity, the errors of every object) and its statistics table."""

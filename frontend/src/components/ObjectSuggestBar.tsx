@@ -3,7 +3,7 @@ import { actions, activeTab, useApp, type Plot } from "../store";
 import { translate, useT } from "../i18n";
 import { pairOf } from "../relation";
 import { detectObjects, type Candidate } from "../objectDetect";
-import { addable, addedSummary, candidateObject, isAdded, objectColors } from "../objectAdd";
+import { addable, addedSummary, byPosition, candidateObject, isAdded, objectColors, positionCounts, positionNote } from "../objectAdd";
 
 /* N5: "3 objects found: phys, nav, gps · Add all · Choose… · Why?" - a slim, non-blocking suggestion in
    the file panel when an open file has objects not on any map yet. Nothing is added without a click;
@@ -51,9 +51,17 @@ export default function ObjectSuggestBar() {
     const st = useApp.getState();
     try {
       const next = objectColors(mapOf());
+      const { keep, none, few } = byPosition(cands, await positionCounts(cands));     // P2: no position, no object
       const objs = [];
-      for (const c of cands) objs.push(await candidateObject(c, next()));
-      if (actions.addObjectsToMaps(objs)) announce(cands);
+      for (const c of keep) objs.push(await candidateObject(c, next()));
+      const note = positionNote(none, few, st.lang);
+      if (!keep.length) {
+        st.toast({ kind: "info", text: note });
+        hide();
+        return;
+      }
+      if (actions.addObjectsToMaps(objs)) announce(keep, note);
+      if (none.length) hide();                     // what is left in the file has no position
     } catch (e) { st.toast({ kind: "error", text: String((e as Error).message) }); }
   };
   // Choose… / Why?: the found list on the tab's map (an empty map first when the tab has none)
@@ -77,8 +85,8 @@ export default function ObjectSuggestBar() {
   );
 }
 
-function announce(cands: Candidate[]) {
+function announce(cands: Candidate[], note = "") {
   const st = useApp.getState();
-  st.toast({ kind: "info", undoesWs: true, text: addedSummary(cands, st.lang),
+  st.toast({ kind: "info", undoesWs: true, text: addedSummary(cands, st.lang) + (note ? ` ${note}` : ""),
     action: { label: translate(st.lang, "undo"), run: () => useApp.getState().undo() } });
 }

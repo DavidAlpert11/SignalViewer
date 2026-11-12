@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Fixture</name>
+<Folder><name>Here</name>
+<Placemark><name>Megiddo airfield</name><description>tower 122.8</description>
+  <Point><coordinates>35.2286,32.5973,60.0</coordinates></Point></Placemark>
+<Placemark><name>Runway 27 approach</name><LineString><coordinates>
+  35.25,32.599,0 35.238,32.5975,0 35.229,32.5968,0
+</coordinates></LineString></Placemark>
+<Placemark><name>Range A</name><Polygon><outerBoundaryIs><LinearRing><coordinates>
+  35.3,32.7,0 35.3,32.72,0 35.34,32.72,0 35.34,32.7,0 35.3,32.7,0
+</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark><name>No position</name><Point><coordinates></coordinates></Point></Placemark>
+</Folder></Document></kml>

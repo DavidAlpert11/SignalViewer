@@ -44,11 +44,17 @@
 
 ## New in 1.26 – the report is alive
 
-- **One live page.** An HTML report's time bar moves every plot, the 2D map and the 3D view together – Play, ×0.5 – ×30, and the log's errors, warnings and your notes as marks to jump to.
+- **One live page.** An HTML report's time bar moves every plot and the Map together – Play, ×0.5 – ×30, and the log's errors, warnings and your notes as marks to jump to.
 - **3D in the report.** Turn, zoom and follow any object over the real terrain, with its model's heading, pitch and roll. PDF and Word get the same view as a picture.
-- **One Map, 2D or 3D.** One switch on the map. *3D (XYZ)* is the plot for any three signals.
+- **One Map, in 3D.** The earth with its terrain; *From above* is the old 2D view. *3D (XYZ)* is the plot for any three signals.
+- **A Map worth stopping for.** The sun where it was, drop lines, a cockpit camera, a flight display, and the error between truth and the navigation solution drawn as a coloured surface.
+- **Story mode.** *▶ Story* plays the flight as a short guided film – the camera flies to each moment that matters, and a card says what happened.
 
 <p align="center"><img src="docs/images/35_live_3d.png" alt="The 3D view inside the page: the offline map draped on the terrain around Mount Tabor, the flown part of the track with its curtain to the ground, the models at 150 s" width="100%"></p>
+
+<p align="center"><img src="docs/images/36_map_wow.png" alt="Behind the truth late in the flight: the error surface between truth and the drifted navigation solution, the flight display, the mini-map" width="100%"></p>
+
+<p align="center"><img src="docs/images/37_story.png" alt="Story mode in the live page: the card 'Largest error – nav is 6.1 m north of truth', the moments as diamonds on the timeline" width="100%"></p>
 
 <p align="center"><img src="docs/media/02_flight_map_3d.gif" alt="A UAV flight over the Sea of Galilee played back on the offline map and in 3D" width="49%"> <img src="docs/media/04_flight_log_health.gif" alt="ArduPilot log: vibration template, health findings, events and parameters" width="49%"></p>
 

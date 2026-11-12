@@ -195,7 +195,14 @@ def clear_everything(pg):
 
 
 def save_as(pg, name, folder=None):
-    goto_folder(pg, folder or pg.env["out"])
+    folder = folder or pg.env["out"]
+    # the picker may still be loading the folder it remembers when goto_folder types this one, and then
+    # show that folder again (the file landed in data/ about one run in three): go again until it stays
+    for _ in range(4):
+        goto_folder(pg, folder)
+        pg.wait_for_timeout(300)
+        if pg.evaluate("document.querySelector('.crumbs input').value") == folder:
+            break
     pg.fill(".savename input", name); pg.click(".dialog:has(.savename) .dialog-foot .btn.primary")   # the save dialog's, even over another one
 
 
@@ -222,6 +229,12 @@ def object_form(pg, row=0):
     if pg.locator(".obj-found").count():
         (pg.locator(".obj-byhand") if row is None else pg.locator(".obj-found .obj-adv").nth(row)).click()
     pg.wait_for_selector(".obj-dialog")
+
+
+def flat_maps(pg):
+    """P4: draw the Map flat (the light drawing - the fallback where 3D cannot draw, P8's *Always flat*). For the
+    tests of the flat map itself: their browser may have WebGL, where the Map is the 3D view."""
+    pg.evaluate("window.__sv.setState({ mapFlat: true })")
 
 
 def menu_item(pg, label):
@@ -1273,8 +1286,8 @@ def test_xyz_plot_and_place_on_map(pg):
 
 
 def test_globe_without_webgl_falls_back(pg):
-    """A computer without WebGL (Chrome / Edge 139+ no longer fall back to software): the 3D view
-    shows the objects' tracks in metres on the 2D canvas instead of nothing."""
+    """A computer without WebGL (Chrome / Edge 139+ no longer fall back to software): P4 - the Map is drawn
+    flat (the map with its tracks) and says so in one quiet line, instead of nothing."""
     open_files(pg, "geo.csv")
     p2 = pg.context.new_page()
     p2.add_init_script("""(() => { const get = HTMLCanvasElement.prototype.getContext;
@@ -1287,9 +1300,9 @@ def test_globe_without_webgl_falls_back(pg):
         p2.evaluate(f"""window.__sv.setState({{ ws: (() => {{ const ws = structuredClone(window.__sv.state().ws); const p = ws.tabs[0].plots[0];
             p.mode = '3d'; p.objects = [{{ id: 'a', name: 'Test', kind: 'uav', color: '#ff3030', lat: '{rid}/Lat', lon: '{rid}/Lon' }}];
             return ws; }})() }})""")
-        p2.wait_for_selector(".g3-nowebgl")
-        p2.wait_for_function(PAINTED, arg=".xyz-canvas")
-        assert "No WebGL" in p2.locator(".g3-nowebgl").inner_text()
+        p2.wait_for_selector(".map-flat-note")
+        p2.wait_for_selector(".plot-canvas.geo canvas")
+        assert p2.locator(".globe3d").count() == 0
     finally:
         p2.close()
 

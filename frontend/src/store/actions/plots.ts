@@ -1,4 +1,5 @@
 /* Signals and objects in plots: add, remove, move, style, plot modes. Workspace changes, through commit. */
+import { newMapFields } from "../../mapDefaults";
 import { translate } from "../../i18n";
 import { clone, MAX_PLOTS, TRACE_COLORS, newPlot, uid, type MapObject, type Plot, type PlotMode, type PlotSignal, type Tab } from "../model";
 import { activeTab, colorByFile, emptyPlot, findPlot, fitLayout, forgetObjects, newPlotSignal, placePlot, signalName, tabFullMessage } from "../selectors";
@@ -249,6 +250,25 @@ export const plotActions = {
   addObject(plotId: string, o: MapObject) {
     useApp.getState().commit((ws) => { const p = findPlot(ws, plotId); if (p) p.objects = [...(p.objects ?? []), o]; return ws; });
   },
+  /** P6: hide or show map objects (one Undo). `only`: show this one alone (again, when it already is: all).
+   *  A camera on an object that is now hidden goes back to General. */
+  toggleObjectHidden(plotId: string, objectId: string, only = false) {
+    useApp.getState().commit((ws) => {
+      const p = findPlot(ws, plotId);
+      if (!p?.objects) return ws;
+      const alone = p.objects.every((o) => (o.id === objectId) !== !!o.hidden);
+      p.objects = p.objects.map((o) => {
+        const hidden = only ? (alone ? false : o.id !== objectId) : o.id === objectId ? !o.hidden : !!o.hidden;
+        const { hidden: _h, ...rest } = o;
+        return hidden ? { ...rest, hidden: true } : rest;
+      });
+      if (p.followObject && p.objects.find((o) => o.id === p.followObject)?.hidden) {
+        p.followObject = null;
+        delete p.camera;
+      }
+      return ws;
+    });
+  },
   /** N5: several objects in one step (one Undo) - *Add all* / *Add selected*. */
   addObjects(plotId: string, objs: MapObject[]) {
     if (!objs.length) return;
@@ -261,7 +281,7 @@ export const plotActions = {
     let full = false;
     useApp.getState().commit((ws) => {
       const tab = activeTab(ws);
-      const at = placePlot(tab, { ...newPlot(), title, mode, objects: objs });
+      const at = placePlot(tab, { ...newPlot(), title, mode, objects: objs, ...newMapFields(objs[0]?.id) });   // P8: a new Map's camera / box
       if (at < 0) { full = true; return ws; }
       tab.active = at;
       return ws;
@@ -277,7 +297,7 @@ export const plotActions = {
       const tab = activeTab(ws);
       const maps = tab.plots.filter((p) => p.mode === "geo" || p.mode === "3d");
       if (!maps.length) {
-        const np: Plot = { ...newPlot(), mode: "geo", objects: objs };
+        const np: Plot = { ...newPlot(), mode: "3d", objects: objs, ...newMapFields(objs[0]?.id) };   // P4: new maps are the 3D Map; P8: its camera / box
         const at = placePlot(tab, np);
         if (at < 0) { full = true; return ws; }
         tab.active = at;

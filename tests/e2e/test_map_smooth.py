@@ -10,7 +10,7 @@ import shutil
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, open_files, pg  # noqa: E402,F401
+from test_features import S, env, flat_maps, open_files, pg  # noqa: E402,F401
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -32,6 +32,7 @@ def _settled(pg):
 def three(pg):
     shutil.copy(os.path.join(ROOT, "examples", "three_objects.csv"), pg.env["data"])
     open_files(pg, "three_objects.csv")
+    flat_maps(pg)                                                                 # P4: these test the flat drawing
     pg.locator(".obj-suggest-add").click()
     pg.wait_for_selector(".plot-canvas.geo[data-view]")
     _settled(pg)
@@ -62,9 +63,9 @@ def test_keys_only_while_the_map_has_focus(three):
     pg.keyboard.press("0"); _settled(pg)
     assert abs(_view(pg)[0] - z0) < 1e-3
     pg.keyboard.press("f")
-    assert S(pg, "s.ws.tabs[0].plots.find((p) => p.mode === 'geo').followObject") is not None
+    assert S(pg, "s.ws.tabs[0].plots.find((p) => (p.mode === 'geo' || p.mode === '3d')).followObject") is not None
     pg.keyboard.press("f")
-    assert S(pg, "s.ws.tabs[0].plots.find((p) => p.mode === 'geo').followObject") is None
+    assert S(pg, "s.ws.tabs[0].plots.find((p) => (p.mode === 'geo' || p.mode === '3d')).followObject") is None
     # Shift+arrow still steps the cursor (the timeline's key), the map does not move
     pg.keyboard.press("Home")
     t0 = S(pg, "s.cursor.t1")
@@ -87,7 +88,7 @@ def test_drag_while_following_offsets_and_back(three):
     pg.wait_for_timeout(120)                                          # no glide: the drag ends at rest
     pg.mouse.up()
     _settled(pg)
-    assert S(pg, "s.ws.tabs[0].plots.find((p) => p.mode === 'geo').followObject")    # still following
+    assert S(pg, "s.ws.tabs[0].plots.find((p) => (p.mode === 'geo' || p.mode === '3d')).followObject")    # still following
     back = pg.locator(".geo-back")
     assert back.inner_text() == "Back to following"
     off = _view(pg)
@@ -107,6 +108,7 @@ def test_hint_once_and_remembered(three):
     pg.wait_for_selector(".geo-hint", state="detached")
     pg.wait_for_timeout(600)                                          # the setting reaches the app
     pg.reload()
+    flat_maps(pg)                                                     # (the light drawing is not kept across a reload here)
     pg.wait_for_selector(".plot-canvas.geo[data-view]")
     assert pg.locator(".geo-hint").count() == 0
 
@@ -134,7 +136,7 @@ def test_track_up_turns_the_map(three):
     pg = three
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, t1: 47.12 } })")
     pg.locator(".geo-up").click()
-    assert S(pg, "s.ws.tabs[0].plots.find((p) => p.mode === 'geo').mapUp") == "track"
+    assert S(pg, "s.ws.tabs[0].plots.find((p) => (p.mode === 'geo' || p.mode === '3d')).mapUp") == "track"
     rot = lambda: pg.evaluate("document.querySelector('.plot-canvas.geo canvas').style.transform")
     pg.wait_for_function("document.querySelector('.plot-canvas.geo canvas').style.transform.startsWith('rotate(-')")
     ang = float(rot()[len("rotate(-"):].rstrip("deg)"))

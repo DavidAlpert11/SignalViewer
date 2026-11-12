@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { newObjectLook } from "../mapDefaults";
 import { actions, nextColor, uid, useApp, type MapObject, type ObjectKind } from "../store";
 import { useT, type TKey } from "../i18n";
 import { iconSvg, OBJECT_KINDS } from "./mapIcons";
@@ -8,7 +9,7 @@ import SignalField from "./SignalField";
 import { AXES, createFrameGroup, createSmoothGroup, frameGroupName } from "../frames";
 import { api, type SignalInfo } from "../api";
 import { detectAll, detectObjects, VEC_ROLES, type Candidate } from "../objectDetect";
-import { addable, candidateObject, isAdded, linkAttitudes, NAMING_EXAMPLE, objectColors, objectSources, whyLines } from "../objectAdd";
+import { addable, byPosition, candidateObject, isAdded, linkAttitudes, NAMING_EXAMPLE, objectColors, objectSources, positionCounts, positionNote, whyLines, type PositionCounts } from "../objectAdd";
 import { copyText } from "../errorReport";
 
 /* Q101 / Q102: the position may come in ECEF, NED or ENU (m) instead of latitude / longitude, and
@@ -78,17 +79,28 @@ function FoundObjects({ plotId, cands, why, onForm }: { plotId: string; cands: C
   const [busy, setBusy] = useState(false);
   // N5 (owner's decision 3): a row with no angles - "motion" (default) or the key of the row to borrow from
   const [attFrom, setAttFrom] = useState<Record<string, string>>({});
+  // P2: how many samples of each row are positions - a row with none is not offered (asked once)
+  const [counts, setCounts] = useState<PositionCounts>({});
+  useEffect(() => {
+    let live = true;
+    void positionCounts(cands).then((c) => { if (live) setCounts(c); });
+    return () => { live = false; };
+  }, [cands]);
+  const empty = (c: Candidate) => counts[c.key]?.valid === 0;
   const withAtt = cands.filter((c) => c.attitude !== "none");     // truth first: the list is sorted so
   const fileName = (c: Candidate) => runs.find((r) => r.id === c.runId)?.name ?? "";
   const many = new Set(cands.map((c) => c.runId)).size > 1;
-  const can = cands.filter((c) => addable(c) && !added0(c));
+  const can = cands.filter((c) => addable(c) && !added0(c) && !empty(c));
   const sel = can.filter((c) => checked[c.key]);
   const add = async (list: Candidate[]) => {
     if (!list.length || busy) return;
     setBusy(true);
     try {
+      const { keep, none, few } = byPosition(list, Object.keys(counts).length ? counts : await positionCounts(list));
+      const note = positionNote(none, few, lang);
+      if (note) useApp.getState().toast({ kind: "info", text: note });
       const pairs = [];
-      for (const c of list) {
+      for (const c of keep) {
         const o = await candidateObject(c, color[c.key] ?? colors.get(c.key)!, (names[c.key] ?? c.name).trim() || c.name);
         pairs.push({ c, o, from: c.attitude === "none" && attFrom[c.key] && attFrom[c.key] !== "motion" ? attFrom[c.key] : undefined });
       }
@@ -118,10 +130,10 @@ function FoundObjects({ plotId, cands, why, onForm }: { plotId: string; cands: C
                 const added = added0(c);
                 const col = color[c.key] ?? colors.get(c.key)!;
                 return (
-                  <li key={c.key} className={`obj-found-row${added ? " added" : ""}`} data-key={c.key}>
+                  <li key={c.key} className={`obj-found-row${added ? " added" : ""}${empty(c) ? " no-position" : ""}`} data-key={c.key}>
                     <div className="obj-found-main">
                       <input type="checkbox" className="obj-found-check" aria-label={names[c.key] ?? c.name}
-                        checked={!added && !!checked[c.key]} disabled={added || !addable(c)}
+                        checked={!added && !empty(c) && !!checked[c.key]} disabled={added || !addable(c) || empty(c)}
                         onChange={(e) => setChecked({ ...checked, [c.key]: e.target.checked })} />
                       <img src={iconSvg("aircraft", col)} alt="" width={22} height={22} />
                       <input className="obj-found-name" value={names[c.key] ?? c.name} disabled={added} aria-label={t("objName")}
@@ -131,6 +143,7 @@ function FoundObjects({ plotId, cands, why, onForm }: { plotId: string; cands: C
                       {many && <span className="obj-found-file" title={fileName(c)}>{fileName(c)}</span>}
                       <span className="spacer" />
                       {added ? <span className="obj-found-added">✓ {t("objAdded")}</span>
+                        : empty(c) ? <span className="obj-found-frame obj-found-origin obj-no-position">{t("objNoPositionRow")}</span>
                         : c.pos !== "lla" ? <span className={`obj-found-frame${addable(c) ? "" : " obj-found-origin"}`}>{frameLabel(c)}</span> : null}
                       <button className="linklike obj-why" aria-expanded={!!open[c.key]} onClick={() => setOpen({ ...open, [c.key]: !open[c.key] })}>{t("objWhy")}</button>
                       {!added && <button className="linklike obj-adv" onClick={() => onForm(c)}>{t("objAdvanced")}</button>}
@@ -145,7 +158,7 @@ function FoundObjects({ plotId, cands, why, onForm }: { plotId: string; cands: C
                     )}
                     <div className="obj-found-sigs">{[...(c.pos === "lla" ? (["lat", "lon", "alt"] as const) : VEC_ROLES), "roll", "pitch", "yaw", "qw", "qx", "qy", "qz"]
                       .map((r) => c.picks[r as keyof Candidate["picks"]]?.id).filter((x): x is string => !!x).map(chip)}</div>
-                    {open[c.key] && <ul className="obj-why-lines">{whyLines(c, lang, attFrom[c.key] && attFrom[c.key] !== "motion" ? names[attFrom[c.key]] ?? cands.find((x) => x.key === attFrom[c.key])?.name : undefined).map((l, i) => <li key={i}>{l}</li>)}</ul>}
+                    {open[c.key] && <ul className="obj-why-lines">{whyLines(c, lang, attFrom[c.key] && attFrom[c.key] !== "motion" ? names[attFrom[c.key]] ?? cands.find((x) => x.key === attFrom[c.key])?.name : undefined).concat(empty(c) ? [t("objNoPositionWhy")] : []).map((l, i) => <li key={i}>{l}</li>)}</ul>}
                   </li>
                 );
               })}
@@ -193,7 +206,8 @@ function ObjectForm({ preset, onBack }: { preset: Candidate | null; onBack?: () 
       ? Object.fromEntries(Object.entries(preset.picks).filter(([r]) => !VEC_ROLES.includes(r as never)).map(([r, p]) => [r, p!.id]))
       : run ? guessRoles(run) : {};
     const n = (plot?.objects?.length ?? 0) + 1;
-    return { id: uid("o"), name: preset?.name ?? `${t("obj_aircraft")} ${n}`, kind: "aircraft", color: nextColor(ws), lat: g.lat ?? "", lon: g.lon ?? "",
+    const look = newObjectLook(preset?.cls);         // P8: the icon / size a new object of its class gets
+    return { id: uid("o"), name: preset?.name ?? `${t(`obj_${look.kind}` as TKey)} ${n}`, ...look, color: nextColor(ws), lat: g.lat ?? "", lon: g.lon ?? "",
       alt: g.alt ?? null, yaw: g.yaw ?? null, pitch: g.pitch ?? null, roll: g.roll ?? null,
       qw: g.qw ?? null, qx: g.qx ?? null, qy: g.qy ?? null, qz: g.qz ?? null, angleUnit: "auto", trail: true,
       ...(preset ? { cls: preset.cls, ...(trackOfClass(preset.cls) ? { track: trackOfClass(preset.cls) } : {}) } : {}) };

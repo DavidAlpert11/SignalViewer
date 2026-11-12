@@ -9,7 +9,7 @@ import shutil
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, open_files, pg  # noqa: E402,F401
+from test_features import S, env, flat_maps, open_files, pg  # noqa: E402,F401
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -17,8 +17,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 def test_html_map_works_offline(pg, tmp_path):
     shutil.copy(os.path.join(ROOT, "examples", "ardupilot_lanes.csv"), pg.env["data"])
     open_files(pg, "ardupilot_lanes.csv")
+    flat_maps(pg)                                                                 # P4: the flat map's own menu and page
     pg.locator(".obj-suggest-add").click()
-    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.some((p) => p.mode === 'geo' && (p.objects ?? []).length === 4)")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.some((p) => (p.mode === 'geo' || p.mode === '3d') && (p.objects ?? []).length === 4)")
     # the map's ⋯ menu has the map's own picture and page
     geo = pg.locator(".plot", has=pg.locator(".plot-canvas.geo")).first
     geo.locator(".plot-more").click()
@@ -27,7 +28,7 @@ def test_html_map_works_offline(pg, tmp_path):
     pg.keyboard.press("Escape")
     # the page as the menu saves it (the same request: the plot's objects, the layer, the cursor)
     path = str(tmp_path / "lanes_map.html")
-    r = pg.evaluate("""(path) => { const p = window.__sv.state().ws.tabs[0].plots.find((x) => x.mode === 'geo');
+    r = pg.evaluate("""(path) => { const p = window.__sv.state().ws.tabs[0].plots.find((x) => (x.mode === 'geo' || x.mode === '3d'));
         const geo = { objects: p.objects.map((o) => ({ name: o.name, color: o.color, lat: o.lat, lon: o.lon, alt: o.alt ?? null })), base: 'offline', cursor: null, bounds: null };
         return fetch('/api/export/image', { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ path, format: 'html', theme: 'light', plot: { mode: 'geo', title: 'Lanes', signals: [], geo } }) }).then((r) => r.json()); }""", path)

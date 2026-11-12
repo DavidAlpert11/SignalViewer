@@ -63,6 +63,7 @@
 :root {
   --fs-2xs: 0.769rem; --fs-xs: 0.808rem; --fs-s: 0.846rem; --fs-sm: 0.885rem; --fs-m: 0.923rem;
   --fs-ml: 0.962rem; --fs-base: 1rem; --fs-l: 1.077rem; --fs-xl: 1.154rem;
+  --err-lo: #2da44e; --err-mid: #f2a93b; --err-hi: #e5534b;   /* P9: the error surface's scale (both themes) */
   --r-xs: 2px; --r-s: 4px; --r-m: 6px; --r-l: 8px; --r-xl: 12px; --r-round: 999px;
   --sp-0_5: 2px; --sp-1: 4px; --sp-1_5: 6px; --sp-2: 8px; --sp-2_5: 10px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
   --fs-3xs: 0.692rem; --fs-2xl: 1.25rem; --fs-3xl: 1.385rem; --fs-4xl: 1.692rem;
@@ -879,6 +880,9 @@ table.cmp-sub tr.base td { color: var(--muted); }
 .xyz-wrap { overflow: hidden; cursor: grab; }
 .xyz-wrap:active { cursor: grabbing; }
 .xyz-hint { position: absolute; left: 8px; bottom: 4px; font-size: var(--fs-2xs); color: var(--muted); pointer-events: none; }
+/* P4: the Map drawn flat (no WebGL) says so, quietly; the 3D view's mouse readout sits where the flat one did */
+.map-flat-note { position: absolute; inset-inline-start: 50%; bottom: 8px; transform: translateX(-50%); z-index: 3; padding: 1px 8px; border-radius: var(--r-s); background: var(--raised); color: var(--muted); font-size: var(--fs-s); pointer-events: none; }
+.g3-readout { top: auto; bottom: 34px; z-index: 3; }
 .geo-readout { position: absolute; inset-inline-end: 8px; top: 6px; padding: 1px 6px; border-radius: var(--r-s); background: var(--raised); color: var(--muted); font-variant-numeric: tabular-nums; font-size: var(--fs-m); pointer-events: none; direction: ltr; }
 
 /* draggable divider of the side panels */
@@ -1187,6 +1191,13 @@ input.fx-input { width: 100%; }
 .obj-chip { display: inline-flex; align-items: center; gap: 1px; border: 1px solid var(--line); border-radius: var(--r-xl); padding: 0 2px 0 6px; height: 24px; }
 .obj-chip-main { display: inline-flex; align-items: center; gap: var(--sp-1_5); border: 0; background: none; color: var(--ink); cursor: pointer; font: inherit; font-size: var(--fs-s); padding: 0; }
 .obj-chip .iconbtn.on { color: var(--amber); }
+/* P6: a hidden object keeps its place, greyed and struck through; one click brings it back */
+.obj-chip.hidden .obj-chip-main { color: var(--muted); text-decoration: line-through; }
+.obj-chip.hidden .obj-chip-main img { opacity: .45; }
+.obj-chip .obj-eye { color: var(--muted); }
+.obj-chip .obj-eye.on { color: var(--ink); }
+.obj-no-position { font-size: var(--fs-xs); color: var(--muted); margin-inline: var(--sp-1); }
+.rel-off { font-size: var(--fs-s); color: var(--muted); }
 .obj-chip.primary { box-shadow: 0 0 0 2px var(--amber); }
 .obj-chip.secondary { outline: 2px dashed var(--amber); outline-offset: -1px; }
 .obj-dialog { width: min(640px, 94vw); }
@@ -1872,3 +1883,57 @@ input.fx-input { width: 100%; }
 .rel-tca { width: 100%; border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: start; }
 .rel-tca bdi { color: var(--amber); text-decoration: underline dotted; }
 .rel-tca:hover { background: var(--panel-2); }
+
+/* P7: places - the panel docked in the Map, the place dialog */
+.places-panel { position: absolute; top: 40px; inset-inline-start: var(--sp-2); width: min(300px, 70%); max-height: calc(100% - 80px); display: flex; flex-direction: column;
+  gap: var(--sp-1); background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-m); padding: var(--sp-1_5); font-size: var(--fs-s);
+  color: var(--ink); z-index: 3; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.places-panel .pl-head { display: flex; align-items: center; gap: var(--sp-1); }
+.places-panel .pl-search { width: 100%; }
+.places-panel .pl-actions { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.places-panel .pl-lists { overflow: auto; min-height: 0; }
+.places-panel h4 { margin: var(--sp-1_5) 0 2px; font-size: var(--fs-xs); color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.places-panel .pl-list { list-style: none; margin: 0; padding: 0; }
+.pl-row { display: flex; align-items: center; gap: 2px; border-radius: var(--r-s); }
+.pl-row:hover { background: var(--raised); }
+.pl-row .pl-go { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-1); border: 0; background: none; color: var(--ink); font: inherit; cursor: pointer;
+  padding: 2px 4px; text-align: start; }
+.pl-row .pl-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-row small { color: var(--muted); }
+.pl-row.hidden .pl-name { color: var(--muted); text-decoration: line-through; }
+.pl-row .obj-eye { color: var(--muted); }
+.pl-row .obj-eye.on { color: var(--ink); }
+.pl-kind { width: 16px; text-align: center; font-weight: 700; }
+.place-dialog { width: min(460px, 94vw); }
+.place-form { display: flex; flex-direction: column; gap: var(--sp-2); }
+.place-form > label { display: flex; flex-direction: column; gap: 2px; }
+.place-form > label > span { font-size: var(--fs-xs); color: var(--muted); }
+.place-icons { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; }
+.place-icon { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r-s); padding: 3px; cursor: pointer; line-height: 0; }
+.place-icon.on { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+.place-color input { width: 34px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: var(--r-s); background: none; }
+.place-where { align-self: flex-start; }
+.place-where .seg-label { color: var(--muted); font-size: var(--fs-xs); margin-inline-end: var(--sp-1); }
+.hint.warn { color: var(--danger); }
+/* P8: Settings > Map and objects */
+.set-map { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+.set-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); }
+.set-group-head h3 { margin: 0; font-size: var(--fs-m); }
+.set-icons { display: grid; grid-template-columns: auto auto; gap: 4px 10px; justify-items: end; }
+.set-icons label { display: flex; gap: var(--sp-1); align-items: center; font-size: var(--fs-s); }
+.set-elev, .set-story { display: flex; gap: var(--sp-1); align-items: center; justify-content: flex-end; }
+.set-story { flex-wrap: wrap; }
+.set-elev input { width: 170px; }
+/* P9: the flight display and the mini-map over the 3D view */
+.g3-fd { position: absolute; inset-inline-start: 8px; bottom: 44px; z-index: 2; pointer-events: none; line-height: 0; }
+.g3-mini { position: absolute; inset-inline-end: 8px; top: 50px; z-index: 2; line-height: 0; }
+.g3-mini .mini-map { border: 1px solid var(--line-strong); border-radius: var(--r-m); background: var(--panel); cursor: crosshair; }
+.rel-err { display: flex; align-items: center; gap: var(--sp-1); margin-top: 3px; }
+.rel-err .ramp { display: inline-block; width: 70px; height: 7px; border-radius: var(--r-xs); background: linear-gradient(90deg, var(--err-lo), var(--err-mid), var(--err-hi)); }
+/* P10: the Story's card over the Map */
+.map-story-card { position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); max-width: min(520px, 90%); display: flex; flex-direction: column; gap: 3px;
+  padding: 9px 13px; background: var(--panel); color: var(--ink); border: 1px solid var(--line-strong); border-inline-start: 5px solid var(--amber); border-radius: var(--r-l);
+  box-shadow: 0 6px 22px rgba(0,0,0,.25); z-index: 4; cursor: pointer; }
+.map-story-card.error { border-inline-start-color: var(--danger); } .map-story-card.warning { border-inline-start-color: var(--amber); } .map-story-card.note { border-inline-start-color: var(--focus); }
+.map-story-card b { font-size: var(--fs-m); color: var(--ink-strong); }
+.map-story-nav { display: flex; gap: var(--sp-1); align-items: center; align-self: flex-end; color: var(--muted); font-size: var(--fs-xs); }

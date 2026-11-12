@@ -33,6 +33,9 @@ SOURCES: dict = {
     "dark_ref": {"url": _ESRI.format(svc="Canvas/World_Dark_Gray_Reference"), "max": 16, "ext": "png"},
     "satellite": {"url": _ESRI.format(svc="World_Imagery"), "max": 19, "ext": "jpg"},
     "topo": {"url": "https://tile.opentopomap.org/{z}/{x}/{y}.png", "max": 17, "ext": "png"},
+    # P5: elevation for the whole world (Mapzen / AWS open data: SRTM, GMTED2010, ETOPO1), heights encoded
+    # in the colours - only for app/basemap.py's ground (never shown as a picture)
+    "terrarium": {"url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png", "max": 15, "ext": "png"},
 }
 _MAX_AGE = 30 * 24 * 3600          # refresh a cached tile after a month (when online)
 _offline_until = 0.0               # after a failure, do not try the network again for a while

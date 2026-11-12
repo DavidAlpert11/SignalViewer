@@ -8,6 +8,7 @@
 import { layoutActions } from "./store/actions/layout";
 import { noteActions } from "./store/actions/notes";
 import { plotActions } from "./store/actions/plots";
+import { placeActions } from "./store/actions/places";
 import { viewActions } from "./store/actions/view";
 
 export * from "./store/model";
@@ -20,4 +21,4 @@ export { useApp, type AppState } from "./store/state";
 export { setInspectorByUser } from "./store/inspector";
 
 /** Every action, under the names they always had (`actions.addSignal`, `actions.goToTime`...). */
-export const actions = { ...plotActions, ...layoutActions, ...viewActions, ...noteActions };
+export const actions = { ...plotActions, ...layoutActions, ...viewActions, ...noteActions, ...placeActions };

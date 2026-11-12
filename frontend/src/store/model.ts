@@ -45,7 +45,7 @@ export interface Plot {
   /** N6: how the 3D camera follows the followed object - on it (absent: it orbits and zooms towards it,
    *  as before), "chase" (behind and above it, along its heading) or "lookat" (from it towards the
    *  first related object) */
-  camera?: "chase" | "lookat";
+  camera?: "chase" | "lookat" | "top" | "free" | "cockpit";   // P4: "top" = From above, "free" = General (absent on a 2D-era map: "top"); P9: "cockpit"
   /** N6: the 2D map's "up" - north (absent) or the heading of the followed object (else the primary, else
    *  the first): "track" */
   mapUp?: "track";
@@ -69,6 +69,14 @@ export interface Plot {
    *  column beside the plot), above, beside, hidden. Absent = auto. */
   legend?: "auto" | "top" | "side" | "off";
   legendW?: number;                // the side column's width, px (absent: 240)
+  /** P7: the relation box compares the reference with this place (a place id) instead of an object;
+   *  absent = the compared object, as before */
+  relPlace?: string;
+  /** P9: the flight display of the object the camera is on - shown (true) / hidden (false); absent = by the
+   *  camera (shown in Chase and Cockpit) */
+  display?: boolean;
+  /** P9: the error surface between the pair when they are one vehicle - false hides it; absent = shown */
+  errorSurface?: boolean;
 }
 export type ObjectKind = "aircraft" | "missile" | "ship" | "uav" | "drone" | "vehicle";
 /** Something that moves on the map: where it is (and how it points) comes from signals - which may
@@ -98,6 +106,8 @@ export interface MapObject {
   minSpeed?: number;
   /** N7: its velocity north / east / down (m/s), found by its names - compared between objects */
   vel?: [string, string, string | null] | null;
+  /** P6 (1.26): hidden on the map - not drawn, not in Fit, its chip greyed and struck through; absent = shown */
+  hidden?: boolean;
 }
 export interface Tab {
   id: string; name: string; rows: number; cols: number; plots: Plot[]; active: number; linkX: boolean;
@@ -145,6 +155,22 @@ export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta
   /** 26.A5: how a numeric signal is read between samples, by signal NAME (every file), as the user
    *  corrected it - "state" (held) or "value" (interpolated); absent = detected (readAs.ts). */
   readAs?: Record<string, "state" | "value">;
+  /** P7: places of this session (travel with it and with a template); absent = none */
+  places?: Place[];
+}
+/** P7 (1.26): a named point, line or area on every Map (the airfield, the range, the ground station), or a
+ *  saved camera view. In the session (`Workspace.places`) or in My places (the app's places.json). */
+export type PlaceKind = "point" | "line" | "area" | "view";
+export type PlaceIcon = "pin" | "airfield" | "target" | "antenna" | "flag" | "home" | "camera";
+export const PLACE_ICONS: PlaceIcon[] = ["pin", "airfield", "target", "antenna", "flag", "home", "camera"];
+export interface Place {
+  id: string; name: string; kind: PlaceKind;
+  lat: number; lon: number;          // a point's position; a line's / area's first point; a view's camera
+  alt?: number;                      // metres above sea level (a point: the ground there when made; a view: the camera's)
+  icon?: PlaceIcon; color?: string; note?: string;
+  points?: [number, number][];       // line / area: [lat, lon] each
+  view?: { heading: number; pitch: number; range: number };   // a saved view: degrees, degrees (down < 0), metres
+  hidden?: boolean;                  // not drawn (its eye in the Places panel)
 }
 export interface SigGroupDef { name: string; sigs: string[] }
 /** A row of the overview strip: a state signal by NAME (every file), or a named condition. */

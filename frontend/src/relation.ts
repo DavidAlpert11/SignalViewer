@@ -379,3 +379,41 @@ export function statsCsv(rows: CmpStat[]): string {
     ...rows.map((r) => [r.object, r.qty, r.comp].map((x) => `"${x.replace(/"/g, '""')}"`).join(",") + "," +
       [r.s?.rms, r.s?.mean, r.s?.abs_max, r.s?.p95_abs, r.s?.t_abs_max, r.s?.samples].map(f).join(","))].join("\n") + "\n";
 }
+
+
+/** P9: the error between two tracks of one vehicle (truth and a navigation solution): at each of the first's
+ *  samples (at most `max`), the second's position at that time and the distance (local metres - the two
+ *  are metres apart). null when they do not overlap in time. `same`: the median under 20 m - one vehicle,
+ *  not two. The 3D view draws a surface between them coloured by d / p95; the flat drawing colours the
+ *  second track. */
+export interface ErrorAlong { rows: { i: number; lat: number; lon: number; h: number; d: number }[]; median: number; p95: number; same: boolean }
+type Tr = { t: ArrayLike<number>; lat: ArrayLike<number>; lon: ArrayLike<number> };
+export function errorAlong(P: Tr, ph: (i: number) => number, S: Tr, sh: (j: number) => number, max = 600): ErrorAlong | null {
+  const n = P.t.length, m = S.t.length;
+  if (n < 3 || m < 2) return null;
+  const step = Math.max(1, Math.floor(n / max)), rows: ErrorAlong["rows"] = [];
+  let j = 0;
+  for (let i = 0; i < n; i += step) {
+    const t = P.t[i];
+    if (!(t >= S.t[0] && t <= S.t[m - 1]) || !Number.isFinite(P.lat[i]) || !Number.isFinite(P.lon[i])) continue;
+    while (j < m - 2 && S.t[j + 1] <= t) j++;
+    const f = S.t[j + 1] > S.t[j] ? (t - S.t[j]) / (S.t[j + 1] - S.t[j]) : 0;
+    const L = (a: ArrayLike<number>, b: number, c: number) => a[b] + (a[c] - a[b]) * f;
+    const lat = L(S.lat, j, j + 1), lon = L(S.lon, j, j + 1), h0 = sh(j), h1 = sh(j + 1);
+    const h = Number.isFinite(h0) && Number.isFinite(h1) ? h0 + (h1 - h0) * f : Number.isFinite(h0) ? h0 : h1;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    const kN = 111_320, kE = 111_320 * Math.cos((P.lat[i] * Math.PI) / 180), hp = ph(i);
+    const dz = Number.isFinite(h) && Number.isFinite(hp) ? h - hp : 0;
+    rows.push({ i, lat, lon, h, d: Math.hypot((lat - P.lat[i]) * kN, (lon - P.lon[i]) * kE, dz) });
+  }
+  if (rows.length < 3) return null;
+  const ds = rows.map((r) => r.d).sort((a, b) => a - b);
+  const median = ds[ds.length >> 1], p95 = ds[Math.min(ds.length - 1, Math.floor(ds.length * 0.95))];
+  return { rows, median, p95, same: median < 20 };
+}
+/** The colour of an error of `q` (= d / p95): green, amber at half, red at the 95th percentile. */
+export function errorColor(q: number): string {
+  const c = [[45, 164, 78], [242, 169, 59], [229, 83, 75]], x = Math.max(0, Math.min(1, q)) * 2, k = Math.min(1, Math.floor(x)), f = x - k;
+  const v = c[k].map((a, i) => Math.round(a + (c[k + 1][i] - a) * f));
+  return `rgb(${v[0]}, ${v[1]}, ${v[2]})`;
+}

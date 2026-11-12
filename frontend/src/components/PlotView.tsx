@@ -7,7 +7,7 @@ import { plotHasContent, actions, onTimeAxis, tabBandLanes, fileMark, pickPath, 
 import { GEO_BASES, effectiveBase, isOnlineBase } from "../mapBase";
 import { fmtNum, translate, useT } from "../i18n";
 import { api } from "../api";
-import { exportRange, plotSpec } from "../plotSpec";
+import { exportRange, placesSpec, plotSpec } from "../plotSpec";
 import { signalUnit, withUnit } from "../units";
 import { labelsOf, labelText } from "../values";
 import { Icon } from "../icons";
@@ -17,6 +17,10 @@ import { createSignalItem } from "../createSignalMenu";
 import { errorsOf, plotsWithTwoLines, twoLines } from "../errors";
 import XYChart from "./XYChart";
 import GeoChart from "./GeoChart";
+import { hasWebGL } from "../webgl";
+import { isMapPlot } from "../mapObjects";
+import { mapObjectAt } from "../globeBridge";
+const PlacesPanel = lazy(() => import("./PlacesPanel"));
 import { iconSvg } from "./mapIcons";
 // the 3D view (CesiumJS, a few MB) loads only when a plot is switched to 3D
 const Globe3D = lazy(() => import("./Globe3D"));
@@ -113,16 +117,33 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     try { done((await api.image(path, format, theme, plotSpec(tab, plot, index, t("plotTitle", { n: "{n}" }), view), scale, lang)).path); } catch (e) { failed(e); }
   };
   // L11: a map with objects - its picture (this view, or every track fitted) and its standalone page
-  const geoObjects = plot.mode === "geo" && (plot.objects?.length ?? 0) > 0;
-  // N8: the objects of this map / 3D view for Tacview (positions and attitudes as this view draws them)
-  const exportAcmi = async () => {
+  const isMap = isMapPlot(plot);                           // P4: drawn by the 3D view
+  const [flatWhy, setFlatWhy] = useState<string | null>(() => (hasWebGL() ? null : "WebGL is not available in this browser."));
+  const forceFlat = useApp((s) => s.mapFlat);              // the user's (P8) or a test's choice: the light drawing
+  const flat = !!flatWhy || forceFlat;
+  const map3d = isMap && !flat;                            // the 3D view's menu items
+  const geoObjects = isMap && flat;                        // drawn flat: the flat map's items
+  // N8 / P1: the objects of this map / 3D view for Tacview (.acmi or CSV files) and Google Earth (.kml) -
+  // positions and attitudes as this view draws them, one submenu "Export the flight"
+  const exportFlight = async (kind: "acmi" | "csv" | "kml") => {
     const objs = plot.objects ?? [];
-    const path = await pickPath({ mode: "save", title: t("exportAcmi"), exts: [".acmi"], defaultName: `${baseName}.acmi` });
+    const path = kind === "csv"
+      ? await pickPath({ mode: "folder", title: t("exportFlightCsv") })
+      : await pickPath({ mode: "save", title: t(kind === "acmi" ? "exportAcmi" : "exportKml"), exts: [`.${kind}`], defaultName: `${baseName}.${kind}` });
     if (!path) return;
     try {
       const { trackRequest } = await import("../mapObjects");        // the map's code stays in its own chunk
-      const res = await api.exportAcmi(path, plot.title || baseName, objs.map((o) => trackRequest(o, objs)));
-      useApp.getState().toast({ kind: "info", text: translate(lang, "acmiSaved", { n: res.objects, path: res.path }) });
+      const reqs = objs.map((o) => trackRequest(o, objs));
+      const title = plot.title || baseName;
+      // P7: the shown places go too (ACMI: the points, as stationary objects)
+      const rate = useApp.getState().mapPrefs.rate;                  // P8: Settings > Map and objects
+      const res = kind === "acmi" ? await api.exportAcmi(path, title, reqs, rate, placesSpec())
+        : kind === "csv" ? await api.exportTacviewCsv(path, title, reqs, rate) : await api.exportKml(path, title, reqs, rate, placesSpec());
+      const parts = [translate(lang, kind === "acmi" ? "acmiSaved" : kind === "csv" ? "tacviewCsvSaved" : "kmlSaved", { n: res.objects, path: res.path })];
+      if (res.leftOut?.length) parts.push(translate(lang, "exportLeftOut", { list: res.leftOut.join(", ") }));
+      if (res.lowered) parts.push(translate(lang, "exportRateLowered", { rate: Math.round(res.rate * 10) / 10 }));
+      if (kind === "csv") parts.push(translate(lang, "tacviewCsvHowTo"));
+      useApp.getState().toast({ kind: "info", text: parts.join(" ") });
     } catch (e) { failed(e); }
   };
   const copyImage = async () => {
@@ -134,6 +155,9 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       useApp.getState().toast({ kind: "info", text: t("copied") });
     } catch { useApp.getState().toast({ kind: "error", text: t("copyFailed") }); }
   };
+  const noPos = useApp((s) => s.objNoPosition);
+  const placesOpen = useApp((s) => s.placesPanel === plot.id);
+          // P2: objects with no position (chips say so)
   const mode: PlotMode = plot.mode ?? "time";
   const setpoints = setpointsIn(plot.signals);      // U4: drawn dashed (and the legend shows it)
   /* T49 item 12 / F25: the plot's options live in the app's one menu (drawn above everything, so a
@@ -146,7 +170,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     ...(geoPicksHidden ? [{ label: t("geoTrackShow"), run: () => setGeoPicks(true) }, { label: "", run: () => {}, sep: true }] : []),
     { label: t("exportData"), run: exportCsv, disabled: !plot.signals.length },
     // the 3D view's picture is Cesium's (globeBridge); every other plot's comes from the server
-    ...(mode === "3d" ? [
+    ...(map3d ? [
       { label: `${t("saveImage")} (PNG)`, run: () => globeImage.get(plot.id)?.(1) },
       { label: t("saveImageHires"), run: () => globeImage.get(plot.id)?.(2) },
       // 1.26: as reports draw it (the server's picture), and its own live offline page (three.js)
@@ -159,12 +183,18 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       { label: `${t("saveImage")} (PNG)`, run: () => saveImage("png"), disabled: !plot.signals.length },
       { label: t("saveImageHires"), run: () => saveImage("png", 2), disabled: !plot.signals.length },
     ]),
-    ...(geoObjects || mode === "3d" ? [] : [
+    ...(geoObjects || map3d ? [] : [
       { label: `${t("saveImage")} (SVG)`, run: () => saveImage("svg"), disabled: !plot.signals.length },
       { label: t("saveImageHtml"), run: () => saveImage("html"), disabled: !plot.signals.length },
     ]),
     { label: t("copyImage"), run: copyImage, disabled: !plot.signals.length },
-    ...((mode === "geo" || mode === "3d") && plot.objects?.length ? [{ label: t("exportAcmi"), run: exportAcmi }] : []),
+    // P7: the Places panel, docked in this Map
+    ...(isMap ? [{ label: `${t("plPanel")}…`, run: () => useApp.setState({ placesPanel: plot.id }) }] : []),
+    ...((mode === "geo" || mode === "3d") && plot.objects?.length ? [{ label: t("exportFlight"), run: () => {}, items: [
+      { label: t("exportAcmi"), run: () => { void exportFlight("acmi"); } },
+      { label: t("exportFlightCsv"), run: () => { void exportFlight("csv"); } },
+      { label: t("exportKml"), run: () => { void exportFlight("kml"); } },
+    ] } as MenuItem] : []),
     { label: "", run: () => {}, sep: true },
     // the error between two lines (a flight computer's X against the true X), here or in every such plot
     ...(() => {
@@ -241,7 +271,13 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       ...laneMenuItems(plot.id, lane, true),
       { label: "", run: () => {}, sep: true },
     ] : [];
-    openMenu(e, [...laneItems, ...timeItems, ...plotItems()]);
+    // P7: a right-click on the Map's ground: a place there (the drawing put the position on the event)
+    const geo = (e.nativeEvent as MouseEvent & { svGeo?: { lat: number; lon: number; ground: number | null } }).svGeo;
+    const geoItems: MenuItem[] = geo ? [
+      { label: t("plAddHere"), run: () => useApp.setState({ placeEdit: { plotId: plot.id, place: { kind: "point", lat: geo.lat, lon: geo.lon, ...(geo.ground !== null ? { alt: geo.ground } : {}) } } }) },
+      { label: "", run: () => {}, sep: true },
+    ] : [];
+    openMenu(e, [...geoItems, ...laneItems, ...timeItems, ...plotItems()]);
   };
   const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["xyz", t("modeXyz")], ["geo", t("modeGeo")], ["fft", "FFT"], ["step", t("modeStep")], ["spec", t("modeSpec")], ["env", t("modeEnv")], ["video", t("modeVideo")],
     // occ is made from the Investigate panel (it needs a condition): listed only on such a plot
@@ -450,12 +486,6 @@ export default function PlotView({ tab, plot, index, active }: Props) {
           title={t("plotMode")} onClick={openModeMenu}>
           {modes.find(([m]) => m === modeShown)?.[1] ?? mode}<Icon.Chevron width={12} height={12} />
         </button>
-        {(mode === "geo" || mode === "3d") && (
-          <span className="seg map-view" role="group" aria-label={t("mapView")} title={t("mapViewHint")}>
-            <button className={mode === "geo" ? "on" : ""} aria-pressed={mode === "geo"} onClick={() => mode !== "geo" && actions.setPlotMode(plot.id, "geo")}>{t("mapView2d")}</button>
-            <button className={mode === "3d" ? "on" : ""} aria-pressed={mode === "3d"} onClick={() => mode !== "3d" && actions.setPlotMode(plot.id, "3d")}>{t("mapView3d")}</button>
-          </span>
-        )}
         {(mode === "xy" || (mode === "geo" && !geoPicksHidden)) && (
           <span className={`xpick${dragOver === "x" ? " over" : ""}`}
             onDragOver={(e) => { if (e.dataTransfer.types.includes(SIGNAL_MIME) || e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); e.stopPropagation(); setDragOver("x"); } }}
@@ -526,9 +556,9 @@ export default function PlotView({ tab, plot, index, active }: Props) {
           </span>
         )}
         {(mode === "geo" || mode === "3d") && (plot.objects?.length ?? 0) > 0 && (() => { const pair = pairOf(plot); return (
-          <span className="obj-chips" role="list" aria-label={t("objects")}>
+          <span className="obj-chips" role="list" aria-label={t("objects")} data-no-position={noPos.length || undefined}>
             {plot.objects!.map((o) => (
-              <span key={o.id} className={`obj-chip${pair.primary === o.id ? " primary" : pair.secondary === o.id ? " secondary" : ""}`} role="listitem"
+              <span key={o.id} className={`obj-chip${o.hidden ? " hidden" : ""}${pair.primary === o.id ? " primary" : pair.secondary === o.id ? " secondary" : ""}`} role="listitem"
                 onContextMenu={(e) => openMenu(e, [
                   { label: t("relSetPrimary"), checked: pair.primary === o.id, run: () => actions.setObjectPair(plot.id, o.id, o.id === pair.secondary ? pair.primary : pair.secondary) },
                   ...(plot.objects!.length > 1 ? [{ label: t("relSetSecondary"), checked: pair.secondary === o.id, disabled: pair.primary === o.id,
@@ -536,12 +566,23 @@ export default function PlotView({ tab, plot, index, active }: Props) {
                   ...(pair.primary && pair.primary !== o.id ? [{ label: t("relErrors"), run: () => { const P = plot.objects!.find((x) => x.id === pair.primary); if (P) void errorSignals(P, o, plot.objects!); } },
                     { label: t("relCompareWith"), run: () => { const P = plot.objects!.find((x) => x.id === pair.primary); if (P) void compareObjects(P, plot.objects!, "ned", o); } }] : []),
                   { label: t("objEdit"), run: () => useApp.setState({ objectDialog: { plotId: plot.id, objectId: o.id } }) },
+                  // P7: a place where it is at the cursor
+                  { label: t("plMark"), disabled: !mapObjectAt.get(plot.id)?.(o.id), run: () => {
+                    const at = mapObjectAt.get(plot.id)?.(o.id);
+                    const c = useApp.getState().cursor;
+                    if (at) useApp.setState({ placeEdit: { plotId: plot.id, place: { kind: "point", lat: at.lat, lon: at.lon, ...(at.alt !== null ? { alt: at.alt } : {}), color: o.color,
+                      name: c.on && c.t1 !== null ? `${o.name} @ ${fmtNum(c.t1, lang, 6)} s` : o.name } } });
+                  } },
                 ])}
                 title={pair.primary === o.id ? t("relRingTip_primary") : pair.secondary === o.id ? t("relRingTip_secondary") : undefined}>
                 {(pair.primary === o.id || pair.secondary === o.id) && <RingIcon kind={pair.primary === o.id ? "primary" : "secondary"} />}
+                <button className={`iconbtn sm obj-eye${o.hidden ? "" : " on"}`} aria-pressed={!o.hidden}
+                  title={`${t(o.hidden ? "objShowOnMap" : "objHideOnMap")} · ${t("objOnlyThisHint")}`} aria-label={`${t(o.hidden ? "objShowOnMap" : "objHideOnMap")}: ${o.name}`}
+                  onClick={(e) => actions.toggleObjectHidden(plot.id, o.id, e.altKey)}>{o.hidden ? "◌" : "◉"}</button>
                 <button className="obj-chip-main" onClick={() => useApp.setState({ objectDialog: { plotId: plot.id, objectId: o.id } })} title={t("objEdit")}>
                   <img src={iconSvg(o.kind, o.color)} alt="" width={16} height={16} />{o.name}
                 </button>
+                {noPos.includes(o.id) && <span className="obj-no-position" title={t("objNoPositionWhy")}>{t("objNoPositionChip")}</span>}
                 <AngleGuessBadge o={o} />
                 <AttitudeSourceBadge o={o} all={plot.objects!} />
                 <button className={`iconbtn sm${plot.followObject === o.id ? " on" : ""}`} aria-pressed={plot.followObject === o.id}
@@ -580,9 +621,14 @@ export default function PlotView({ tab, plot, index, active }: Props) {
         <PlotBoundary label={t("plotFailed")} retry={t("tryAgain")} resetKey={`${mode}|${plot.signals.map((x) => x.sig).join(",")}|${plot.xSignal ?? ""}`}>
           {mode === "time" && <TimeChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}
           {mode === "xy" && <XYChart plot={plot} index={index} onLoading={setLoading} emptyText={!plot.xSignal ? t("xyNeedsX") : t("emptyPlot")} />}
-          {mode === "3d" && <Suspense fallback={<div className="plot-empty">{t("globeLoading")}</div>}>
-            <Globe3D plot={plot} index={index} onLoading={setLoading} emptyText={t("globeNeedsObject")} /></Suspense>}
-          {mode === "geo" && <GeoChart plot={plot} index={index} onLoading={setLoading} emptyText={!plot.xSignal ? t("geoNeedsLon") : t("emptyPlot")} notDegrees={t("geoNotDegrees")} />}
+          {/* P4: the Map is the 3D view (a 2D-era map with objects: From above); flat (GeoChart) only where 3D
+              cannot draw, and for a plain lon / lat X-Y without objects */}
+          {isMap && !flat && <Suspense fallback={<div className="plot-empty">{t("globeLoading")}</div>}>
+            <Globe3D plot={plot} index={index} onLoading={setLoading} emptyText={t("globeNeedsObject")} onFlat={setFlatWhy} /></Suspense>}
+          {isMap && flatWhy && <div className="map-flat-note" role="status" title={flatWhy}>{t("mapFlat")}</div>}
+          {isMap && placesOpen && <Suspense fallback={null}><PlacesPanel plotId={plot.id} /></Suspense>}
+          {((isMap && flat) || (mode === "geo" && !isMap)) && <GeoChart plot={plot} index={index} onLoading={setLoading}
+            emptyText={!plot.xSignal ? t("geoNeedsLon") : t("emptyPlot")} notDegrees={t("geoNotDegrees")} />}
           {mode === "env" && <EnvelopeChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}
           {mode === "step" && <StepChart plot={plot} index={index} onLoading={setLoading} />}
           {mode === "occ" && <OccChart plot={plot} index={index} onLoading={setLoading} />}

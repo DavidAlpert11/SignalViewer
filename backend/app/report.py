@@ -38,6 +38,8 @@ STRINGS = {
            "envNote": "{n} runs · median, {p}–{q} % band, min–max", "envFar": "Far from the rest:",
            "rpHint": "Click a plot or drag the timeline - every plot, the map and the 3D view follow · Space: play · drag on a plot: zoom them all",
            "lvHint": "Click a plot or drag the timeline at the bottom - every plot, the map and the 3D view follow · Space: play · drag on a plot: zoom it",
+           "rpStory": "Story", "rpStoryHint": "The flight tells itself: the time runs and stops at each moment that matters (Esc ends it)",
+           "rpStoryPrev": "Previous moment", "rpStoryNext": "Next moment", "rpStoryStay": "Stop here and look around",
            "rpPlay": "Play", "rpPause": "Pause", "rpSpeed": "Speed", "rpStart": "To the start", "rpTimeline": "Timeline",
            "rpMade": "Made with Signal Viewer", "rpTag": "offline flight log & test data analysis", "rpGet": "Get it free"},
     "he": {"generated": "נוצר", "summary": "סיכום", "notes": "הערות", "toggle": "לחיצה להצגה או הסתרה", "theme": "בהיר / כהה",
@@ -48,6 +50,8 @@ STRINGS = {
            "envNote": "{n} ריצות · חציון, רצועת {p}–{q} %, מינ׳–מקס׳", "envFar": "רחוקות מהשאר:",
            "rpHint": "לחיצה על גרף או גרירה בציר הזמן - כל הגרפים, המפה והתלת-ממד זזים יחד · רווח: ניגון · גרירה על גרף: זום לכולם",
            "lvHint": "לחיצה על גרף או גרירה בציר הזמן למטה - כל הגרפים, המפה והתלת-ממד זזים יחד · רווח: ניגון · גרירה על גרף: זום שלו",
+           "rpStory": "סיפור", "rpStoryHint": "הטיסה מספרת את עצמה: הזמן רץ ועוצר בכל רגע שחשוב (Esc מסיים)",
+           "rpStoryPrev": "הרגע הקודם", "rpStoryNext": "הרגע הבא", "rpStoryStay": "לעצור כאן ולהסתכל",
            "rpPlay": "ניגון", "rpPause": "השהיה", "rpSpeed": "מהירות", "rpStart": "להתחלה", "rpTimeline": "ציר זמן",
            "rpMade": "נוצר ב-Signal Viewer", "rpTag": "ניתוח לוגי טיסה ונתוני ניסוי, אופליין", "rpGet": "להורדה חינם"},
 }
@@ -175,11 +179,28 @@ def _scene_data(store, spec: Dict, for_html: bool) -> Dict:
         sd = scene3d.scene_data(store, spec)
     except ValueError:
         return out
-    png = scene3d.render(sd, "png", spec.get("theme") or "light", 1.6)
+    png = _map_picture(store, spec, sd, "png", spec.get("theme") or "light", 1.6)
     out["geo_png"] = base64.b64encode(png).decode()
     if for_html:
         out["geo_html"] = scene3d.build_html(sd, spec.get("theme") or "light", spec.get("lang") or "en", fallback_png=png)
     return out
+
+
+def _top(spec: Dict) -> bool:
+    """P4: the Map on its From above camera (a 2D-era map: the default)."""
+    return ((spec.get("scene") or {}).get("camera") or "") == "top"
+
+
+def _map_picture(store, spec: Dict, sd: Optional[Dict], fmt: str, theme: str, scale: float) -> bytes:
+    """P4: the Map's static picture - From above: the clear flat map (app/mapimage.py); any other camera: the
+    3D scene (app/scene3d.py)."""
+    from app import mapimage, scene3d
+    if _top(spec):
+        try:
+            return mapimage.render(mapimage.map_data(store, spec), fmt, theme, scale)
+        except ValueError:
+            pass
+    return scene3d.render(sd if sd is not None else scene3d.scene_data(store, spec), fmt, theme, scale)
 
 
 def _step_data(store, spec: Dict, out: Dict, for_html: bool) -> Dict:
@@ -522,7 +543,12 @@ def build_html(store, req: Dict, progress=None) -> str:
                 s.pop("stats", None)
     payload_tabs = [{"name": t["name"], "plots": [{k: v for k, v in p.items() if k not in ("spec", "xyz", "geo_png", "geo_html")} for p in t["plots"]]} for t in tabs]
     replay = _replay(req.get("replay"))
-    payload = {"lang": lang, "strings": {"toggle": S["toggle"], **({k: S[k] for k in ("rpPlay", "rpPause")} if replay else {})},
+    if replay and (req.get("replay") or {}).get("story") is not False:
+        # P10: Story mode - the moments of each tab (its first Map's objects; a tab with no Map: the marks)
+        replay["story"] = [story_of(store, tab, replay, lang) for tab in req.get("tabs", [])]
+        sl = (req.get("replay") or {}).get("storyLength")
+        replay["storyLength"] = float(sl) if isinstance(sl, (int, float)) and 20 <= sl <= 600 else 90.0
+    payload = {"lang": lang, "strings": {"toggle": S["toggle"], **({k: S[k] for k in ("rpPlay", "rpPause", "rpStory", "rpStoryHint", "rpStoryPrev", "rpStoryNext", "rpStoryStay")} if replay else {})},
                "tabs": payload_tabs, **({"replay": replay} if replay else {})}
     nav_items = []
     for i, t in enumerate(tabs):
@@ -602,11 +628,81 @@ def _replay(r) -> Optional[Dict]:
             "compact": r.get("compact") is not False, "link": r.get("link") is not False}
 
 
+def story_of(store, tab: Dict, replay: Dict, lang: str) -> List[Dict]:
+    """P10: the Story's moments of one tab (svcore/story.py): the replay's marks, and from the tab's first Map
+    (a 3D Map or a map with objects) its reference object's track, its pair and the places."""
+    from svcore.story import moments
+    events = replay.get("events") or []
+    mp = next((p for p in tab.get("plots", []) if p.get("mode") in ("3d", "geo") and ((p.get("scene") or {}).get("objects") or (p.get("geo") or {}).get("objects"))), None)
+    if mp is None:
+        return moments([], events, lang=lang)
+    geo = mp.get("geo") or {}
+    want = [o for o in ((mp.get("scene") or {}).get("objects") or geo.get("objects") or []) if o.get("lat") and o.get("lon") and not o.get("hidden")]
+    try:
+        from app.routes.export import acmi_objects
+        raw = acmi_objects(want, store)
+    except Exception:                                 # a signal not open any more: the marks alone
+        return moments([], events, lang=lang)
+    objs = []
+    for o in raw:
+        lat, lon = np.asarray(o["lat"], dtype=float), np.asarray(o["lon"], dtype=float)
+        ok = np.isfinite(lat) & np.isfinite(lon)
+        g = np.full(len(lat), np.nan)
+        if ok.any():
+            idx = np.flatnonzero(ok)[:: max(1, int(ok.sum()) // 600)]          # the ground: ~600 points, interpolated
+            from app import basemap
+            gg = np.asarray(basemap.ground_at(lat[idx], lon[idx]), dtype=float)
+            if np.isfinite(gg).any():
+                g = np.interp(np.arange(len(lat)), idx, np.where(np.isfinite(gg), gg, np.nanmedian(gg)))
+        objs.append({"name": o["name"], "t": o["t"], "lat": lat, "lon": lon, "alt": o["alt"], "ground": g if np.isfinite(g).any() else None,
+                     "roll": o["roll"]})
+    places = [p for p in (geo.get("places") or []) if isinstance(p, dict) and (p.get("kind") or "point") == "point"]
+    sc = mp.get("scene") or {}
+    pair = {"primary": sc.get("primary") or geo.get("primary"), "secondary": sc.get("secondary") or geo.get("secondary")}
+    return moments(objs, events, pair, places, "imperial" if geo.get("units") == "imperial" else "metric", lang)
+
+
+STORY_WORDS = {"en": {"title": "The flight in {n} moments", "time": "Time", "what": "Moment", "said": "What happened"},
+               "he": {"title": "הטיסה ב-{n} רגעים", "time": "זמן", "what": "רגע", "said": "מה קרה"}}
+
+
+def _story_parts(store, req: Dict) -> tuple:
+    """P10: PDF / Word - "The flight in N moments": a table of the first Map's moments (time, title, sentence)
+    and the 3D picture at the first four. Returns (sections, [(caption, png)])."""
+    lang = "he" if req.get("lang") == "he" else "en"
+    W = STORY_WORDS[lang]
+    events = [{"t": n.get("t"), "text": n.get("text"), "level": "note"} for n in req.get("notes") or []]
+    for tab in req.get("tabs") or []:
+        mp = next((p for p in tab.get("plots", []) if p.get("mode") in ("3d", "geo") and ((p.get("scene") or {}).get("objects") or (p.get("geo") or {}).get("objects"))), None)
+        if mp is None:
+            continue
+        ms = story_of(store, tab, {"events": events}, lang)
+        if not ms:
+            return [], []
+        sec = {"title": W["title"].format(n=len(ms)), "table": {"head": [W["time"], W["what"], W["said"]],
+               "rows": [[f"{m['t']:.1f} s", m["title"], m["text"]] for m in ms]}}
+        pics = []
+        try:
+            from app import scene3d
+            sd = scene3d.scene_data(store, mp)
+            for m in ms[:4]:
+                for o in sd["objects"]:
+                    o["at"] = int(np.clip(np.searchsorted(o["t"], m["t"]), 0, len(o["t"]) - 1))
+                pics.append((f"{m['t']:.1f} s · {m['title']}", scene3d.render(sd, "png", "light", 1.0, size=(6.0, 4.2))))
+        except Exception:                             # the table is enough when the scene cannot be drawn
+            pics = []
+        return [sec], pics
+    return [], []
+
+
 def _replay_bar(S: Dict) -> str:
     return ('<div id="rp" role="group" aria-label="%(tl)s"><button id="rp-start" title="%(st)s" aria-label="%(st)s">&#9198;</button>'
             '<button id="rp-play" title="%(pl)s (Space)" aria-label="%(pl)s">&#9654;</button>'
+            '<button id="rp-storybtn" hidden></button>'
             '<div id="rp-track" role="slider" tabindex="0" aria-label="%(tl)s" dir="ltr"><div id="rp-fill"></div><div id="rp-marks"></div><div id="rp-head"></div></div>'
-            '<span id="rp-clock"></span><select id="rp-speed" title="%(sp)s" aria-label="%(sp)s">%(opts)s</select></div>'
+            '<span id="rp-clock"></span><select id="rp-speed" title="%(sp)s" aria-label="%(sp)s">%(opts)s</select>'
+            '<div id="rp-story" role="status" aria-live="polite" hidden><b id="rp-story-title"></b><span id="rp-story-text"></span>'
+            '<span class="rp-story-nav"><button id="rp-story-prev">&#9664;</button><span id="rp-story-n"></span><button id="rp-story-next">&#9654;</button></span></div></div>'
             % {"tl": S["rpTimeline"], "st": S["rpStart"], "pl": S["rpPlay"], "sp": S["rpSpeed"],
                "opts": "".join('<option value="%s"%s>×%s</option>' % (v, " selected" if v == "1" else "", v) for v in ("0.5", "1", "2", "5", "10", "30"))})
 
@@ -633,6 +729,13 @@ body.live main{padding-bottom:88px}
 #rp-head{position:absolute;top:5px;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--amber);box-shadow:0 0 0 3px var(--panel)}
 #rp-marks i{position:absolute;top:3px;width:3px;height:9px;margin-left:-1.5px;border-radius:1px;background:var(--muted);cursor:pointer}
 #rp-marks i.error{background:#d64545}#rp-marks i.warning{background:#d9912b}#rp-marks i.finding{background:#d64545;height:11px;width:7px;margin-left:-3.5px;border-radius:50%}
+#rp-storybtn{width:auto!important;padding:0 10px;font-weight:600;white-space:nowrap}#rp-storybtn.on{background:var(--amber)!important;color:var(--amber-ink);border-color:var(--amber)!important}
+#rp-marks i.story{top:0;width:9px;height:9px;margin-left:-4.5px;border-radius:1px;transform:rotate(45deg);background:var(--amber);border:1px solid var(--panel);z-index:1}
+#rp-story{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);max-width:min(560px,92vw);display:flex;flex-direction:column;gap:3px;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-inline-start:5px solid var(--amber);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.22);z-index:6;cursor:pointer}
+#rp-story.error{border-inline-start-color:#d64545}#rp-story.warning{border-inline-start-color:#d9912b}#rp-story.note{border-inline-start-color:#4f8cff}
+#rp-story b{font-size:15px;color:var(--ink-strong)}#rp-story span{font-size:14px}
+.rp-story-nav{display:flex;align-items:center;gap:8px;align-self:flex-end;color:var(--muted);font-size:12px!important}
+#rp-story button{width:26px;height:24px}
 #rp-clock{min-width:9ch;text-align:end;font-variant-numeric:tabular-nums;color:var(--ink-strong)}
 #rp-speed{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:3px 4px}
 footer.brand{display:flex;align-items:center;gap:10px;flex-wrap:wrap}footer.brand a{color:var(--amber);font-weight:600;text-decoration:none;margin-inline-start:auto}
@@ -842,9 +945,11 @@ def build_pdf(store, req: Dict, path: str, progress=None):
     rtl = lang == "he"
     ha, X = ("right", 0.9) if rtl else ("left", 0.1)
     ink, muted = "#0f1822", "#5a6979"
+    story_secs, story_pics = _story_parts(store, req)              # P10: the flight in N moments
+    req = {**req, "sections": story_secs + list(req.get("sections") or [])}
     items = _collect(store, req, progress)
     title = req.get("title") or "Signal Viewer report"
-    total = 1 + len(items) + (1 if req.get("summary") or req.get("notes") else 0) + len(req.get("sections") or [])
+    total = 1 + len(items) + (1 if req.get("summary") or req.get("notes") else 0) + len(req.get("sections") or []) + (1 if story_pics else 0)
 
     def page(n):
         fig = plt.figure(figsize=(8.27, 11.69))
@@ -882,6 +987,14 @@ def build_pdf(store, req: Dict, path: str, progress=None):
                     y = paragraphs(fig, line, y, size=9.5)
                 pdf.savefig(fig); plt.close(fig)
                 lines = rest
+        if story_pics:                                  # P10: the 3D picture at the first four moments, two per row
+            n += 1
+            fig = page(n)
+            for k, (cap, png) in enumerate(story_pics):
+                ax = fig.add_axes((0.06 + (k % 2) * 0.46, 0.52 - (k // 2) * 0.42, 0.42, 0.36))
+                ax.imshow(plt.imread(io.BytesIO(png), format="png")); ax.set_axis_off()
+                ax.set_title(_bidi(cap), fontsize=9, color=ink)
+            pdf.savefig(fig); plt.close(fig)
 
         for i, p in enumerate(items):
             if progress:
@@ -956,6 +1069,8 @@ def build_docx(store, req: Dict, path: str, progress=None):
                 rt = OxmlElement("w:rtl"); rt.set(qn("w:val"), "1"); rpr.append(rt)
         return par
 
+    story_secs, story_pics = _story_parts(store, req)              # P10: the flight in N moments
+    req = {**req, "sections": story_secs + list(req.get("sections") or [])}
     rtlize(doc.add_heading(req.get("title") or "Signal Viewer report", 0))
     rtlize(doc.add_paragraph(f"{S['generated']} {datetime.now().strftime('%Y-%m-%d %H:%M')}"))
     for para in (req.get("intro") or "").split("\n"):
@@ -979,6 +1094,12 @@ def build_docx(store, req: Dict, path: str, progress=None):
                 cells = t.add_row().cells
                 for c, v in enumerate(r[:len(head)]):
                     cells[c].text = str(v)
+    if story_pics:                                     # P10: the 3D picture at the first four moments, two per row
+        grid = doc.add_table(rows=(len(story_pics) + 1) // 2, cols=2)
+        for kp, (cap, png) in enumerate(story_pics):
+            cell = grid.rows[kp // 2].cells[kp % 2]
+            cell.paragraphs[0].add_run().add_picture(io.BytesIO(png), width=Inches(3.0))
+            rtlize(cell.add_paragraph(cap))
     items = _collect(store, req, progress)
     for i, p in enumerate(items):
         if progress:
@@ -1045,8 +1166,7 @@ def build_image(store, spec: Dict, fmt: str, theme: str, scale: float = 1.0) -> 
         from app import mapimage
         return mapimage.render(mapimage.map_data(store, spec), fmt, theme, scale)
     if spec.get("mode") == "3d":
-        from app import scene3d
-        return scene3d.render(scene3d.scene_data(store, spec), fmt, theme, scale)
+        return _map_picture(store, spec, None, fmt, theme, scale)
     p = plot_data(store, spec, for_html=False, points=int(4000 * max(1.0, scale)))
     fig = render_figure(p, theme, size=(8, 6) if p.get("mode") == "xyz" else (10, 4), dpi=int(200 * scale) if fmt == "png" else 100)
     if p["title"]:

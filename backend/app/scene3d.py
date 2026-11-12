@@ -32,7 +32,8 @@ import numpy as np
 from app import basemap, mapimage
 
 R_EARTH = 6378137.0
-GRID = 97                      # terrain heights: GRID x GRID over the padded box
+GRID = 129                     # terrain heights: GRID x GRID over the padded box (and over the far ground)
+FAR_MIN, FAR_MAX = 40_000.0, 200_000.0   # P5: the far ground's side (m): 8 x the near side, within these
 TEX_PX = 1024                  # the ground picture's longest side
 POINTS = 3000                  # a track: at most this many points
 ASSETS = os.path.join(os.path.dirname(__file__), "report_assets")
@@ -44,6 +45,51 @@ KINDS = ("aircraft", "drone", "uav", "ship", "vehicle", "missile")
 
 
 # ---- the scene ----------------------------------------------------------------------------------
+
+def sun_position(epoch_s: float, lat: float, lon: float) -> Tuple[float, float]:
+    """P9: where the sun is - (azimuth from north, clockwise; elevation above the horizon), degrees - at a
+    Unix time over a point. NOAA's low-precision formulas (their "General Solar Position Calculations":
+    the fractional year, the equation of time and the declination as Fourier series; within ~0.5°)."""
+    import datetime as _dt
+    d = _dt.datetime.fromtimestamp(float(epoch_s), tz=_dt.timezone.utc)
+    days = 366 if (d.year % 4 == 0 and (d.year % 100 != 0 or d.year % 400 == 0)) else 365
+    hour = d.hour + d.minute / 60 + d.second / 3600
+    g = 2 * math.pi / days * (d.timetuple().tm_yday - 1 + (hour - 12) / 24)
+    eqt = 229.18 * (0.000075 + 0.001868 * math.cos(g) - 0.032077 * math.sin(g) - 0.014615 * math.cos(2 * g) - 0.040849 * math.sin(2 * g))
+    decl = (0.006918 - 0.399912 * math.cos(g) + 0.070257 * math.sin(g) - 0.006758 * math.cos(2 * g) + 0.000907 * math.sin(2 * g)
+            - 0.002697 * math.cos(3 * g) + 0.00148 * math.sin(3 * g))
+    tst = hour * 60 + eqt + 4 * lon                      # true solar time, minutes
+    ha = math.radians(tst / 4 - 180)
+    phi = math.radians(lat)
+    cz = max(-1.0, min(1.0, math.sin(phi) * math.sin(decl) + math.cos(phi) * math.cos(decl) * math.cos(ha)))
+    zen = math.acos(cz)
+    az = math.degrees(math.atan2(math.sin(ha), math.cos(ha) * math.sin(phi) - math.tan(decl) * math.cos(phi))) + 180
+    return az % 360, 90 - math.degrees(zen)
+
+
+def scene_sun(t0: float, lat: float, lon: float) -> Dict:
+    """P9: the light of a scene - where the sun was when the recording has real dates (Unix seconds, as
+    write_acmi tests them: > 1e9), else a fixed mid-morning sun (10:00 local solar time at an equinox)."""
+    dated = math.isfinite(t0) and t0 > 1e9
+    if not dated:
+        import datetime as _dt
+        noon = _dt.datetime(2026, 3, 20, 12, tzinfo=_dt.timezone.utc).timestamp()
+        t0 = noon - 2 * 3600 - lon / 15 * 3600
+    az, el = sun_position(t0, lat, lon)
+    return {"az": round(az, 2), "el": round(el, 2), "dated": dated}
+
+
+def _story(objs: List[Dict], sc: Dict, geo: Dict) -> List[Dict]:
+    """P10: the Story's moments of this scene alone (no log marks: the live report adds them) - D.story."""
+    from svcore.story import moments
+    try:
+        return moments([{"name": o["name"], "t": o["t"], "lat": o["lat"], "lon": o["lon"], "alt": o["alt"], "ground": None,
+                         "roll": o["roll"]} for o in objs if not o.get("hidden")], [],
+                       {"primary": sc.get("primary") or geo.get("primary"), "secondary": sc.get("secondary") or geo.get("secondary")},
+                       units="imperial" if geo.get("units") == "imperial" else "metric")
+    except Exception:                                    # the story is a bonus: never the reason a page fails
+        return []
+
 
 def _enu(lat, lon, lat0: float, lon0: float):
     e = np.radians(np.asarray(lon, dtype=np.float64) - lon0) * R_EARTH * math.cos(math.radians(lat0))
@@ -120,6 +166,7 @@ def scene_data(store, spec: Dict) -> Dict:
     except (HTTPException, KeyError) as err:
         raise ValueError(f"A 3D view's object could not be read: {getattr(err, 'detail', err)}") from err
     sizes = {o.get("name"): o.get("size") for o in want}
+    hidden = {o.get("name") for o in want if o.get("hidden")}      # P6
     looks = {o.get("name"): o.get("track") for o in want}
     objs: List[Dict] = []
     for o in raw:
@@ -134,11 +181,12 @@ def scene_data(store, spec: Dict) -> Dict:
         objs.append({"name": o["name"], "color": o["color"] or "#3d8bfd", "kind": o["kind"] if o["kind"] in KINDS else "aircraft",
                      "size": float(sizes.get(o["name"]) or 26),
                      "track": looks.get(o["name"]) if looks.get(o["name"]) in ("dash", "points") else None, "t": d[0], "lat": d[1], "lon": d[2], "alt": d[3],
-                     "roll": d[4], "pitch": d[5], "yaw": d[6], "own": o["yaw"] is not None})
+                     "roll": d[4], "pitch": d[5], "yaw": d[6], "own": o["yaw"] is not None, "hidden": o["name"] in hidden})
     if not objs:
         raise ValueError("The 3D view has no object with a position to draw.")
-    lat_all = np.concatenate([o["lat"] for o in objs])
-    lon_all = np.concatenate([o["lon"] for o in objs])
+    shown = [o for o in objs if not o["hidden"]] or objs       # P6: the box (Fit) leaves hidden objects out
+    lat_all = np.concatenate([o["lat"] for o in shown])
+    lon_all = np.concatenate([o["lon"] for o in shown])
     box = mapimage._padded((float(lat_all.min()), float(lon_all.min()), float(lat_all.max()), float(lon_all.max())), frac=0.45, min_m=3000.0)
     s_, w_, n_, e_ = box
     lat0, lon0 = (s_ + n_) / 2, (w_ + e_) / 2
@@ -146,10 +194,20 @@ def scene_data(store, spec: Dict) -> Dict:
     glat = np.linspace(n_, s_, GRID)
     glon = np.linspace(w_, e_, GRID)
     LA, LO = np.meshgrid(glat, glon, indexing="ij")
-    H = np.asarray(basemap.ground_at(LA.ravel(), LO.ravel()), dtype=np.float64).reshape(GRID, GRID)
+    near_side = max(float(_enu(s_, e_, lat0, lon0)[0] - _enu(s_, w_, lat0, lon0)[0]), float(_enu(n_, w_, lat0, lon0)[1] - _enu(s_, w_, lat0, lon0)[1]))
+    H = np.asarray(basemap.ground_at(LA.ravel(), LO.ravel(), step_m=near_side / (GRID - 1)), dtype=np.float64).reshape(GRID, GRID)
     if not np.isfinite(H).any():
         H = np.zeros_like(H)
     H = np.where(np.isfinite(H), H, np.nanmin(H))
+    # P5: the ground to the horizon - a square around the same centre, 8 x the near side (40 to 200 km),
+    # under the near one; fog hides its edge
+    far_side = float(min(FAR_MAX, max(8 * near_side, FAR_MIN)))
+    dlat = math.degrees(far_side / 2 / R_EARTH)
+    dlon = math.degrees(far_side / 2 / (R_EARTH * max(0.05, math.cos(math.radians(lat0)))))
+    far_box = (lat0 - dlat, lon0 - dlon, lat0 + dlat, lon0 + dlon)
+    FL, FO = np.meshgrid(np.linspace(lat0 + dlat, lat0 - dlat, GRID), np.linspace(lon0 - dlon, lon0 + dlon, GRID), indexing="ij")
+    HF = np.asarray(basemap.ground_at(FL.ravel(), FO.ravel(), step_m=far_side / (GRID - 1)), dtype=np.float64).reshape(GRID, GRID)
+    HF = np.where(np.isfinite(HF), HF, float(np.nanmin(H)))
     cur = geo.get("cursor", sc.get("cursor"))
     for o in objs:
         e, n = _enu(o["lat"], o["lon"], lat0, lon0)
@@ -162,11 +220,29 @@ def scene_data(store, spec: Dict) -> Dict:
         o["at"] = len(o["t"]) - 1 if cur is None else int(np.clip(np.searchsorted(o["t"], float(cur)), 0, len(o["t"]) - 1))
     E0, N0 = _enu(s_, w_, lat0, lon0)
     E1, N1 = _enu(n_, e_, lat0, lon0)
+    # P7: the places inside the far ground - local metres; a point at its height (else the ground), a line /
+    # an area 2 m over the ground under each vertex
+    places = []
+    for p in mapimage.page_places(geo):
+        pts = p.get("points") or [[p["lat"], p["lon"]]]
+        la, lo = np.asarray([q[0] for q in pts], dtype=np.float64), np.asarray([q[1] for q in pts], dtype=np.float64)
+        if not ((np.abs(la - lat0) <= dlat) & (np.abs(lo - lon0) <= dlon)).any():
+            continue
+        e, n = _enu(la, lo, lat0, lon0)
+        g = np.asarray(basemap.ground_at(la, lo), dtype=np.float64)
+        g = np.where(np.isfinite(g), g, float(np.median(H)))
+        u = np.full(len(g), float(p["alt"])) if (p["kind"] == "point" and p.get("alt") is not None) else g + (0.0 if p["kind"] == "point" else 2.0)
+        places.append({**p, "e": e, "n": n, "u": u, "g": g})
     base = str(geo.get("base") or "offline")
     base = base if base in mapimage.ATTRIB else "offline"
     return {"title": spec.get("title") or "", "objects": objs, "origin": (lat0, lon0), "bounds": box,
             "extent": (float(E0), float(E1), float(N0), float(N1)), "heights": H, "cursor": cur, "base": base,
-            "follow": sc.get("follow"), "primary": sc.get("primary"), "secondary": sc.get("secondary")}
+            "far": {"bounds": far_box, "extent": (-far_side / 2, far_side / 2, -far_side / 2, far_side / 2), "heights": HF},
+            "step": basemap.step_at(lat0, lon0), "places": places, **mapimage.page_look(geo),
+            "story": _story(objs, sc, geo),
+            "sun": scene_sun(float(cur) if cur is not None else float(min(float(o["t"][0]) for o in objs)), lat0, lon0),
+            "follow": sc.get("follow"), "primary": sc.get("primary"), "secondary": sc.get("secondary"),
+            "camera": sc.get("camera") if sc.get("camera") in ("top", "free", "centre", "chase", "lookat", "cockpit") else None}
 
 
 # ---- the picture ----------------------------------------------------------------------------------
@@ -207,14 +283,41 @@ def render(sd: Dict, fmt: str = "png", theme: str = "light", scale: float = 1.0,
         fc = img[np.ix_(np.linspace(0, h - 1, k).round().astype(int), np.linspace(0, w - 1, k).round().astype(int))] / 255.0
     else:
         fc = np.broadcast_to(np.array([0.55, 0.62, 0.5] if not dark else [0.2, 0.24, 0.22]), (k, k, 3))
+    far = sd.get("far")
+    if far is not None:                                # P5: the far ground too, as far as twice the near box
+        fe0, fe1, fn0, fn1 = far["extent"]
+        g = far["heights"].shape[0]
+        fe, fnn = np.linspace(fe0, fe1, g), np.linspace(fn1, fn0, g)
+        cw, ch = (E1 - E0), (N1 - N0)
+        ci = np.flatnonzero((fe >= E0 - cw / 2) & (fe <= E1 + cw / 2))
+        ri = np.flatnonzero((fnn >= N0 - ch / 2) & (fnn <= N1 + ch / 2))
+        if len(ci) > 2 and len(ri) > 2:
+            FE, FN = np.meshgrid(fe[ci], fnn[ri])
+            col = [0.62, 0.68, 0.58] if not dark else [0.18, 0.21, 0.2]
+            ax.plot_surface(FE, FN, far["heights"][np.ix_(ri, ci)] * ex - 2, color=col, rstride=1, cstride=1, linewidth=0,
+                            antialiased=False, shade=True, alpha=0.9, zorder=-1)
+            E0, E1, N0, N1 = float(fe[ci][0]), float(fe[ci][-1]), float(fnn[ri][-1]), float(fnn[ri][0])
     ax.plot_surface(EE, NN, Hs * ex, facecolors=fc, rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False, zorder=0)
     for o in sd["objects"]:
+        if o.get("hidden"):
+            continue                                   # P6: a hidden object is not drawn
         ax.plot(o["e"], o["n"], o["g"] * ex + 1, color="#000000", alpha=0.25, lw=1.0 * scale, zorder=2)
-        ax.plot(o["e"], o["n"], o["u"] * ex, color=o["color"], lw=1.8 * scale, zorder=3, label=o["name"])
+        ax.plot(o["e"], o["n"], o["u"] * ex, color=o["color"], lw=1.8 * scale * sd.get("trackWidth", 2.5) / 2.5, zorder=3, label=o["name"])
         a = o["at"]
         ax.plot([o["e"][a], o["e"][a]], [o["n"][a], o["n"][a]], [o["g"][a] * ex, o["u"][a] * ex], color=o["color"], lw=0.8 * scale, alpha=0.6, zorder=3)
         ax.scatter([o["e"][a]], [o["n"][a]], [o["u"][a] * ex], s=40 * scale * scale, c=o["color"], edgecolors=paper, linewidths=1.2 * scale, zorder=5, depthshade=False)
-        ax.text(o["e"][a], o["n"][a], o["u"][a] * ex, "  " + o["name"], color=ink, fontsize=8 * scale, zorder=6)
+        if sd.get("names", True):                           # P8: Names on the Map
+            ax.text(o["e"][a], o["n"][a], o["u"][a] * ex, "  " + o["name"], color=ink, fontsize=8 * scale, zorder=6)
+    for p in sd.get("places") or []:                    # P7
+        pc = p.get("color") or "#d29922"
+        if p["kind"] == "point":
+            ax.plot([p["e"][0]] * 2, [p["n"][0]] * 2, [p["g"][0] * ex, p["u"][0] * ex + 40], color=pc, lw=0.9 * scale, zorder=3)
+            ax.scatter([p["e"][0]], [p["n"][0]], [p["u"][0] * ex + 40], s=30 * scale * scale, c=pc, marker="v", edgecolors=paper, zorder=5, depthshade=False)
+        else:
+            closed = p["kind"] == "area"
+            ax.plot(list(p["e"]) + ([p["e"][0]] if closed else []), list(p["n"]) + ([p["n"][0]] if closed else []),
+                    list(p["u"] * ex) + ([p["u"][0] * ex] if closed else []), color=pc, lw=1.4 * scale, zorder=2.5)
+        ax.text(p["e"][0], p["n"][0], p["u"][0] * ex + 40, "  " + p["name"], color=ink, fontsize=7 * scale, zorder=6)
     zs = np.concatenate([sd["heights"].ravel()] + [o["u"] for o in sd["objects"]]) * ex
     ax.set_xlim(E0, E1); ax.set_ylim(N0, N1); ax.set_zlim(float(zs.min()), float(zs.max()) + 1)
     ax.set_box_aspect((E1 - E0, N1 - N0, max(1.0, float(zs.max() - zs.min()))))
@@ -284,30 +387,51 @@ def _nan_none(a, d):
 STRINGS = mapimage.PAGE_STRINGS          # one set of words for both offline map pages
 
 
+def _grid_words(step: Optional[float]) -> str:
+    """'139 m' / '11 km' - the ground's grid step in words."""
+    if not step:
+        return ""
+    return f"{step / 1000:.0f} km" if step >= 1000 else f"{step:.0f} m"
+
+
 def build_html(sd: Dict, theme: str = "light", lang: str = "en", fallback_png: Optional[bytes] = None) -> str:
     """The scene as one page that opens anywhere with no network (three.js and every picture embedded)."""
     dark = theme == "dark"
     tex: Dict[str, str] = {}
     used: set = set()
+    far_tex: Dict[str, str] = {}
     for th in ("light", "dark"):
         img, u = _ground_image(sd["bounds"], sd["base"], th == "dark")
         if img is not None:
             tex[th] = _jpeg(img)
             used |= u
+        if sd.get("far"):
+            img, u = _ground_image(sd["far"]["bounds"], "offline" if sd["base"] == "offline" else sd["base"], th == "dark")
+            if img is not None:
+                far_tex[th] = _jpeg(img)
+                used |= u
     kinds = sorted({o["kind"] for o in sd["objects"]})
     data = {
         "title": sd["title"], "extent": list(sd["extent"]), "origin": list(sd["origin"]), "grid": GRID,
         "heights": _r(sd["heights"].ravel(), 1), "textures": tex, "cursor": sd["cursor"], "dark": dark,
-        "follow": sd.get("follow"), "pair": {"primary": sd.get("primary"), "secondary": sd.get("secondary")},
+        "follow": sd.get("follow"), "camera": sd.get("camera"), "pair": {"primary": sd.get("primary"), "secondary": sd.get("secondary")},
         "models": {k: model(k) for k in kinds}, "ex": 1,
+        "far": ({"extent": list(sd["far"]["extent"]), "heights": _r(sd["far"]["heights"].ravel(), 1), "textures": far_tex}
+                if sd.get("far") else None),
+        "step": sd.get("step"), "sun": sd.get("sun"), "story": sd.get("story") or [],
+        "places": [{"name": p["name"], "kind": p["kind"], "color": p.get("color") or "#d29922", "img": p.get("img"),
+                    "e": _r(p["e"], 1), "n": _r(p["n"], 1), "u": _r(p["u"], 1), "g": _r(p["g"], 1)} for p in sd.get("places") or []],
         "attribution": " · ".join(mapimage.ATTRIB[s] for s in sorted(used or {"offline"})),
-        "S": STRINGS.get(lang, STRINGS["en"]),
+        "S": {**STRINGS.get(lang, STRINGS["en"]), "units": sd.get("units", "metric")},
+        "names": sd.get("names", True), "trackWidth": sd.get("trackWidth", 2.5),
         "fallback": "data:image/png;base64," + base64.b64encode(fallback_png if fallback_png is not None else render(sd, "png", theme, 1.4)).decode(),
-        "objects": [{"name": o["name"], "color": o["color"], "kind": o["kind"], "size": o["size"], "track": o["track"], "t": _r(o["t"], 3),
+        "objects": [{"name": o["name"], "color": o["color"], "kind": o["kind"], "size": o["size"], "track": o["track"], "hidden": bool(o.get("hidden")), "t": _r(o["t"], 3),
                      "e": _r(o["e"], 2), "n": _r(o["n"], 2), "u": _r(o["u"], 2), "g": _r(o["g"], 1),
                      "roll": _nan_none(o["roll"], 2), "pitch": _nan_none(o["pitch"], 2), "yaw": _nan_none(o["yaw"], 2)} for o in sd["objects"]],
     }
-    note = (f"Embedded: three.js r159 (MIT), the ground picture ({', '.join(tex) or 'none'}), terrain {GRID} x {GRID}, "
+    step = sd.get("step")
+    note = (f"Embedded: three.js r159 (MIT), the ground picture ({', '.join(tex) or 'none'}), terrain {GRID} x {GRID}"
+            + (f" (a {_grid_words(step)} grid)" if step else "") + ", "
             f"{len(data['objects'])} tracks of at most {POINTS} points, models: {', '.join(kinds)}.")
     with open(os.path.join(ASSETS, "scene3d.html"), encoding="utf-8") as f:
         page = f.read()

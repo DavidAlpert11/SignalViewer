@@ -109,7 +109,9 @@ export function templateFromTabs(tabs: Tab[], name: string): { template: Templat
   // the investigation's conditions go with it: they are written by signal name, so they hold in the
   // next flight's file too (opening the template adds the ones not there yet)
   const conds = (st.ws.conditions ?? []).map(({ visible: _v, ...c }) => c);
-  return { template: { version: 2, id: "", name, slots, tabs: tplTabs, ...(conds.length ? { conditions: conds } : {}) }, skipped, slotRuns };
+  // P7: the session's places too (the range, the ground station of this kind of test)
+  const places = st.ws.places ?? [];
+  return { template: { version: 2, id: "", name, slots, tabs: tplTabs, ...(conds.length ? { conditions: conds } : {}), ...(places.length ? { places } : {}) }, skipped, slotRuns };
 }
 
 /** The templates' conditions not in the workspace yet (by name) - new ids, combinations re-pointed;
@@ -323,6 +325,11 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
       if (emptyStart && ws.tabs.length > before) ws.tabs = ws.tabs.slice(1);
     }
     res.conditions = mergeConditions(ws, [t, ...(t.includes ?? []).map((id) => all.find((x) => x.id === id)).filter((x): x is Template => !!x)]);
+    // P7: its places not in the session yet (the same name at the same position is the same place)
+    const key = (p: { name: string; lat: number; lon: number }) => `${p.name}|${p.lat.toFixed(6)}|${p.lon.toFixed(6)}`;
+    const have = new Set((ws.places ?? []).map(key));
+    const addP = (t.places ?? []).filter((p) => !have.has(key(p))).map((p) => ({ ...p, id: uid("pl") }));
+    if (addP.length) ws.places = [...(ws.places ?? []), ...addP];
     // U1: one "+N more" per template - opening it again replaces what was left the time before
     const more = (ws.moreTabs ?? []).filter((m) => m.tpl !== t.id);
     if (rest.length) more.push({ tpl: t.id, name: t.name, ...(t.builtin ? { builtin: true } : {}), bind: { ...bind }, tabs: rest });

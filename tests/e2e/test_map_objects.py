@@ -8,7 +8,7 @@ import os
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, frames, menu_item, open_files, pg, S, object_form, save_as  # noqa: E402,F401
+from test_features import env, flat_maps, frames, menu_item, open_files, pg, S, object_form, save_as  # noqa: E402,F401
 
 
 @pytest.fixture(autouse=True)
@@ -30,6 +30,7 @@ def _files(pg):
 
 def _map_with_objects(pg):
     open_files(pg, "obj_aircraft.csv", "obj_ship.csv")
+    flat_maps(pg)                                                                 # P4: the icons on the flat drawing
     pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
     pg.locator(".obj-add").click(); object_form(pg)
     # each role: a signal typed by name (SignalField) - the one guessed from the names is shown in it
@@ -73,9 +74,9 @@ def test_object_position_and_heading_at_the_time(pg):
 
 def test_follow_and_remove_with_its_file(pg):
     _map_with_objects(pg)
-    pg.locator(".obj-chip").first.locator("[aria-pressed]").click()
+    pg.locator(".obj-chip").first.locator("button[aria-label^='Keep it in the middle']").click()
     assert S(pg, "s.ws.tabs[0].plots[0].followObject") is not None
-    pg.locator(".obj-chip").first.locator("[aria-pressed]").click()
+    pg.locator(".obj-chip").first.locator("button[aria-label^='Keep it in the middle']").click()
     assert S(pg, "s.ws.tabs[0].plots[0].followObject") is None
     # closing the ship's file (the file panel's menu) removes the ship - its position is gone - and
     # keeps the aircraft
@@ -161,8 +162,8 @@ def test_suggestion_bar_adds_every_object_with_its_look(pg):
     bar.wait_for()
     assert "3 objects found: phys, nav, gps" in bar.inner_text()
     bar.locator(".obj-suggest-add").click()
-    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.some((p) => p.mode === 'geo' && (p.objects ?? []).length === 3)")
-    objs = S(pg, "s.ws.tabs[0].plots.find((p) => p.mode === 'geo').objects")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.some((p) => (p.mode === 'geo' || p.mode === '3d') && (p.objects ?? []).length === 3)")
+    objs = S(pg, "s.ws.tabs[0].plots.find((p) => (p.mode === 'geo' || p.mode === '3d')).objects")
     look = {o["name"]: (o.get("cls"), o.get("track"), o.get("attitudeSource")) for o in objs}
     assert look == {"phys": ("truth", None, None), "nav": ("navigation", "dash", None), "gps": ("receiver", "points", "motion")}
     pg.wait_for_selector(".obj-suggest:not(.obj-compare-offer)", state="detached")   # nothing new to suggest
@@ -213,7 +214,7 @@ def test_suggestion_bar_choose_opens_the_list_on_a_new_map(pg):
     open_files(pg, "three_objects.csv")
     pg.locator(".obj-suggest-choose").click()
     pg.wait_for_selector(".obj-found")
-    assert S(pg, "s.ws.tabs[0].plots.some((p) => p.mode === 'geo')")
+    assert S(pg, "s.ws.tabs[0].plots.some((p) => (p.mode === 'geo' || p.mode === '3d'))")
 
 
 def test_export_the_objects_for_tacview(pg):
@@ -224,15 +225,18 @@ def test_export_the_objects_for_tacview(pg):
     shutil.copy(os.path.join(root, "examples", "three_objects.csv"), pg.env["data"])
     open_files(pg, "three_objects.csv")
     pg.locator(".obj-suggest .obj-suggest-add").click()
-    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.some((p) => p.mode === 'geo' && (p.objects ?? []).length === 3)")
-    i = S(pg, "s.ws.tabs[0].plots.findIndex((p) => p.mode === 'geo')")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.some((p) => (p.mode === 'geo' || p.mode === '3d') && (p.objects ?? []).length === 3)")
+    i = S(pg, "s.ws.tabs[0].plots.findIndex((p) => (p.mode === 'geo' || p.mode === '3d'))")
     pg.locator(".plot-more").nth(i).click()
-    menu_item(pg, "Export for Tacview (.acmi)…")
+    pg.locator(".menu.ctx button", has_text="Export the flight").hover()                # P1: one submenu
+    menu_item(pg, "Tacview (.acmi)…")
+    pg.wait_for_selector(".dialog:has(.savename) .crumbs input")                      # the picker has loaded its folder
     save_as(pg, "flight")
     pg.wait_for_selector(".toast:has-text('3 object(s) saved for Tacview')")
     with open(os.path.join(pg.env["out"], "flight.acmi"), encoding="utf-8-sig") as f:
         lines = f.read().splitlines()
     assert lines[:2] == ["FileType=text/acmi/tacview", "FileVersion=2.2"]
-    named = [x for x in lines if ",Name=" in x]
-    assert [x.split(",Name=")[1].split(",")[0] for x in named] == ["phys", "nav", "gps"]
+    named = [x for x in lines if ",CallSign=" in x]                                # P1: Name is the model
+    assert [x.split(",CallSign=")[1].split(",")[0] for x in named] == ["phys", "nav", "gps"]
+    assert all(",Name=C172," in x for x in named)
     assert all(len(x.split(",")[1][2:].split("|")) == 6 for x in named)       # position and attitude each

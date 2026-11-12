@@ -255,7 +255,7 @@ def _find_heads(buf: np.ndarray, start: int, third: Optional[int] = None, report
 
 
 class MsgFormat:
-    __slots__ = ("type", "length", "name", "fmt", "columns", "dtype", "offsets", "units", "mults", "instance")
+    __slots__ = ("type", "length", "name", "fmt", "columns", "dtype", "offsets", "units", "mults", "instance", "names_off")
 
     def __init__(self, typ: int, length: int, name: str, fmt: str, columns: List[str]):
         self.type, self.length, self.name, self.fmt, self.columns = typ, length, name, fmt, columns
@@ -264,6 +264,10 @@ class MsgFormat:
         self.units: Optional[str] = None      # unit id per field (from FMTU)
         self.mults: Optional[str] = None
         self.instance: Optional[int] = None   # index of the instance field
+        # (names, fields) when the FMT lists another number of column names than its format has fields
+        # (owner, 2026-11-12: a firmware whose Write() call got three more labels, not their values).
+        # Its length is right - the chain uses it - but which name is which value is not known: left out.
+        self.names_off: Optional[Tuple[int, int]] = None
 
 
 def _parse_fmt_payload(p: bytes) -> Optional[MsgFormat]:
@@ -277,7 +281,12 @@ def _parse_fmt_payload(p: bytes) -> Optional[MsgFormat]:
         return None                           # not a real FMT (bytes that only look like one)
     columns = [c.strip() for c in cols.split(",")] if cols else []
     if len(columns) != len(fmt):
-        return None
+        # the format and the length agree (checked above): a real FMT whose names are wrong - keep its
+        # length for the chain (without it every one of its messages broke the chain and the log was
+        # refused as too damaged) and leave its fields out
+        f = MsgFormat(typ, length, name, fmt, [f"_f{k}" for k in range(len(fmt))])
+        f.names_off = (len(columns), len(fmt))
+        return f
     return MsgFormat(typ, length, name, fmt, columns)
 
 
@@ -301,6 +310,15 @@ class DataFlash:
         self.dropped_messages = 0                      # messages that end where no message starts
         self.phantom_instances: List[str] = []         # "IMU[149]": an instance only damage made
         self.known_instances: Dict[str, set] = {}      # message name -> instances read so far (live mode)
+        # P3: message types the firmware wrote with a length other than their FMT's - type -> the length
+        # really written (the chain uses it; the fields are not decoded: their layout is unknown) - and
+        # types whose messages have no single length (left out); both kept so live mode reads on the same way
+        self.misdeclared: Dict[int, int] = {}
+        self.unreadable: set = set()
+        # message types with no usable FMT at all, learned from the chain: type -> length (left out)
+        self.nameless: Dict[int, int] = {}
+        self.read_bytes = 0                            # bytes on the chain (the readable share)
+        self.seen_bytes = 0
         self.vehicle: Optional[str] = None
         self.text_labels: Dict[str, Dict[int, str]] = {}   # signal -> {code: text}, kept for live mode
         self.compact = False        # big log: exact float32 fields stay float32 (set by load_bin)
@@ -329,6 +347,9 @@ class DataFlash:
                 break
             f = _parse_fmt_payload(buf[i + 3:i + FMT_LEN].tobytes())
             if f is not None and f.type != FMT_TYPE:
+                old = self.formats.get(f.type)
+                if f.names_off and old is not None and not old.names_off:
+                    continue                      # a good FMT is not replaced by one with wrong names
                 self.formats[f.type] = f
 
     def frame(self, buf: np.ndarray, start: int = 0, report=None) -> Tuple[np.ndarray, np.ndarray, int]:
@@ -345,17 +366,34 @@ class DataFlash:
             return empty
         third = buf[cand + 2]
         self._add_formats(buf, cand[third == FMT_TYPE])
-        lut = self._lengths().astype(np.int32)
-        ln = lut[third]                                  # 0: not a known type
-        del third
-        keep = (ln > 0) & (cand + ln <= n)               # (and a message cut by the end waits)
-        cand, ln = cand[keep], ln[keep]
-        del keep
+        all_cand, all_third = cand, third
+        for _pass in range(2):
+            lut = self._lengths().astype(np.int32)
+            for typ, real in {**self.nameless, **self.misdeclared}.items():   # P3: learned (live mode too)
+                lut[typ] = real
+            ln = lut[all_third]                          # 0: not a known type
+            keep = ln > 0
+            cand, ln, third = all_cand[keep], ln[keep], all_third[keep]
+            del keep
+            if not len(cand):
+                return empty
+            ends = cand + ln
+            del ln
+            learned = len(self.nameless)
+            cand, third, ends = self._repair(cand, third, ends, buf)
+            if len(self.nameless) == learned:
+                break
+            # a type with no FMT was found behind the breaks: frame again with it known (its false
+            # "faulty" neighbours are forgotten - they only looked faulty because of it)
+            self.misdeclared = {t: v for t, v in self.misdeclared.items() if t in self._kept_misdeclared}
+            self.unreadable = {t for t in self.unreadable if t in self._kept_unreadable}
+        del all_cand, all_third
+        keep = ends <= n                                 # a message cut by the end waits
+        cand, ends = cand[keep], ends[keep]
+        del keep, third
         m = len(cand)
         if not m:
             return empty
-        ends = cand + ln
-        del ln
         # Real messages form one chain: each starts where the previous one ends, and the successor
         # of a candidate is the first candidate at or after its end (exactly the next message, or
         # the resynchronisation point after a damaged block). In a real log nearly every candidate
@@ -377,7 +415,10 @@ class DataFlash:
             k = int(succ[j])
             if k >= m:
                 break
-            if len(starts) > 1_000_000:
+            # a run per broken message: a file of noise makes millions of one-message runs, and this walk
+            # is a Python loop - every million runs, give up if under 20 % of the bytes walked so far
+            # chain (P3: a log with one faulty message type was refused here although the rest was intact)
+            if len(starts) % 1_000_000 == 0 and self._share(cand, ends, starts, stops) < 0.2:
                 raise BinFormatError("The log is too damaged to read.")
         del brk, succ
         mark = np.zeros(m + 1, dtype=np.int8)
@@ -388,9 +429,6 @@ class DataFlash:
         st, sp = np.asarray(starts), np.asarray(stops)
         gaps = cand[st[1:]] - ends[sp[:-1]]              # bytes skipped to resynchronise
         skipped = int(gaps[gaps > 0].sum())
-        self.corrupt_bytes += skipped
-        if len(gaps) > 10000 and skipped > (n - start) // 2:
-            raise BinFormatError("The log is too damaged to read.")
         # O2: the last message before a skipped block ends where no message starts - a damaged block
         # often begins with what looks like a header of a known type, and its "message" (garbage
         # values, an instance like IMU[149]) fits the chain exactly up to there. Not trusted: left out
@@ -398,12 +436,168 @@ class DataFlash:
         bad = sp[:-1][gaps > 0]
         if len(bad):
             on[bad] = False
-            self.dropped_messages += int(len(bad))
+        # P3: refuse only a log that is mostly noise - many breaks AND under 20 % of its bytes in messages
+        # kept. A log with damaged stretches loads what chained and says how much that was.
+        kept = int((ends[on] - cand[on]).sum())
+        if len(gaps) > 10000 and kept < 0.2 * (n - start):
+            raise BinFormatError("The log is too damaged to read.")
+        self.corrupt_bytes += skipped
+        self.dropped_messages += int(len(bad))
+        self.read_bytes += kept
+        self.seen_bytes += int(ends[sp[-1]]) - start
         pos = cand[on]
         end = int(ends[sp[-1]])
         if report:
             report(1.0)
         return pos, buf[pos + 2], end
+
+    @staticmethod
+    def _share(cand: np.ndarray, ends: np.ndarray, starts: List[int], stops: List[int]) -> float:
+        """The share of the bytes walked so far that lie in runs of two messages or more (a one-message
+        run followed by a skip is left out as damage - O2 - so it does not count as read)."""
+        st, sp = np.asarray(starts), np.asarray(stops)
+        span = int(ends[sp[-1]] - cand[st[0]])
+        long = sp > st
+        return float((ends[sp[long]] - cand[st[long]]).sum()) / span if span > 0 else 1.0
+
+    def _repair(self, cand: np.ndarray, typ: np.ndarray, ends: np.ndarray, buf: Optional[np.ndarray] = None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """P3: find the message types that break the chain at (nearly) every message - a firmware that
+        writes one type with a length other than its FMT's - and make them chain again.
+
+        A candidate is *entered* when a candidate ends exactly where it starts (a real message: false
+        candidates - header-like bytes inside a payload - are almost never entered), and *chained*
+        when a candidate starts exactly where it ends. A healthy type's entered messages are ~100 %
+        chained; a mis-declared type's ~0 %. Only entered candidates are counted, so a rare type with a
+        few false candidates is never taken for a faulty one.
+
+        For a faulty type, the distance from each of its entered messages to the next candidate of a
+        healthy type (or of its own type: two of them may follow each other) is the length really
+        written - when one distance covers >= 90 % of them. The dominant distance, not the nearest one,
+        because a header-looking pair inside its payload can sit before the true next header. That
+        length is used for the chain only; the type's fields are not decoded. With no dominant
+        distance (variable garbage), each of its messages ends at the next healthy candidate and the
+        type is left out. Everything is array work (bincount / searchsorted): no loop over messages.
+
+        A type with NO usable FMT (missing, or not readable): its messages are not candidates, so the type
+        written before each of them looks faulty (its end lands on a header nobody knows). When >= 90 % of
+        a suspect type's ends land on a header ``A3 95 <x>`` of one unknown type x, x is the one to learn:
+        its length is the dominant distance from those headers to the next known candidate; it is kept in
+        `nameless` (left out, reported) and the caller frames again."""
+        self._kept_misdeclared = set(self.misdeclared)
+        self._kept_unreadable = set(self.unreadable)
+        m = len(cand)
+        if m < 2:
+            return cand, typ, ends
+        if self.unreadable:
+            cand, typ, ends = self._to_next_healthy(cand, typ, ends, np.isin(typ, list(self.unreadable)))
+        nxt_ok = np.zeros(m, dtype=bool)
+        nxt_ok[:-1] = ends[:-1] == cand[1:]
+        entered = np.zeros(m, dtype=bool)
+        entered[0] = True
+        entered[1:] = nxt_ok[:-1]
+        # the few that do not chain to the very next candidate: is any candidate at their end?
+        off = np.flatnonzero(~nxt_ok)
+        j = np.searchsorted(cand, ends[off])
+        hit = j < m
+        hit[hit] = cand[j[hit]] == ends[off[hit]]
+        if len(off) - int(hit.sum()) < 50:             # a healthy log: no type can be faulty (fast path)
+            return cand, typ, ends
+        nxt_ok[off[hit]] = True
+        entered[j[hit]] = True
+        n_all = np.bincount(typ, minlength=256)
+        n_in = np.bincount(typ[entered], minlength=256)
+        n_ok = np.bincount(typ[entered & nxt_ok], minlength=256)
+        # and most of its candidates are entered (>= 20 %: a few of one type may follow each other):
+        # in noise full of header-like pairs one in a hundred is entered by chance - not a type to repair
+        bad = [int(b) for b in np.flatnonzero((n_in >= 50) & (n_ok < 0.5 * n_in) & (n_in >= 0.2 * n_all))
+               if b != FMT_TYPE and b in self.formats and b not in self.misdeclared and b not in self.unreadable]
+        if not bad:
+            return cand, typ, ends
+        if buf is not None and self._learn_nameless(cand, typ, ends, entered, bad, buf):
+            return cand, typ, ends                       # framed again by the caller
+        is_bad = np.isin(typ, bad)
+        garbage = np.zeros(m, dtype=bool)
+        for b in bad:
+            mine = typ == b
+            targets = cand[~is_bad | mine]
+            p = cand[mine & entered]
+            k = np.searchsorted(targets, p + 3)
+            d = targets[np.minimum(k, len(targets) - 1)] - p
+            d = d[(k < len(targets)) & (d <= 1024)]
+            counts = np.bincount(d, minlength=1) if len(d) else np.zeros(1, dtype=np.int64)
+            real = int(np.argmax(counts))
+            if len(p) and counts[real] >= 0.9 * len(p) and real >= 3 and real != self.formats[b].length:
+                self.misdeclared[b] = real
+                ends = np.where(mine, cand + real, ends)
+            else:
+                self.unreadable.add(b)
+                garbage |= mine
+        if garbage.any():
+            cand, typ, ends = self._to_next_healthy(cand, typ, ends, garbage)
+        return cand, typ, ends
+
+    def _learn_nameless(self, cand, typ, ends, entered, bad: List[int], buf: np.ndarray) -> bool:
+        """See _repair: learn a type with no usable FMT from the headers the suspects end on."""
+        n = len(buf)
+        known = set(self.formats) | set(self.nameless)
+        found = False
+        for b in bad:
+            e = ends[(typ == b) & entered]
+            e = e[e + 3 <= n]
+            if len(e) < 50:
+                continue
+            head = (buf[e] == HEAD1) & (buf[e + 1] == HEAD2)
+            if head.mean() < 0.9:
+                continue
+            x = buf[e[head] + 2]
+            counts = np.bincount(x, minlength=256)
+            u = int(np.argmax(counts))
+            if u in known or counts[u] < 0.9 * len(e):
+                continue
+            at = e[head][x == u]
+            k = np.searchsorted(cand, at + 3)
+            ok = k < len(cand)
+            d = cand[np.minimum(k, len(cand) - 1)] - at
+            d = d[ok & (d <= 1024)]
+            if not len(d):
+                continue
+            c = np.bincount(d)
+            real = int(np.argmax(c))
+            if real >= 3 and c[real] >= 0.9 * len(at):
+                self.nameless[u] = real
+                known.add(u)
+                found = True
+        return found
+
+    def _to_next_healthy(self, cand, typ, ends, mask):
+        """Messages of an unreadable type end at the next candidate of a readable type (or are dropped
+        when none follows)."""
+        healthy = cand[~mask]
+        k = np.searchsorted(healthy, cand[mask] + 3)
+        ok = k < len(healthy)
+        e = ends.copy()
+        e[np.flatnonzero(mask)[ok]] = healthy[k[ok]]
+        keep = ~mask
+        keep[np.flatnonzero(mask)[ok]] = True
+        return cand[keep], typ[keep], e[keep]
+
+    def faulty_report(self) -> List[dict]:
+        """P3: the left-out message types for the load report: [{name, written?, declared}]."""
+        out = []
+        for typ, real in sorted(self.misdeclared.items()):
+            f = self.formats.get(typ)
+            if f is not None:
+                out.append({"name": f.name, "written": int(real), "declared": int(f.length)})
+        for typ in sorted(self.unreadable):
+            f = self.formats.get(typ)
+            if f is not None:
+                out.append({"name": f.name, "declared": int(f.length)})
+        for typ, f in sorted(self.formats.items()):
+            if f.names_off and typ not in self.misdeclared and typ not in self.unreadable:
+                out.append({"name": f.name, "names": f.names_off[0], "fields": f.names_off[1]})
+        for typ, real in sorted(self.nameless.items()):
+            out.append({"name": f"#{typ}", "written": int(real), "noFormat": True})
+        return out
 
     # ------------------------------------------------------------------ decode
     def lazy_type(self, f: "MsgFormat") -> bool:
@@ -421,8 +615,8 @@ class DataFlash:
         n = len(buf)
         for grp_pos, t in zip(np.split(pt, bounds), st[np.r_[0, bounds]] if len(st) else []):
             f = self.formats.get(int(t))
-            if f is None or f.type == FMT_TYPE:
-                continue
+            if f is None or f.type == FMT_TYPE or f.type in self.misdeclared or f.type in self.unreadable or f.names_off:
+                continue                                  # P3: a faulty type's layout is unknown
             width = f.length - 3
             if width <= 0 or n - width + 1 <= 0:
                 continue
@@ -956,6 +1150,11 @@ def load_bin(path: str, display_name: str) -> Tuple[Optional[Run], Dict]:
         report["droppedMessages"] = int(df.dropped_messages)
     if df.phantom_instances:
         report["phantomInstances"] = sorted(set(df.phantom_instances))
+    faulty = df.faulty_report()
+    if faulty:
+        report["faultyMessages"] = faulty
+    if df.seen_bytes and df.read_bytes < 0.995 * df.seen_bytes:
+        report["readableShare"] = round(df.read_bytes / df.seen_bytes, 3)
     report["events"] = len(df.events)
     if idx and df.lazy and time.time() - st.st_mtime >= INDEX_QUIET_S:
         _index_save(idx, path, df, sigs, end, report)

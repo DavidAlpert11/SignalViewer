@@ -412,12 +412,30 @@ def object_track(req: ObjectTrackRequest):
     return track_of(store, req)
 
 
+def no_position_as_gap(lat: np.ndarray, lon: np.ndarray):
+    """P2: latitude / longitude with every sample that is not a position (0, 0 together, out of range,
+    not finite) set to NaN in both (see track_of)."""
+    lat = np.asarray(lat, dtype=np.float64).copy()
+    lon = np.asarray(lon, dtype=np.float64).copy()
+    with np.errstate(invalid="ignore"):
+        bad = ~(np.isfinite(lat) & np.isfinite(lon)) | ((lat == 0) & (lon == 0)) | (np.abs(lat) > 90) | (np.abs(lon) > 180)
+    lat[bad] = np.nan
+    lon[bad] = np.nan
+    return lat, lon
+
+
 def track_of(store, req: ObjectTrackRequest):
     """An object on the map: its signals - possibly from different files - on one time axis (the
     latitude's samples), each one interpolated in time and NaN outside its own time span; angles
     interpolated the short way round. Latitude / longitude in 1e7 degrees (MAVLink integers) are
     turned into degrees. `course`: the direction of travel in degrees from north (for objects
-    without a heading signal)."""
+    without a heading signal).
+
+    P2 - what is a position (the one rule; every drawing and export reads tracks from here): a sample
+    whose latitude AND longitude are both exactly 0, or outside +-90 / +-180, or not finite, is NOT a
+    position - it becomes a gap (NaN). Receivers and autopilots write 0, 0 for "no fix" (ArduPilot's
+    EAHR without an external AHRS: 0, 0 for the whole flight). `valid`: how many samples are positions;
+    an object with none is drawn as nothing and left out of exports."""
     try:
         t, lat = store.signal(req.lat)
         tlo, lon = store.signal(req.lon)
@@ -451,7 +469,9 @@ def track_of(store, req: ObjectTrackRequest):
     lon_a = onto(tlo, lon)
     if np.nanmax(np.abs(lat)) > 90 or np.nanmax(np.abs(lon_a)) > 180:     # 1e7 degrees (MAVLink ints)
         lat, lon_a = lat / 1e7, lon_a / 1e7
-    out: dict = {"n": int(len(t)), "t": b64(t, np.float64), "lat": b64(lat, np.float64), "lon": b64(lon_a, np.float64), "units": {}}
+    lat, lon_a = no_position_as_gap(lat, lon_a)
+    out: dict = {"n": int(len(t)), "t": b64(t, np.float64), "lat": b64(lat, np.float64), "lon": b64(lon_a, np.float64), "units": {},
+                 "valid": int(np.count_nonzero(np.isfinite(lat)))}
     if req.color:
         try:
             tc, vc = (np.asarray(a, dtype=np.float64) for a in store.signal(req.color))
@@ -535,6 +555,35 @@ def track_of(store, req: ObjectTrackRequest):
     from app import basemap
     out["ground"] = b64(basemap.ground_at(lat, lon_a), np.float32)
     return out
+
+
+
+class PositionCountRequest(BaseModel):
+    objects: List[dict]                  # [{lat, lon}] signal ids
+
+
+@router.post("/api/object_positions")
+def object_positions(req: PositionCountRequest):
+    """P2: for each object (a found candidate before it is added), how many of its samples are positions
+    by track_of's rule - {valid, total}; a missing signal counts as none. Cheap: no track is built."""
+    out = []
+    for o in req.objects:
+        try:
+            t, lat = store.signal(o["lat"])
+            tlo, lon = store.signal(o["lon"])
+        except (KeyError, TypeError):
+            out.append({"valid": 0, "total": 0})
+            continue
+        lat = np.asarray(lat, dtype=np.float64)
+        lon_a = np.asarray(lon, dtype=np.float64)
+        if len(lon_a) != len(lat):
+            lon_a = np.interp(np.asarray(t, dtype=np.float64), np.asarray(tlo, dtype=np.float64), lon_a)
+        fin = np.isfinite(lat) & np.isfinite(lon_a)
+        if fin.any() and (np.abs(lat[fin]).max() > 90 or np.abs(lon_a[fin]).max() > 180):
+            lat, lon_a = lat / 1e7, lon_a / 1e7
+        la, _lo = no_position_as_gap(lat, lon_a)
+        out.append({"valid": int(np.count_nonzero(np.isfinite(la))), "total": int(len(la))})
+    return {"objects": out}
 
 
 

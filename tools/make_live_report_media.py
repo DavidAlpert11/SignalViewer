@@ -4,7 +4,7 @@ drifts, a GPS) as the page a colleague receives - the plots, the 2D map and the 
 3D view alone. Made from the code itself (signalviewer's Python API + app/report.py), shot in Chromium with
 software WebGL; no app window, no network (the offline basemap and terrain are bundled).
 
-    python tools/make_live_report_media.py            # docs/images/34_live_page.png, 35_live_3d.png
+    python tools/make_live_report_media.py            # docs/images/34_live_page.png, 35_live_3d.png, 36_map_wow.png, 37_story.png
 """
 import math
 import os
@@ -80,7 +80,7 @@ def page(path_html: str, theme: str = "dark") -> None:
     roll = {"mode": "time", "title": "Roll (deg)", "signals": [line("truth", "roll", "truth"), line("nav", "roll", "nav")]}
     req = {"format": "html", "title": "Flight test 14 · Mount Tabor", "lang": "en", "theme": theme,
            "tabs": [{"name": "Flight", "plots": [{**scene, "title": "Map · 3D"}, {**geo, "title": "Map · 2D"}, alt, roll]}],
-           "replay": {"t": 150.0, "extent": [0, 299.9], "compact": True, "link": True,
+           "replay": {"t": 150.0, "extent": [0, 299.9], "compact": True, "link": True, "storyLength": 45,
                       "events": [{"t": 62.0, "text": "GPS: 9 satellites", "level": "warning"}, {"t": 150.0, "text": "nav drifts north", "level": "note"},
                                  {"t": 231.0, "text": "EKF variance", "level": "error"}]}}
     with open(path_html, "w", encoding="utf-8") as f:
@@ -99,6 +99,15 @@ def shoot(path_html: str) -> None:
         out = os.path.join(IMAGES, "34_live_page.png")
         pg.screenshot(path=out)
         print("image", os.path.relpath(out, ROOT))
+        # P10: the Story - the flight tells itself; shot on its third moment (the card, the 3D view on its object)
+        pg.click("#rp-storybtn")
+        pg.wait_for_function("window.__replay.story.index >= 0", timeout=60000)
+        pg.click("#rp-story-next"); pg.click("#rp-story-next")
+        pg.wait_for_timeout(3000)
+        out37 = os.path.join(IMAGES, "37_story.png")
+        pg.screenshot(path=out37)
+        print("image", os.path.relpath(out37, ROOT))
+        pg.keyboard.press("Escape")
         # the 3D view alone, its own page: following the truth, a bit closer
         pg2 = b.new_page(viewport={"width": 1400, "height": 800}, device_scale_factor=2)
         html = pg.locator("iframe.mapframe").first.get_attribute("srcdoc")
@@ -112,6 +121,15 @@ def shoot(path_html: str) -> None:
         pg2.locator('#cam [data-cam="close"]').click()                 # the camera close behind the reference
         pg2.wait_for_timeout(2500)
         out = os.path.join(IMAGES, "35_live_3d.png")
+        pg2.screenshot(path=out)
+        print("image", os.path.relpath(out, ROOT))
+        # P9: the wow - late in the flight (nav has drifted), behind the truth: the sun's light, the drop lines
+        # and the last 10 s, the error surface between truth and nav, the flight display and the mini-map
+        pg2.evaluate("() => { const s = document.getElementById('slider'); s.value = 262; s.dispatchEvent(new Event('input')); }")
+        pg2.wait_for_timeout(1500)
+        pg2.evaluate("() => window.__scene.glideTo({ r: 45, ph: 1.25, free: false }, 0)")
+        pg2.wait_for_timeout(2500)
+        out = os.path.join(IMAGES, "36_map_wow.png")
         pg2.screenshot(path=out)
         print("image", os.path.relpath(out, ROOT))
         b.close()
