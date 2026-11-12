@@ -149,7 +149,8 @@ export default function SettingsDialog() {
 
           <MapSection seg={seg} />
           <p className="hint">{t("setKept")}</p>
-          <StorageSection />
+          {/* W16: what the app keeps on disk is looked at rarely - folded */}
+          <details className="set-fold"><summary>{t("storage")}</summary><StorageSection /></details>
         </div>
       </div>
     </div>

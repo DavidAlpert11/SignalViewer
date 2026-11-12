@@ -645,7 +645,7 @@ export default function DataPanel() {
         <span className="split-btn">
           {/* with files open the head also holds refresh, replace and two link toggles: the label
               was cut to "Open fil" - from then on the + alone, its name in the tooltip */}
-          <button className="btn outline" onClick={() => useApp.setState({ browserOpen: true })}
+          <button className="btn outline" onClick={() => useApp.setState({ browserOpen: true })} data-tour="open"
             aria-label={t("openFiles")} title={t("openFiles")}>
             <Icon.Plus />{!runs.some((r) => r.format !== "derived") && <> {t("openFiles")}</>}
           </button>
@@ -711,10 +711,10 @@ export default function DataPanel() {
         {/* W13.5: one sentence and one action */}
         {/* W13.4: while the first file loads, a skeleton of the list */}
         {!runs.length && busyNow > 0 && <div className="skeleton tree-skeleton" role="status" aria-label={t("loading")}><i /><i /><i /><i /><i /><i /></div>}
-        {!runs.length && !busyNow && <div className="empty-state empty-tree"><p>{t("noFilesHint")}</p>
-          <button className="btn outline sm" onClick={() => useApp.setState({ browserOpen: true })}>{t("emptyTreeAction")}</button></div>}
+        {/* W16: its action is the panel's own Open files, right above - one sentence, no second button */}
+        {!runs.length && !busyNow && <div className="empty-state empty-tree" data-tour="signals"><p>{t("noFilesHint")}</p></div>}
         {runs.length > 0 && !anyMatch && <p className="empty-note">{t("noMatches", { q })}</p>}
-        <div className="vlist" style={{ height: total }}>
+        <div className="vlist" style={{ height: total }} data-tour="signals">
           {rows.slice(first, last).map((row, i) => {
             const idx = first + i;
             const key = row.kind === "run" ? `r:${row.run.id}` : row.kind === "group" ? `g:${row.runId}|${row.key}`

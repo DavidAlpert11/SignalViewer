@@ -1,6 +1,36 @@
 /* L8 Calm screen (W16, W13.7, W13.8): the texts of this lane of the 2026-11-13 round (W0). */
 export const en = {
+  // T50: plots too short to read
+  tooManyPlots: "Too many plots for this window to read them.",
+  tooManyPlotsSolo: "Show one at a time (M)",
+  // W13.8: the tour
+  menuTour: "Tour (30 seconds)",
+  tourPaletteTitle: "Every command, one search",
+  tourPaletteText: "Ctrl+K finds any command and any signal by a few letters of its name.",
+  tourOpenTitle: "Open your files",
+  tourOpenText: "CSV, MATLAB, flight logs and more - or drop them on the window. Nothing leaves this computer.",
+  tourSignalsTitle: "Click a signal to plot it",
+  tourSignalsText: "Click to add it to the active plot; drag it onto another plot; Alt+click for a plot of its own.",
+  tourCompareTitle: "Compare runs",
+  tourCompareText: "Two runs or more: the differences, signal by signal, against a tolerance.",
+  tourNext: "Next",
+  tourSkip: "Skip the tour",
+  tourDone: "Done",
 };
 
 export const he: typeof en = {
+  tooManyPlots: "יותר מדי גרפים לחלון הזה כדי לקרוא אותם.",
+  tooManyPlotsSolo: "הצג אחד בכל פעם (M)",
+  menuTour: "סיור (30 שניות)",
+  tourPaletteTitle: "כל פקודה, חיפוש אחד",
+  tourPaletteText: "‏Ctrl+K מוצא כל פקודה וכל סיגנל לפי כמה אותיות מהשם.",
+  tourOpenTitle: "פתחו את הקבצים שלכם",
+  tourOpenText: "CSV,‏ MATLAB, יומני טיסה ועוד – או גררו אותם לחלון. שום דבר לא יוצא מהמחשב.",
+  tourSignalsTitle: "לחיצה על סיגנל משרטטת אותו",
+  tourSignalsText: "לחיצה מוסיפה לגרף הפעיל; גרירה לגרף אחר; Alt+לחיצה לגרף משלו.",
+  tourCompareTitle: "השוואת ריצות",
+  tourCompareText: "שתי ריצות או יותר: ההבדלים, סיגנל אחר סיגנל, מול סבולת.",
+  tourNext: "הבא",
+  tourSkip: "דלג על הסיור",
+  tourDone: "סיום",
 };

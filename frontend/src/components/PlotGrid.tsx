@@ -1,5 +1,7 @@
 /* The plot grid of the active tab (A3: moved out of App.tsx). */
 import { useRef } from "react";
+import { useT } from "../i18n";
+import { useSize } from "./chartUtil";
 import { actions, activeTab, useApp } from "../store";
 import PlotView from "./PlotView";
 
@@ -32,6 +34,10 @@ export default function PlotGrid() {
   };
   // one plot at a time: the active plot alone, as large as the grid (the others keep their place in the tab)
   const solo = useApp((s) => s.soloPlot) && tab.plots.length > 1;
+  // T50: plots too short to read (less than ~90 px each): say so, with the way out
+  const t = useT();
+  const size = useSize(ref);
+  const tooMany = !solo && rows.length > 1 && size.h > 0 && size.h / rows.length < 90;
   if (solo) return (
     <div className="grid solo" ref={ref}>
       <PlotView key={tab.plots[tab.active].id} tab={tab} plot={tab.plots[tab.active]} index={tab.active} active />
@@ -42,6 +48,8 @@ export default function PlotGrid() {
   return (
     <div className="grid" ref={ref} style={{ gridTemplateRows: frac(rows), gridTemplateColumns: frac(cols) }}>
       {tab.plots.map((p, i) => <PlotView key={p.id} tab={tab} plot={p} index={i} active={i === tab.active} />)}
+      {tooMany && <p className="too-many-plots" role="status">{t("tooManyPlots")}
+        <button className="linklike" onClick={() => useApp.setState({ soloPlot: true })}>{t("tooManyPlotsSolo")}</button></p>}
       {rows.slice(0, -1).map((_, i) => (
         <div key={`r${i}`} className="gutter-h" style={{ top: `calc(${sum(rows, i + 1) * 100}% - 4px)` }} onMouseDown={startDrag("row", i)}
           onDoubleClick={() => actions.setSizes(undefined, tab.colSizes)} role="separator" aria-orientation="horizontal" />

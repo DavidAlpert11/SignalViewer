@@ -49,7 +49,7 @@ def test_join_on_keys_continue_with_and_reopen(pg, tmp_path):
     pg.wait_for_selector(".toast:has-text('Saved')")
     pg.locator(".areabar .tab.active .x").click()
     pg.wait_for_selector(".sw-welcome")
-    pg.locator(".sw-welcome .btn", has_text="Open a saved study").click()
+    _bar_menu(pg, "Open", "Open a saved study")                           # W16: from Open ▾ (selector change by L8)
     goto_folder(pg, pg.env["out"])
     pg.locator(".dialog .fs-row", has_text="joined.svsweep").click(); pg.click(".dialog-foot .btn.primary")
     pg.wait_for_selector(".sw-steps")

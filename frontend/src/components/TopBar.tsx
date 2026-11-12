@@ -14,6 +14,7 @@ import { copyErrorDetails, reportProblem } from "../errorReport";
 import type { MenuItem, MoreTabs } from "../store";
 import { openMenu } from "./Overlays";
 import { EXAMPLE_LABEL, openExample } from "./Welcome";
+import { startTour } from "./Tour";
 import { openTemplates, templateMenuItems } from "../templateMenu";
 import { forgetMore, moreUsable, openMoreTabs, tx } from "../templates";
 import { getPref, setPref } from "../prefs";
@@ -44,6 +45,7 @@ export default function TopBar() {
     const items: MenuItem[] = [
       { label: t("menuGuide"), keys: "F1", run: () => useApp.setState({ guideOpen: true }) },
       { label: t("shortcuts"), keys: "?", run: () => useApp.setState({ helpOpen: true }) },
+      { label: t("menuTour"), run: startTour },
       ...(ex.length ? [{ label: t("menuExamples"), run: () => {},
         items: ex.filter((x) => x.id in EXAMPLE_LABEL).map((x) => ({ label: t(EXAMPLE_LABEL[x.id]), run: () => openExample(x) })) }] : []),
       { label: "", run: () => {}, sep: true },
@@ -67,7 +69,7 @@ export default function TopBar() {
       <div className="brand" title={t("appName")}><BrandMark /><span className="hide-compact">{t("appName")}</span></div>
       <AreaSwitcher />
       <div className="spacer" />
-      <button className="search-trigger" onClick={() => useApp.setState({ paletteOpen: true, paletteMode: "all" })}>
+      <button className="search-trigger" data-tour="palette" onClick={() => useApp.setState({ paletteOpen: true, paletteMode: "all" })}>
         <Icon.Search width={14} height={14} /> <span>{t("commands")}</span><span className="kbd">Ctrl K</span>
       </button>
       <button className="iconbtn" onClick={() => useApp.setState({ settingsOpen: true })} title={`${t("settings")} (Ctrl+,)`} aria-label={t("settings")}>

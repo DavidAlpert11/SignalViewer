@@ -300,8 +300,7 @@ function SweepsWelcome() {
         </div>
         <div className="sw-welcome-actions">
           <button className="btn primary" disabled={busy} onClick={() => openTable(t("swOpenTable"))}><Icon.Open /> {t("swOpenTable")}</button>
-          <button className="btn outline" disabled={busy} onClick={() => openFolder(t("swOpenFolder"))}><Icon.Folder /> {t("swOpenFolder")}</button>
-          <button className="btn outline" disabled={busy} onClick={() => openStudy(t("swOpenStudy")).then((m) => m && notify(m, "error"))}>{t("swOpenStudy")}</button>
+          {/* W16: a folder and a saved study are opened from Open ▾ (and the palette) - one way in here */}
           <button className="btn outline" disabled={busy} onClick={example}>{t("swTryExample")}</button>
           <button className="btn outline" disabled={busy} onClick={() => merged().catch(notifyError)}>{t("swTryMerged")}</button>
         </div>
