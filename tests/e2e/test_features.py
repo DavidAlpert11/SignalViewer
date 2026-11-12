@@ -578,7 +578,7 @@ def test_V08_zoom_pan_back(pg):
 def test_V09_decimation_status(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
-    pg.wait_for_function("document.querySelector('.status').innerText.match(/drawn for|All points/)")   # U7 wording
+    pg.wait_for_function("document.querySelector('.status').innerText.match(/Shown reduced|Every sample/)")   # W6 wording (2026-11-13)
 
 
 def test_V10_theme(pg):

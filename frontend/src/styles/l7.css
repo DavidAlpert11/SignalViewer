@@ -14,8 +14,7 @@
 
 /* W7: the two cursors' bar in the plot's head, right of the legend - it no longer floats over the event texts */
 .plot-head .sel-slot { display: contents; }
-.plot-head .sel-bar { position: static; box-shadow: none; padding: 1px; margin-inline-start: auto; }
-.plot-head .sel-bar + .plot-more, .plot-head .sel-slot + .plot-more { margin-inline-start: 0; }
+.plot-head .sel-bar { position: static; box-shadow: none; padding: 1px; order: 5; }    /* the legend is order 4 */
 
 /* W9: the tab bar's views badge reads "+8 views"; a flight log's message part dimmed in a flat list */
 .more-tabs .more-count { width: auto; }

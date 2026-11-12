@@ -68,11 +68,10 @@ EXAMPLE_SETS = [
     {"id": "investigate", "files": ["investigate/heavy_payload.csv",                  # the Investigate tools,
                                     "investigate/light_payload.csv"]},                # with a known answer
     # --- lane W0 --- the 2026-11-13 round's two sets: "open": "study" = the card opens the study file
-    # (the last file) in the Sweeps panel, not the tables as recordings. Hidden until their files exist;
-    # `w0_pending` (files made by L3 / L4) is removed by FINAL, so test_every_example_ships... checks them again.
-    {"id": "commonGains", "open": "study", "w0_pending": True,                                            # W14: one gain set, 3 drones
+    # (the last file) in the Sweeps panel, not the tables as recordings.
+    {"id": "commonGains", "open": "study",                                            # W14: one gain set, 3 drones
      "files": ["drones/drone_a.csv", "drones/drone_b.csv", "drones/drone_c.csv", "drones/drones.svstudy.json"]},
-    {"id": "smartSweepDemo", "open": "study", "w0_pending": True,                                         # W18: converge on your PC
+    {"id": "smartSweepDemo", "open": "study",                                         # W18: converge on your PC
      "files": ["smart_sweep_demo/sim.py", "smart_sweep_demo/demo.svstudy.json"]},
 
     # --- lane L1 ---

@@ -8,10 +8,17 @@ from test_features import S, env, open_files, pg, save_as, sig  # noqa: E402,F40
 
 
 def _close_and_catch(pg):
+    """Close the tab as a user would; the beforeunload question, if any (dismissed: the tab stays)."""
     seen = []
     pg.on("dialog", lambda d: (seen.append(d.type), d.dismiss()))
     pg.close(run_before_unload=True)
-    pg.wait_for_timeout(300) if not pg.is_closed() else None
+    for _ in range(30):                                   # the question, or the tab gone
+        if seen or pg.is_closed():
+            break
+        try:
+            pg.wait_for_timeout(100)                      # (a Playwright call: it delivers the dialog event)
+        except Exception:                                 # closed meanwhile: no question was asked
+            break
     return seen
 
 

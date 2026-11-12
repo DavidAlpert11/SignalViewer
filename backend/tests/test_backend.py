@@ -609,8 +609,6 @@ def test_every_example_ships_in_every_package():
     from app.routes import fs as m
     root = os.path.join(os.path.dirname(__file__), "..", "..")
     for ex in m.EXAMPLE_SETS:
-        if ex.get("w0_pending"):          # 2026-11-13 round: made by lanes L3 / L4; FINAL removes the flag
-            continue
         for f in ex["files"]:
             assert os.path.isfile(os.path.join(root, "examples", f)), f
     # from source, fs.py's default is <the folder that holds backend>/examples

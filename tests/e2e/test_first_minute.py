@@ -61,9 +61,11 @@ def test_the_status_bar_reads_as_a_sentence(pg):
 
 
 def test_the_empty_file_list_offers_open(pg):
+    """W13.5 + W16: one sentence, and its action is the panel's own Open files right above it."""
     pg.evaluate("window.__sv.setState({ panel: 'data' })")
     st = pg.locator(".empty-tree")
     st.wait_for()
-    st.locator(".btn").click()
+    assert "Open data files" in st.inner_text()
+    pg.locator(".side [data-tour='open']").click()
     pg.wait_for_selector(".crumbs input")
     pg.keyboard.press("Escape")

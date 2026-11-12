@@ -468,14 +468,12 @@ template for the next table. In CI: `signalviewer-cli sweep results.csv --questi
 - macOS refuses to open it the first time: right-click → *Open*, or run
   `xattr -dr com.apple.quarantine SignalViewer` once.
 
-<!-- lane L1 -->
 ## Start from an example
 
 The welcome screen shows each example as a card with a picture of what it opens. *One gain set, three drones*
 and *Smart sweep demo* open in the Sweeps area (see *One parameter set for many systems* and *The smart-sweep
 demo*); the others open their recordings with the view that suits them.
 
-<!-- lane L2 -->
 ## The first minute
 
 Open a file and the empty plot offers the views that fit it – *Quick look* (every signal in a plot of its own)
@@ -486,7 +484,6 @@ the files you opened together, look at a log's findings, or judge the run agains
 and off either way). The status bar says when a plot is drawn reduced (lowest and highest per pixel) – hover
 for the numbers.
 
-<!-- lane L5 -->
 ## One parameter set for many systems, the next runs, the farm, the demo
 
 *Sweeps → Open ▾ → Common parameters (several tables)*: a study of several sweep tables, saved as a
@@ -494,7 +491,6 @@ for the numbers.
 [One parameter set for many systems](common-gains.md) and [Launcher mode](launcher.md); the welcome screen's
 *Smart sweep demo* in [The smart-sweep demo](smart-sweep-demo.md).
 
-<!-- lane L6 -->
 ## Closing with unsaved work
 
 When the window closes and your plots changed since the session was last saved, Signal Viewer asks
@@ -505,9 +501,6 @@ next start either way (autosave); this is about a session file. Undo back to wha
 **The command palette** (Ctrl+K): with nothing typed it lists your last 5 commands, then every command by group,
 each with its shortcut.
 
-<!-- lane L7 -->
-
-<!-- lane L8 -->
 ## Where things are
 
 The plot bar keeps what you use with the plots: layout, link the time axes, zoom, the cursors; rarer things

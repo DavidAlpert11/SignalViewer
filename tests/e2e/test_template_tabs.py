@@ -71,7 +71,7 @@ def test_auto_open_takes_the_default_tabs_and_offers_the_rest(pg):
     open_ardupilot_example(pg)
     assert tab_names(pg) == ["Attitude", "Flight"]                 # the built-in review's defaultTabs
     more = pg.locator(".more-tabs")
-    assert more.inner_text().strip() == str(REVIEW_TABS - 2)
+    assert more.inner_text().strip() == f"+{REVIEW_TABS - 2} views"           # W9: the badge says what it counts
     assert more.get_attribute("aria-label").startswith(f"+{REVIEW_TABS - 2} more from ArduPilot")
     more.click()
     assert pg.locator(".menu.ctx button", has_text="Open a template or collection").count() == 1   # one menu for views
