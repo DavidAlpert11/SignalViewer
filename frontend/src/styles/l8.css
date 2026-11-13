@@ -86,3 +86,5 @@
 .globe3d-light { bottom: 6px; }
 .g3-cam-hint, .geo-hint { max-width: calc(100% - 24px); white-space: normal; text-align: center; }
 .plot.active .globe3d-readout, .plot:hover .globe3d-readout, .plot:focus-within .globe3d-readout { top: 84px; }
+.set-group-title { margin: var(--sp-3) 0 var(--sp-1); font-size: var(--fs-s); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.settings-body > .set-group-title:first-child { margin-top: 0; }
