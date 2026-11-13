@@ -40,10 +40,25 @@ pictures**, a first minute that says what to do next, and a calmer screen.
 - **The smart-sweep demo**: a real (standard-library) simulator, a coarse start grid, then rounds of 20
   candidates; the workers filling and emptying, the tried gains by round, the convergence chart against the
   full grid, and the result in one sentence (here: the full-grid optimum after 1,728 runs instead of 111,132).
+- **Run the loop** (any study, *Sweeps → Common parameters*): Signal Viewer as the manager of the runs – it proposes
+  the next runs, starts your program on this PC (N at a time) or hands them to your farm's launcher, waits for the
+  result files in the results folder, reads them, ranks and proposes again until the best stops changing; the
+  exact command, the live strip, the convergence and every round on screen; a round with no result stops the loop
+  with the end of the command's output. The study editor says how one run is started (the command, where it
+  runs, where the results appear, the parameters file template).
+- **The demo explains itself and becomes yours**: the question, the program's real input and output, the loop,
+  and *Copy the demo to a folder…* – the copy opens as an ordinary study, ready for your own program.
 - Command line: `python -m signalviewer.study rank | next | status | submit | wait | loop | demo | demo-sim`,
   also `SignalViewer.exe study …` from the Portable. Example data: `examples/drones/`, `examples/smart_sweep_demo/`.
 
 ### Polish
+- **What changed, at a glance**: a sentence (how many signals changed, the first, the likeliest to matter) and
+  one row per signal – when it left its usual range, up or down, how likely – above the detailed list.
+- **The Fleet says what it is for**: the questions it answers (which flights had errors, is vibration growing,
+  is a battery losing capacity – one click each), the whole fleet at a glance (flights, vehicles, time in the
+  air, flights with errors) with every flight on its date, and the trend names the first flight past the limit.
+- **The Map's story keeps your camera**: with *Chase*, *On the object*, *Look at* or *Cockpit* chosen, the story
+  moves the time and the camera goes on doing what you chose (it used to fly back to a general view).
 - **A calmer screen**: fewer controls on the welcome screen, a plotted tab, Settings and Sweeps, nothing taken
   away – *Link value axes* is in the plot bar's ⋯ menu (and shows while on), the keyboard shortcuts in Help and
   on the ? key, Settings' *Storage* folded, the Sweeps welcome opens a table (a folder or a saved study from

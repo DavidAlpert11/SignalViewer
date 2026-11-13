@@ -394,7 +394,9 @@ def status(s: studies.Study, k: Optional[int] = None, collect: bool = True, save
         elif p.state == "pending" and not rec:
             state, res = "pending", None
         else:
-            state, res = ("missing" if timed_out else "submitted"), None
+            # one command per run (run mode) and that command is done: nothing more will come for it
+            ended = rec.get("mode") == "run" and p.run_id in codes and rec.get("finished") and time.time() - rec["finished"] > 2
+            state, res = ("missing" if timed_out or ended else "submitted"), None
             pending_by_values.append(p)
         runs.append({"run_id": p.run_id, "table": p.table, "state": state, "result": res and os.path.relpath(res, s.folder).replace(os.sep, "/")})
         if state in ("done", "failed"):

@@ -16,6 +16,7 @@ import {
 import type { CommonRow, Role, Study, StudyTable } from "../../sweeps/studyTypes";
 import SpaceView, { type SpacePoint } from "./SpaceView";
 import DemoView from "./DemoView";
+import LoopSection from "./LoopSection";
 
 const ROLES: Role[] = ["shared", "scenario", "local", "output", "ignore"];
 const STUDY_EXT = ".svstudy.json";
@@ -55,7 +56,7 @@ export default function StudyPanel() {
     <div className="cp-panel" data-testid="study-panel">
       <div className="cp-head">
         <h2>{t("cpTitle")}{study?.name ? `: ${study.name}` : ""}</h2>
-        <span className="cp-state">{pending.length ? t("cpPending", { n: pending.length, k: lastRound }) : t("cpNoRounds")}
+        <span className="cp-state">{pending.length ? t("cpPending", { n: pending.length, k: lastRound }) : lastRound ? t("cpRoundsDone", { k: lastRound }) : t("cpNoRounds")}
           {isUnsaved(s) && <> · <b>{t("cpUnsaved")}</b></>}</span>
         <span className="spacer" />
         <button className="iconbtn" disabled={!s.past.length} onClick={undoStudy} aria-label={t("undo")} title={`${t("undo")} (Ctrl+Z)`}><Icon.Undo /></button>
@@ -66,8 +67,11 @@ export default function StudyPanel() {
       <div className="cp-body">
         <aside className="cp-side">{study && <StudyEditor study={study} />}</aside>
         <main className="cp-main">
-          {s.error && <p className="sw-error" role="alert">{s.error}</p>}
-          {study && study.tables.length < 2 ? <p className="empty-note">{t("cpEmpty")}</p> : <Results />}
+          {s.error && !(/has no rows/.test(s.error) && !(s.loopProgress?.round)) && <p className="sw-error" role="alert">{s.error}</p>}
+          {study && study.tables.length < 2 ? <p className="empty-note">{t("cpEmpty")}</p> : <>
+            <LoopSection />
+            {/has no rows/.test(s.error) && !(s.loopProgress?.round) ? <p className="empty-note">{t("lpNothingYet")}</p> : <Results />}
+          </>}
         </main>
       </div>
     </div>
@@ -167,6 +171,9 @@ function StudyEditor({ study }: { study: Study }) {
                     }
                     x.drop = d;
                   })} /></label>
+              <label className="afield"><span>{t("lpTemplate")}</span>
+                <textarea dir="ltr" rows={3} className="lp-tpl" placeholder={'{"run_id": "{{run_id}}", "Kp": {{Kp}}, "out": "{{study_dir}}/results/{{table}}/{{run_id}}.csv"}'}
+                  value={tb.params_template ?? ""} onChange={(e) => edit(tb.id, (x) => { x.params_template = e.target.value; })} /></label>
               <button className="linkbtn danger" onClick={() => editStudy((s) => ({ ...s, tables: s.tables.filter((x) => x.id !== tb.id) }))}>{t("cpRemoveTable")}</button>
             </div>}
           </section>
@@ -199,6 +206,23 @@ function StudyEditor({ study }: { study: Study }) {
       <div className="cp-row"><span>{t("cpCombine")}</span>
         <select value={study.combine?.mode ?? "auto"} onChange={(e) => editStudy((s) => ({ ...s, combine: { ...(s.combine ?? {}), mode: e.target.value as "auto" } }))}>
           {(["auto", "minworst", "pareto"] as const).map((m) => <option key={m} value={m}>{t(`cpCombine_${m}`)}</option>)}</select></div>
+      <h3>{t("lpHowRuns")}</h3>
+      <p className="hint">{t("lpHowRunsHint")}</p>
+      <label className="afield"><span>{t("lpCommand")}</span>
+        <textarea dir="ltr" rows={3} className="lp-cmd" placeholder={"python\n{{study_dir}}/my_sim.py\n{{params_file}}"} value={(study.launcher?.submit ?? []).join("\n")}
+          onChange={(e) => editStudy((s) => ({ ...s, launcher: { ...(s.launcher ?? {}), submit: e.target.value.split("\n").map((v) => v.trim()).filter(Boolean) } }))} /></label>
+      <div className="cp-row"><span>{t("lpWhere")}</span>
+        <select value={study.launcher?.local_workers ? "local" : "farm"} onChange={(e) => editStudy((s) => ({ ...s, launcher: { ...(s.launcher ?? {}),
+          local_workers: e.target.value === "local" ? Math.max(1, (navigator.hardwareConcurrency || 2) - 1) : null } }))}>
+          <option value="local">{t("lpWhereLocal")}</option><option value="farm">{t("lpWhereFarm")}</option></select>
+        {!!study.launcher?.local_workers && <input type="number" min={1} max={64} aria-label={t("lpWorkers")} title={t("lpWorkers")} value={study.launcher.local_workers}
+          onChange={(e) => editStudy((s) => ({ ...s, launcher: { ...(s.launcher ?? {}), local_workers: Math.max(1, Math.round(Number(e.target.value) || 1)) } }))} />}</div>
+      {!study.launcher?.local_workers && <div className="cp-row"><span>{t("lpMode")}</span>
+        <select value={study.launcher?.submit_mode ?? "round"} onChange={(e) => editStudy((s) => ({ ...s, launcher: { ...(s.launcher ?? {}), submit_mode: e.target.value as "run" | "round" } }))}>
+          <option value="round">{t("lpModeRound")}</option><option value="run">{t("lpModeRun")}</option></select></div>}
+      <label className="afield"><span>{t("lpResults")}</span>
+        <input dir="ltr" placeholder="results/{{table}}/{{run_id}}*" value={study.launcher?.results?.glob ?? ""}
+          onChange={(e) => editStudy((s) => ({ ...s, launcher: { ...(s.launcher ?? {}), results: { ...(s.launcher?.results ?? {}), glob: e.target.value } } }))} /></label>
       <div className="cp-row"><span>{t("cpBatch")}</span>
         <input type="number" min={1} max={500} value={study.next?.batch ?? 20}
           onChange={(e) => editStudy((s) => ({ ...s, next: { ...(s.next ?? {}), batch: Math.max(1, Math.round(Number(e.target.value) || 20)) } }))} /></div>
@@ -218,10 +242,13 @@ function Results() {
   const status = useStudyPanel((s) => s.status);
   const path = useStudyPanel((s) => s.path);
   const study = useStudyPanel((s) => s.study);
+  const tried = useStudyPanel((s) => s.loopProgress?.tried);
   const points = useMemo<SpacePoint[]>(() => [
-    ...(r?.rows ?? []).map((x) => ({ values: x.values, feasible: x.feasible })),
+    // the loop's values carry their round (coloured by it); else every ranked value
+    ...(tried?.length ? tried.map((x) => ({ values: x.values, feasible: x.feasible, round: x.round }))
+      : (r?.rows ?? []).map((x) => ({ values: x.values, feasible: x.feasible }))),
     ...(next?.candidates ?? []).map((c) => ({ values: c.values, proposed: c.reason })),
-  ], [r, next]);
+  ], [r, next, tried]);
   if (!r) return <p className="empty-note">{busy ? t("swReading") : ""}</p>;
   const best = r.rows.find((x) => x.feasible) ?? null;
   const suggest = async () => {

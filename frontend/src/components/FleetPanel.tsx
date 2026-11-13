@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type FleetFolder, type FleetKey, type FleetLog } from "../api";
 import { actions, pickPath, useApp } from "../store";
-import { useT, type Lang } from "../i18n";
+import { fmtNum, useT, type Lang } from "../i18n";
 import { followJob, openPaths } from "../files";
 import Toasts from "./Toasts";
 
@@ -14,6 +14,7 @@ export default function FleetPanel() {
   const [folders, setFolders] = useState<FleetFolder[]>([]);
   const [keys, setKeys] = useState<FleetKey[]>([]);
   const [logs, setLogs] = useState<FleetLog[] | null>(null);
+  const [all, setAll] = useState<FleetLog[] | null>(null);
   // the search is kept while another panel is shown (Open here opens the Log panel; back to the
   // Fleet, the search, the trend and the open flight are as they were)
   const [text, setText] = useKept("text", "");
@@ -44,6 +45,8 @@ export default function FleetPanel() {
     if (code) q.code = code;
     if (key && limit !== "" && Number.isFinite(Number(limit))) { q.key = key; q[op] = Number(limit); }
     setLogs((await api.fleetLogs(q)).logs);
+    // the summary is of the whole fleet, whatever the question
+    setAll(Object.keys(q).length ? (await api.fleetLogs({})).logs : null);
   };
   useEffect(() => { refresh().then(search).catch(() => setLogs([])); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -144,11 +147,22 @@ export default function FleetPanel() {
             </div>
           </div>
 
-          {key && shownTrend.length > 1 && <Trend points={shownTrend} limit={limit === "" ? null : Number(limit)} lang={lang}
+          {key && shownTrend.length > 1 && <Trend points={shownTrend} limit={limit === "" ? null : Number(limit)} lang={lang} op={op}
             label={keyLabel(key)} onPick={(p) => openAt(p, null)} />}
         </>}
         </div>
         {folders.length > 0 && <div className="fleet-main">
+          {/* owner (2026-11-13): what the Fleet is for, as the questions it answers - one click each */}
+          <div className="fleet-questions" role="group" aria-label={t("fleetQuestions")}>
+            <span className="muted">{t("fleetQuestions")}</span>
+            <button className={`chipbtn${level === "error" && !key ? " on" : ""}`} onClick={() => { setText(""); setCode(""); setKey(""); setLevel("error"); }}>{t("fleetQErrors")}</button>
+            {keys.some((k) => k.key === "vibration.max") && <button className={`chipbtn${key === "vibration.max" ? " on" : ""}`}
+              onClick={() => { setText(""); setLevel(""); setCode(""); setKey("vibration.max"); setOp("above"); setLimit(limit || "30"); }}>{t("fleetQTrend")}</button>}
+            {keys.some((k) => k.key.startsWith("battery")) && <button className={`chipbtn${key.startsWith("battery") ? " on" : ""}`}
+              onClick={() => { const k = keys.find((x) => x.key.startsWith("battery"))!.key; setText(""); setLevel(""); setCode(""); setKey(k); setOp("below"); setLimit(""); }}>{t("fleetQBattery")}</button>}
+            <button className="chipbtn" onClick={() => { setText(""); setLevel(""); setCode(""); setKey(""); setLimit(""); }}>{t("fleetQAll")}</button>
+          </div>
+          {(all ?? logs) && (all ?? logs)!.length > 0 && <FleetSummary logs={(all ?? logs)!} shown={logs ?? []} lang={lang} onPick={(p) => setOpen(p)} />}
 
           <div className="fleet-count muted">{logs ? (logs.length === 1 ? t("fleetFoundOne") : t("fleetFound", { n: logs.length })) : t("loading")}</div>
           <ul className="fleet-list">
@@ -213,10 +227,13 @@ const fmtDate = (unix: number, lang: Lang) =>
   new Date(unix * 1000).toLocaleDateString(lang === "he" ? "he-IL" : "en-GB", { year: "2-digit", month: "2-digit", day: "2-digit" });
 
 /** One number over the flights' dates: points, the search limit as a line, click a point -> that log. */
-function Trend({ points, limit, label, lang, onPick }: {
+function Trend({ points, limit, label, lang, onPick, op }: {
   points: { path: string; name: string; date: number; value: number }[]; limit: number | null; label: string; lang: Lang;
-  onPick: (path: string) => void;
+  onPick: (path: string) => void; op: "above" | "below";
 }) {
+  const t = useT();
+  const over = (v: number) => limit !== null && Number.isFinite(limit) && (op === "above" ? v > limit : v < limit);
+  const firstOver = [...points].sort((a, b) => a.date - b.date).find((p) => over(p.value));
   const W = 260, H = 110, P = 8;
   const xs = points.map((p) => p.date), ys = points.map((p) => p.value).concat(limit !== null && Number.isFinite(limit) ? [limit] : []);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
@@ -229,13 +246,48 @@ function Trend({ points, limit, label, lang, onPick }: {
         {limit !== null && Number.isFinite(limit) && <line className="fleet-limitline" x1={P} x2={W - P} y1={Y(limit)} y2={Y(limit)} />}
         <polyline className="fleet-trendline" points={points.map((p) => `${X(p.date)},${Y(p.value)}`).join(" ")} />
         {points.map((p) => (
-          <circle key={p.path} cx={X(p.date)} cy={Y(p.value)} r={3.5} className={limit !== null && p.value > limit ? "over" : ""}
+          <circle key={p.path} cx={X(p.date)} cy={Y(p.value)} r={3.5} className={over(p.value) ? "over" : ""}
             onClick={() => onPick(p.path)}>
             <title>{`${p.name} · ${fmtVal(p.value)} · ${fmtDate(p.date, lang)}`}</title>
           </circle>
         ))}
       </svg></div>
+      <div className="fleet-trend-axis muted" dir="ltr"><span>{fmtDate(Math.min(...xs), lang)}</span><span>{fmtDate(Math.max(...xs), lang)}</span></div>
+      {firstOver ? <p className="fleet-first">{t("fleetFirstOver", { name: firstOver.name, date: fmtDate(firstOver.date, lang), v: fmtVal(firstOver.value) })}
+        {" "}<button className="linklike" onClick={() => onPick(firstOver.path)}>{t("fleetOpen")}</button></p>
+        : limit !== null && Number.isFinite(limit) ? <p className="muted">{t("fleetNoneOver")}</p> : null}
     </figure>
+  );
+}
+
+/** Owner (2026-11-13): the fleet at a glance - how many flights, vehicles, hours, how many with errors or
+ *  warnings, and every flight on its date, coloured by its worst finding (a click opens it in the list). */
+function FleetSummary({ logs, shown, lang, onPick }: { logs: FleetLog[]; shown: FleetLog[]; lang: Lang; onPick: (path: string) => void }) {
+  const inQ = new Set(shown.map((l) => l.path));
+  const t = useT();
+  const ok = logs.filter((l) => !l.error);
+  const vehicles = new Set(ok.map((l) => l.vehicle).filter(Boolean)).size;
+  const hours = ok.reduce((a, l) => a + (l.duration ?? 0), 0) / 3600;
+  const withErr = ok.filter((l) => l.errors > 0).length, withWarn = ok.filter((l) => !l.errors && l.warnings > 0).length;
+  const d0 = Math.min(...ok.map((l) => l.date)), d1 = Math.max(...ok.map((l) => l.date));
+  const pct = (d: number) => `${(100 * (d - d0)) / (d1 - d0 || 1)}%`;
+  return (
+    <section className="fleet-summary" aria-label={t("fleetSummary")}>
+      <div className="fleet-tiles">
+        <span><b>{ok.length}</b>{ok.length === 1 ? t("fleetTileFlight") : t("fleetTileFlights")}</span>
+        {vehicles > 0 && <span><b>{vehicles}</b>{vehicles === 1 ? t("fleetTileVehicle") : t("fleetTileVehicles")}</span>}
+        {hours >= 1 ? <span><b>{fmtNum(hours, lang, 3)}</b>{t("fleetTileHours")}</span>
+          : <span><b>{fmtNum(Math.round(hours * 60), lang)}</b>{t("fleetTileMinutes")}</span>}
+        <span className="err"><b>{withErr}</b>{t("fleetTileErrors")}</span>
+        <span className="warn"><b>{withWarn}</b>{t("fleetTileWarnings")}</span>
+      </div>
+      {ok.length > 1 && <div className="fleet-strip" dir="ltr" aria-label={t("fleetStrip")}>
+        {ok.map((l) => <button key={l.path} className={`fleet-dot ${l.errors ? "err" : l.warnings ? "warn" : "ok"}${inQ.size < logs.length && !inQ.has(l.path) ? " out" : ""}`} style={{ left: pct(l.date) }}
+          title={`${l.name} · ${fmtDate(l.date, lang)}${l.errors ? ` · ${l.errors} ✕` : ""}${l.warnings ? ` · ${l.warnings} !` : ""}`}
+          aria-label={l.name} onClick={() => onPick(l.path)} />)}
+      </div>}
+      {ok.length > 1 && <div className="fleet-trend-axis muted" dir="ltr"><span>{fmtDate(d0, lang)}</span><span>{fmtDate(d1, lang)}</span></div>}
+    </section>
   );
 }
 

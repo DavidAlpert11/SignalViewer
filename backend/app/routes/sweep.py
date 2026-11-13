@@ -416,7 +416,8 @@ def sweep_templates():
     out = []
     if os.path.isdir(TEMPLATES):
         for n in sorted(os.listdir(TEMPLATES)):
-            if n.endswith(".json"):
+            # a save in progress writes a hidden ".<name>.<pid>.tmp.json" first (app/atomic.py): not a template
+            if n.endswith(".json") and not n.startswith("."):
                 try:
                     with open(os.path.join(TEMPLATES, n), encoding="utf-8") as f:
                         out.append(json.load(f))
