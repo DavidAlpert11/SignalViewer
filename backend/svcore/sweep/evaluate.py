@@ -66,6 +66,10 @@ def _distinct_per_set(set_id: np.ndarray, combo_id: np.ndarray, n_sets: int, n_c
     s, c = (set_id, combo_id) if mask is None else (set_id[mask], combo_id[mask])
     if not len(s):
         return np.zeros(n_sets, dtype=np.int64)
+    if n_sets * n_combos <= 50_000_000:              # a mark per (set, combination): no sort (np.unique: 0.4 s / 1M rows)
+        seen = np.zeros(n_sets * n_combos, dtype=bool)
+        seen[s * n_combos + c] = True
+        return seen.reshape(n_sets, n_combos).sum(axis=1).astype(np.int64)
     pairs = np.unique(s * (n_combos + 1) + c)
     return np.bincount(pairs // (n_combos + 1), minlength=n_sets)
 
@@ -374,14 +378,22 @@ def set_rows(p: Prepared, q: Dict, set_index: int) -> Dict:
             "rows": [int(x) for x in p.row_id[m]], "recordings": recordings, "recordingPerRun": per_run}
 
 
-def run_rows(p: Prepared, holds_per_set: np.ndarray, max_rows: int = 200_000, seed: int = 0) -> Dict:
+def run_rows(p: Prepared, holds_per_set: np.ndarray, max_rows: int = 50_000, seed: int = 0) -> Dict:
     """Every kept run (a sample when there are more than max_rows): the row's set and whether that
-    set holds, for drawing a line per run."""
+    set holds, for drawing a line per run. 50,000 lines draw the same picture as 200,000 at a quarter of the
+    bytes and the drawing time (owner, 2026-11-13: big tables got stuck switching to All runs); the sample
+    keeps one run of every set first, so no set is missing from the picture by chance."""
     n = len(p.df)
     idx = np.arange(n)
     sampled = n > max_rows
     if sampled:
-        idx = np.sort(np.random.default_rng(seed).choice(n, max_rows, replace=False))
+        rng = np.random.default_rng(seed)
+        _, first = np.unique(p.set_id, return_index=True)          # one run of each set
+        if len(first) >= max_rows:
+            idx = np.sort(rng.choice(first, max_rows, replace=False))
+        else:
+            rest = np.setdiff1d(idx, first, assume_unique=True)
+            idx = np.sort(np.concatenate([first, rng.choice(rest, max_rows - len(first), replace=False)]))
     return {"index": idx, "set": p.set_id[idx], "holds": holds_per_set[p.set_id[idx]], "sampled": sampled, "total": n}
 
 

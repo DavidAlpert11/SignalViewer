@@ -12,21 +12,27 @@ def summary(df: pd.DataFrame, roles: Dict[str, str]) -> Dict:
     holds = [c for c in df.columns if roles.get(c) == "hold"]
     outs = [c for c in df.columns if roles.get(c) == "output"]
     out: Dict = {"rows": int(len(df)), "params": params, "holds": holds, "outputs": outs}
-    n_combos = int(df[holds].drop_duplicates().shape[0]) if holds else 1
+    # group numbers, not joined strings: a million rows in well under a second
+    def ids(cols):
+        return df.groupby(cols, sort=False, dropna=False, observed=True).ngroup().to_numpy()
+    combo_id = ids(holds) if holds else None
+    # the combinations counted from their group numbers (as drop_duplicates would, a second pass saved)
+    n_combos = (int(combo_id.max()) + 1 if len(combo_id) else 0) if combo_id is not None else 1
     out["combos"] = n_combos
     if not params:
         out.update(sets=0, complete=0, missing=0, duplicates=0, failedRuns=0)
         return out
-    # group numbers, not joined strings: a million rows in well under a second
-    def ids(cols):
-        return df.groupby(cols, sort=False, dropna=False, observed=True).ngroup().to_numpy()
     set_id = ids(params)
     n_sets = int(set_id.max()) + 1 if len(set_id) else 0
     counts = np.bincount(set_id, minlength=n_sets)
-    if holds:
-        combo_id = ids(holds)
-        pairs = np.unique(set_id.astype(np.int64) * (n_combos + 1) + combo_id)
-        distinct = np.bincount(pairs // (n_combos + 1), minlength=n_sets)
+    if combo_id is not None:
+        key = set_id.astype(np.int64) * n_combos + combo_id
+        if n_sets * n_combos <= 50_000_000:          # a mark per (set, combination): no sort (np.unique took 0.6 s / 1M rows)
+            seen = np.zeros(n_sets * n_combos, dtype=bool)
+            seen[key] = True
+            distinct = seen.reshape(n_sets, n_combos).sum(axis=1)
+        else:
+            distinct = np.bincount(np.unique(key) // n_combos, minlength=n_sets)
         complete = int((distinct == n_combos).sum())
         duplicates = int((counts > distinct).sum())
     else:

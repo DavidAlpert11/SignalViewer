@@ -672,3 +672,31 @@ def test_a_save_in_progress_is_not_listed_as_a_template(tmp_path, monkeypatch):
     (tmp_path / "tpl" / ".drone tpl.123-456.tmp.json").write_text(json.dumps(tpl))
     names = [x["name"] for x in TestClient(app).get("/api/sweep/templates").json()["templates"]]
     assert names == ["drone tpl"]
+
+
+def test_the_same_question_is_not_worked_out_again(monkeypatch):
+    """Owner (2026-11-13): Parameter sets <-> All runs got stuck on big tables - the second ask of the same
+    question reuses the answer (only the runs are added); a changed question is worked out."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.routes import sweep as route
+    c = TestClient(app)
+    r = c.post("/api/sweep/open", json={"path": EXAMPLE}).json()
+    roles = {col["name"]: col["role"] for col in r["columns"]}
+    q = {"roles": roles, "goal": {"column": "range_m"}, "conditions": [{"column": "max_roll_deg", "op": "<=", "value": 25}]}
+    calls = []
+    real = route.sweep.answer
+    monkeypatch.setattr(route.sweep, "answer", lambda p, qq: calls.append(1) or real(p, qq))
+    a = c.post("/api/sweep/evaluate", json={"id": r["id"], "question": q}).json()
+    b = c.post("/api/sweep/evaluate", json={"id": r["id"], "question": q, "runs": True}).json()
+    assert len(calls) == 1 and a["sets"] == b["sets"] and "runs" in b
+    c.post("/api/sweep/evaluate", json={"id": r["id"], "question": {**q, "conditions": []}})
+    assert len(calls) == 2
+
+
+def test_the_runs_sample_keeps_every_set():
+    df = pd.DataFrame({"p": np.repeat(np.arange(300), 400), "s": np.tile(np.arange(400), 300)})
+    df["out"] = df.p + df.s * 0.01
+    prep = sweep.prepare(df, {"roles": {"p": "param", "s": "hold", "out": "output"}})
+    r = sweep.run_rows(prep, np.ones(300, bool), max_rows=1000)
+    assert r["sampled"] and len(r["index"]) == 1000 and len(np.unique(r["set"])) == 300

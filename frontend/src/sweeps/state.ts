@@ -799,7 +799,14 @@ export const useSweeps = create<SweepsState>((set, get) => {
       if (old && old.name !== d.name) patchV((v) => ({ ...v, axes: v.axes.map((a) => (a === old.name ? d.name : a)) }));
     },
 
-    setView: (p) => patchV((v) => ({ ...v, ...p }), p.mode !== undefined),
+    // Parameter sets <-> All runs (owner, 2026-11-13: big tables got stuck): the answer in hand serves both -
+    // asked again only for the runs it does not have yet (the question unchanged, its sets are the same)
+    setView: (p) => {
+      const s = get().studies[get().active];
+      patchV((v) => ({ ...v, ...p }));
+      // a click, not typing: asked at once (ask() waits 200 ms for the next key)
+      if (p.mode === "runs" && s && !s.answer?.runs) { window.clearTimeout(timer); askPending = false; get().evaluate(); }
+    },
     saveGroup: (frozen, name) => {
       const s = get().studies[get().active];
       if (!s?.answer) return;
