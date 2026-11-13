@@ -120,3 +120,12 @@
 .sw-mode-many { margin-top: var(--sp-5); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--amber); border-radius: var(--r-l); background: var(--amber-soft); }
 .sw-mode-many h2 { margin: 0 0 var(--sp-1); font-size: var(--fs-xl); color: var(--ink-strong); }
 .sw-mode-many .sw-welcome-actions { flex-wrap: wrap; margin-top: var(--sp-2); }
+/* the two ways in first, the sample table of "one results table" after them (it pushed the second way below the
+   fold at 1280 x 720) */
+.sw-welcome-card { display: flex; flex-direction: column; }
+.sw-welcome-card > h1 { order: 0; } .sw-welcome-card > .tagline { order: 1; }
+.sw-welcome-card > .sw-welcome-actions { order: 2; margin-top: var(--sp-2); }
+.sw-welcome-card > .sw-mode-many { order: 3; margin-top: var(--sp-3); }
+.sw-welcome-card > .sw-sample { order: 4; margin-top: var(--sp-4); }
+.sw-welcome-card > .hint, .sw-welcome-card > .sw-error { order: 5; }
+.sw-welcome-card > .tagline { align-self: center; text-align: center; }
