@@ -56,6 +56,8 @@ pictures**, a first minute that says what to do next, and a calmer screen.
   one set of parameters (the demo, the three-drones example, a new or saved study); Compare with one file offers
   to open another or to compare inside this file; Investigate says how to start (two cursors around the moment,
   then *What changed between the cursors?*). Ctrl+Z / Ctrl+Y undo the study in *Common parameters*.
+- **Create signals** shows its six kinds as an even 3 × 2 grid; **the Report panel** asks for a caption only when
+  you want one (*+ caption* under a plot) instead of a box under every plot.
 - **Settings in groups**: Look, Time and cursor, Working, Network, then Map and objects and Storage.
 - **Calmer maps**: a Map or 3D plot that is not the one being used keeps only + / − / fit; its camera, story and
   view buttons show when you use it or point at it. The map's hints wrap inside the plot, the "reduced quality"

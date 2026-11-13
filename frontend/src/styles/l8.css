@@ -88,3 +88,9 @@
 .plot.active .globe3d-readout, .plot:hover .globe3d-readout, .plot:focus-within .globe3d-readout { top: 84px; }
 .set-group-title { margin: var(--sp-3) 0 var(--sp-1); font-size: var(--fs-s); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .settings-body > .set-group-title:first-child { margin-top: 0; }
+
+/* Review R4: Create signals' six kinds in an even 3 x 2 grid (they wrapped 4 + 2, the last two stretched wide);
+   the chosen kind marked, the tabs announced as tabs */
+.seg.wide.kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; }
+.seg.wide.kinds button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rplot-cap { font-size: var(--fs-s); margin-inline-start: 24px; }
