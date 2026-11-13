@@ -1,7 +1,7 @@
 /* W14 / W15 / W17 / W18: the calls of the Common parameters panel (backend app/routes/sweeps_common.py,
    sweeps_farm.py). Types: studyTypes.ts (the W0 contract). */
 import { call } from "../api";
-import type { CommonResult, DemoProgress, LauncherStatusResult, LauncherSubmitResult, NextRunsResult, Study, StudyReq } from "./studyTypes";
+import type { CommonResult, DemoProgress, LoopProgress, LauncherStatusResult, LauncherSubmitResult, NextRunsResult, Study, StudyReq } from "./studyTypes";
 
 export const studyApi = {
   open: (study_path: string) => call<{ path: string; study: Study }>("/api/sweeps/study/open", { study_path }),
@@ -16,5 +16,8 @@ export const studyApi = {
   submit: (study_path: string, confirmed: boolean) => call<LauncherSubmitResult>("/api/sweeps/launcher/submit", { study_path, confirmed }),
   status: (study_path: string) => call<LauncherStatusResult>(`/api/sweeps/launcher/status?study_path=${encodeURIComponent(study_path)}`),
   demoStep: (study_path: string, action: "next" | "run" | "reset" | "stop") => call<DemoProgress>("/api/sweeps/demo/step", { study_path, action }),
+  loop: (study_path: string, action: "next" | "run" | "stop" | "reset") => call<LoopProgress>("/api/sweeps/loop", { study_path, action }),
+  loopProgress: (study_path: string) => call<LoopProgress>(`/api/sweeps/loop/progress?study_path=${encodeURIComponent(study_path)}`),
+  copyDemo: (study_path: string, folder: string) => call<{ path: string }>("/api/sweeps/demo/copy", { study_path, folder }),
   demoProgress: (study_path: string) => call<DemoProgress>(`/api/sweeps/demo/progress?study_path=${encodeURIComponent(study_path)}`),
 };
