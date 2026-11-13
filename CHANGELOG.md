@@ -62,6 +62,7 @@ Highlights: **a demo for every part of the app** on the welcome screen, grouped 
 - **The live HTML page**: the Story card no longer shows, empty, over the plots before *Story* is pressed.
 
 ### Polish
+- **What changed reads at a glance**: the Investigate panel is wider (its own remembered width), the how-to-read notes fold under one line that keeps *likely is not proof of cause* in sight, the time rows' axis no longer overlaps, and *who leads whom* names every dot. **Find similar** brings its new condition into view with its count.
 - **No dead ends**: the Sweeps welcome offers both ways in – one results table, or several systems that must share
   one set of parameters (the demo, the three-drones example, a new or saved study); Compare with one file offers
   to open another or to compare inside this file; Investigate says how to start (two cursors around the moment,

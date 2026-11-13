@@ -238,8 +238,12 @@ export default function WhatChanged() {
       {!items && !err && <p className="hint">{t("loading")}</p>}
       {items && (
         <>
-          <p className="wc-warn">{t(order === "likely" ? "wcNotCauseLikely" : "wcNotCause")}{coarse > 0.02 ? ` ${t("wcResolution", { ms: fmtNum(coarse * 1000, lang, 3) })}` : ""}</p>
-          {otherFiles.length > 0 && <p className="hint wc-other-hint">{t("wcOtherHint")}</p>}
+          {/* review (2026-11-13): the how-to-read notes folded under one line that keeps the caveat in sight */}
+          <details className="wc-how">
+            <summary>{t("wcHowRead")}</summary>
+            <p className="wc-warn">{t(order === "likely" ? "wcNotCauseLikely" : "wcNotCause")}{coarse > 0.02 ? ` ${t("wcResolution", { ms: fmtNum(coarse * 1000, lang, 3) })}` : ""}</p>
+            {otherFiles.length > 0 && <p className="hint wc-other-hint">{t("wcOtherHint")}</p>}
+          </details>
           {noRoom ? <p className="hint wc-noroom">{t("wcNoRoom")}</p> : !changed.length && <p className="hint">{t("wcNone")}</p>}
           {changed.length > 0 && (
             <div className="wc-tools">
@@ -384,7 +388,7 @@ function Onsets({ t, lang, xs, span, order, onRow }: { t: ReturnType<typeof useT
           );
         })}
       </ol>
-      <div className="wc-oaxis" dir="ltr"><span>{rel(lo)} s</span>{(span.a - lo) / (hi - lo || 1) > 0.15 && <span style={{ insetInlineStart: pct(span.a) }}>0</span>}<span>{rel(hi)} s</span></div>
+      <div className="wc-oaxis" dir="ltr"><span style={{ insetInlineStart: pct(span.a) }}>0</span><span>{rel(hi)} s</span></div>
       {timed.length > top.length && <p className="hint">{t("wcOnsetsMore", { n: top.length, m: timed.length })}</p>}
     </figure>
   );
@@ -406,7 +410,7 @@ function Why({ t, x, lang }: { t: ReturnType<typeof useT>; x: FirstChange; lang:
 function Chain({ t, lang, chain, byId, span, onNode }: { t: ReturnType<typeof useT>; lang: Lang; chain: ChangeChain;
   byId: Map<string, FirstChange>; span: { a: number; b: number }; onNode: (cluster: string) => void }) {
   const n = chain.nodes.length;
-  const W = 300, H = 34 + 14 * Math.min(chain.edges.length, 6), R = 5;
+  const W = 300, H = 60 + 14 * Math.min(chain.edges.length, 6), R = 5;
   const X = (i: number) => 14 + (i / Math.max(1, n - 1)) * (W - 28);
   const at = new Map(chain.nodes.map((x, i) => [x.id, i]));
   const name = (id: string) => byId.get(id)?.name ?? id.slice(id.indexOf("/") + 1);
@@ -416,13 +420,15 @@ function Chain({ t, lang, chain, byId, span, onNode }: { t: ReturnType<typeof us
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t("wcChain")}>
         <defs><marker id="wcArrow" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L6,3 L0,6 z" className="wc-chain-head" /></marker></defs>
         {chain.edges.map((e, k) => {
-          const x1 = X(at.get(e.a)!), x2 = X(at.get(e.b)!), y = 22, h = 8 + 10 * (k % 4);
+          const x1 = X(at.get(e.a)!), x2 = X(at.get(e.b)!), y = H - 30, h = 8 + 10 * (k % 4);
           return <path key={k} d={`M${x1},${y - R} C${x1},${y - R - h} ${x2},${y - R - h} ${x2 - 1},${y - R}`} className="wc-chain-edge" markerEnd="url(#wcArrow)" fill="none" />;
         })}
         {chain.nodes.map((x, i) => (
           <g key={x.id} className="wc-chain-node" role="button" tabIndex={0} onClick={() => x.cluster && onNode(x.cluster)}
             onKeyDown={(e) => { if (e.key === "Enter" && x.cluster) onNode(x.cluster); }}>
-            <circle cx={X(i)} cy={22} r={R} className={byId.get(x.id)?.isEvent ? "event" : ""} />
+            <circle cx={X(i)} cy={H - 30} r={R} className={byId.get(x.id)?.isEvent ? "event" : ""} />
+            {/* each dot named (it was dots and arrows only); every other name lower, so neighbours do not collide */}
+            <text x={X(i)} y={H - 30 + R + 10 + (i % 2) * 11} textAnchor="middle" fontSize={9} className="wc-chain-label">{name(x.id).length > 12 ? name(x.id).slice(0, 11) + "…" : name(x.id)}</text>
             <title>{`${name(x.id)} · ${(x.t - span.a >= 0 ? "+" : "") + fmtNum(x.t - span.a, lang, 3)} s`}</title>
           </g>
         ))}

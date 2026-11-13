@@ -55,7 +55,8 @@
 .wc-obar.down, .wc-odot.down { background: var(--focus); }
 .wc-oaxis { position: relative; display: flex; justify-content: space-between; margin-inline-start: calc(44% + var(--sp-1_5)); height: 14px;
   font-size: var(--fs-2xs); color: var(--muted); font-variant-numeric: tabular-nums; }
-.wc-oaxis span:nth-child(2) { position: absolute; transform: translateX(-50%); }
+.wc-oaxis { justify-content: flex-end; }
+.wc-oaxis span:first-child { position: absolute; transform: translateX(-50%); }   /* the span's start (0); the end on the right */
 
 /* Fleet (owner, 2026-11-13): the questions it answers, the fleet at a glance, the trend's verdict */
 .fleet-questions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1_5); margin-bottom: var(--sp-2); }
@@ -98,3 +99,10 @@
 .set-lines-ctl { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--sp-2) var(--sp-3); }
 .set-lines-ctl label { display: inline-flex; align-items: center; gap: var(--sp-1_5); color: var(--muted); }
 .set-lines-ctl .set-line-width { width: 56px; }
+
+/* What changed: the how-to-read notes folded; the chain's dots named */
+.wc-how { margin: var(--sp-1) 0; font-size: var(--fs-s); }
+.wc-how > summary { cursor: pointer; color: var(--muted); }
+.wc-how > summary:hover { color: var(--ink); }
+.wc-how[open] > summary { margin-bottom: var(--sp-1); }
+.wc-chain-label { fill: var(--muted); }
