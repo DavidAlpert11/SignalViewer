@@ -2,7 +2,7 @@
    screen, their scales, and which axes can be added. Pure functions of the study. */
 import type { TFn, TKey } from "../i18n";
 import type { Col, DeskPane, MapSpec, PlotStyle, Role, Scale, View } from "./model";
-import { wireQuestion, type Study } from "./state";
+import { useSweeps, wireQuestion, type Study } from "./state";
 import { keptMask } from "./filters";
 import { FLAG_COLS } from "./colors";
 import { groupColumn, hiddenMask, maskOfKey } from "./groups";
@@ -136,11 +136,28 @@ export function axisChoices(s: Study): string[] {
   return out;
 }
 
-/** The shown axes that exist in the current mode. */
+/** The shown axes that exist in the current mode. All runs (owner, 2026-11-13): each scenario column is an
+ *  axis too, after the parameters - how the runs spread over each scenario - unless it was taken off. */
 export function shownAxes(s: Study): string[] {
   const { cols } = modeColumns(s);
   const ok = new Set(axisChoices(s));
-  return s.view.axes.filter((a) => cols.has(a) && ok.has(a));
+  const axes = s.view.axes.filter((a) => cols.has(a) && ok.has(a));
+  if (s.view.mode !== "runs" || !s.answer?.runs) return axes;
+  const off = new Set(s.view.axesOff ?? []);
+  const holds = activeColumns(s, "hold").filter((h) => cols.has(h) && ok.has(h) && !axes.includes(h) && !off.has(h));
+  if (!holds.length) return axes;
+  const params = new Set(activeParams(s));
+  let at = 0;
+  axes.forEach((a, i) => { if (params.has(a)) at = i + 1; });
+  return [...axes.slice(0, at), ...holds, ...axes.slice(at)];
+}
+
+/** The axes list after dragging a shown axis to place `to` among the shown ones (an axis shown only in this
+ *  mode - a scenario in All runs - becomes one of the view's axes). */
+export function reorderedAxes(s: Study, name: string, to: number): string[] {
+  const shown = shownAxes(s).filter((a) => a !== name);
+  shown.splice(Math.max(0, Math.min(shown.length, to)), 0, name);
+  return [...shown, ...s.view.axes.filter((a) => !shown.includes(a))];
 }
 
 /** What a set number means: the parameter sets of these roles, kept values, new columns and left-out runs. */
@@ -332,3 +349,6 @@ export function columnChoices(s: Study, roles: Role[], derived = true): ColumnCh
     ...(derived ? s.question.derived.map((d) => ({ name: d.name, role: "derived" as const })) : []),
   ];
 }
+
+// the e2e tests read the axes on screen (the parallel plot is a canvas)
+(window as unknown as { __svAxes: unknown }).__svAxes = () => { const st = useSweeps.getState(); const s = st.studies[st.active]; return s ? shownAxes(s) : []; };

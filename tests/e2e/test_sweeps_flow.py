@@ -998,3 +998,18 @@ def test_four_steps_five_tabs_and_the_goal_as_one_table(pg):
     pg.wait_for_selector(".sw-best:has-text('kp_roll = ')")
     _tab(pg, "runs")
     pg.wait_for_selector(".sw-what-line:has-text('A line per run')")
+
+
+def test_all_runs_shows_the_scenarios(pg):
+    """Owner (2026-11-13): in All runs each scenario column is an axis (how the runs spread over each scenario),
+    after the parameters; Parameter sets has none (a set holds over all of them)."""
+    pg.locator(".ex-card[data-example='sweepTable']").click()
+    pg.wait_for_function("window.__svSweeps.idle() && window.__svSweeps.doc()?.view.step === 'results'")
+    sets = pg.evaluate("window.__svAxes()")
+    assert not any(a.startswith("scenario_") for a in sets), sets
+    pg.locator("[role=tab]", has_text="All runs").first.click()
+    pg.wait_for_function("window.__svSweeps.idle() && window.__svAxes().includes('scenario_gusts')")
+    runs = pg.evaluate("window.__svAxes()")
+    assert runs[3:6] == ["scenario_wind_mps", "scenario_payload_kg", "scenario_gusts"], runs
+    pg.locator("[role=tab]", has_text="Parameter sets").first.click()
+    pg.wait_for_function("!window.__svAxes().includes('scenario_gusts')")

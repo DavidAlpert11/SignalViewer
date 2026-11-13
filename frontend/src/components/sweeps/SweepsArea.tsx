@@ -26,7 +26,7 @@ import { sweepApi } from "../../sweeps/api";
 import { recipeFiles, savedOf, useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
 import { emptyView, newGoal, materialize } from "../../sweeps/model";
 import { notify, notifyError, say } from "../../sweeps/notify";
-import { activeParams, colLabel, scaleOf, scopedColumns, scopeKey, showMask, shownAxes } from "../../sweeps/view";
+import { activeParams, colLabel, reorderedAxes, scaleOf, scopedColumns, scopeKey, showMask, shownAxes } from "../../sweeps/view";
 import { keptMask } from "../../sweeps/filters";
 import ReportDialog from "./ReportDialog";
 import TemplatesDialog from "./TemplatesDialog";
@@ -506,7 +506,7 @@ function ResultsCenter({ study }: { study: Study }) {
               zoom={zoom} onZoom={(z) => useSweeps.getState().setZoom(zoomKey, z)}
               onPick={(r) => st.setView({ pinned: setOfRow(r) })}
               onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={(name, at) => setMenu({ name, at })}
-              onMoveAxis={(name, to) => { const from = v.axes.indexOf(name); const target = v.axes.indexOf(axes[to]); if (from >= 0 && target >= 0) st.moveAxis(from, target); }} />
+              onMoveAxis={(name, to) => st.setAxes(reorderedAxes(study, name, to))} />
           ) : <p className="empty-note">{t("swNoAxes")}</p>}
           <SetsTable study={study} />
         </>

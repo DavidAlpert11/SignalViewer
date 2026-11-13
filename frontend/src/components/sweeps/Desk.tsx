@@ -17,7 +17,7 @@ import type { Col, DeskPane, Filter, PaneKind } from "../../sweeps/model";
 import { fmtValue, labelOf } from "../../sweeps/scales";
 import { boxStats, histogram, pearson, spearman } from "../../sweeps/stats";
 import { useSweeps, type Study } from "../../sweeps/state";
-import { axisChoices, colLabel, groupRows, mapSpec, scaleOf, scopedColumns, shownAxes } from "../../sweeps/view";
+import { axisChoices, colLabel, groupRows, mapSpec, reorderedAxes, scaleOf, scopedColumns, shownAxes } from "../../sweeps/view";
 import { MapPanel } from "./MapView";
 import ParallelPlot from "./ParallelPlot";
 import { ShapePane } from "./ShapePane";
@@ -495,7 +495,7 @@ function LinesPane({ study, group }: { study: Study; group?: string }) {
     <ParallelPlot cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
       filters={v.filters} keep={group ? kept : null} highlight={null} labelOf={(a) => colLabel(t, study, a)} fit height={280}
       onPick={(r) => st.setView({ pinned: setOf(r) })} onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={() => {}}
-      onMoveAxis={(name, to) => { const from = v.axes.indexOf(name); const target = v.axes.indexOf(axes[to]); if (from >= 0 && target >= 0) st.moveAxis(from, target); }} />
+      onMoveAxis={(name, to) => st.setAxes(reorderedAxes(study, name, to))} />
   );
 }
 
