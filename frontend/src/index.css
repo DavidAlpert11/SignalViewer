@@ -185,6 +185,10 @@ button, input, select { font: inherit; color: inherit; }
   border: 1px solid transparent; background: none; color: var(--ink); cursor: pointer; white-space: nowrap;
 }
 .iconbtn:hover, .btn:hover { background: var(--panel-2); }
+/* review R10: a disabled button must look it (a disabled primary looked the same as an active one) */
+.iconbtn:disabled, .btn:disabled { opacity: .45; cursor: not-allowed; }
+.iconbtn:disabled:hover, .btn:disabled:hover { background: none; }
+.btn.primary:disabled:hover { background: var(--ink-strong); opacity: .45; }
 .btn.outline { border-color: var(--line-strong); }
 .btn.primary { background: var(--ink-strong); color: var(--bg); font-weight: 500; }
 .btn.primary:hover { opacity: .9; background: var(--ink-strong); }
