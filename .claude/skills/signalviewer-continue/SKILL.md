@@ -67,8 +67,10 @@ python tools/quick_check.py            # tsc -b, vitest, backend pytest -x, mypy
 
 - Identity (binding): `git -c user.name="David Alpert" -c user.email="davidalpert11@gmail.com" commit --author="Claude <noreply@anthropic.com>" ...`
   and check `git log --format='%an <%ae> | %cn <%ce>' <base>..HEAD | sort -u` shows exactly that one pair.
-- Work on a branch (`sv<round>/<name>`), never push to `main` unless the owner says so; push with
-  `git -c push.negotiate=true push -u origin <branch>`. If pushing is refused, hand over
+- The owner (2026-11-13): **push straight to `main`, no pull request** (he can always go back a version). Keep each
+  commit one coherent step; rebase on `origin/main` before pushing; never force-push. Set the identity once per
+  clone (`git config user.name "David Alpert"; git config user.email "davidalpert11@gmail.com"`) so a cherry-pick or
+  rebase keeps the committer right, and commit with `--author="Claude <noreply@anthropic.com>"`. If pushing is refused, hand over
   `git format-patch --binary <base>..HEAD --stdout > <file>.patch` (the owner applies it with `git am`).
 - After every task: a line in `docs/dev/TASKS.md` (Current state + Log), the task ticked in `ROADMAP.md`,
   a user-facing line in `CHANGELOG.md` (under the unreleased version).
