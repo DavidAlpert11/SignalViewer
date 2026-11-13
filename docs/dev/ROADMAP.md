@@ -915,3 +915,8 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] W13.7 Focus-visible and pressed states, card lift. Done 2026-11-13.
 - [x] W13.8 The tour. Done 2026-11-13.
 - [x] Owner's notes after the round (2026-11-13): the loop for any study (`svcore/loop.py`, *Run the loop*, the command / results fields), the demo explained with its real input / output and *Copy the demo to a folder*; What changed at a glance (a sentence + onset rows); the Fleet's questions, summary and first-past-the-limit; the Map story keeps a chosen camera. Done 2026-11-13.
+- [x] The owner's review of every area (2026-11-13, R1-R13): each area screened light / dark, en / he, 1280 / 1920; fixes per area (TASKS.md Log). Done 2026-11-13.
+- [x] A demo for every area: the welcome's cards grouped by area, *a sweep: which settings hold* (`examples/sweeps/drone_tuning.svsweep`) and *a fleet of flights*. Done 2026-11-13.
+- [x] Reports open with *The process in brief* (`reportProcess.ts`, kind "process" first in HTML / PDF / Word). Done 2026-11-13.
+- [x] Sweeps on 1M runs: the answer reused across Parameter sets / All runs, a 50k sample keeping every set, mark arrays for (set, combination); All runs shows the scenario axes. Done 2026-11-13.
+- [x] README and the documentation site rewritten for 1.27; the design pass (segmented controls, hovers, the Sweeps ways in); texts and styles by area. Done 2026-11-13.

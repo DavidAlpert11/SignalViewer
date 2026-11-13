@@ -132,7 +132,7 @@ are told apart by them.
 - **Hiding an object:** the eye before an object's name in the chips above the map hides it (Alt+click: only
   this one; again: all). It is not drawn and *Fit* ignores it; its chip stays, struck through, for one click
   back. In the offline pages a click on the legend does the same.
-- **Export the flight** (a map's or a 3D view's ⋯ menu) has three ways out, all from the same samples:
+- **Export the flight** (a map's or a 3D view's ⋯ menu ▸ *Save / export*) has three ways out, all from the same samples:
   - *Tacview (.acmi)…* - a Tacview ACMI 2.2 file: each object's position (altitude above sea level, by
     its altitude reference) and attitude as the 3D view draws it, 10 samples a second (fewer for a very
     long recording - the message says so). Each object gets a model Tacview has a 3D shape for (C172,
@@ -214,7 +214,7 @@ are told apart by them.
   opens one tab, a row per family. Angle differences are wrapped (359° − 1° = −2°, not 358°). *More
   matches* also offers names one or two letters apart, each with why it matched. The same signal across
   *files* is the Compare panel's job.
-- **A map out of the app:** a map's menu has *Save image (PNG)* - this view, or fitted to all the tracks
+- **A map out of the app:** a map's menu ▸ *Save / export* has *Save image (PNG)* - this view, or fitted to all the tracks
   - and *Save as HTML (opens offline)*: one file with the map, the tracks, a time slider that moves the
   objects and their values on hover; it needs no network and no Signal Viewer. Reports (PDF, Word,
   HTML) now include the tab's maps.
@@ -367,15 +367,17 @@ shown change together – on the axis, in the list, in the legend – and it can
   to. The page's address keeps the moment (`…replay.html#t=125.4`), so a link can point at a time.
   *Open it* in the message shows it in your browser before you send it.
 - **Report** (left): a report of the plots, statistics and notes – previewed in the app, saved as
-  interactive HTML, PDF or Word. **The HTML report is one live page**: a time bar at the bottom moves every
+  interactive HTML, PDF or Word. Every report opens with **The process in brief**: the data, what was
+  checked (the log's own check, Compare's verdict, the investigation), what it shows and the conclusion –
+  write the conclusion in *Summary* (the panel reminds you when it is empty). **The HTML report is one live page**: a time bar at the bottom moves every
   plot's cursor, the map and the 3D view together, with Play and the log's marks, while each plot keeps its
   own zoom and statistics. The 3D view is in it live (turn, zoom, the camera *General · On the object · Chase* on an
   object - *Chase* sits behind it; *Closest in* goes to that moment; a *Trail* of the last seconds; an attitude indicator; where the browser has no 3D graphics, its picture), and the map and the 3D
   view have the same buttons and the same relation box as in the app (hide it with *Relation*); in PDF and Word every plot, the map and the 3D view are pictures. A plot that
   cannot go into a report (a video, occurrences) is listed greyed with the reason.
-- A plot's **⋯** menu: export the data (CSV), save the image (PNG, SVG), **save an image for a
+- A plot's **⋯** menu ▸ **Save / export**: export the data (CSV), save the image (PNG, SVG), **save an image for a
   report** (a PNG with twice the pixels), **save as an interactive page** (HTML: the plot alone - zoom,
-  lines on and off, values under the pointer), copy the image. The 3D view's **⋯** saves its image at
+  lines on and off, values under the pointer). *Copy image* is a line of its own in the menu. The 3D view's **⋯** saves its image at
   the screen's size or at twice it, and removes the 3D view. A map whose object already draws the track
   shows no Lon / Lat pickers; **⋯ ▸ Lat / lon track** brings them back.
 - **Clear ▾** (the Recordings bar): this tab's plots, the other tabs, all
@@ -437,7 +439,8 @@ Four steps, left to right:
    Ctrl / Shift-click choose several rows and set them together (a value, or a % of each one's
    range). The count and the best set follow each change.
 4. **Results** – *Show: Holds ▾* (all, those that hold, those that fail, a group) for the table, the
-   lines and the export; the parameter sets and every run as lines (drag on an axis to keep a range,
+   lines and the export; the parameter sets and every run as lines (*All runs* adds each scenario as an
+   axis, after the parameters - how the runs spread over every scenario; drag on an axis to keep a range,
    as in HiPlot; Keep, Exclude, undo; zoom), *Why it fails* for any set, **Charts** (as many as you
    like, each exported as PNG or HTML, in the report or not), **Next runs** (where to run more, the
    budget shared equally, in proportion or by hand; and the re-run list you collect) and the
