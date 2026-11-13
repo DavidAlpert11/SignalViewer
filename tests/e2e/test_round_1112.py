@@ -338,3 +338,25 @@ def test_story_in_the_app(pg):
     assert pg.locator(".map-story-card").count() == 0
     # the camera flight sets the Map's camera free at most once (one Undo step), the cursor never
     assert pg.evaluate("window.__sv.state().past.length") - past <= 1
+
+
+def test_story_keeps_a_chosen_camera(pg):
+    """Owner (2026-11-13): the story moved to each moment by flying the camera, which set the Map's camera back
+    to General - a chosen Chase / On the object stopped. Now the story only moves the time then."""
+    flat_maps(pg)
+    _map(pg)
+    pg.wait_for_function("document.querySelector('.plot-canvas.geo')?.dataset.view")
+    pg.evaluate("""(() => { const s = window.__sv.state(); s.commit((ws) => { for (const t of ws.tabs) for (const p of t.plots)
+      if (p.objects && p.objects.length) { p.camera = 'chase'; p.followObject = p.objects[0].id; } return ws; }); })()""")
+    cam = "(() => { for (const t of window.__sv.state().ws.tabs) for (const p of t.plots) if (p.objects && p.objects.length) return [p.camera, p.followObject]; })()"
+    before = pg.evaluate(cam)
+    pg.locator(".map-bar .map-story").first.click()
+    pg.wait_for_selector(".map-story-card", timeout=30000)
+    st = pg.evaluate("window.__svStory")
+    if st["count"] > st["index"] + 1:
+        pg.locator(".map-story-card .map-story-nav button").nth(1).click()
+    pg.wait_for_timeout(400)
+    assert pg.evaluate(cam) == before
+    pg.keyboard.press("Escape")
+    pg.wait_for_function("!window.__svStory.on")
+    assert pg.evaluate(cam) == before
