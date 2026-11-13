@@ -18,16 +18,16 @@
 >
 > | Session | Tasks | Branch | State (not started / running / pushed / merged) | Note |
 > |---|---|---|---|---|
-> | W0 – plan, contracts, W11 fix | P0, contracts, W11 | `sv1113/base` | committed (push refused: GitHub not linked to the session – patch instead) | backend 1226 passed; W11 runs are FINAL's |
-> | L1 Welcome | W1, W2 | `sv1113/l1` | committed (push refused) | W1 + W2; study-card pictures in FINAL |
-> | L2 First minute | W3, W4, W6, W5, W13.5 | `sv1113/l2` | committed (push refused) | W3–W6, W13.5; e2e in FINAL |
-> | L3 Sweeps engine | W14 core, W15 core, CLI, drone example | `sv1113/l3` | committed (push refused) | W14/W15 core, CLI, drone example; own pytest green |
-> | L4 Farm + demo engine | W17, W18 engine | `sv1113/l4` | committed (push refused) | launcher, demo engine, CLI; own pytest green; Portable not verified |
-> | L5 Sweeps panel | W14, W15, W17, W18 UI | `sv1113/l5` | committed (push refused) | panel + demo view; e2e in FINAL |
-> | L6 Robustness + palette | W10, W8 | `sv1113/l6` | committed (push refused) | W10 + W8; pywebview close: manual check |
-> | L7 Plot polish + motion | W7, W9, W13.2/3/4/6/9 | `sv1113/l7` | not started | |
-> | L8 Calm screen | W16 (its share), W13.7, W13.8 | `sv1113/l8` | not started | |
-> | FINAL – merge, all tests, W12, release prep | W12, all checks | `sv1113/release` | not started | |
+> | W0 – plan, contracts, W11 fix | P0, contracts, W11 | `sv1113/base` | merged to main (owner) | backend 1226 passed; W11 runs are FINAL's |
+> | L1 Welcome | W1, W2 | `sv1113/l1` | merged to main (owner) | W1 + W2; study-card pictures in FINAL |
+> | L2 First minute | W3, W4, W6, W5, W13.5 | `sv1113/l2` | merged to main (owner) | W3–W6, W13.5; e2e in FINAL |
+> | L3 Sweeps engine | W14 core, W15 core, CLI, drone example | `sv1113/l3` | merged to main (owner) | W14/W15 core, CLI, drone example; own pytest green |
+> | L4 Farm + demo engine | W17, W18 engine | `sv1113/l4` | merged to main (owner) | launcher, demo engine, CLI; own pytest green; Portable not verified |
+> | L5 Sweeps panel | W14, W15, W17, W18 UI | `sv1113/l5` | merged to main (owner) | panel + demo view; e2e in FINAL |
+> | L6 Robustness + palette | W10, W8 | `sv1113/l6` | merged to main (owner) | W10 + W8; pywebview close: manual check |
+> | L7 Plot polish + motion | W7, W9, W13.2/3/4/6/9 | `sv1113/l7` | merged to main (owner) | W7, W9, W13.2/4/6/9; W13.3 not shipped |
+> | L8 Calm screen | W16 (its share), W13.7, W13.8 | `sv1113/l8` | merged to main (owner) | W16 counts 44→42, 118→116, 59→58, 14→12 |
+> | FINAL – merge, all tests, W12, release prep | W12, all checks | `sv1113/release` | done (patch; push refused) | + the owner's notes after the round, on `sv1113/continue`; see docs/dev/lanes/final.md |
 >
 > Per-task state lives in each lane's file `docs/dev/lanes/<lane>.md` (task / state / verification / note). Only W0
 > and FINAL edit this box – in `ALL` mode, the running session, after each lane.
