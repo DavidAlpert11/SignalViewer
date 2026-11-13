@@ -58,7 +58,8 @@ def test_what_does_not_apply_is_hidden(pg):
     geo.locator(".plot-more").click()
     pg.locator(".menu.ctx button", has_text="Lat / lon track").click()
     assert geo.locator(".picker-btn").count() == 2
-    pg.locator(".plot:has(.globe3d)").last.wait_for()                             # P4: the map is drawn in 3D too
+    # P4: the map is drawn in 3D too - both plots of the tab (the 3D view loads lazily: wait for both, not one)
+    pg.wait_for_function("document.querySelectorAll('.plot .globe3d').length >= 2", timeout=60000)
     assert pg.locator(".g3-remove").count() == 0
     # the tab's 3D plot (P4: its map is drawn in 3D too - only the 3D plot has "Remove the 3D view")
     found = 0
