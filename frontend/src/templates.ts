@@ -42,6 +42,7 @@ const BUILTIN_HE: Record<string, string> = {
   "Motors": "מנועים", "Altitude": "גובה", "Flight on the map & 3D": "הטיסה במפה וב־3D", "Flight": "טיסה",
   "Battery & GPS": "סוללה ו־GPS", "Radio link": "קשר רדיו", "Autopilot log vs telemetry": "לוג הטייס מול טלמטריה",
   "Attitude & altitude": "זוויות וגובה", "Battery, GPS & link": "סוללה, GPS וקשר",
+  "Map": "מפה", "3D": "תלת־ממד",
 };
 
 /* --------------------------------------------------------------- capture from the workspace */
@@ -303,7 +304,8 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
         const byFile = (sig: string) => (runsOfName.get(nameOf(sig))?.size ?? 0) >= 2 && fileOrder.includes(sig.split("/")[0])
           ? (fileMark(st.runs, sig)?.color ?? TRACE_COLORS[fileOrder.indexOf(sig.split("/")[0]) % TRACE_COLORS.length]) : null;   // T46: the file's colour
         return {
-          id: uid("p"), title: rp.title, mode: (rp.mode as Plot["mode"]) ?? "time", xyAlign: rp.xyAlign as Plot["xyAlign"],
+          // a built-in template's plot titles in the app's language ("Map" -> מפה); a user's own stay as typed
+          id: uid("p"), title: t.builtin ? tx(rp.title) : rp.title, mode: (rp.mode as Plot["mode"]) ?? "time", xyAlign: rp.xyAlign as Plot["xyAlign"],
           fftWindow: rp.fftWindow as Plot["fftWindow"], fftMethod: rp.fftMethod as Plot["fftMethod"], fftLog: rp.fftLog, fftFilters: rp.fftFilters, specN: rp.specN,
           caption: rp.caption, ylim: rp.ylim ?? null, ...(rp.xSignal ? { xSignal: rp.xSignal } : {}),
           signals: rp.signals.map((s) => ({ sig: s.sig, color: s.color ?? byFile(s.sig) ?? color(), width: s.width ?? 1.5, scale: s.scale ?? 1,

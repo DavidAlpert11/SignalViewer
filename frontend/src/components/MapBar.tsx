@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { actions, type MapObject, type Plot } from "../store";
 import { useT, type TKey } from "../i18n";
 import { pairOf } from "../relation";
@@ -16,6 +16,18 @@ export default function MapBar({ plot, objects, onZoom, onFit, className, chaseH
   plot: Plot; objects: MapObject[]; onZoom: (dir: 1 | -1) => void; onFit: () => void; className: string; chaseHint: TKey; children?: ReactNode;
 }) {
   const t = useT();
+  // the data box sits under the bar, however many rows the bar takes (Hebrew, a narrow plot: three) - it
+  // was at a fixed 84 px and covered the bar's last row
+  const barRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = barRef.current, host = el?.offsetParent as HTMLElement | null;
+    if (!el || !host) return;
+    const put = () => host.style.setProperty("--mapbar-bottom", `${el.offsetTop + el.offsetHeight}px`);
+    put();
+    const ro = new ResizeObserver(put);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [objects.length]);
   if (!objects.length) return null;
   const on = plot.followObject && objects.some((o) => o.id === plot.followObject) ? plot.followObject : null;
   const target = on ?? pairOf(plot).primary ?? objects[0].id;
@@ -32,7 +44,7 @@ export default function MapBar({ plot, objects, onZoom, onFit, className, chaseH
     ["g3CamCentre", "centre", "g3CamCentre", "g3CamCentreHint", ""], ["g3CamChase", "chase", "g3CamChase", chaseHint, "g3-cam-chase"],
     ["g3CamCockpit", "cockpit", "g3CamCockpit", "g3CamCockpitHint", "g3-cam-cockpit"]];
   return (
-    <div className={`map-bar ${className}`} role="toolbar" aria-label={t("g3Bar")} onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+    <div ref={barRef} className={`map-bar ${className}`} role="toolbar" aria-label={t("g3Bar")} onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
       <span className="g3-seg" role="radiogroup" aria-label={t("g3Camera")}>
         <span className="g3-seg-label">{t("g3Camera")}</span>
         {cam.map(([k, m, label, hint, cls]) => (
