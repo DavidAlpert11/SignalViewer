@@ -8,16 +8,25 @@ import { Icon } from "../icons";
 import { addDataExts } from "../values";
 import { applyState, openPaths, startRetarget } from "../files";
 import { requestStudy } from "../sweeps/studyOpen";
+import { requestAreaExample } from "../areaExample";
 
-export const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate", commonGains: "exampleCommonGains", smartSweepDemo: "exampleSmartSweepDemo" } as const satisfies Record<ExampleId, string>;
-const EXAMPLE_DESC = { flight: "exampleFlightDesc", twoFlights: "exampleTwoFlightsDesc", car: "exampleCarDesc", ardupilot: "exampleArdupilotDesc", simVsFlight: "exampleSimVsFlightDesc", investigate: "exampleInvestigateDesc", commonGains: "exampleCommonGainsDesc", smartSweepDemo: "exampleSmartSweepDemoDesc" } as const satisfies Record<ExampleId, string>;
-const EXAMPLE_ICON = { flight: Icon.Globe, twoFlights: Icon.Compare, car: Icon.Table, ardupilot: Icon.Log, simVsFlight: Icon.Analysis, investigate: Icon.Search, commonGains: Icon.Merge, smartSweepDemo: Icon.Fleet } satisfies Record<ExampleId, unknown>;
+export const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate", commonGains: "exampleCommonGains", smartSweepDemo: "exampleSmartSweepDemo", sweepTable: "exampleSweepTable", fleet: "exampleFleet" } as const satisfies Record<ExampleId, string>;
+const EXAMPLE_DESC = { flight: "exampleFlightDesc", twoFlights: "exampleTwoFlightsDesc", car: "exampleCarDesc", ardupilot: "exampleArdupilotDesc", simVsFlight: "exampleSimVsFlightDesc", investigate: "exampleInvestigateDesc", commonGains: "exampleCommonGainsDesc", smartSweepDemo: "exampleSmartSweepDemoDesc", sweepTable: "exampleSweepTableDesc", fleet: "exampleFleetDesc" } as const satisfies Record<ExampleId, string>;
+const EXAMPLE_ICON = { flight: Icon.Globe, twoFlights: Icon.Compare, car: Icon.Table, ardupilot: Icon.Log, simVsFlight: Icon.Analysis, investigate: Icon.Search, commonGains: Icon.Merge, smartSweepDemo: Icon.Reload, sweepTable: Icon.Table, fleet: Icon.Fleet } satisfies Record<ExampleId, unknown>;
 
-type Example = { id: ExampleId; paths: string[]; open?: "study" };
+const EXAMPLE_GROUPS = [
+  { area: "recordings", label: "areaRecordings", hint: "exampleGroupRecordings" },
+  { area: "sweeps", label: "areaSweeps", hint: "exampleGroupSweeps" },
+  { area: "fleet", label: "areaFleet", hint: "exampleGroupFleet" },
+] as const;
+
+type Example = { id: ExampleId; paths: string[]; open?: "study" | "sweep" | "fleet" };
 
 /** An example opened as a new user would: recordings with their suggested view, a study in Sweeps. */
 export function openExample(ex: Example): void {
   if (ex.open === "study") requestStudy(ex.paths[ex.paths.length - 1], ex.id === "smartSweepDemo");
+  else if (ex.open === "sweep") requestAreaExample("sweeps", ex.paths[ex.paths.length - 1]);   // its .svsweep: the table and its question
+  else if (ex.open === "fleet") requestAreaExample("fleet", ex.paths[0]);
   else openPaths(ex.paths, undefined, { autoView: true });
 }
 
@@ -100,9 +109,16 @@ export default function Welcome() {
             {/* cards, not a line of links: the line did not wrap and its last example (the
                 Investigate one) ran off the screen below 1920 px */}
             <h2 className="examples-title">{t("startFromExample")}</h2>
-            <div className="examples-line">
-              {examples.filter((ex) => ex.id in EXAMPLE_LABEL).map((ex) => <ExampleCard key={ex.id} ex={ex} />)}
-            </div>
+            {/* review (owner, 2026-11-13: a clear demo for everything): grouped by the area each one shows */}
+            {EXAMPLE_GROUPS.map((g) => {
+              const xs = examples.filter((ex) => ex.id in EXAMPLE_LABEL && (ex.open === "sweep" || ex.open === "study" ? "sweeps" : ex.open === "fleet" ? "fleet" : "recordings") === g.area);
+              return xs.length > 0 && (
+                <section key={g.area} className="examples-group" aria-label={t(g.label)}>
+                  <h3 className="examples-group-title">{t(g.label)}<span className="hint"> · {t(g.hint)}</span></h3>
+                  <div className="examples-line">{xs.map((ex) => <ExampleCard key={ex.id} ex={ex} />)}</div>
+                </section>
+              );
+            })}
           </>
         )}
         {(files.length > 0 || sessions.length > 0) && (

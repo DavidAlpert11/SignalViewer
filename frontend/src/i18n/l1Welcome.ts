@@ -4,6 +4,13 @@ export const en = {
   exampleCommonGainsDesc: "Three sweep tables, one choice of gains that holds for every drone - and why the others fail",
   exampleSmartSweepDemo: "smart sweep demo",
   exampleSmartSweepDemoDesc: "Watch the next runs converge on your PC, and how many runs it saves against the whole grid",
+  exampleSweepTable: "a sweep: which settings hold",
+  exampleSweepTableDesc: "One results table of a controller sweep - the settings that hold in every wind and payload, and why the rest fail",
+  exampleFleet: "a fleet of flights",
+  exampleFleetDesc: "Ten flights of two copters - find the one whose vibration grows, flight after flight",
+  exampleGroupRecordings: "one recording or a few: plot, map, compare, find what went wrong, report",
+  exampleGroupSweeps: "the results of many runs: which settings hold, and what to run next",
+  exampleGroupFleet: "every flight of a folder: which one needs a look",
   // W1: the pictures' alternative text (what the picture shows)
   exampleAlt_flight: "Plots of a drone flight: altitude, speed and attitude",
   exampleAlt_twoFlights: "The same mission flown twice, the two tracks compared",
@@ -13,6 +20,8 @@ export const en = {
   exampleAlt_investigate: "Two payload runs side by side, where they start to differ",
   exampleAlt_commonGains: "The ranked gain values of three drones",
   exampleAlt_smartSweepDemo: "The convergence chart of the smart sweep against the full grid",
+  exampleAlt_sweepTable: "A sweep's settings that hold, on a map of two parameters",
+  exampleAlt_fleet: "The fleet's vibration trend, one flight over the limit",
 };
 
 export const he: typeof en = {
@@ -20,6 +29,13 @@ export const he: typeof en = {
   exampleCommonGainsDesc: "שלוש טבלאות סריקה, בחירת הגברים אחת שעומדת בכל רחפן – ולמה האחרות נכשלות",
   exampleSmartSweepDemo: "הדגמת סריקה חכמה",
   exampleSmartSweepDemoDesc: "לראות את ההרצות הבאות מתכנסות על המחשב שלכם, וכמה הרצות זה חוסך מול כל הרשת",
+  exampleSweepTable: "סריקה: אילו הגדרות עומדות",
+  exampleSweepTableDesc: "טבלת תוצאות אחת של סריקת בקר – ההגדרות שעומדות בכל רוח ומטען, ולמה השאר נכשלות",
+  exampleFleet: "צי של טיסות",
+  exampleFleetDesc: "עשר טיסות של שני רחפנים – למצוא את זה שהרעידות שלו גדלות מטיסה לטיסה",
+  exampleGroupRecordings: "הקלטה אחת או כמה: גרפים, מפה, השוואה, מה השתבש, דוח",
+  exampleGroupSweeps: "התוצאות של הרבה הרצות: אילו הגדרות עומדות, ומה להריץ הלאה",
+  exampleGroupFleet: "כל הטיסות של תיקייה: איזו צריכה בדיקה",
   exampleAlt_flight: "גרפים של טיסת רחפן: גובה, מהירות וזוויות",
   exampleAlt_twoFlights: "אותה משימה שהוטסה פעמיים, שני המסלולים בהשוואה",
   exampleAlt_car: "שלוש הרצות ניסוי של רכב על ציר זמן אחד",
@@ -28,4 +44,6 @@ export const he: typeof en = {
   exampleAlt_investigate: "שתי הרצות מטען זו לצד זו, היכן הן מתחילות להיבדל",
   exampleAlt_commonGains: "ערכי ההגבר המדורגים של שלושה רחפנים",
   exampleAlt_smartSweepDemo: "גרף ההתכנסות של הסריקה החכמה מול הרשת המלאה",
+  exampleAlt_sweepTable: "ההגדרות שעומדות בסריקה, על מפה של שני פרמטרים",
+  exampleAlt_fleet: "מגמת הרעידות בצי, טיסה אחת מעל הסף",
 };

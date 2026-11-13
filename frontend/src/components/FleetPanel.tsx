@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { onAreaExample, takeAreaExample } from "../areaExample";
 import { api, type FleetFolder, type FleetKey, type FleetLog } from "../api";
 import { actions, pickPath, useApp } from "../store";
 import { fmtNum, useT, type Lang } from "../i18n";
@@ -81,6 +82,14 @@ export default function FleetPanel() {
   };
   /* the example (owner, 2026-11-03: what the fleet is for): two copters, ten flights; it opens on the
      vibration trend, where the worn motor shows */
+  // the welcome screen's Fleet card: the example, once the folder is known
+  const [asked, setAsked] = useState(false);
+  useEffect(() => {
+    const take = () => { if (takeAreaExample("fleet")) setAsked(true); };
+    take();
+    return onAreaExample(take);
+  }, []);
+  useEffect(() => { if (asked && example) { setAsked(false); void tryExample(); } }, [asked, example]);   // eslint-disable-line react-hooks/exhaustive-deps
   const tryExample = async () => {
     if (!example) return;
     if (!folders.some((f) => f.folder === example)) await scan(() => api.fleetAdd(example), t("fleetIndexing"));

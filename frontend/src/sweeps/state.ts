@@ -940,6 +940,7 @@ useSweeps.subscribe((st, prev) => {
 (window as unknown as { __svSweeps: unknown }).__svSweeps = {
   idle: () => !askPending && !useSweeps.getState().studies.some((s) => s.evaluating) && !useSweeps.getState().busy,
   saved: () => !savePending,
+  doc: () => useSweeps.getState().saved(),          // the active study as a .svsweep document (the examples are made from it)
 };
 
 /** The active study (or undefined), for components. */

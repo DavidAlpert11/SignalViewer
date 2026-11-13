@@ -52,6 +52,7 @@ import SetsTable from "./SetsTable";
 import StudyPanel, { openStudyDialog } from "./StudyPanel";
 import { newStudy, openStudyFile, redoStudy, undoStudy, useStudyPanel } from "../../sweeps/studyStore";
 import { onStudyRequest, requestStudy, takeStudy } from "../../sweeps/studyOpen";
+import { onAreaExample, takeAreaExample } from "../../areaExample";
 import { api } from "../../api";
 import "./sweeps.css";
 
@@ -79,6 +80,23 @@ async function openStudy(title: string): Promise<string> {
     await useSweeps.getState().open(doc.path, doc);
     return "";
   } catch (e) { return (e as Error).message; }
+}
+
+/** A .svsweep shipped with the examples names its tables relative to itself: made absolute here. */
+function resolveIn(doc: SavedStudy, dir: string): SavedStudy {
+  const abs = (p: string) => (!p || /^([a-zA-Z]:)?[\\/]/.test(p) ? p : `${dir}/${p}`);
+  const fix = (r: unknown): unknown => (r && typeof r === "object"
+    ? Object.fromEntries(Object.entries(r as Record<string, unknown>).map(([k, v]) => [k, k === "path" && typeof v === "string" ? abs(v) : Array.isArray(v) ? v.map(fix) : fix(v)]))
+    : r);
+  return { ...doc, path: abs(doc.path), tables: doc.tables?.map((x) => ({ ...x, recipe: fix(x.recipe) as typeof x.recipe })) };
+}
+
+/** Open a .svsweep (a table and its question) by its path - the welcome screen's sweep card. */
+export async function openStudyPath(p: string): Promise<void> {
+  const doc = JSON.parse((await sweepApi.loadText(p)).text) as SavedStudy;
+  if (doc.kind !== "signalviewer-sweep") throw new Error("not a study");
+  const r = resolveIn(doc, p.replace(/[\\/][^\\/]*$/, ""));
+  await useSweeps.getState().open(r.path, r);
 }
 
 async function saveStudy(t: TFn) {
@@ -144,6 +162,12 @@ export default function SweepsScreen() {
     const take = () => { const r = takeStudy(); if (r) void openStudyFile(r.path, r.demo); };
     take();
     return onStudyRequest(take);
+  }, []);
+  // the welcome screen's sweep card: its table
+  useEffect(() => {
+    const take = () => { const p = takeAreaExample("sweeps"); if (p) void (p.endsWith(STUDY_EXT) ? openStudyPath(p) : useSweeps.getState().open(p)); };
+    take();
+    return onAreaExample(take);
   }, []);
   const common = useStudyPanel((s) => s.open);
   return <><SweepsBar />{common ? <StudyPanel /> : study ? <StudyView study={study} /> : <SweepsWelcome />}</>;

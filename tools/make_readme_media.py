@@ -776,6 +776,10 @@ def _ex_ready(pg, ex):
     pg.wait_for_function("window.__sv.state().busy === 0 && !document.querySelector('.job')", timeout=60000)
     if ex.get("open") == "study":                      # the Sweeps panel marks its picture area when its answer is in
         pg.wait_for_selector("[data-shot][data-settled='1']", timeout=120000)
+    elif ex.get("open") == "sweep":                    # the table and its question: the results' parallel plot
+        pg.wait_for_selector(".pp canvas", timeout=60000); pg.wait_for_function("window.__svSweeps.idle()", timeout=60000)
+    elif ex.get("open") == "fleet":                    # the fleet indexed, its trend drawn
+        pg.wait_for_selector(".fleet-trend circle", timeout=120000)
     else:
         pg.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length || (p.objects || []).length))", timeout=60000)
         pg.wait_for_selector(".grid canvas, .grid svg", timeout=30000)
@@ -812,7 +816,8 @@ def img_examples(browser, app):
     only, no interface text. Run it before a release, with the README pictures (Releasing step 1)."""
     os.makedirs(EX_PICS, exist_ok=True)
     sets = json.loads(urllib.request.urlopen(app.url + "/api/examples").read())
-    for ex in sets:
+    only = [x for x in os.environ.get("SV_EX_ONLY", "").split(",") if x]          # e.g. SV_EX_ONLY=fleet,sweepTable
+    for ex in [x for x in sets if not only or x["id"] in only]:
         for theme in ("dark", "light"):
             ctx, pg = page(browser, app, dark=theme == "dark", scale=2)
             try:
@@ -836,7 +841,8 @@ def img_examples(browser, app):
                 no_toasts(pg)
                 pg.mouse.move(W - 5, 5)
                 # a study: its shared-values chart (the values tried, which hold, the best) - no table, no words
-                area = pg.locator("[data-shot] .cp-space-svg").first if ex.get("open") == "study" else pg.locator(".grid").first
+                area = {"study": "[data-shot] .cp-space-svg", "sweep": ".pp", "fleet": ".fleet-trend svg"}.get(ex.get("open", ""), ".grid")
+                area = pg.locator(area).first
                 size = _ex_save(area.screenshot(), os.path.join(EX_PICS, f"{ex['id']}.{theme}.webp"))
                 print("example picture", ex["id"], theme, f"{size / 1000:.1f} kB")
             except Exception as e:                          # one card failing must not stop the others
