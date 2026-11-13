@@ -59,7 +59,7 @@ def fresh(tmp_path):
 def test_first_run(fresh):
     pg, home = fresh
     # the welcome screen with its examples, nothing open
-    pg.locator(".examples-line").wait_for()
+    pg.locator(".examples-line").first.wait_for()          # one line per area since the review
     assert pg.evaluate("window.__sv.state().runs.length") == 0
     # the template library has no error line (F14)
     pg.locator(".more-tabs").click()                                     # U9: opening a view: "+ ▾"

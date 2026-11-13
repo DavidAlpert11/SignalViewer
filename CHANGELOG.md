@@ -60,6 +60,7 @@ pictures**, a first minute that says what to do next, and a calmer screen.
   you want one (*+ caption* under a plot) instead of a box under every plot.
 - **Templates**: the *Open* button stays in sight on a small screen (the list of tabs scrolls under it).
 - A **disabled button** now looks disabled everywhere (in the dark theme an unavailable main button looked clickable).
+- **A demo for every area**: the welcome screen's examples are grouped by area, with two new ones - *a sweep: which settings hold* (opens on its answer) and *a fleet of flights* (opens on the copter whose vibration grows).
 - **Fleet**: the trend chart shows its values - the lowest, the highest and the limit beside its line.
 - **Sweeps**: with Common parameters open, the status line shows the study and how many values hold (it said *No table open*).
 - **Command palette (Ctrl+K)**: when something matches what you typed, only those results show - no more far-fetched letter matches mixed in.

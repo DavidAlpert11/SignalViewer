@@ -1,0 +1,207 @@
+{
+ "kind": "signalviewer-sweep",
+ "version": 1,
+ "path": "drone_tuning.csv",
+ "columns": [
+  {
+   "name": "scenario_wind_mps",
+   "role": "hold",
+   "scale": "ordinal"
+  },
+  {
+   "name": "kp_roll",
+   "role": "param",
+   "scale": "linear"
+  },
+  {
+   "name": "scenario_payload_kg",
+   "role": "hold",
+   "scale": "linear"
+  },
+  {
+   "name": "ki_roll",
+   "role": "param",
+   "scale": "linear"
+  },
+  {
+   "name": "scenario_gusts",
+   "role": "hold",
+   "scale": "category"
+  },
+  {
+   "name": "filter_hz",
+   "role": "param",
+   "scale": "ordinal"
+  },
+  {
+   "name": "run_id",
+   "role": "id",
+   "scale": "linear"
+  },
+  {
+   "name": "sim_version",
+   "role": "ignore",
+   "scale": "category"
+  },
+  {
+   "name": "roll_error_deg",
+   "role": "output",
+   "scale": "linear"
+  },
+  {
+   "name": "settle_time_s",
+   "role": "output",
+   "scale": "linear"
+  },
+  {
+   "name": "overshoot_pct",
+   "role": "output",
+   "scale": "linear"
+  },
+  {
+   "name": "energy_wh",
+   "role": "output",
+   "scale": "linear"
+  },
+  {
+   "name": "crashed",
+   "role": "output",
+   "scale": "ordinal"
+  }
+ ],
+ "question": {
+  "holdValues": {},
+  "goal": {
+   "column": "energy_wh",
+   "direction": "min"
+  },
+  "conditions": [
+   {
+    "column": "roll_error_deg",
+    "op": "<=",
+    "value": 5,
+    "mode": "all"
+   },
+   {
+    "column": "overshoot_pct",
+    "op": "<=",
+    "value": 15,
+    "mode": "all"
+   },
+   {
+    "column": "kp_roll",
+    "op": "<=",
+    "value": 0.25,
+    "mode": "all"
+   }
+  ],
+  "derived": [],
+  "outputAgg": "mean",
+  "objectives": [],
+  "exclude": [],
+  "goals": [
+   {
+    "name": "1",
+    "conditions": [
+     {
+      "column": "roll_error_deg",
+      "op": "<=",
+      "value": 5,
+      "mode": "all"
+     },
+     {
+      "column": "overshoot_pct",
+      "op": "<=",
+      "value": 15,
+      "mode": "all"
+     },
+     {
+      "column": "kp_roll",
+      "op": "<=",
+      "value": 0.25,
+      "mode": "all"
+     }
+    ],
+    "combine": "and",
+    "optimize": [
+     {
+      "column": "energy_wh",
+      "direction": "min",
+      "weight": 1
+     }
+    ]
+   }
+  ],
+  "active": 0,
+  "combine": "and",
+  "removed": [],
+  "rankBy": null
+ },
+ "view": {
+  "mode": "sets",
+  "axes": [
+   "kp_roll",
+   "ki_roll",
+   "filter_hz",
+   "roll_error_deg",
+   "settle_time_s",
+   "overshoot_pct",
+   "energy_wh",
+   "crashed",
+   "#goal",
+   "#rank"
+  ],
+  "colorBy": "#holds",
+  "filters": {},
+  "reversed": {},
+  "scales": {},
+  "hideConstant": true,
+  "hideFlat": false,
+  "rerun": [],
+  "onlyMissing": false,
+  "center": "lines",
+  "mapX": null,
+  "mapY": null,
+  "scatterX": null,
+  "scatterY": null,
+  "left": "question",
+  "step": "results",
+  "follow": false,
+  "scope": {
+   "key": "",
+   "steps": []
+  }
+ },
+ "merged": [],
+ "log": [
+  {
+   "at": "2026-11-13T09:24:01.323Z",
+   "kind": "goal",
+   "args": {
+    "key": "goal:0",
+    "name": "1",
+    "goal": 1,
+    "text": "roll_error_deg <= 5 & overshoot_pct <= 15 & kp_roll <= 0.25 \u00b7 \u2193energy_wh"
+   }
+  }
+ ],
+ "iterations": [
+  {
+   "n": 1,
+   "label": "drone_tuning.csv",
+   "at": "2026-11-13T09:24:02.465Z",
+   "sets": 45,
+   "holding": 12,
+   "best": 47.86000061035156
+  }
+ ],
+ "tables": [
+  {
+   "name": "drone_tuning.csv",
+   "recipe": {
+    "path": "drone_tuning.csv"
+   }
+  }
+ ],
+ "use": 0
+}

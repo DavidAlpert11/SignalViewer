@@ -61,3 +61,21 @@ def test_the_picture_space_is_reserved(pg):
     pg.wait_for_selector(".ex-card.pic .ex-pic")
     h = pg.eval_on_selector(".ex-card.pic .ex-pic", "e => { const r = e.getBoundingClientRect(); return r.height / r.width; }")
     assert abs(h - 9 / 16) < 0.02
+
+
+def test_every_area_has_its_demo(pg):
+    """Review (owner, 2026-11-13: a clear demo for everything): the cards grouped by area; the sweep card opens
+    the table with its question answered, the Fleet card the fleet on its vibration question."""
+    pg.wait_for_selector(".examples-group")
+    groups = pg.locator(".examples-group").evaluate_all("els => els.map((g) => [...g.querySelectorAll('.ex-card')].map((c) => c.dataset.example))")
+    assert groups == [["flight", "twoFlights", "car", "ardupilot", "simVsFlight", "investigate"],
+                      ["sweepTable", "commonGains", "smartSweepDemo"], ["fleet"]], groups
+    pg.locator(".ex-card[data-example='sweepTable']").click()
+    pg.wait_for_function("window.__sv.state().area === 'sweeps'")
+    pg.wait_for_selector(".sw-step-btn[data-step='results']")
+    pg.wait_for_function("window.__svSweeps.idle() && window.__svSweeps.doc()?.view.step === 'results'")
+    pg.locator(".status", has_text="12 of 45 sets hold").wait_for()                   # the question came with it
+    pg.click(".areas .area-btn:has-text('Recordings')")
+    pg.locator(".ex-card[data-example='fleet']").click()
+    pg.wait_for_function("window.__sv.state().area === 'fleet'")
+    pg.wait_for_selector(".fleet-trend circle.over", timeout=60000)                 # the worn motor's flight, over the limit

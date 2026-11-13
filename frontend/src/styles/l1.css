@@ -24,3 +24,8 @@
 .ex-title { display: block; font-weight: 600; color: var(--ink-strong); }
 .ex-title::first-letter { text-transform: uppercase; }
 .ex-desc { font-size: var(--fs-s); color: var(--muted); line-height: 1.35; }
+
+/* review: the examples grouped by area */
+.welcome-card .examples-group { margin-top: var(--sp-4); text-align: start; }
+.welcome-card .examples-group-title { margin: 0 0 var(--sp-2); font-size: var(--fs-s); font-weight: 600; color: var(--ink-strong); }
+.welcome-card .examples-group-title .hint { font-weight: 400; }
