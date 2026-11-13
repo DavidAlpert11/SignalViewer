@@ -861,7 +861,7 @@ def test_N05_autosave_restore(pg):
 def test_N06_export_csv(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
-    pg.locator(".plot-more").first.click(); pg.click("text=Export data"); save_as(pg, "d.csv")
+    pg.locator(".plot-more").first.click(); pg.locator(".menu.ctx button", has_text="Save / export").hover(); pg.click("text=Export data"); save_as(pg, "d.csv")
     pg.wait_for_selector(".toast:has-text('d.csv')")
     assert open(os.path.join(pg.env["out"], "d.csv"), encoding="utf-8-sig").readline().startswith("Time,Speed")
 
@@ -887,15 +887,15 @@ def test_N20_images(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
     for fmt in ("PNG", "SVG"):
-        pg.locator(".plot-more").first.click(); pg.click(f"text=Save image ({fmt})"); save_as(pg, f"img.{fmt.lower()}")
+        pg.locator(".plot-more").first.click(); pg.locator(".menu.ctx button", has_text="Save / export").hover(); pg.click(f"text=Save image ({fmt})"); save_as(pg, f"img.{fmt.lower()}")
         pg.wait_for_selector(f".toast:has-text('img.{fmt.lower()}')")
     # for a report: twice the pixels; and the plot alone as an interactive page
-    pg.locator(".plot-more").first.click(); pg.click("text=Save image for a report"); save_as(pg, "img_hires.png")
+    pg.locator(".plot-more").first.click(); pg.locator(".menu.ctx button", has_text="Save / export").hover(); pg.click("text=Save image for a report"); save_as(pg, "img_hires.png")
     pg.wait_for_selector(".toast:has-text('img_hires.png')")
     import struct
     size = lambda n: struct.unpack(">II", open(os.path.join(pg.env["out"], n), "rb").read(24)[16:24])
     assert size("img_hires.png")[0] >= 2 * size("img.png")[0] - 4
-    pg.locator(".plot-more").first.click(); pg.click("text=Save as an interactive page"); save_as(pg, "img.html")
+    pg.locator(".plot-more").first.click(); pg.locator(".menu.ctx button", has_text="Save / export").hover(); pg.click("text=Save as an interactive page"); save_as(pg, "img.html")
     pg.wait_for_selector(".toast:has-text('img.html')")
     assert "Speed" in open(os.path.join(pg.env["out"], "img.html"), encoding="utf-8").read()
     pg.locator(".plot-more").first.click(); pg.click("text=Copy image")

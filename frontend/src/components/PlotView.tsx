@@ -168,8 +168,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   // alignment) say nothing until asked for - "Lat / lon track…" in the plot's menu shows them
   const [geoPicks, setGeoPicks] = useState(false);
   const geoPicksHidden = mode === "geo" && (plot.objects?.length ?? 0) > 0 && !plot.xSignal && !plot.signals[0] && !geoPicks;
-  const plotItems = (): MenuItem[] => [
-    ...(geoPicksHidden ? [{ label: t("geoTrackShow"), run: () => setGeoPicks(true) }, { label: "", run: () => {}, sep: true }] : []),
+  // the plot's every way to be saved or exported, one submenu (below)
+  const saveExportItems = (): MenuItem[] => [
     { label: t("exportData"), run: exportCsv, disabled: !plot.signals.length },
     // the 3D view's picture is Cesium's (globeBridge); every other plot's comes from the server
     ...(map3d ? [
@@ -189,14 +189,22 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       { label: `${t("saveImage")} (SVG)`, run: () => saveImage("svg"), disabled: !plot.signals.length },
       { label: t("saveImageHtml"), run: () => saveImage("html"), disabled: !plot.signals.length },
     ]),
-    { label: t("copyImage"), run: copyImage, disabled: !plot.signals.length },
-    // P7: the Places panel, docked in this Map
-    ...(isMap ? [{ label: `${t("plPanel")}…`, run: () => useApp.setState({ placesPanel: plot.id }) }] : []),
-    ...((mode === "geo" || mode === "3d") && plot.objects?.length ? [{ label: t("exportFlight"), run: () => {}, items: [
+    // the flight's objects for other tools (the menu has one submenu level: listed here, under a line)
+    ...((mode === "geo" || mode === "3d") && plot.objects?.length ? [
+      { label: "", run: () => {}, sep: true },
       { label: t("exportAcmi"), run: () => { void exportFlight("acmi"); } },
       { label: t("exportFlightCsv"), run: () => { void exportFlight("csv"); } },
       { label: t("exportKml"), run: () => { void exportFlight("kml"); } },
-    ] } as MenuItem] : []),
+    ] : []),
+  ];
+  const plotItems = (): MenuItem[] => [
+    ...(geoPicksHidden ? [{ label: t("geoTrackShow"), run: () => setGeoPicks(true) }, { label: "", run: () => {}, sep: true }] : []),
+    // review (owner, 2026-11-13: tidy the menus): every way to save or export this plot in one submenu - it was
+    // six to nine lines at the top of the menu; Copy image (the everyday one) stays a line of its own
+    { label: t("plotSaveExport"), run: () => {}, items: saveExportItems() },
+    { label: t("copyImage"), run: copyImage, disabled: !plot.signals.length },
+    // P7: the Places panel, docked in this Map
+    ...(isMap ? [{ label: `${t("plPanel")}…`, run: () => useApp.setState({ placesPanel: plot.id }) }] : []),
     { label: "", run: () => {}, sep: true },
     // the error between two lines (a flight computer's X against the true X), here or in every such plot
     ...(() => {
