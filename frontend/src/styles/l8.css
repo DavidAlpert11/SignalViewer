@@ -69,7 +69,7 @@
 .fleet-dot { position: absolute; top: 5px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; border: 2px solid var(--panel); padding: 0; cursor: pointer; }
 .fleet-dot.ok { background: var(--ok); } .fleet-dot.warn { background: var(--amber); } .fleet-dot.err { background: var(--danger); }
 .fleet-dot:hover, .fleet-dot:focus-visible { transform: scale(1.3); }
-.fleet-trend-axis { display: flex; justify-content: space-between; font-size: var(--fs-2xs); margin: 2px 6px 0; }
+.fleet-trend-axis { display: flex; justify-content: space-between; font-size: var(--fs-2xs); margin: 2px 6px 0 11.5%; }   /* 11.5% = the chart's value column (30 of 260) */
 .fleet-first { margin: var(--sp-1) 0 0; font-size: var(--fs-sm); color: var(--ink); }
 .fleet-dot.out { opacity: .25; }   /* not an answer to the question asked */
 .inv-start { margin: 0 0 var(--sp-3); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-m); background: var(--panel-2); }

@@ -1477,6 +1477,8 @@ input.fx-input { width: 100%; }
 .fleet-trendline { fill: none; stroke: var(--muted); stroke-width: 1; }
 .fleet-trend circle { fill: var(--ink); cursor: pointer; }
 .fleet-trend circle.over { fill: var(--danger); }
+.fleet-ytick { fill: var(--muted); font-size: 8px; font-variant-numeric: tabular-nums; }
+.fleet-ytick.limit { fill: var(--amber); }
 .fleet-limitline { stroke: var(--amber); stroke-dasharray: 4 3; }
 /* T46: a file's tag - in the legend chips, the file list and pickers */
 .file-tag { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--r-s);
