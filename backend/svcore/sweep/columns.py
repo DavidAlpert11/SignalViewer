@@ -26,20 +26,23 @@ def _looks_like_paths(s: pd.Series) -> bool:
 
 def describe_column(s: pd.Series, rows: int) -> Dict:
     """What the guess (and the UI) needs: kind, how many distinct values, range, missing, constant."""
-    n_missing = int(s.isna().sum())
-    vals = s.dropna()
-    nunique = int(vals.nunique())
+    miss = s.isna().to_numpy()
+    n_missing = int(miss.sum())
+    vals = s[~miss] if n_missing else s
+    uniq = pd.unique(vals.to_numpy())                    # one hash pass for the count and the values (2026-11-13: speed)
+    nunique = len(uniq)
     info: Dict = {"name": str(s.name), "kind": "number" if _is_number(s) else "text",
                   "distinct": nunique, "missing": n_missing,
                   "constant": nunique <= 1, "empty": n_missing > 0.9 * rows}
     if info["kind"] == "text" and nunique > 1:
         info["paths"] = _looks_like_paths(s)
     if info["kind"] == "number" and nunique:
-        info["min"] = float(vals.min())
-        info["max"] = float(vals.max())
-        info["integer"] = bool(np.all(np.mod(vals.to_numpy(dtype=float), 1) == 0))
+        uf = np.asarray(uniq, dtype=float)                 # min, max, whole numbers: from the distinct values only
+        info["min"] = float(uf.min())
+        info["max"] = float(uf.max())
+        info["integer"] = bool(np.all(np.mod(uf, 1) == 0))
     if nunique <= 50:
-        u = vals.unique()
+        u = uniq
         try:
             u = sorted(u)
         except TypeError:

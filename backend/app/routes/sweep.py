@@ -149,10 +149,18 @@ def _enc(meta, data):
 def sweep_evaluate(req: QuestionReq):
     t0 = time.perf_counter()
     p = _prepared(req.id, req.question)
-    try:
-        a = sweep.answer(p, req.question)
-    except (sweep.QuestionError, sweep.DerivedError, ValueError) as e:
-        fail(400, str(e))
+    # the last answer of this table, kept: the same question again (Parameter sets <-> All runs, owner
+    # 2026-11-13: "it sometimes gets stuck" on big tables) is not worked out again - only the runs added
+    t = _get(req.id)
+    key = json.dumps(req.question, sort_keys=True, default=str)
+    if t.get("ansPrep") is p and t.get("ansKey") == key:
+        a = t["ans"]
+    else:
+        try:
+            a = sweep.answer(p, req.question)
+        except (sweep.QuestionError, sweep.DerivedError, ValueError) as e:
+            fail(400, str(e))
+        t["ans"], t["ansKey"], t["ansPrep"] = a, key, p
     out = {"counts": a["counts"], "conditions": a["conditions"], "sets": _enc(a["columns"], a["data"])}
     if req.runs:
         r = sweep.run_rows(p, a["data"]["#holds"])
@@ -719,15 +727,18 @@ def sweep_rows(id: str, offset: int = 0, limit: int = 100, sort: Optional[str] =
             "rows": sweep.head(page, len(page)), "index": [int(i) for i in page.index]}
 
 
+RAW_MAX = 50_000
+
+
 @router.post("/api/sweep/raw")
 def sweep_raw(req: QuestionReq):
-    """Every column of every run (a sample above 200 000), for a parallel plot of the raw results -
-    before any role or goal."""
+    """Every column of every run (a sample above 50 000 - the picture is the same, the page stays quick), for
+    a parallel plot of the raw results - before any role or goal."""
     df = _get(req.id)["df"]
     idx = np.arange(len(df))
-    sampled = len(df) > 200_000
+    sampled = len(df) > RAW_MAX
     if sampled:
-        idx = np.sort(np.random.default_rng(0).choice(len(df), 200_000, replace=False))
+        idx = np.sort(np.random.default_rng(0).choice(len(df), RAW_MAX, replace=False))
     names = [c for c in (req.columns or list(df.columns)) if c in df.columns]
     cols = [{"name": c, **sweep.encode(df[c].iloc[idx].reset_index(drop=True))} for c in names]
     cols.append({"name": "#row", **sweep.encode(df.index.to_numpy()[idx].astype(float))})
