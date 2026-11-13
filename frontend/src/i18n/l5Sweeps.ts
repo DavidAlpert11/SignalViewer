@@ -1,5 +1,10 @@
 /* L5 Sweeps panel (W14, W15, W17, W18): the texts of this lane of the 2026-11-13 round (W0). */
 export const en = {
+  swModeOne: "One results table:",
+  swModeMany: "Several systems, one set of parameters",
+  swModeManyHint: "Several sweep tables - one per drone, vehicle or model - and the values that hold in all of them; the next runs to try, and the loop that runs them on your PC or your farm until it converges.",
+  swTryDemo: "Watch it converge (demo)",
+  swTryGains: "Example: three drones, one set of gains",
   cpTitle: 'Common parameters',
   cpOpenMenu: 'Common parameters (several tables)…',
   cpNew: 'New study',
@@ -146,6 +151,11 @@ export const en = {
 };
 
 export const he: typeof en = {
+  swModeOne: "טבלת תוצאות אחת:",
+  swModeMany: "כמה מערכות, סט פרמטרים אחד",
+  swModeManyHint: "כמה טבלאות סריקה – אחת לכל רחפן, כלי או מודל – והערכים שעומדים בכולן; ההרצות הבאות לנסות, והלולאה שמריצה אותן על המחשב או החווה עד התכנסות.",
+  swTryDemo: "צפו בהתכנסות (הדגמה)",
+  swTryGains: "דוגמה: שלושה רחפנים, סט הגברים אחד",
   cpTitle: 'פרמטרים משותפים',
   cpOpenMenu: 'פרמטרים משותפים (כמה טבלאות)…',
   cpNew: 'מחקר חדש',

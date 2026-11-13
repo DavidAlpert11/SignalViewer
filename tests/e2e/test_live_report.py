@@ -34,6 +34,7 @@ def test_one_map(pg):
     assert S(pg, "s.ws.tabs[0].plots[1].objects.length") == 2                       # the objects stay
     # 1.26: the relation box in 3D as on the 2D map; the same Relation button hides / shows it in both
     pg.wait_for_selector(".plot .rel-panel")
+    geo.hover()                                       # review R3: a map plot's bar shows on the plot being used (selector change)
     geo.locator(".rel-toggle").click()
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[1].relHidden === true")
     assert pg.locator(".plot .rel-panel").count() == 0
@@ -42,6 +43,7 @@ def test_one_map(pg):
     assert any("Map" in i for i in items) and any(i.strip().startswith("3D (XYZ)") for i in items)
     assert not any(i.strip() == "3D" for i in items)                                 # no second "3D" kind
     pg.keyboard.press("Escape")
+    geo.hover()
     geo.locator(".rel-toggle").click()
     pg.wait_for_selector(".plot .rel-panel")
 
@@ -52,6 +54,7 @@ def test_one_bar(pg):
     drawing is close and track up."""
     map_and_line(pg)
     geo = pg.locator(".plot").nth(1)
+    geo.hover()                                       # review R3: the pointer on the Map - its whole bar shows
     def bar():
         b = geo.locator(".map-bar")
         b.locator(".g3-seg").first.locator("button").first.wait_for()
