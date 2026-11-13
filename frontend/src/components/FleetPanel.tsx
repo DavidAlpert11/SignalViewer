@@ -234,16 +234,21 @@ function Trend({ points, limit, label, lang, onPick, op }: {
   const t = useT();
   const over = (v: number) => limit !== null && Number.isFinite(limit) && (op === "above" ? v > limit : v < limit);
   const firstOver = [...points].sort((a, b) => a.date - b.date).find((p) => over(p.value));
-  const W = 260, H = 110, P = 8;
+  const W = 260, H = 110, P = 8, L = 30;      // review R11: L = room for the values (the chart had no y axis)
   const xs = points.map((p) => p.date), ys = points.map((p) => p.value).concat(limit !== null && Number.isFinite(limit) ? [limit] : []);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-  const X = (v: number) => P + ((v - x0) / (x1 - x0 || 1)) * (W - 2 * P);
+  const X = (v: number) => L + ((v - x0) / (x1 - x0 || 1)) * (W - L - P);
   const Y = (v: number) => H - P - ((v - y0) / (y1 - y0 || 1)) * (H - 2 * P);
   return (
     <figure className="fleet-trend" aria-label={label}>
       <figcaption className="muted">{label}</figcaption>
       <div dir="ltr"><svg viewBox={`0 0 ${W} ${H}`} role="img">
-        {limit !== null && Number.isFinite(limit) && <line className="fleet-limitline" x1={P} x2={W - P} y1={Y(limit)} y2={Y(limit)} />}
+        {[y0, y1].filter((v, i, a) => a.indexOf(v) === i && (limit === null || Math.abs(Y(v) - Y(limit)) > 9)).map((v) => (
+          <text key={v} className="fleet-ytick" x={L - 5} y={Y(v) + 3} textAnchor="end">{fmtVal(v)}</text>))}
+        {limit !== null && Number.isFinite(limit) && <>
+          <line className="fleet-limitline" x1={L} x2={W - P} y1={Y(limit)} y2={Y(limit)} />
+          <text className="fleet-ytick limit" x={L - 5} y={Y(limit) + 3} textAnchor="end">{fmtVal(limit)}</text>
+        </>}
         <polyline className="fleet-trendline" points={points.map((p) => `${X(p.date)},${Y(p.value)}`).join(" ")} />
         {points.map((p) => (
           <circle key={p.path} cx={X(p.date)} cy={Y(p.value)} r={3.5} className={over(p.value) ? "over" : ""}
