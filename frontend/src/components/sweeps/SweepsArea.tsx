@@ -50,8 +50,9 @@ import PlotToolbar from "./PlotToolbar";
 import SetDetail from "./SetDetail";
 import SetsTable from "./SetsTable";
 import StudyPanel, { openStudyDialog } from "./StudyPanel";
-import { newStudy, openStudyFile, useStudyPanel } from "../../sweeps/studyStore";
-import { onStudyRequest, takeStudy } from "../../sweeps/studyOpen";
+import { newStudy, openStudyFile, redoStudy, undoStudy, useStudyPanel } from "../../sweeps/studyStore";
+import { onStudyRequest, requestStudy, takeStudy } from "../../sweeps/studyOpen";
+import { api } from "../../api";
 import "./sweeps.css";
 
 /** the middle (plot, tables) never narrower than this when a panel is dragged wider */
@@ -93,10 +94,14 @@ const tNow: TFn = (k, v) => translate(useApp.getState().lang, k, v);
 registerArea("sweeps", {
   onKey: (e) => {
     const st = useSweeps.getState();
-    if (!(e.ctrlKey || e.metaKey) || !st.studies[st.active]) return false;
+    if (!(e.ctrlKey || e.metaKey)) return false;
     const k = e.key.toLowerCase();
-    if (k === "z" && !e.shiftKey) { st.undo(); return true; }
-    if (k === "y" || (k === "z" && e.shiftKey)) { st.redo(); return true; }
+    const undo = k === "z" && !e.shiftKey, redo = k === "y" || (k === "z" && e.shiftKey);
+    // Common parameters open: its study's own Undo / Redo (not the single-table study behind it)
+    if (useStudyPanel.getState().open) { if (undo) undoStudy(); else if (redo) redoStudy(); return undo || redo; }
+    if (!st.studies[st.active]) return false;
+    if (undo) { st.undo(); return true; }
+    if (redo) { st.redo(); return true; }
     return false;
   },
   commands: () => {
@@ -110,8 +115,9 @@ registerArea("sweeps", {
     ];
     if (!study) return open;
     return [
-      { id: "sw-undo", label: t("undo"), group: g, icon: "undo" as const, keys: "Ctrl Z", run: st.undo },
-      { id: "sw-redo", label: t("redo"), group: g, icon: "redo" as const, keys: "Ctrl Y", run: st.redo },
+      // with Common parameters open, Ctrl+Z / Ctrl+Y undo the study being edited there (its own history)
+      { id: "sw-undo", label: t("undo"), group: g, icon: "undo" as const, keys: "Ctrl Z", run: () => (useStudyPanel.getState().open ? undoStudy() : st.undo()) },
+      { id: "sw-redo", label: t("redo"), group: g, icon: "redo" as const, keys: "Ctrl Y", run: () => (useStudyPanel.getState().open ? redoStudy() : st.redo()) },
       ...open,
       { id: "sw-save-study", label: t("swSaveStudy"), group: g, icon: "save" as const, run: () => { saveStudy(t); } },
       { id: "sw-report", label: t("swReportMenu"), group: g, icon: "report" as const, run: () => useSweeps.setState({ reportOpen: true }) },
@@ -260,6 +266,15 @@ const SAMPLE_ROWS = [
 
 function SweepsWelcome() {
   const t = useT();
+  // the two example studies (the welcome screen's cards): the three drones, the smart-sweep demo
+  const [demoPath, setDemoPath] = useState("");
+  const [gainsPath, setGainsPath] = useState("");
+  useEffect(() => {
+    api.examples().then((xs) => {
+      const last = (id: string) => { const x = xs.find((e) => e.id === id); return x ? x.paths[x.paths.length - 1] : ""; };
+      setDemoPath(last("smartSweepDemo")); setGainsPath(last("commonGains"));
+    }).catch(() => {});
+  }, []);
   const busy = useSweeps((s) => s.busy);
   const error = useSweeps((s) => s.error);
   const restoring = useSweeps((s) => s.restoring);
@@ -299,10 +314,23 @@ function SweepsWelcome() {
           <p className="hint">{t("swSampleNote")}</p>
         </div>
         <div className="sw-welcome-actions">
+          <span className="sw-mode-name">{t("swModeOne")}</span>
           <button className="btn primary" disabled={busy} onClick={() => openTable(t("swOpenTable"))}><Icon.Open /> {t("swOpenTable")}</button>
           {/* W16: a folder and a saved study are opened from Open ▾ (and the palette) - one way in here */}
           <button className="btn outline" disabled={busy} onClick={example}>{t("swTryExample")}</button>
           <button className="btn outline" disabled={busy} onClick={() => merged().catch(notifyError)}>{t("swTryMerged")}</button>
+        </div>
+        {/* owner (2026-11-13): the other way in - several systems that must share one set of parameters, the
+            next runs, the loop that runs them; and the demo that shows it converge */}
+        <div className="sw-mode-many" data-testid="sweeps-many">
+          <h2>{t("swModeMany")}</h2>
+          <p className="hint">{t("swModeManyHint")}</p>
+          <div className="sw-welcome-actions">
+            {demoPath && <button className="btn primary sw-try-demo" onClick={() => requestStudy(demoPath, true)}>{t("swTryDemo")}</button>}
+            {gainsPath && <button className="btn outline sw-try-gains" onClick={() => requestStudy(gainsPath)}>{t("swTryGains")}</button>}
+            <button className="btn outline" onClick={newStudy}>{t("cpNew")}</button>
+            <button className="btn outline" onClick={() => { void openStudyDialog(t); }}>{t("cpOpen")}</button>
+          </div>
         </div>
         {busy && <p className="hint">{restoring ? t("swReopening") : t("swReading")}</p>}
         {error && <p className="sw-error" role="alert">{error}</p>}

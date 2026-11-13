@@ -114,3 +114,9 @@
   white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); text-align: left; }
 .dm-copy { margin-top: var(--sp-1); }
 .lp-cmd, .lp-tpl { font-family: var(--mono); font-size: var(--fs-s); }
+
+/* the Sweeps welcome: the two ways in */
+.sw-mode-name { align-self: center; color: var(--muted); font-size: var(--fs-sm); }
+.sw-mode-many { margin-top: var(--sp-5); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--amber); border-radius: var(--r-l); background: var(--amber-soft); }
+.sw-mode-many h2 { margin: 0 0 var(--sp-1); font-size: var(--fs-xl); color: var(--ink-strong); }
+.sw-mode-many .sw-welcome-actions { flex-wrap: wrap; margin-top: var(--sp-2); }
