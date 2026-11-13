@@ -22,6 +22,7 @@ export default function InvestigatePanel() {
   const lang = useApp((s) => s.lang);
   const files = runs.filter((r) => r.format !== "derived");
   const whatChanged = useApp((s) => s.whatChanged);
+  const cursor = useApp((s) => s.cursor);
 
   const count = (id: string) => {
     const r = results[id] ?? {};
@@ -49,6 +50,17 @@ export default function InvestigatePanel() {
       <div className="side-head"><h2>{t("investigate")}</h2></div>
       <div className="inv-body">
         {whatChanged && <WhatChanged key={`${whatChanged.a}|${whatChanged.b}`} />}
+        {/* how to start: what went wrong at a moment is the first question - two cursors around it */}
+        {!whatChanged && files.length > 0 && (
+          <div className="inv-start">
+            <h3>{t("invStartTitle")}</h3>
+            <p className="hint">{t("invStartText")}</p>
+            {cursor.on && cursor.dual && cursor.t1 !== null && cursor.t2 !== null && cursor.t1 !== cursor.t2
+              ? <button className="btn primary sm inv-wc" onClick={() => useApp.setState({ whatChanged: { a: Math.min(cursor.t1!, cursor.t2!), b: Math.max(cursor.t1!, cursor.t2!) } })}>
+                  {t("invStartGo")}</button>
+              : <button className="btn outline sm inv-dual" onClick={() => actions.toggleDual()}>{t("invStartDual")}</button>}
+          </div>
+        )}
         <div className="cond-head">
           <h3>{t("conditions")}</h3>
           <button className="btn outline sm cond-new" onClick={() => useApp.setState({ condEdit: { id: "new" } })} disabled={!files.length}>

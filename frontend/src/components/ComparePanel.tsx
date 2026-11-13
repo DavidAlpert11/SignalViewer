@@ -352,9 +352,22 @@ export default function ComparePanel() {
     useApp.getState().toast({ kind: "info", text: translate(lang, "savedTo", { path: r.path }) });
   };
 
-  if (runs.length < 2) return (
-    <aside className="side"><div className="side-head"><h2>{t("compare")}</h2></div><p className="empty-note">{t("compareNeedsTwo")}</p></aside>
-  );
+  // one file (or none): not a dead end - open another one, or compare inside this file (nav1 / nav2, the IMUs…)
+  if (runs.length < 2) {
+    const only = runs.find((r) => r.format !== "derived");
+    return (
+      <aside className="side"><div className="side-head"><h2>{t("compare")}</h2></div>
+        <div className="empty-state compare-empty">
+          <p>{t("compareNeedsTwo")}</p>
+          <button className="btn primary sm" onClick={() => useApp.setState({ browserOpen: true })}>{t("compareOpenAnother")}</button>
+          {only && <>
+            <p>{t("compareInsideHint")}</p>
+            <button className="btn outline sm compare-similar" onClick={() => useApp.setState({ similarDialog: { runId: only.id, ids: [] } })}>{t("simCmd")}</button>
+          </>}
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="side" aria-label={t("compare")}>

@@ -72,3 +72,17 @@
 .fleet-trend-axis { display: flex; justify-content: space-between; font-size: var(--fs-2xs); margin: 2px 6px 0; }
 .fleet-first { margin: var(--sp-1) 0 0; font-size: var(--fs-sm); color: var(--ink); }
 .fleet-dot.out { opacity: .25; }   /* not an answer to the question asked */
+.inv-start { margin: 0 0 var(--sp-3); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-m); background: var(--panel-2); }
+.inv-start h3 { margin: 0 0 var(--sp-1); font-size: var(--fs-m); color: var(--ink-strong); }
+.inv-start .hint { margin: 0 0 var(--sp-2); }
+.compare-empty .btn { align-self: flex-start; }
+
+/* Review R3: a map / 3D plot that is neither the active one nor under the pointer keeps only its zoom (+ − fit);
+   the camera, the story and the view's own buttons show on the plot being used - two maps side by side no
+   longer carry four rows of buttons */
+.plot:not(.active):not(:hover):not(:focus-within) .map-bar > :not(.map-zoom) { display: none; }
+/* Review R3: no overlaps on the map - the "reduced quality" badge at the very bottom, the hints wrap inside the
+   plot (they ran across it and over the badge), the data box below the bar while the full bar shows */
+.globe3d-light { bottom: 6px; }
+.g3-cam-hint, .geo-hint { max-width: calc(100% - 24px); white-space: normal; text-align: center; }
+.plot.active .globe3d-readout, .plot:hover .globe3d-readout, .plot:focus-within .globe3d-readout { top: 84px; }
