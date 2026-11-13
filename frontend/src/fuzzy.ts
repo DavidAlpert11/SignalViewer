@@ -85,3 +85,12 @@ export function fuzzySort<T>(items: T[], text: (t: T) => string, q: string): T[]
   scored.sort((a, b) => b[1] - a[1]);
   return scored.map((x) => x[0]);
 }
+
+/** The palette (review R9): best-first, and like tieredFilter the approximate matches only when nothing
+ *  matches exactly - "roll" lists the Roll signals, not "Open a template or collection" (r..o..l..l). */
+export function tieredSort<T>(items: T[], text: (t: T) => string, q: string): T[] {
+  const all = fuzzySort(items, text, q);
+  if (!q.trim()) return all;
+  const exact = all.filter((it) => exactMatch(text(it), q));
+  return exact.length ? exact : all;
+}

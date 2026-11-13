@@ -11,7 +11,7 @@ import { newCollection, openTemplates, saveAsTemplate } from "../templateMenu";
 import { Icon } from "../icons";
 import { clearEverything, openPaths, openSession, pickSessionForRetarget, recentToOpen, refreshRecent, saveSession, startRetarget } from "../files";
 import { api, type FsPlaces } from "../api";
-import { fuzzySort } from "../fuzzy";
+import { tieredSort } from "../fuzzy";
 import { areaCommands, type AreaCommand } from "../areaCommands";
 import { makeReplay } from "../replay";
 import { getPrefValue, setPref } from "../prefs";
@@ -190,7 +190,7 @@ export default function CommandPalette() {
     for (const r of recentToOpen(12)) if (r.exists) quick.push({ id: `file:${r.path}`, label: r.name, group: r.folder, icon: <Icon.File />, run: () => { openPaths([r.path]); } });
     for (const f of places?.recent ?? []) if (f.exists && once(f.path)) quick.push({ id: `dir:${f.path}`, label: f.path, group: t("placesRecent"), icon: <Icon.Folder />, run: folder(f.path) });
   }
-  const items0 = fuzzySort(mode === "open" ? quick : cmds, (c) => `${c.label} ${c.group}`, q).slice(0, 60);
+  const items0 = tieredSort(mode === "open" ? quick : cmds, (c) => `${c.label} ${c.group}`, q).slice(0, 60);
   // W8: nothing typed - the recent commands first, then every command under its group's header
   const grouped = mode !== "open" && !q.trim();
   const rows: Row[] = [];
