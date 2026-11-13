@@ -12,6 +12,7 @@ const DEFAULT: ReportMeta = { title: "", intro: "", summary: "", lang: "he", the
 
 export default function ReportPanel() {
   const t = useT();
+  const [capOpen, setCapOpen] = useState<string[]>([]);
   const lang = useApp((s) => s.lang);
   const ws = useApp((s) => s.ws);
   const meta: ReportMeta = { ...DEFAULT, lang, ...(ws.report ?? {}) };
@@ -132,10 +133,12 @@ export default function ReportPanel() {
                 <input type="checkbox" checked={!p.excludeFromReport} onChange={(e) => actions.updatePlot(p.id, { excludeFromReport: !e.target.checked })} />
                 <span className="rplot-name">{p.title || t("plotTitle", { n: idx + 1 })}{meta.scope === "all" && tab.name ? ` · ${tab.name}` : ""}</span>
               </label>
-              {!p.excludeFromReport && (
-                <textarea key={"c" + p.id + (p.caption ?? "")} rows={2} placeholder={t("captionHint")} defaultValue={p.caption ?? ""}
-                  onBlur={(e) => e.target.value !== (p.caption ?? "") && actions.updatePlot(p.id, { caption: e.target.value })} />
-              )}
+              {/* review R5: a caption box only when wanted (one under every plot made the panel a long form) */}
+              {!p.excludeFromReport && (p.caption || capOpen.includes(p.id) ? (
+                <textarea key={"c" + p.id + (p.caption ?? "")} rows={2} placeholder={t("captionHint")} defaultValue={p.caption ?? ""} autoFocus={!p.caption}
+                  onBlur={(e) => { if (e.target.value !== (p.caption ?? "")) actions.updatePlot(p.id, { caption: e.target.value });
+                    if (!e.target.value) setCapOpen((c) => c.filter((x) => x !== p.id)); }} />
+              ) : <button className="linklike rplot-cap" onClick={() => setCapOpen((c) => [...c, p.id])}>{t("rAddCaption")}</button>)}
             </div>
           );
         }))}

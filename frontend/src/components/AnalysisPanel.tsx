@@ -370,12 +370,12 @@ export default function AnalysisPanel() {
       {!options.length ? <p className="empty-note">{t("noFilesHint")}</p> : (
         <div className="tree analysis">
           <div className="seg wide kinds" role="tablist">
-            <button className={kind === "one" ? "on" : ""} onClick={() => switchKind("one")}>{t("kindOne")}</button>
-            <button className={kind === "two" ? "on" : ""} onClick={() => switchKind("two")}>{t("kindTwo")}</button>
-            <button className={kind === "many" ? "on" : ""} onClick={() => switchKind("many")}>{t("kindMany")}</button>
-            <button className={kind === "fx" ? "on" : ""} onClick={() => switchKind("fx")}>{t("formula")}</button>
-            <button className={kind === "frame" ? "on" : ""} onClick={() => switchKind("frame")}>{t("kindFrame")}</button>
-            <button className={kind === "py" ? "on" : ""} onClick={() => switchKind("py")} title={t("pyIntro")}>Python</button>
+            <button role="tab" aria-selected={kind === "one"} className={kind === "one" ? "on" : ""} onClick={() => switchKind("one")}>{t("kindOne")}</button>
+            <button role="tab" aria-selected={kind === "two"} className={kind === "two" ? "on" : ""} onClick={() => switchKind("two")}>{t("kindTwo")}</button>
+            <button role="tab" aria-selected={kind === "many"} className={kind === "many" ? "on" : ""} onClick={() => switchKind("many")}>{t("kindMany")}</button>
+            <button role="tab" aria-selected={kind === "fx"} className={kind === "fx" ? "on" : ""} onClick={() => switchKind("fx")}>{t("formula")}</button>
+            <button role="tab" aria-selected={kind === "frame"} className={kind === "frame" ? "on" : ""} onClick={() => switchKind("frame")}>{t("kindFrame")}</button>
+            <button role="tab" aria-selected={kind === "py"} className={kind === "py" ? "on" : ""} onClick={() => switchKind("py")} title={t("pyIntro")}>Python</button>
           </div>
 
           {kind === "fx" && <FormulaInput value={fx} onChange={setFx} runs={runs} error={fxRes?.error} />}

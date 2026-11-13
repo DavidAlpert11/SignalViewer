@@ -1,5 +1,6 @@
 /* L8 Calm screen (W16, W13.7, W13.8): the texts of this lane of the 2026-11-13 round (W0). */
 export const en = {
+  rAddCaption: "+ caption",
   setGrpLook: "Look",
   setGrpTime: "Time and cursor",
   setGrpWork: "Working",
@@ -23,6 +24,7 @@ export const en = {
 };
 
 export const he: typeof en = {
+  rAddCaption: "+ כיתוב",
   setGrpLook: "מראה",
   setGrpTime: "זמן וסמן",
   setGrpWork: "עבודה",
