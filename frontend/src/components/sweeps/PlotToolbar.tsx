@@ -31,7 +31,13 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
       <ColumnPicker options={axisOptions(t, study)} value={axes}
         presets={presetChoices(t, study, axisChoices(study), PRESET_KEY, v.mode === "runs" ? [] : ["scenarios"])}
         label={t("swColumnsAddRemove", { n: axes.length, of: axisChoices(study).length })}
-        onChange={(ids) => { const here = new Set(axisChoices(study)); useSweeps.getState().setAxes([...ids, ...v.axes.filter((a) => !here.has(a))]); }} />
+        onChange={(ids) => {
+          const here = new Set(axisChoices(study));
+          // a scenario axis shown only in All runs, taken off: remembered as off (else it comes back)
+          const autoOff = axes.filter((a) => !ids.includes(a) && !v.axes.includes(a));
+          useSweeps.getState().setAxes([...ids, ...v.axes.filter((a) => !here.has(a))]);
+          if (autoOff.length) useSweeps.getState().setView({ axesOff: [...autoOff, ...(useSweeps.getState().studies[useSweeps.getState().active]?.view.axesOff ?? [])] });
+        }} />
       <button className={`btn outline${v.fitAxes ? " on" : ""}`} aria-pressed={!!v.fitAxes} onClick={() => setView({ fitAxes: !v.fitAxes })}
         title={t("swFitAxesHint")}>{t("swFitAxes")}</button>
       <ColourKey study={study} />
