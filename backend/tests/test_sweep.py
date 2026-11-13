@@ -657,3 +657,18 @@ def test_next_runs_written_as_json_matlab_python(tmp_path):
     w("runs.m")
     m = (tmp_path / "runs.m").read_text()
     assert m.startswith("% 36 runs") and "'kp_roll', {0.125, 0.125," in m and "'scenario_gusts', {'" in m
+
+
+def test_a_save_in_progress_is_not_listed_as_a_template(tmp_path, monkeypatch):
+    """A template being saved is written to a hidden ".<name>.<pid>.tmp.json" first (app/atomic.py); a listing at
+    that moment showed the template twice (the e2e templates test failed 2 runs in 10)."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    import app.routes.sweep as rs
+    monkeypatch.setattr(rs, "TEMPLATES", str(tmp_path / "tpl"))
+    os.makedirs(tmp_path / "tpl")
+    tpl = {"kind": "signalviewer-sweep-template", "name": "drone tpl", "columns": []}
+    (tmp_path / "tpl" / "drone tpl.json").write_text(json.dumps(tpl))
+    (tmp_path / "tpl" / ".drone tpl.123-456.tmp.json").write_text(json.dumps(tpl))
+    names = [x["name"] for x in TestClient(app).get("/api/sweep/templates").json()["templates"]]
+    assert names == ["drone tpl"]

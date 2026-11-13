@@ -24,6 +24,19 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   (palette, ask before closing), W7/W9/W13 (polish, motion), W16 (a calmer screen; T49 and T50 closed), W12.
   Not verified here: the Portable (`SignalViewer.exe study …`), the pywebview close prompt, a real launcher,
   W13.3 (not shipped). See the Log line of 2026-11-13 and the final report.
+- **Owner's notes after the round (2026-11-13)**, done on `sv1113/continue`: (1) **the loop for any study** –
+  `svcore/loop.py` (propose → the study's command on this PC or the farm's launcher → wait for the result files →
+  collect → rank → again, until converged / nothing left / a limit; a round with no result stops with the end of
+  the command's output), `/api/sweeps/loop` + `/progress`, the panel's *Run the loop* section and the *Runs* fields
+  (command, where, results, the parameters template); the demo is that loop plus its full-grid reference
+  (`svcore/demo.py`), it explains itself (the question, `sim.py`'s real input / output, the loop) and *Copy the demo
+  to a folder…* opens a copy as an ordinary study (`/api/sweeps/demo/copy`); tests `test_loop.py` (your own program,
+  a program that writes nothing), `tests/e2e/test_study_loop.py`. (2) **What changed at a glance**: a sentence and one
+  row per signal (onset, up / down, likelihood) above the list. (3) **The Fleet**: its questions (one click each),
+  the whole fleet at a glance with every flight on a time strip, the trend's first flight past the limit.
+  (4) **The Map story keeps a chosen camera** (Chase / On the object / Look at / Cockpit): it only moves the time.
+  Also in launcher.status: in run mode a run whose own command has ended without a result is *missing* at once
+  (it used to wait for the round's timeout).
 - **Repository size – a proposal (owner's decision; nothing moved)**: the pack is 226 MB for 383 commits.
   What each part adds to the history (all versions, on disk): `docs/media` **142 MB**, `docs/images` 46 MB,
   `backend` 19.5 MB, `frontend/dist` 10 MB, `examples` 4.8 MB. The videos and GIFs are the size, not the build.
