@@ -1075,6 +1075,8 @@ input.fx-input { width: 100%; }
 .tpl-tabs .badge.tpl-default { font-size: var(--fs-2xs); }
 .tpl-default-tabs label { display: flex; gap: var(--sp-2); align-items: center; padding: 2px 0; }
 .tpl-actions { display: flex; gap: var(--sp-2); margin-top: 18px; flex-wrap: wrap; }
+/* review R8: the main action stays in sight on a short screen (the tab list scrolls under it) */
+.tpl-main .tpl-actions { position: sticky; bottom: -14px; z-index: 1; padding: 10px 0 14px; margin-bottom: -14px; background: var(--raised); border-top: 1px solid var(--line); }
 .btn.danger { color: var(--danger); }
 .btn.primary.danger { background: var(--danger); border-color: var(--danger); color: var(--on-color); }
 .fmt-chips { display: flex; gap: var(--sp-1); }
