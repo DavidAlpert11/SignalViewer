@@ -41,11 +41,10 @@ def test_export_the_flight_three_ways(pg):
     folder = os.path.join(pg.env["out"], "tacview")
     os.makedirs(folder, exist_ok=True)
     _submenu(pg, i, "Tacview CSV files (a folder)…")
-    for _ in range(4):                                                                # as save_as: the picker may load late
-        goto_folder(pg, folder)
-        pg.wait_for_timeout(300)
-        if pg.evaluate("document.querySelector('.crumbs input').value") == folder:
-            break
+    goto_folder(pg, folder)
+    # the box shows what was typed; "Use this folder" takes the folder LISTED - wait for the listing (its
+    # breadcrumbs end in "tacview"), else the click raced it and the files went to the previous folder
+    pg.wait_for_function("(() => { const c = [...document.querySelectorAll('.dialog .fs-crumb .linkbtn')]; return c.length && c[c.length - 1].textContent.trim() === 'tacview'; })()", timeout=10000)
     pg.click(".dialog button:has-text('Use this folder')")
     pg.wait_for_selector(".toast:has-text('CSV file(s) for Tacview saved')")
     assert pg.locator(".toast:has-text('File → Merge')").count() >= 1
