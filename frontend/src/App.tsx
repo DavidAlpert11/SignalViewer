@@ -119,7 +119,10 @@ export default function App() {
   const liveAutoStop = useApp((s) => s.liveAutoStop);
   const liveNewFiles = useApp((s) => s.liveNewFiles);
   const [dropping, setDropping] = useState(false);
-  const [sideW, setSideW] = usePanelWidth("side", 280);          // files / analysis / ... panel
+  const [sideW0, setSideW0] = usePanelWidth("side", 280);        // files / analysis / ... panel
+  // Investigate keeps a width of its own, wider: What changed holds lists, time rows and charts (review
+  // 2026-11-13: at 280 px it read as a column of wrapped words)
+  const [invW, setInvW] = usePanelWidth("investigate", 380);
   const [inspW, setInspW] = usePanelWidth("inspector", 320);     // inspector on the other side
   const restored = useRef(false);
 
@@ -322,6 +325,7 @@ export default function App() {
     };
   }, []);
 
+  const sideW = panel === "investigate" ? invW : sideW0, setSideW = panel === "investigate" ? setInvW : setSideW0;
   const cols = [RAIL_W, panel ? sideW : 0, "1fr", inspectorOpen ? inspW : 0].map((c) => (typeof c === "number" ? `${c}px` : c)).join(" ");
 
   return (
@@ -333,7 +337,7 @@ export default function App() {
       <RecordingsBar />
       <div className="main" style={{ gridTemplateColumns: cols }}>
         {panel && <PanelResizer label={t("resizePanel")} style={{ insetInlineStart: RAIL_W + sideW - 3 }} width={sideW} setWidth={setSideW}
-          grow={+1} def={280} max={() => window.innerWidth - RAIL_W - (inspectorOpen ? inspW : 0) - MIN_STAGE} />}
+          grow={+1} def={panel === "investigate" ? 380 : 280} max={() => window.innerWidth - RAIL_W - (inspectorOpen ? inspW : 0) - MIN_STAGE} />}
         {inspectorOpen && <PanelResizer label={t("resizePanel")} style={{ insetInlineEnd: inspW - 3 }} width={inspW} setWidth={setInspW}
           grow={-1} def={320} max={() => window.innerWidth - RAIL_W - (panel ? sideW : 0) - MIN_STAGE} />}
         <nav className="rail" aria-label="Panels">

@@ -53,6 +53,8 @@ def test_what_changed_first_finds_the_built_order(pg):
     names = [n.strip() for n in pg.locator(".wc-row .wc-name").all_inner_texts()]
     assert names[0] == "Wind" and names[1] == "Vibe_Z"
     assert names.index("Motor3") < names.index("Roll")
+    assert "not proof of cause" in pg.inner_text(".wc-how summary")                  # the caveat stays in sight (review: notes folded)
+    pg.click(".wc-how summary")
     assert "not proof of cause" in pg.inner_text(".wc-warn")
     assert S(pg, "Object.keys(s.changeMarks || {}).length") >= 4           # the dashed lines
     pg.locator(".wc-head .iconbtn").click()                                 # closing takes them away

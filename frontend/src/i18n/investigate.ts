@@ -1,6 +1,7 @@
 /* Investigate: conditions, occurrences, what changed first, the overview strip, the journal - English and Hebrew (A2, 2026-11-07: split from the one i18n.ts by area). Every key
    is in both: `he` is typed by `en`, so tsc enforces it. */
 export const en = {
+  wcHowRead: "How to read this - likely is not proof of cause",
   occNoCond: "The condition of this plot was deleted.",
   occSummary: "{n} stretches",
   occSummaryOne: "1 stretch",
@@ -212,6 +213,7 @@ export const en = {
 };
 
 export const he: typeof en = {
+  wcHowRead: "איך לקרוא – סביר אינו הוכחה לסיבה",
   occNoCond: "התנאי של הגרף הזה נמחק.",
   occSummary: "{n} מקטעים",
   occSummaryOne: "מקטע אחד",

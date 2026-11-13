@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { actions, activeTab, fileLabel, useApp, type Condition, type CondResult, type MenuItem } from "../store";
 import { fmtNum, useT, type TKey } from "../i18n";
 import { Icon } from "../icons";
@@ -120,6 +120,10 @@ function CondEditor({ cond, before }: { cond?: Condition; before?: number }) {
       .map((s) => ({ label: s.name, sub: "", insert: /^[A-Za-z_][\w.]*$/.test(s.name) ? s.name : `{${s.name}}` }));
   }, [runs]);
   const opts = { text, exit, minDur: Number(minDur) || 0, mergeGap: Number(gap) || 0 };
+  // Find similar opens this editor under a long What-changed card: brought into sight, so the click shows
+  // something (review 2026-11-13: it opened below the fold and seemed to do nothing)
+  const boxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { boxRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, []);
 
   // the count while typing (a short pause first: one request per thought, not per key)
   useEffect(() => {
@@ -154,7 +158,7 @@ function CondEditor({ cond, before }: { cond?: Condition; before?: number }) {
     close();
   };
   return (
-    <div className="cond-editor" onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } }}>
+    <div ref={boxRef} className="cond-editor" onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } }}>
       <label className="afield"><span>{t("condName")}</span>
         <input className="cond-name-in" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("condNamePh")} autoFocus={!cond} /></label>
       <label className="afield"><span>{t("condWhen")}</span></label>
