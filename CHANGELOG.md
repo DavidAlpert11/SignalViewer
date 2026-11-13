@@ -59,6 +59,7 @@ pictures**, a first minute that says what to do next, and a calmer screen.
 - **Create signals** shows its six kinds as an even 3 × 2 grid; **the Report panel** asks for a caption only when
   you want one (*+ caption* under a plot) instead of a box under every plot.
 - **Templates**: the *Open* button stays in sight on a small screen (the list of tabs scrolls under it).
+- **Command palette (Ctrl+K)**: when something matches what you typed, only those results show - no more far-fetched letter matches mixed in.
 - **Settings in groups**: Look, Time and cursor, Working, Network, then Map and objects and Storage.
 - **Calmer maps**: a Map or 3D plot that is not the one being used keeps only + / − / fit; its camera, story and
   view buttons show when you use it or point at it. The map's hints wrap inside the plot, the "reduced quality"

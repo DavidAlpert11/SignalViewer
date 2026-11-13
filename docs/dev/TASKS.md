@@ -30,8 +30,10 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   not being used; the hint / badge / data box overlaps fixed; e2e: the map files all pass - `test_live_report` hovers
   the Map first; `test_round_1112::test_the_wow_in_the_3d_page` now waits on the page's state - it failed on `main`
   too). R6 the Hebrew pass (the Sweeps welcome reordered: both ways in above the fold); R7 Settings grouped (Look, Time and cursor, Working, Network). R4 Create signals' kinds in an even grid (as tabs, aria-selected); R5 the Report's captions on demand. R8 the template library, Help, the Inspector, the Log seen light / he at
-  1280×720: the library's Open bar now stays in sight (it was below the fold); the rest showed no fault. Next: R9 the
-  timeline bar, the top bar at narrow widths, the command palette.
+  1280×720: the library's Open bar now stays in sight (it was below the fold); the rest showed no fault. R9 the timeline bar, the top bar at 1024 px (en / he) and
+  the command palette: the palette listed loose letter matches next to exact ones ("roll" -> "Open a template or
+  collection"); now exact matches only when there are any (`fuzzy.tieredSort`). Next: R10 the Sweeps single table and
+  Common parameters as one entry (SKILL.md §5's rough edge), the Fleet at 1280.
 - **Next (owner, 2026-11-13): a review of every area and every button** – fix bugs, remove what is not needed or
   move it to its place, better visualization; the most modern, practical app. Method and the known rough edges:
   `.claude/skills/signalviewer-continue/SKILL.md` §5 (screens per area light / dark, en / he; every control listed
@@ -4066,3 +4068,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-13 · Round 2026-11-13 (W0, L1–L8, FINAL) – 1.27.0 prepared: see the status box in `docs/dev/AGENT_PROMPT_2026-11-13.md` and `docs/dev/lanes/final.md` for every check run (quick_check green: tsc, Vitest 173, backend 1263 passed / 14 skipped, mypy; the e2e files of `E2E_MAP.md`; W11's two files 10×) · next: the owner applies the patch, checks the Portable / pywebview close / a real launcher, tags v1.27.0.
 - 2026-11-13 · Owner's notes after the round (the loop for any study, the demo explained / copied, What changed at a glance, the Fleet, the story's camera), FINAL finished: quick_check green (tsc, Vitest 173, backend 1269 passed / 14 skipped, mypy); W11 10/10 for both files (after two more causes found: a test reading axes before the answer, the templates listing a save in progress); the example pictures remade (8 cards, both themes); `frontend/dist` built once, `run.py` serves it; the agent skill `.claude/skills/signalviewer-continue/SKILL.md` · next: the review of every area (owner).
 - 2026-11-13 · Review R8: template library / Help / Inspector / Log screened (light, he, 1280×720); the library's actions stick to the bottom of its detail pane. e2e: test_templates_recent_badfiles, test_template_tabs, test_object_templates - green.
+- 2026-11-13 · Review R9: timeline / top bar at 1024 px en+he showed no fault; the palette's matching tiered (`tieredSort`, `fuzzy.test.ts`). Vitest + tsc green; e2e: calm_screen, compare_similar, move_plots_tabs, object_relations, plot_style, unsaved_close, workflows, sweeps_flow, features -k palette - green.
