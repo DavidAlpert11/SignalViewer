@@ -3,10 +3,11 @@ Owned by lane L4; the shapes are the W0 contract (tests/fixtures/sweeps/)."""
 from typing import Optional
 
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 from app.common import fail
 from app.routes.sweeps_common import StudyReq, study_of
-from svcore import demo, launcher, sweeps_common
+from svcore import demo, launcher, loop, sweeps_common
 from svcore import study as studies
 
 router = APIRouter()
@@ -73,7 +74,7 @@ def demo_step(req: DemoReq):
         if req.action in ("next", "run"):
             demo.start_background(s, req.action, req.max_rounds)
         elif req.action == "stop":
-            demo.stop(s)
+            loop.stop(s)
         elif req.action != "reset":
             fail(400, f"Unknown demo action '{req.action}' (next, run, reset, stop).")
     except launcher.LauncherError as e:
@@ -84,3 +85,53 @@ def demo_step(req: DemoReq):
 @router.get("/api/sweeps/demo/progress")
 def demo_progress(study_path: str):
     return _progress(_demo_study(study_path))
+
+
+# ------------------------------------------------------------------ the loop for any study (owner, 2026-11-13)
+
+class LoopReq(StudyReq):
+    action: str = "run"                    # "next" (one round) | "run" (until converged) | "stop" | "reset"
+    max_rounds: Optional[int] = None
+
+
+@router.post("/api/sweeps/loop")
+def loop_step(req: LoopReq):
+    """Signal Viewer as the manager of the runs: propose -> run (your program or launcher) -> wait for the results
+    in their folder -> rank -> propose ..., in the background; poll /api/sweeps/loop/progress."""
+    if req.study is not None:
+        fail(400, "The loop runs a saved study: save it, then send study_path.")
+    s = study_of(req)
+    try:
+        if req.action in ("next", "run"):
+            loop.start_background(s, req.action, req.max_rounds)
+        elif req.action == "stop":
+            loop.stop(s)
+        elif req.action == "reset":
+            if loop.busy(s):
+                fail(409, "A round is running: stop the loop and wait for the round to finish first.")
+            loop.reset(s)
+        else:
+            fail(400, f"Unknown loop action '{req.action}' (next, run, stop, reset).")
+    except launcher.LauncherError as e:
+        fail(409, str(e))
+    return loop.progress(studies.load(s.path))
+
+
+@router.get("/api/sweeps/loop/progress")
+def loop_progress(study_path: str):
+    s = study_of(StudyReq(study_path=study_path))
+    return loop.progress(s)
+
+
+class CopyDemoReq(BaseModel):
+    study_path: str                        # the demo study (the examples' one)
+    folder: str                            # a new or empty folder
+
+
+@router.post("/api/sweeps/demo/copy")
+def demo_copy(req: CopyDemoReq):
+    """Make the demo your own: its study and program copied into a folder, ready to change and run."""
+    try:
+        return {"path": demo.copy_to(req.study_path, req.folder)}
+    except (OSError, launcher.LauncherError) as e:
+        fail(409, str(e))
