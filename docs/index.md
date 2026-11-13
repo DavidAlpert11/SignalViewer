@@ -10,8 +10,8 @@ hide:
 
 # Signal Viewer
 
-<p class="sv-tagline"><b>Offline flight log &amp; test data analysis.</b> Open a flight log, a test run or a simulation, see what went wrong, compare runs
-and write the report – offline, on your own machine, with every computation validated.</p>
+<p class="sv-tagline"><b>Find what went wrong. Prove what is right. Send the answer.</b> Flight logs, test runs, simulations
+and parameter sweeps – offline, on your own machine, with every computation validated.</p>
 
 [:material-download: Download for Windows](https://github.com/DavidAlpert11/SignalViewer/releases/latest){ .md-button .md-button--primary }
 [:material-rocket-launch: Get started](install.md){ .md-button }
@@ -23,55 +23,71 @@ and write the report – offline, on your own machine, with every computation va
 
 ![Signal Viewer, dark theme: a flight judged against its simulation - the model (the golden run) and the flight overlaid for roll and pitch, the differences with the ±3° tolerance, the cursor on the worst place, and Compare's verdict: 2 of 7 signals outside the tolerance](images/00_hero.png){ .sv-shot }
 
+## Try it in one minute
+
+Every part of the app has a demo with a known answer on the welcome screen – a flight, a flight log's
+health check, a simulation against its flight, a fault to find, a parameter sweep, the loop that picks the
+next runs, and a fleet of flights. One click each; nothing to prepare.
+
+![The welcome screen: the examples grouped by area - Recordings, Sweeps and Fleet - each with a picture of what it opens](images/38_welcome_cards.png){ .sv-shot }
+
 ## What you do with it
 
 <div class="grid cards sv-two" markdown>
 
--   :material-airplane:{ .lg } **Review a flight**
+-   :material-magnify:{ .lg } **Find what went wrong**
 
     ---
 
-    ArduPilot, PX4 and MAVLink logs open directly: flight modes, events, parameters and an
-    automatic health check (vibration, clipping, GPS, battery, EKF, motors) that points at the moment.
+    Two cursors around the moment, then **What changed?** – every signal that left its usual range, in
+    time order, the likeliest cause first, who led whom. Name the event and find every time it happened.
 
-    [:octicons-arrow-right-24: Flight logs in the guide](GUIDE.md)
+    [:octicons-arrow-right-24: Tutorial: what went wrong](investigate-tutorial.md)
 
--   :material-compare-horizontal:{ .lg } **Compare runs**
-
-    ---
-
-    Every signal two or more runs share, ranked by how different it is; automatic time alignment;
-    the same segment of each run (the 2nd AUTO of every flight); headings compared around the circle.
-
-    [:octicons-arrow-right-24: What works](features.md)
-
--   :material-chart-bell-curve:{ .lg } **Simulation against flight**
+-   :material-check-decagram:{ .lg } **Judge a run against a golden one**
 
     ---
 
-    A `.mat` or `.csv` from Simulink or Python next to the flight log: A − B, how far apart they are
-    in each flight mode, spectra, filters and coordinate frames (NED, ENU, body, ECEF, LLA).
+    A tolerance per signal, pass or fail, the worst moment and the verdict for the report – and the same
+    check in CI (`signalviewer-cli compare`, `check`, JUnit XML).
 
-    [:octicons-arrow-right-24: A worked example, start to finish](sim-vs-flight.md)
+    [:octicons-arrow-right-24: Simulation against flight, start to finish](sim-vs-flight.md)
 
--   :material-tune-variant:{ .lg } **Tune over a run envelope**
-
-    ---
-
-    A results table with a row per run: which parameter sets hold in every scenario, and which is
-    best - in four steps: the data, the columns, the goal as one table, the results (the sets and
-    every run as lines filtered as in HiPlot, charts, what to run next, the report).
-
-    [:octicons-arrow-right-24: Sweeps in What works](features.md#sweeps)
-
--   :material-check-decagram:{ .lg } **Pass / fail in CI**
+-   :material-airplane:{ .lg } **Review a flight – map, 3D, story**
 
     ---
 
-    `signalviewer-cli check` (limits, per flight mode) and `compare` (against a golden run) with exit
-    codes and JUnit XML - the same numbers as in the app.
+    ArduPilot, PX4 and MAVLink logs with an automatic health check; every object on an offline map or in 3D
+    over real terrain; **▶ Story** flies the camera to each moment that matters.
 
-    [:octicons-arrow-right-24: Checks and tolerances](command-line.md)
+    [:octicons-arrow-right-24: Offline map and 3D](maps-and-3d.md)
+
+-   :material-tune-variant:{ .lg } **Choose parameters that hold everywhere**
+
+    ---
+
+    Which parameter sets hold in every scenario, how the runs spread over each scenario, one set for several
+    systems – and **the loop** that runs your program (or your farm) until the best stops changing.
+
+    [:octicons-arrow-right-24: The smart-sweep demo](smart-sweep-demo.md)
+
+-   :material-folder-multiple:{ .lg } **Watch the whole fleet**
+
+    ---
+
+    Every flight of your folders checked the same way: which had errors, which number is growing over the
+    weeks – and open the one that needs a look.
+
+    [:octicons-arrow-right-24: Tutorial: what the Fleet is for](fleet-tutorial.md)
+
+-   :material-file-chart:{ .lg } **Send the answer**
+
+    ---
+
+    One HTML page that opens with **the process in brief** – the data, what was checked, what it shows, the
+    conclusion – then every plot, map and 3D view on one time bar. PDF and Word too.
+
+    [:octicons-arrow-right-24: Gallery](gallery.md)
 
 </div>
 
@@ -88,7 +104,8 @@ against logs from real vehicles, field by field, with their projects' own reader
     [:octicons-arrow-right-24: Validation](validation.md)
 
 -   :material-speedometer: **Performance** – multi-gigabyte recordings open in seconds; every sample
-    stays available at full resolution; display decimation keeps every spike.
+    stays available at full resolution; display decimation keeps every spike; a sweep of a million runs
+    opens with its answer in about 2 s.
     [:octicons-arrow-right-24: Performance](performance.md)
 
 -   :material-alert-circle-outline: **Known limitations** – what it does not do yet, said plainly.

@@ -737,7 +737,7 @@ body.live main{padding-bottom:88px}
 #rp-storybtn{width:auto!important;padding:0 10px;font-weight:600;white-space:nowrap}#rp-storybtn.on{background:var(--amber)!important;color:var(--amber-ink);border-color:var(--amber)!important}
 #rp-marks i.story{top:0;width:9px;height:9px;margin-left:-4.5px;border-radius:1px;transform:rotate(45deg);background:var(--amber);border:1px solid var(--panel);z-index:1}
 #rp-story{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);max-width:min(560px,92vw);display:flex;flex-direction:column;gap:3px;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-inline-start:5px solid var(--amber);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.22);z-index:6;cursor:pointer}
-#rp-story.error{border-inline-start-color:#d64545}#rp-story.warning{border-inline-start-color:#d9912b}#rp-story.note{border-inline-start-color:#4f8cff}
+#rp-story[hidden]{display:none}#rp-story.error{border-inline-start-color:#d64545}#rp-story.warning{border-inline-start-color:#d9912b}#rp-story.note{border-inline-start-color:#4f8cff}
 #rp-story b{font-size:15px;color:var(--ink-strong)}#rp-story span{font-size:14px}
 .rp-story-nav{display:flex;align-items:center;gap:8px;align-self:flex-end;color:var(--muted);font-size:12px!important}
 #rp-story button{width:26px;height:24px}
