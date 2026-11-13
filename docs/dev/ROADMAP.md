@@ -914,4 +914,4 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] W16 A calmer screen: the audit (`tools/count_controls.py`, before → after: welcome 44 → 42, plotted 118 → 116, Settings 59 → 58, Sweeps 14 → 12), the moved controls; T49 ticked (item 10 in L7), T50's hint. Done 2026-11-13.
 - [x] W13.7 Focus-visible and pressed states, card lift. Done 2026-11-13.
 - [x] W13.8 The tour. Done 2026-11-13.
-
+- [x] Owner's notes after the round (2026-11-13): the loop for any study (`svcore/loop.py`, *Run the loop*, the command / results fields), the demo explained with its real input / output and *Copy the demo to a folder*; What changed at a glance (a sentence + onset rows); the Fleet's questions, summary and first-past-the-limit; the Map story keeps a chosen camera. Done 2026-11-13.

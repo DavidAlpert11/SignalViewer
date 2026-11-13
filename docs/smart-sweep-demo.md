@@ -36,6 +36,35 @@ python -m signalviewer.study demo examples/smart_sweep_demo/demo.svstudy.json
 
 prints one line per round (runs, best, gap to the full-grid optimum) and the same sentence.
 
+## The loop – the same for your own program
+
+The demo is one case of **the loop**, which any study in *Sweeps → Common parameters* can run (*Run the loop*):
+
+1. Signal Viewer proposes the next runs (the gains to try, each with its reason);
+2. it writes one parameters file per run and starts **the command** of the study – your program on this PC
+   (*on this PC*, N runs at a time) or your farm's launcher;
+3. it **waits for the result files** to appear in the results folder (`results/{{table}}/{{run_id}}*`), reads them;
+4. it ranks every value tried so far and proposes again – until the best has not changed for two rounds, nothing
+   is left to try, or the round limit. *Stop* stops after the running round; the loop can be started again later.
+
+The panel shows the exact command, where the results are read from, the runs done / running / failed, the best so
+far, the convergence and every round.
+
+## Make it yours
+
+In the demo, *How this demo works → Copy the demo to a folder…* copies the study and `sim.py` into a new folder and
+opens it in *Common parameters*, nothing run yet. There, under **Runs**:
+
+- **The command** – one argument per line, run without a shell, e.g.
+  `python` · `{{study_dir}}/my_sim.py` · `{{params_file}}` (`{{study_dir}}` is the study's folder; the command runs in
+  the round's folder);
+- **Where it runs** – *on this PC* (how many at a time) or *your launcher / farm* (once per round with a list file,
+  or once per run);
+- **Results** – where a run's result file appears;
+- each table's **parameters file** – a template with `{{column}}` placeholders.
+
+Then *Run the loop*. If no run of a round gives a result, the loop stops and shows the end of the command's output.
+
 ## Your own program
 
 Keep the contract – read the parameters file, write one CSV row (inputs, outputs, `run_id`) where `out` says –
