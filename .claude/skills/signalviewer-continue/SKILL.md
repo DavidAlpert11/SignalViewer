@@ -56,8 +56,10 @@ python tools/quick_check.py            # tsc -b, vitest, backend pytest -x, mypy
   `export SV_CHROMIUM=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome` (the e2e fixture and the media tool
   read it); for fixtures that ignore it (`test_globe3d.py`), link the expected headless-shell folder to the
   installed one (`ln -s /opt/pw-browsers/chromium_headless_shell-1243 /opt/pw-browsers/chromium_headless_shell-<new>`).
-- Two e2e modules starting servers at the same moment both rebuild the UI: the second may fail to start ("Connection
-  refused") - run such files separately.
+- After any frontend change the first app start rebuilds the UI (`run.py` → `frontend/.local-dist`, ~1 min); an e2e
+  module's server can time out on it ("Connection refused" / URLError in every test of the file). Warm it first:
+  `timeout 120 python run.py --port 8777 --no-open --browser` (wait for "running at", then stop it), then run the e2e.
+- Never symlink `frontend/node_modules` into another worktree: its start-up runs `npm ci` and empties yours.
 - No Windows: the Portable (`SignalViewer.exe study …`) and the pywebview close prompt cannot be checked here -
   say so ("not verified"), never claim it.
 

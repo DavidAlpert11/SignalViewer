@@ -115,19 +115,11 @@ export default function SettingsDialog() {
         <div className="dialog-head"><h2>{t("settings")}</h2>
           <button className="iconbtn" autoFocus onClick={close} aria-label={t("close")}><Icon.X /></button></div>
         <div className="dialog-body settings-body">
+          <h3 className="set-group-title">{t("setGrpLook")}</h3>
           <div className="set-row"><span>{t("theme")}</span>
             {seg(theme, [["light", t("light")], ["dark", t("dark")]], (v) => useApp.setState({ theme: v }), t("theme"))}</div>
           <div className="set-row"><span>{t("hTextSize")}</span>
             {seg(uiScale, [[1, "100%"], [1.12, "112%"], [1.25, "125%"]], (v) => useApp.setState({ uiScale: v }), t("hTextSize"))}</div>
-          <div className="set-row"><span>{t("setTime")}<small>{t("setTimeHint")}</small></span>
-            {seg(timeFormat, [["seconds", t("setTimeSeconds")], ["clock", t("setTimeClock")]], (v) => useApp.setState({ timeFormat: v }), t("setTime"))}</div>
-          <div className="set-row"><span>{t("setTabChoice")}<small>{t("setTabChoiceHint")}</small></span>
-            {seg(tplTabChoice, [["ask", t("setTabChoiceAsk")], ["defaults", t("setTabChoiceDefaults")]], (v) => useApp.setState({ tplTabChoice: v }), t("setTabChoice"))}</div>
-          <div className="set-row"><span>{t("setOffline")}<small>{t(offlineForced ? "setOfflineForced" : "setOfflineHint")}</small></span>
-            {offlineForced
-              ? <span className="seg" aria-label={t("setOffline")}><button className="on" disabled aria-checked>{t("setOfflineOn")}</button></span>
-              : seg(offlineOnly ? "on" : "off", [["off", t("setOfflineOff")], ["on", t("setOfflineOn")]],
-                (v) => useApp.setState({ offlineOnly: v === "on" }), t("setOffline"))}</div>
           {/* N3: the width and style of new lines, and a button to give them to the lines already drawn */}
           <div className="set-row set-lines"><span>{t("setLines")}<small>{t("setLinesHint")}</small></span>
             <span className="set-lines-ctl">
@@ -137,15 +129,24 @@ export default function SettingsDialog() {
                 {LINE_STYLES.map((k) => <option key={k} value={k}>{t(`lineStyle_${k}` as TKey)}</option>)}</select></label>
               <button className="btn sm set-lines-apply" onClick={() => actions.applyLineDefaults()}>{t("setLinesApply")}</button>
             </span></div>
+          <h3 className="set-group-title">{t("setGrpTime")}</h3>
+          <div className="set-row"><span>{t("setTime")}<small>{t("setTimeHint")}</small></span>
+            {seg(timeFormat, [["seconds", t("setTimeSeconds")], ["clock", t("setTimeClock")]], (v) => useApp.setState({ timeFormat: v }), t("setTime"))}</div>
+                    <div className="set-row"><span>{t("setClickCursor")}<small>{t("setClickCursorHint")}</small></span>
+            {seg(clickPlacesCursor ? "on" : "off", [["on", t("setClickCursorOn")], ["off", t("setClickCursorOff")]], (v) => useApp.setState({ clickPlacesCursor: v === "on" }), t("setClickCursor"))}</div>
           <div className="set-row"><span>{t("setSmoothFollow")}<small>{t("setSmoothFollowHint")}</small></span>
             {seg(smoothFollow ? "on" : "off", [["on", t("setSmoothFollowOn")], ["off", t("setSmoothFollowOff")]], (v) => useApp.setState({ smoothFollow: v === "on" }), t("setSmoothFollow"))}</div>
-          {/* --- lane L2 --- */}
-          <div className="set-row"><span>{t("setClickCursor")}<small>{t("setClickCursorHint")}</small></span>
-            {seg(clickPlacesCursor ? "on" : "off", [["on", t("setClickCursorOn")], ["off", t("setClickCursorOff")]], (v) => useApp.setState({ clickPlacesCursor: v === "on" }), t("setClickCursor"))}</div>
-
-          {/* --- lane L6 --- */}
-          <div className="set-row"><span>{t("setAskClose")}<small>{t("setAskCloseHint")}</small></span>
+          <h3 className="set-group-title">{t("setGrpWork")}</h3>
+          <div className="set-row"><span>{t("setTabChoice")}<small>{t("setTabChoiceHint")}</small></span>
+            {seg(tplTabChoice, [["ask", t("setTabChoiceAsk")], ["defaults", t("setTabChoiceDefaults")]], (v) => useApp.setState({ tplTabChoice: v }), t("setTabChoice"))}</div>
+                    <div className="set-row"><span>{t("setAskClose")}<small>{t("setAskCloseHint")}</small></span>
             {seg(askBeforeClose ? "on" : "off", [["on", t("setAskCloseOn")], ["off", t("setAskCloseOff")]], (v) => useApp.setState({ askBeforeClose: v === "on" }), t("setAskClose"))}</div>
+          <h3 className="set-group-title">{t("setGrpNet")}</h3>
+          <div className="set-row"><span>{t("setOffline")}<small>{t(offlineForced ? "setOfflineForced" : "setOfflineHint")}</small></span>
+            {offlineForced
+              ? <span className="seg" aria-label={t("setOffline")}><button className="on" disabled aria-checked>{t("setOfflineOn")}</button></span>
+              : seg(offlineOnly ? "on" : "off", [["off", t("setOfflineOff")], ["on", t("setOfflineOn")]],
+                (v) => useApp.setState({ offlineOnly: v === "on" }), t("setOffline"))}</div>
 
           <MapSection seg={seg} />
           <p className="hint">{t("setKept")}</p>
