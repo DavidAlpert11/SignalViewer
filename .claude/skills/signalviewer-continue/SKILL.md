@@ -32,8 +32,8 @@ first**; code, comments, docs and commit messages stay in English.
 | Sweeps → Common parameters (many tables), next runs, launcher, the loop, the demo | `svcore/study.py` (the `.svstudy.json` file, schema `docs/dev/study.schema.json`), `sweeps_common.py` (W14 ranking), `sweeps_next.py` (W15 proposals), `launcher.py` + `placeholders.py` (W17), `loop.py` (the loop for any study), `demo.py` (W18: the loop + a full-grid reference), `drone_model.py`; routes `sweeps_common.py`, `sweeps_farm.py`; CLI `backend/signalviewer/study.py` (`python -m signalviewer.study ...`, also `SignalViewer.exe study ...` via `run.py`) | `components/sweeps/StudyPanel.tsx`, `LoopSection.tsx`, `DemoView.tsx`, `SpaceView.tsx`, `ConvergenceChart.tsx`; state `frontend/src/sweeps/studyStore.ts`; types `studyTypes.ts`; opening from outside `studyOpen.ts` |
 | Welcome screen, examples | `routes/fs.py` `EXAMPLE_SETS` (`/api/examples`), `examples/` | `components/Welcome.tsx`, pictures `frontend/public/examples/<id>.<theme>.webp` (made by `tools/make_readme_media.py --only examples`) |
 | Settings | `routes/system.py` (`/api/settings`) | registry `frontend/src/settings.ts`, dialog `components/SettingsDialog.tsx` |
-| i18n | – | `frontend/src/i18n/<area>.ts` (+ per-round modules `l1Welcome.ts` … `l8Calm.ts`), `en` and `he: typeof en` |
-| Styles | – | `frontend/src/index.css` (tokens incl. motion `--motion-fast/base`, `--ease-out`), per-round `frontend/src/styles/l*.css` |
+| i18n | – | `frontend/src/i18n/<area>.ts` (welcome, study = Sweeps → Common parameters, app, plots, ...), `en` and `he: typeof en` |
+| Styles | – | `frontend/src/index.css` (tokens incl. motion `--motion-fast/base`, `--ease-out`), by area `frontend/src/styles/{welcome,study,app,plots,review}.css` (loaded in that order after index.css) |
 
 ## 3. Verify a change (exact commands)
 

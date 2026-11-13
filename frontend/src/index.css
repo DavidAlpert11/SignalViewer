@@ -476,7 +476,7 @@ button.run-ftime.newer:hover { background: var(--amber); color: var(--amber-ink)
 .welcome-card > p { max-width: 480px; margin-inline: auto; }
 .welcome-card .tagline { color: var(--ink); font-size: var(--fs-xl); margin-bottom: 6px; }
 .welcome-card .examples-title { margin: 28px 0 10px; font-size: var(--fs-m); font-weight: 600; color: var(--muted); }
-/* the example cards: styles/l1.css (W1) */
+/* the example cards: styles/welcome.css (W1) */
 .welcome-card svg.trace { width: 220px; height: 64px; margin-bottom: 18px; }
 .welcome-card h1 { margin: 0 0 8px; font-size: var(--fs-4xl); font-weight: 600; color: var(--ink-strong); letter-spacing: -.01em; }
 .welcome-card p { margin: 0 0 20px; color: var(--muted); font-size: var(--fs-l); }

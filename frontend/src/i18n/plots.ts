@@ -230,6 +230,7 @@ export const en = {
   ctxNoteHere: "Note here…",
   ctxZoomBack: "Previous zoom (Backspace)",
   ctxShowAll: "Show everything (R)",
+  moreViewsBadge: "+{n} views",
 };
 
 export const he: typeof en = {
@@ -462,4 +463,5 @@ export const he: typeof en = {
   ctxNoteHere: "הערה כאן…",
   ctxZoomBack: "הזום הקודם (Backspace)",
   ctxShowAll: "הצגת הכל (R)",
+  moreViewsBadge: "+{n} תצוגות",
 };
