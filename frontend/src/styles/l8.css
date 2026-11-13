@@ -94,3 +94,7 @@
 .seg.wide.kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; }
 .seg.wide.kinds button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rplot-cap { font-size: var(--fs-s); margin-inline-start: 24px; }
+/* Settings > New lines: width, style and Apply on one tidy row (they ran together) */
+.set-lines-ctl { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--sp-2) var(--sp-3); }
+.set-lines-ctl label { display: inline-flex; align-items: center; gap: var(--sp-1_5); color: var(--muted); }
+.set-lines-ctl .set-line-width { width: 56px; }

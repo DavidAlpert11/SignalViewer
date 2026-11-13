@@ -115,17 +115,17 @@
 .dm-copy { margin-top: var(--sp-1); }
 .lp-cmd, .lp-tpl { font-family: var(--mono); font-size: var(--fs-s); }
 
-/* the Sweeps welcome: the two ways in */
-.sw-mode-name { align-self: center; color: var(--muted); font-size: var(--fs-sm); }
-.sw-mode-many { margin-top: var(--sp-5); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--amber); border-radius: var(--r-l); background: var(--amber-soft); }
-.sw-mode-many h2 { margin: 0 0 var(--sp-1); font-size: var(--fs-xl); color: var(--ink-strong); }
-.sw-mode-many .sw-welcome-actions { flex-wrap: wrap; margin-top: var(--sp-2); }
-/* the two ways in first, the sample table of "one results table" after them (it pushed the second way below the
-   fold at 1280 x 720) */
+/* the Sweeps welcome: the two ways in - two matching cards side by side (one column when narrow), then the sample */
 .sw-welcome-card { display: flex; flex-direction: column; }
 .sw-welcome-card > h1 { order: 0; } .sw-welcome-card > .tagline { order: 1; }
-.sw-welcome-card > .sw-welcome-actions { order: 2; margin-top: var(--sp-2); }
-.sw-welcome-card > .sw-mode-many { order: 3; margin-top: var(--sp-3); }
-.sw-welcome-card > .sw-sample { order: 4; margin-top: var(--sp-4); }
+.sw-welcome-card > .sw-ways { order: 2; margin-top: var(--sp-3); }
+.sw-welcome-card > .sw-sample { order: 4; margin-top: var(--sp-5); }
 .sw-welcome-card > .hint, .sw-welcome-card > .sw-error { order: 5; }
+.sw-ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--sp-3); text-align: start; }
+.sw-way { display: flex; flex-direction: column; gap: var(--sp-1); padding: var(--sp-4); background: var(--panel); border: 1px solid var(--line);
+  border-inline-start: 4px solid var(--focus); border-radius: var(--r-l); box-shadow: var(--shadow-sm); }
+.sw-way.sw-mode-many { border-inline-start-color: var(--amber); }
+.sw-way h2 { margin: 0; font-size: var(--fs-l); color: var(--ink-strong); }
+.sw-way > .hint { margin: 0; flex: 1; line-height: 1.45; }
+.sw-way .sw-welcome-actions { flex-wrap: wrap; justify-content: flex-start; margin-top: var(--sp-2); }
 .sw-welcome-card > .tagline { align-self: center; text-align: center; }

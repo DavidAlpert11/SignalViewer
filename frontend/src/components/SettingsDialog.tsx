@@ -127,7 +127,7 @@ export default function SettingsDialog() {
                 onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0.5 && v <= 6) useApp.setState({ lineWidth: v }); }} /></label>
               <label>{t("setLineStyle")} <select className="set-line-style" value={lineStyle} onChange={(e) => useApp.setState({ lineStyle: e.target.value as LineStyle })}>
                 {LINE_STYLES.map((k) => <option key={k} value={k}>{t(`lineStyle_${k}` as TKey)}</option>)}</select></label>
-              <button className="btn sm set-lines-apply" onClick={() => actions.applyLineDefaults()}>{t("setLinesApply")}</button>
+              <button className="btn sm outline set-lines-apply" onClick={() => actions.applyLineDefaults()}>{t("setLinesApply")}</button>
             </span></div>
           <h3 className="set-group-title">{t("setGrpTime")}</h3>
           <div className="set-row"><span>{t("setTime")}<small>{t("setTimeHint")}</small></span>

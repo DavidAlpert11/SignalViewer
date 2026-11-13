@@ -60,6 +60,7 @@ pictures**, a first minute that says what to do next, and a calmer screen.
   you want one (*+ caption* under a plot) instead of a box under every plot.
 - **Templates**: the *Open* button stays in sight on a small screen (the list of tabs scrolls under it).
 - A **disabled button** now looks disabled everywhere (in the dark theme an unavailable main button looked clickable).
+- **A cleaner look**: in every two-or-three-way switch the chosen option is a clear raised pill; buttons ease into their hover; the Sweeps welcome shows its two ways in as two cards side by side.
 - **Map in Hebrew**: the data box no longer covers the map bar when the bar takes more rows; the built-in views' plot titles (Map, 3D) are in Hebrew.
 - **The plot's ⋯ menu** is shorter: every way to save or export the plot (data, pictures, the page, the flight for Tacview / Google Earth) is under one *Save / export*; *Copy image* stays at the top.
 - **What changed**: with two files open, each signal in the time list says which file it comes from (the same name came twice).
