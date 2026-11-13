@@ -818,6 +818,15 @@ def img_examples(browser, app):
             try:
                 pg.evaluate(f"window.__sv.setState({{ theme: '{theme}', geoBase: 'offline' }})")   # maps: the built-in basemap
                 pg.locator(f".ex-card[data-example='{ex['id']}']").click()
+                if ex["id"] == "smartSweepDemo":                # the demo's picture: after two rounds, its chart drawn
+                    pg.wait_for_selector(".dm-strip", timeout=60000)
+                    if pg.locator(".dm-reset").is_enabled():
+                        pg.locator(".dm-reset").click()
+                        pg.wait_for_function("document.querySelector('.dm-strip').dataset.round === '0'")
+                    for k in (1, 2):
+                        pg.locator(".dm-next").click()
+                        pg.wait_for_function(f"document.querySelector('.dm-chart')?.dataset.points === '{k}' && "
+                                             "document.querySelector('[data-shot=demo]').dataset.settled === '1'", timeout=180000)
                 _ex_ready(pg, ex)
                 # texts drawn inside the plots and the map (the log's event names, object names): off for the picture
                 pg.evaluate("(() => { const s = window.__sv.state(); window.__sv.setState({ logMarkers: 'off', mapPrefs: { ...s.mapPrefs, names: 'hidden' } }); })()")
@@ -826,7 +835,8 @@ def img_examples(browser, app):
                 pg.add_style_tag(content=EX_NO_TEXT)
                 no_toasts(pg)
                 pg.mouse.move(W - 5, 5)
-                area = pg.locator("[data-shot]").first if ex.get("open") == "study" else pg.locator(".grid").first
+                # a study: its shared-values chart (the values tried, which hold, the best) - no table, no words
+                area = pg.locator("[data-shot] .cp-space-svg").first if ex.get("open") == "study" else pg.locator(".grid").first
                 size = _ex_save(area.screenshot(), os.path.join(EX_PICS, f"{ex['id']}.{theme}.webp"))
                 print("example picture", ex["id"], theme, f"{size / 1000:.1f} kB")
             except Exception as e:                          # one card failing must not stop the others

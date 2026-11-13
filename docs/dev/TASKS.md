@@ -24,6 +24,24 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   (palette, ask before closing), W7/W9/W13 (polish, motion), W16 (a calmer screen; T49 and T50 closed), W12.
   Not verified here: the Portable (`SignalViewer.exe study …`), the pywebview close prompt, a real launcher,
   W13.3 (not shipped). See the Log line of 2026-11-13 and the final report.
+- **Next (owner, 2026-11-13): a review of every area and every button** – fix bugs, remove what is not needed or
+  move it to its place, better visualization; the most modern, practical app. Method and the known rough edges:
+  `.claude/skills/signalviewer-continue/SKILL.md` §5 (screens per area light / dark, en / he; every control listed
+  with what it does and how often it is needed; one area at a time with its e2e and a recount by
+  `tools/count_controls.py`). Not started.
+- **Owner's notes after the round (2026-11-13)**, done on `sv1113/continue`: (1) **the loop for any study** –
+  `svcore/loop.py` (propose → the study's command on this PC or the farm's launcher → wait for the result files →
+  collect → rank → again, until converged / nothing left / a limit; a round with no result stops with the end of
+  the command's output), `/api/sweeps/loop` + `/progress`, the panel's *Run the loop* section and the *Runs* fields
+  (command, where, results, the parameters template); the demo is that loop plus its full-grid reference
+  (`svcore/demo.py`), it explains itself (the question, `sim.py`'s real input / output, the loop) and *Copy the demo
+  to a folder…* opens a copy as an ordinary study (`/api/sweeps/demo/copy`); tests `test_loop.py` (your own program,
+  a program that writes nothing), `tests/e2e/test_study_loop.py`. (2) **What changed at a glance**: a sentence and one
+  row per signal (onset, up / down, likelihood) above the list. (3) **The Fleet**: its questions (one click each),
+  the whole fleet at a glance with every flight on a time strip, the trend's first flight past the limit.
+  (4) **The Map story keeps a chosen camera** (Chase / On the object / Look at / Cockpit): it only moves the time.
+  Also in launcher.status: in run mode a run whose own command has ended without a result is *missing* at once
+  (it used to wait for the round's timeout).
 - **Repository size – a proposal (owner's decision; nothing moved)**: the pack is 226 MB for 383 commits.
   What each part adds to the history (all versions, on disk): `docs/media` **142 MB**, `docs/images` 46 MB,
   `backend` 19.5 MB, `frontend/dist` 10 MB, `examples` 4.8 MB. The videos and GIFs are the size, not the build.
@@ -4038,3 +4056,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-11 · 1.26 after the owner's review: the offline pages share one toolbar (camera Free / Centre / Close, object, + − ⤢, Relation, theme) and the app's relation box (`relation.js`, `mappage.css`); 3D tracks as screen-width lines with the app's looks; the app's 3D view has the relation box (pair chosen there, `Plot.relHidden`, `RelationToggle` in both bars; a third object stays in the data box); `docs/validation.md` regenerated (the version). Backend 1135 passed / 14 skipped, mypy clean, Vitest 132; e2e: test_live_report, test_globe3d (3 adapted: the picker moved into the box), test_object_relations, test_map_export, test_replay, test_less_clutter, test_map_objects, test_object_templates, test_hover_ghost - green.
 - 2026-11-11 · 1.26, the owner's "continue": `components/MapBar.tsx` - one bar for the map in 2D and 3D (camera General / On the object / Chase on a chosen object, + − fit, Relation; 2D Chase = close + track up via `trackUpOf`; 3D `zoom3d`); "Closest in" goes to the moment (app `RelationPanel`, pages `svSeek` → viewer.js `replay-seek`); pages: Trail (`svTrail`), attitude indicator (3D), the address keeps the view (`svHash`), the app's camera words. Backend 1135 passed / 14 skipped, mypy clean, Vitest 132; e2e green: test_live_report (3), test_globe3d, test_map_smooth, test_object_relations, test_less_clutter, test_map_objects, test_offline_map, test_hover_ghost, test_object_templates (one timeout in the long batch, green alone twice), test_map_export, test_replay, test_features / test_heuristics / test_object_frames / test_local_objects (-k map, mode, report, 3D).
 - 2026-11-13 · Round 2026-11-13 (W0, L1–L8, FINAL) – 1.27.0 prepared: see the status box in `docs/dev/AGENT_PROMPT_2026-11-13.md` and `docs/dev/lanes/final.md` for every check run (quick_check green: tsc, Vitest 173, backend 1263 passed / 14 skipped, mypy; the e2e files of `E2E_MAP.md`; W11's two files 10×) · next: the owner applies the patch, checks the Portable / pywebview close / a real launcher, tags v1.27.0.
+- 2026-11-13 · Owner's notes after the round (the loop for any study, the demo explained / copied, What changed at a glance, the Fleet, the story's camera), FINAL finished: quick_check green (tsc, Vitest 173, backend 1269 passed / 14 skipped, mypy); W11 10/10 for both files (after two more causes found: a test reading axes before the answer, the templates listing a save in progress); the example pictures remade (8 cards, both themes); `frontend/dist` built once, `run.py` serves it; the agent skill `.claude/skills/signalviewer-continue/SKILL.md` · next: the review of every area (owner).

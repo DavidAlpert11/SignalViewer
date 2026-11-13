@@ -327,11 +327,13 @@ def test_one_place_for_each_control(pg):
     _the_goal(pg)
     _step(pg, "results")
     pg.wait_for_selector(".pp-axis-name")
+    _idle(pg)                                     # W11: the answer (and its rank axis) in before the axes are read
     names = lambda: [x.strip() for x in pg.locator(".pp-axis-name").all_inner_texts()]
     first = names()[0]
     pg.locator(".pp-axis-name").nth(1).click()
     pg.locator(".sw-axis-menu button", has_text="Colour the lines by this").click()
     pg.keyboard.press("Escape")
+    _idle(pg)
     assert names()[1].split(" ·")[0] in pg.locator(".sw-colour-key").inner_text()
     a = pg.locator(".pp-axis-name").nth(0).bounding_box(); c = pg.locator(".pp-axis-name").nth(2).bounding_box()
     pg.mouse.move(a["x"] + a["width"] / 2, a["y"] + a["height"] / 2); pg.mouse.down()

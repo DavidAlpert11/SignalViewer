@@ -14,6 +14,11 @@ import { mapCameraNow, mapFly, mapObjectAt, type FlyTarget } from "../globeBridg
    before a moment to 2 s after, a 4 s stop on it with its card over the Map, the camera flying to the moment's
    object; Esc ends it and the reader's camera comes back; a click on the card stays there. Only the cursor and
    the camera move - nothing goes into Undo. */
+/** the plot as it is now (the story's closures outlive a render) */
+const activeTabPlot = (id: string): Plot | undefined => {
+  for (const tb of useApp.getState().ws.tabs) { const p = tb.plots.find((x) => x.id === id); if (p) return p; }
+  return undefined;
+};
 const CLOSE: Record<string, boolean> = { steepest: true, largest_error: true, takeoff: true, landing: true };
 
 export default function MapStory({ plot, objects }: { plot: Plot; objects: MapObject[] }) {
@@ -26,7 +31,14 @@ export default function MapStory({ plot, objects }: { plot: Plot; objects: MapOb
   const btn = useRef<HTMLButtonElement>(null);
   const run = useRef({ raf: 0, last: 0, pauseUntil: 0, next: 0, saved: null as FlyTarget | null, list: [] as StoryMoment[] });
   const setCursor = (v: number) => { const c = useApp.getState().cursor; useApp.setState({ cursor: { ...c, on: true, t1: v, active: 1 } }); };
+  /** The reader chose a camera that keeps to an object (On the object, Chase, Look at, Cockpit): the story only
+   *  moves the time - the camera goes on doing what was chosen (it used to fly back to a general view). */
+  const bound = () => {
+    const p = activeTabPlot(plot.id) ?? plot;
+    return !!p.followObject || p.camera === "chase" || p.camera === "lookat" || p.camera === "cockpit";
+  };
   const focus = (m: StoryMoment) => {
+    if (bound()) return;
     // after the cursor moved, the view has the object's position: fly there (On the object ~400 m, or near)
     window.setTimeout(() => {
       const id = objects.find((o) => o.name === m.object)?.id ?? pairOf(plot).primary ?? objects[0]?.id;
@@ -39,7 +51,7 @@ export default function MapStory({ plot, objects }: { plot: Plot; objects: MapOb
     cancelAnimationFrame(run.current.raf);
     setPlaying(false); setIdx(-1);
     const s = run.current.saved; run.current.saved = null;
-    if (s && !keep) mapFly.get(plot.id)?.(s);
+    if (s && !keep && !bound()) mapFly.get(plot.id)?.(s);
   };
   const ext = () => recordingExtent(useApp.getState().runs) ?? [0, 0];
   const tick = (now: number) => {

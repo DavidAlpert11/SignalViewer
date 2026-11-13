@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from signalviewer.study import main as study_cli
-from svcore import demo
+from svcore import demo, loop
 from svcore import study as S
 from svcore.drone_model import simulate
 
@@ -102,9 +102,9 @@ def test_the_reference_is_the_brute_force_optimum_of_the_fine_grid(tmp_path, mon
 
 def test_the_convergence_rule():
     p = lambda r, v: {"round": r, "runs": 10 * r, "best": 1.0, "values": v, "gap_pct": 0}
-    assert not demo.converged([p(1, {"a": 1}), p(2, {"a": 1})])
-    assert demo.converged([p(1, {"a": 2}), p(2, {"a": 1}), p(3, {"a": 1}), p(4, {"a": 1})])
-    assert not demo.converged([p(1, {"a": 1}), p(2, {"a": 1}), p(3, {"a": 2})])
+    assert not loop.converged([p(1, {"a": 1}), p(2, {"a": 1})])
+    assert loop.converged([p(1, {"a": 2}), p(2, {"a": 1}), p(3, {"a": 1}), p(4, {"a": 1})])
+    assert not loop.converged([p(1, {"a": 1}), p(2, {"a": 1}), p(3, {"a": 2})])
     prog = {"points": [{"round": 1, "runs": 768, "best": 1.5, "gap_pct": 20.0}, {"round": 2, "runs": 1008, "best": 1.24, "gap_pct": 0.2},
                        {"round": 3, "runs": 1248, "best": 1.24, "gap_pct": 0.2}],
             "tolerance_pct": 0.5, "full_grid": {"values": 9261, "runs": 111132}, "saving": 111132 / 1008}

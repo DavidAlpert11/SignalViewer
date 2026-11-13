@@ -252,6 +252,9 @@ export default function WhatChanged() {
             </div>
           )}
           {hidden.length > 0 && <button className="linklike wc-unhide" onClick={() => setHidden([])}>{t("wcHidden", { n: hidden.length })}</button>}
+          {shown.length > 0 && <Onsets t={t} lang={lang} xs={shown} base={base} span={span} order={order}
+            onRow={(id) => { const c = shownClusters.find((x) => x.ids.includes(id)); if (c) { toggleC(c.first, true);
+              window.setTimeout(() => listRef.current?.querySelector<HTMLElement>(`[data-first="${CSS.escape(c.first)}"] .wc-chead`)?.focus(), 0); } }} />}
           {chain && chain.edges.length > 0 && <Chain t={t} lang={lang} chain={chain} byId={byId} span={span}
             onNode={(c) => { toggleC(c, true); window.setTimeout(() => listRef.current?.querySelector<HTMLElement>(`[data-first="${CSS.escape(c)}"] .wc-chead`)?.focus(), 0); }} />}
           <ol className="wc-list wc-clusters" ref={listRef} onKeyDown={onListKey}>
@@ -329,6 +332,52 @@ export default function WhatChanged() {
         </>
       )}
     </section>
+  );
+}
+
+/** Owner (2026-11-13): the answer at a glance, before any list - a sentence, then one row per signal (the most
+ *  telling first, at most ONSET_ROWS): a dot where it left its usual range, a bar to the end of the span (red:
+ *  it rose, blue: it fell), fainter when it is less likely to matter; the span shaded, 0 = its start. A click
+ *  on a row opens its group in the list below. */
+const ONSET_ROWS = 18;
+function Onsets({ t, lang, xs, span, order, onRow }: { t: ReturnType<typeof useT>; lang: Lang; xs: FirstChange[];
+  base: [number, number] | null; span: { a: number; b: number }; order: "likely" | "time"; onRow: (id: string) => void }) {
+  const timed = xs.filter((x) => x.t !== undefined && !x.isEvent);
+  const top = (order === "likely" ? [...timed].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)) : timed).slice(0, ONSET_ROWS)
+    .sort((a, b) => (a.t! - b.t!));
+  if (!top.length) return null;
+  const first = [...timed].sort((a, b) => a.t! - b.t!)[0];
+  const likely = [...timed].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
+  // the time axis spans where the changes are (and the span's start), not the quiet baseline before them
+  const lo0 = Math.min(span.a, ...top.map((x) => x.t!)), hi = span.b;
+  const lo = lo0 - (hi - lo0) * 0.04;
+  const pct = (v: number) => `${(100 * (v - lo)) / (hi - lo || 1)}%`;
+  const rel = (v: number) => (v - span.a >= 0 ? "+" : "") + fmtNum(v - span.a, lang, 3);
+  return (
+    <figure className="wc-onsets" aria-label={t("wcOnsets")} data-rows={top.length}>
+      <figcaption className="wc-sum">{t("wcSummary", { n: timed.length, first: first.name, at: rel(first.t!), likely: likely.name })}</figcaption>
+      <div className="wc-ohead"><span>{t("wcOnsets")}</span></div>
+      <ol className="wc-orows">
+        {top.map((x) => {
+          const a = 0.35 + 0.65 * Math.max(0, Math.min(1, x.score ?? 0.5));
+          return (
+            <li key={x.id}>
+              <button className="wc-orow" onClick={() => onRow(x.id)}
+                title={`${x.name} · ${rel(x.t!)} s · ${x.up ? t("wcUp") : t("wcDown")}${x.score !== undefined ? ` · ${Math.round(x.score * 100)}` : ""}`}>
+                <bdi className="wc-oname" dir="ltr">{x.name}</bdi>
+                <span className="wc-otrack">
+                  <i className="wc-ospan" style={{ insetInlineStart: pct(span.a), width: `calc(100% - ${pct(span.a)})` }} />
+                  <i className={`wc-obar ${x.up ? "up" : "down"}`} style={{ insetInlineStart: pct(x.t!), width: `calc(100% - ${pct(x.t!)})`, opacity: a }} />
+                  <i className={`wc-odot ${x.up ? "up" : "down"}`} style={{ insetInlineStart: pct(x.t!), opacity: a }} />
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <div className="wc-oaxis" dir="ltr"><span>{rel(lo)} s</span><span style={{ insetInlineStart: pct(span.a) }}>0</span><span>{rel(hi)} s</span></div>
+      {timed.length > top.length && <p className="hint">{t("wcOnsetsMore", { n: top.length, m: timed.length })}</p>}
+    </figure>
   );
 }
 

@@ -34,3 +34,41 @@
 .tour-dots i.on { background: var(--amber); }
 @keyframes sv-tour-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .tour-ring, .tour-card { animation: none; } }
+
+/* What changed (owner, 2026-11-13): the answer at a glance - a sentence, then one row per signal: a dot where it
+   left its usual range, a bar to the end of the span (red rose, blue fell), fainter when less likely to matter.
+   Time runs left to right in both languages (the track is LTR). */
+.wc-onsets { margin: var(--sp-2) 0; padding: var(--sp-2); border: 1px solid var(--line); border-radius: var(--r-m); background: var(--panel-2); }
+.wc-sum { margin: 0 0 var(--sp-2); color: var(--ink); font-size: var(--fs-sm); line-height: 1.4; }
+.wc-ohead { font-size: var(--fs-xs); color: var(--muted); margin-bottom: 2px; }
+.wc-orows { list-style: none; margin: 0; padding: 0; }
+.wc-orow { display: grid; grid-template-columns: minmax(0, 44%) minmax(0, 1fr); align-items: center; gap: var(--sp-1_5); width: 100%;
+  padding: 1px 2px; border: 0; background: none; color: var(--ink); font: inherit; text-align: start; cursor: pointer; border-radius: var(--r-s); }
+.wc-orow:hover { background: var(--amber-soft); }
+.wc-oname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: var(--fs-xs); text-align: end; }
+.wc-otrack { position: relative; height: 14px; direction: ltr; }
+.wc-otrack i { position: absolute; display: block; }
+.wc-ospan { top: 0; bottom: 0; background: var(--amber-soft); }
+.wc-obar { top: 5px; height: 4px; border-radius: 2px; }
+.wc-odot { top: 2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; }
+.wc-obar.up, .wc-odot.up { background: var(--danger); }
+.wc-obar.down, .wc-odot.down { background: var(--focus); }
+.wc-oaxis { position: relative; display: flex; justify-content: space-between; margin-inline-start: calc(44% + var(--sp-1_5)); height: 14px;
+  font-size: var(--fs-2xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.wc-oaxis span:nth-child(2) { position: absolute; transform: translateX(-50%); }
+
+/* Fleet (owner, 2026-11-13): the questions it answers, the fleet at a glance, the trend's verdict */
+.fleet-questions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1_5); margin-bottom: var(--sp-2); }
+.fleet-questions .chipbtn.on { border-color: var(--amber); color: var(--ink-strong); background: var(--amber-soft); }
+.fleet-summary { border: 1px solid var(--line); border-radius: var(--r-l); background: var(--panel); padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-2); }
+.fleet-tiles { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); }
+.fleet-tiles span { display: flex; align-items: baseline; gap: var(--sp-1); color: var(--muted); font-size: var(--fs-sm); }
+.fleet-tiles b { font-size: var(--fs-2xl); color: var(--ink-strong); font-variant-numeric: tabular-nums; }
+.fleet-tiles .err b { color: var(--danger); } .fleet-tiles .warn b { color: var(--amber); }
+.fleet-strip { position: relative; height: 22px; margin: var(--sp-2) 6px 0; border-bottom: 1px solid var(--line); }
+.fleet-dot { position: absolute; top: 5px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; border: 2px solid var(--panel); padding: 0; cursor: pointer; }
+.fleet-dot.ok { background: var(--ok); } .fleet-dot.warn { background: var(--amber); } .fleet-dot.err { background: var(--danger); }
+.fleet-dot:hover, .fleet-dot:focus-visible { transform: scale(1.3); }
+.fleet-trend-axis { display: flex; justify-content: space-between; font-size: var(--fs-2xs); margin: 2px 6px 0; }
+.fleet-first { margin: var(--sp-1) 0 0; font-size: var(--fs-sm); color: var(--ink); }
+.fleet-dot.out { opacity: .25; }   /* not an answer to the question asked */

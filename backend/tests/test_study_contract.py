@@ -86,12 +86,12 @@ def test_study_matches_its_schema():
 def test_route_shapes(method, url, fixture, body, tmp_path):
     if body == "launcher":                                        # a study with a launcher block and a round (L4)
         import shutil
-        from svcore import demo
+        from svcore import loop
         src = os.path.join(ROOT, "examples", "smart_sweep_demo")
         for f in ("demo.svstudy.json", "sim.py"):
             shutil.copy(os.path.join(src, f), tmp_path / f)
         s = S.load(str(tmp_path / "demo.svstudy.json"))
-        demo.start_round(s)
+        loop.start_round(s)
         body = {"study_path": s.path, "dry_run": True} if method == "post" else {"study_path": s.path}
     if body is None:                                              # the demo routes: the demo's own study
         demo = os.path.join(ROOT, "examples", "smart_sweep_demo", "demo.svstudy.json")

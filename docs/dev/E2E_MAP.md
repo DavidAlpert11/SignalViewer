@@ -48,3 +48,6 @@ inside your lane's block.
 - `tests/e2e/test_settings.py`, `test_file_help_menus.py`, `test_less_clutter.py` – Settings fold, Help menu entry, moved controls: run them (L8)
 
 <!-- lane FINAL -->
+- `tests/e2e/test_study_loop.py` – the loop from the app, the demo explained / copied (owner's notes 2026-11-13)
+- `tests/e2e/test_round_1112.py` – `test_story_keeps_a_chosen_camera` (owner's notes 2026-11-13)
+- `tests/e2e/test_fleet.py`, `test_what_changed.py` – the Fleet summary / questions, What changed at a glance (run them)
