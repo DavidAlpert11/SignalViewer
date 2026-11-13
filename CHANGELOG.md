@@ -2,10 +2,7 @@
 
 ## 1.27.0 – 2026-11-13
 
-Highlights: **one set of parameters for many systems** – give several sweep tables (three drones, say) and get
-the gains that hold for all of them, the next runs that improve the choice, and the loop on your own farm
-launcher; **the smart-sweep demo** shows it converge on your PC against the whole grid; **a welcome screen with
-pictures**, a first minute that says what to do next, and a calmer screen.
+Highlights: **a demo for every part of the app** on the welcome screen, grouped by area; **one set of parameters for many systems** – the gains that hold for all of them, the next runs, and **the loop** that runs your program or your farm until it converges (the smart-sweep demo shows it against the whole grid); **Sweeps fast on a million runs**; **every report opens with the process in brief**; and a cleaner, calmer screen.
 
 ### Welcome
 - **The examples show what they are**: each card has a picture of the example's view (light and dark, the same
@@ -51,6 +48,19 @@ pictures**, a first minute that says what to do next, and a calmer screen.
 - Command line: `python -m signalviewer.study rank | next | status | submit | wait | loop | demo | demo-sim`,
   also `SignalViewer.exe study …` from the Portable. Example data: `examples/drones/`, `examples/smart_sweep_demo/`.
 
+- **Sweeps → All runs** shows each scenario column as an axis, after the parameters - how the runs spread over every scenario.
+- **Sweeps**: with Common parameters open, the status line shows the study and how many values hold (it said *No table open*).
+### A demo for every area
+- **A demo for every area**: the welcome screen's examples are grouped by area, with two new ones - *a sweep: which settings hold* (opens on its answer) and *a fleet of flights* (opens on the copter whose vibration grows).
+- **README and the documentation site** rewritten: a demo for every part, what it does for you with pictures, and how fast it is on big data.
+
+### Faster on big data, with the same results
+- **Sweeps is faster on big tables**: on a million runs, opening with the answer takes half the time (4.1 → 1.9 s), and switching between *Parameter sets* and *All runs* no longer works the answer out again (0.75 → 0.2 s back, 1.3 → 0.6 s to All runs). *All runs* draws a sample of 50,000 that keeps a run of every set.
+
+### Reports that explain themselves
+- **Every report opens with *The process in brief***: the data, what was checked (the log's own check, Compare's verdict, the investigation), what the report shows and the conclusion - and the Report panel says when no conclusion is written yet.
+- **The live HTML page**: the Story card no longer shows, empty, over the plots before *Story* is pressed.
+
 ### Polish
 - **No dead ends**: the Sweeps welcome offers both ways in – one results table, or several systems that must share
   one set of parameters (the demo, the three-drones example, a new or saved study); Compare with one file offers
@@ -64,14 +74,7 @@ pictures**, a first minute that says what to do next, and a calmer screen.
 - **Map in Hebrew**: the data box no longer covers the map bar when the bar takes more rows; the built-in views' plot titles (Map, 3D) are in Hebrew.
 - **The plot's ⋯ menu** is shorter: every way to save or export the plot (data, pictures, the page, the flight for Tacview / Google Earth) is under one *Save / export*; *Copy image* stays at the top.
 - **What changed**: with two files open, each signal in the time list says which file it comes from (the same name came twice).
-- **The live HTML page**: the Story card no longer shows, empty, over the plots before *Story* is pressed.
-- **README and the documentation site** rewritten: a demo for every part, what it does for you with pictures, and how fast it is on big data.
-- **Every report opens with *The process in brief***: the data, what was checked (the log's own check, Compare's verdict, the investigation), what the report shows and the conclusion - and the Report panel says when no conclusion is written yet.
-- **Sweeps → All runs** shows each scenario column as an axis, after the parameters - how the runs spread over every scenario.
-- **Sweeps is faster on big tables**: on a million runs, opening with the answer takes half the time (4.1 → 1.9 s), and switching between *Parameter sets* and *All runs* no longer works the answer out again (0.75 → 0.2 s back, 1.3 → 0.6 s to All runs). *All runs* draws a sample of 50,000 that keeps a run of every set.
-- **A demo for every area**: the welcome screen's examples are grouped by area, with two new ones - *a sweep: which settings hold* (opens on its answer) and *a fleet of flights* (opens on the copter whose vibration grows).
 - **Fleet**: the trend chart shows its values - the lowest, the highest and the limit beside its line.
-- **Sweeps**: with Common parameters open, the status line shows the study and how many values hold (it said *No table open*).
 - **Command palette (Ctrl+K)**: when something matches what you typed, only those results show - no more far-fetched letter matches mixed in.
 - **Settings in groups**: Look, Time and cursor, Working, Network, then Map and objects and Storage.
 - **Calmer maps**: a Map or 3D plot that is not the one being used keeps only + / − / fit; its camera, story and
