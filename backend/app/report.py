@@ -508,6 +508,11 @@ def _sections_html(sections: List[Dict]) -> str:
     return "".join(out)
 
 
+def _process_first(sections: List[Dict]) -> List[Dict]:
+    """The process in brief (kind "process", sent by the app) opens the report, before the story and the rest."""
+    return [x for x in sections if x.get("kind") == "process"] + [x for x in sections if x.get("kind") != "process"]
+
+
 def _section_lines(sec: Dict) -> List[str]:
     """A section as plain lines (PDF): text, bullets, then the table as aligned rows."""
     lines = [x for x in str(sec.get("text") or "").split("\n")]
@@ -581,7 +586,7 @@ def build_html(store, req: Dict, progress=None) -> str:
     title = html.escape(req.get("title") or "Signal Viewer report")
     data_json = json.dumps(payload, separators=(",", ":")).replace("</", "<\\/")
     intro = '<p class="text">%s</p>' % html.escape(req["intro"]) if req.get("intro") else ""
-    intro += _sections_html(req.get("sections") or [])
+    intro += _sections_html(_process_first(req.get("sections") or []))
     summary = '<h2>%s</h2><p class="text">%s</p>' % (S["summary"], html.escape(req["summary"])) if req.get("summary") else ""
     summary += _notes_html(req.get("notes") or [], S)
     return TEMPLATE.format(
@@ -946,7 +951,7 @@ def build_pdf(store, req: Dict, path: str, progress=None):
     ha, X = ("right", 0.9) if rtl else ("left", 0.1)
     ink, muted = "#0f1822", "#5a6979"
     story_secs, story_pics = _story_parts(store, req)              # P10: the flight in N moments
-    req = {**req, "sections": story_secs + list(req.get("sections") or [])}
+    req = {**req, "sections": _process_first(story_secs + list(req.get("sections") or []))}
     items = _collect(store, req, progress)
     title = req.get("title") or "Signal Viewer report"
     total = 1 + len(items) + (1 if req.get("summary") or req.get("notes") else 0) + len(req.get("sections") or []) + (1 if story_pics else 0)
@@ -1070,7 +1075,7 @@ def build_docx(store, req: Dict, path: str, progress=None):
         return par
 
     story_secs, story_pics = _story_parts(store, req)              # P10: the flight in N moments
-    req = {**req, "sections": story_secs + list(req.get("sections") or [])}
+    req = {**req, "sections": _process_first(story_secs + list(req.get("sections") or []))}
     rtlize(doc.add_heading(req.get("title") or "Signal Viewer report", 0))
     rtlize(doc.add_paragraph(f"{S['generated']} {datetime.now().strftime('%Y-%m-%d %H:%M')}"))
     for para in (req.get("intro") or "").split("\n"):

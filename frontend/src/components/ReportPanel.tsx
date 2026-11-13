@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { actions, activeTab, pickPath, rangeKey, useApp, type ReportMeta } from "../store";
 import { investigationSections } from "../investigation";
+import { processSection } from "../reportProcess";
 import { translate, useT } from "../i18n";
 import { pagePlots, plotSpec } from "../plotSpec";
 import { runJob } from "../files";
@@ -48,6 +49,7 @@ export default function ReportPanel() {
       path, format, title: meta.title, intro: meta.intro, summary: meta.summary, lang: meta.lang, theme: meta.theme,
       notes: notes.filter((n) => !n.status || !withInvestigation).map((n) => ({ t: n.t, ...(n.t2 !== undefined ? { t2: n.t2 } : {}), text: n.text })),
       sections: [
+        processSection(meta.lang, meta, tabSpecs, withVerdict, withInvestigation),   // the key points first (owner, 2026-11-13)
         ...(withVerdict ? [{ title: meta.verdict!.title, items: meta.verdict!.summary, table: { head: meta.verdict!.head, rows: meta.verdict!.rows } }] : []),
         ...(withInvestigation ? await investigationSections(meta.lang) : []),
       ],
@@ -58,7 +60,7 @@ export default function ReportPanel() {
   };
   const preview = async () => {
     const body = await buildBody("html", "");
-    if (!body.tabs.length && !body.sections.length) { useApp.getState().toast({ kind: "error", text: t("reportEmpty") }); return; }
+    if (!body.tabs.length && body.sections.length <= 1) { useApp.getState().toast({ kind: "error", text: t("reportEmpty") }); return; }
     setBusy("preview");
     try { useApp.setState({ reportPreviewHtml: (await api.reportPreview(body)).html }); }
     catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
@@ -72,7 +74,7 @@ export default function ReportPanel() {
     setBusy(format);
     try {
       const body = await buildBody(format, path);
-      if (!body.tabs.length && !body.sections.length) throw new Error(t("reportEmpty"));
+      if (!body.tabs.length && body.sections.length <= 1) throw new Error(t("reportEmpty"));
       const r = await runJob<{ path: string }>("report", body, translate(lang, "creatingReport"));
       if (r) useApp.getState().toast({ kind: "info", text: translate(lang, "savedTo", { path: r.path }) });
     } catch (e) {
@@ -146,6 +148,7 @@ export default function ReportPanel() {
 
         <label className="afield" style={{ marginTop: 12 }}><span>{t("summary")}</span>
           <textarea key={"s" + meta.summary} rows={3} defaultValue={meta.summary} onBlur={(e) => e.target.value !== meta.summary && setMeta({ summary: e.target.value })} /></label>
+        {!(meta.summary ?? "").trim() && <p className="hint r-noconclusion">{t("rpNoConclusionHint")}</p>}
 
         <div className="arow">
           <button className="btn outline" style={{ flex: "0 0 auto" }} disabled={!!busy} onClick={preview}>{busy === "preview" ? t("loading") : t("reportPreview")}</button>

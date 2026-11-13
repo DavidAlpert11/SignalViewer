@@ -60,6 +60,7 @@ pictures**, a first minute that says what to do next, and a calmer screen.
   you want one (*+ caption* under a plot) instead of a box under every plot.
 - **Templates**: the *Open* button stays in sight on a small screen (the list of tabs scrolls under it).
 - A **disabled button** now looks disabled everywhere (in the dark theme an unavailable main button looked clickable).
+- **Every report opens with *The process in brief***: the data, what was checked (the log's own check, Compare's verdict, the investigation), what the report shows and the conclusion - and the Report panel says when no conclusion is written yet.
 - **Sweeps is faster on big tables**: on a million runs, opening with the answer takes half the time (4.1 → 1.9 s), and switching between *Parameter sets* and *All runs* no longer works the answer out again (0.75 → 0.2 s back, 1.3 → 0.6 s to All runs). *All runs* draws a sample of 50,000 that keeps a run of every set.
 - **A demo for every area**: the welcome screen's examples are grouped by area, with two new ones - *a sweep: which settings hold* (opens on its answer) and *a fleet of flights* (opens on the copter whose vibration grows).
 - **Fleet**: the trend chart shows its values - the lowest, the highest and the limit beside its line.
