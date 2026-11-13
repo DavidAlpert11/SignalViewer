@@ -271,9 +271,9 @@ def test_the_wow_in_the_3d_page(env, tmp_path):
         s = w()
         assert s["cockpit"] and s["fov"] == 70 and s["display"]
         page.click("#disp")
-        assert not w()["display"]
+        page.wait_for_function("!window.__scene.state.wow.display")              # the next frame shows it (no sleep)
         page.click("#errs")
-        assert not w()["errorSurface"]["shown"]
+        page.wait_for_function("!window.__scene.state.wow.errorSurface.shown")
         b.close()
 
 
