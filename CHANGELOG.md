@@ -52,6 +52,10 @@ pictures**, a first minute that says what to do next, and a calmer screen.
   also `SignalViewer.exe study …` from the Portable. Example data: `examples/drones/`, `examples/smart_sweep_demo/`.
 
 ### Polish
+- **No dead ends**: the Sweeps welcome offers both ways in – one results table, or several systems that must share
+  one set of parameters (the demo, the three-drones example, a new or saved study); Compare with one file offers
+  to open another or to compare inside this file; Investigate says how to start (two cursors around the moment,
+  then *What changed between the cursors?*). Ctrl+Z / Ctrl+Y undo the study in *Common parameters*.
 - **What changed, at a glance**: a sentence (how many signals changed, the first, the likeliest to matter) and
   one row per signal – when it left its usual range, up or down, how likely – above the detailed list.
 - **The Fleet says what it is for**: the questions it answers (which flights had errors, is vibration growing,
