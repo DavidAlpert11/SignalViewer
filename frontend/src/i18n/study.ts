@@ -1,4 +1,5 @@
-/* L5 Sweeps panel (W14, W15, W17, W18): the texts of this lane of the 2026-11-13 round (W0). */
+/* Sweeps -> Common parameters: the study of several tables, the next runs, the launcher, the loop and the
+   smart-sweep demo - English and Hebrew. */
 export const en = {
   swModeOne: "One results table",
   swModeOneHint: "A row per run - which settings hold in every scenario, the best of them, and why the others fail.",

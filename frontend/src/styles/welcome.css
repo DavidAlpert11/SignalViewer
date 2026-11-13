@@ -29,3 +29,23 @@
 .welcome-card .examples-group { margin-top: var(--sp-4); text-align: start; }
 .welcome-card .examples-group-title { margin: 0 0 var(--sp-2); font-size: var(--fs-s); font-weight: 600; color: var(--ink-strong); }
 .welcome-card .examples-group-title .hint { font-weight: 400; }
+/* Lane L2 of the 2026-11-13 round: its own rules (W0). Tokens from index.css only. */
+
+/* W3: the empty plot's suggestions - its sentence, the chips that fit, the library; clickable (the plain
+   .plot-empty lets the mouse through to the plot) */
+.plot-empty.plot-empty-start { pointer-events: auto; align-content: center; gap: var(--sp-2); }
+.plot-empty-start p { margin: 0; max-width: 34em; color: var(--muted); font-size: var(--fs-m); }
+.plot-empty-start .tpl-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-1_5); }
+.plot-empty-start .tpl-chips .chipbtn { font-size: var(--fs-m); padding: 4px 12px; }
+
+/* W4: the start card's next step */
+.start-next { margin: 0 0 var(--sp-2); color: var(--ink); font-size: var(--fs-sm); }
+.start-next .linklike { font-weight: 600; }
+
+/* W13.5: empty states - one sentence and one action, never a dead end */
+.empty-state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); padding: 12px 14px; color: var(--muted); }
+.empty-state p { margin: 0; }
+.health .empty-state { padding-inline: 0; }
+
+/* W6: the status bar's sentence keeps its numbers in the tooltip */
+.status-points[data-reduced="1"] { cursor: help; text-decoration: underline dotted; text-underline-offset: 3px; }

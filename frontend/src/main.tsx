@@ -4,12 +4,12 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 // W0 (2026-11-13): one stylesheet per lane of the round, after the global one - a line each
-import "./styles/l1.css";
-import "./styles/l2.css";
-import "./styles/l5.css";
-import "./styles/l6.css";
-import "./styles/l7.css";
-import "./styles/l8.css";
+// by area, after index.css (the same order as before: welcome, Sweeps' study, app, plots, the review's touches)
+import "./styles/welcome.css";
+import "./styles/study.css";
+import "./styles/app.css";
+import "./styles/plots.css";
+import "./styles/review.css";
 import App from "./App";
 import { useApp } from "./store";
 import { installErrorReporting } from "./errorReport";
