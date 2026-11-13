@@ -337,16 +337,21 @@ function SweepsWelcome() {
           </div>
           <p className="hint">{t("swSampleNote")}</p>
         </div>
+        {/* the two ways in as two matching cards, side by side (review 2026-11-13: a clear choice) */}
+        <div className="sw-ways">
+        <div className="sw-way sw-mode-one">
+          <h2>{t("swModeOne")}</h2>
+          <p className="hint">{t("swModeOneHint")}</p>
         <div className="sw-welcome-actions">
-          <span className="sw-mode-name">{t("swModeOne")}</span>
           <button className="btn primary" disabled={busy} onClick={() => openTable(t("swOpenTable"))}><Icon.Open /> {t("swOpenTable")}</button>
           {/* W16: a folder and a saved study are opened from Open ▾ (and the palette) - one way in here */}
           <button className="btn outline" disabled={busy} onClick={example}>{t("swTryExample")}</button>
           <button className="btn outline" disabled={busy} onClick={() => merged().catch(notifyError)}>{t("swTryMerged")}</button>
         </div>
+        </div>
         {/* owner (2026-11-13): the other way in - several systems that must share one set of parameters, the
             next runs, the loop that runs them; and the demo that shows it converge */}
-        <div className="sw-mode-many" data-testid="sweeps-many">
+        <div className="sw-way sw-mode-many" data-testid="sweeps-many">
           <h2>{t("swModeMany")}</h2>
           <p className="hint">{t("swModeManyHint")}</p>
           <div className="sw-welcome-actions">
@@ -355,6 +360,7 @@ function SweepsWelcome() {
             <button className="btn outline" onClick={newStudy}>{t("cpNew")}</button>
             <button className="btn outline" onClick={() => { void openStudyDialog(t); }}>{t("cpOpen")}</button>
           </div>
+        </div>
         </div>
         {busy && <p className="hint">{restoring ? t("swReopening") : t("swReading")}</p>}
         {error && <p className="sw-error" role="alert">{error}</p>}
