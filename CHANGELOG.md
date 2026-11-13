@@ -59,6 +59,8 @@ pictures**, a first minute that says what to do next, and a calmer screen.
 - **Create signals** shows its six kinds as an even 3 × 2 grid; **the Report panel** asks for a caption only when
   you want one (*+ caption* under a plot) instead of a box under every plot.
 - **Templates**: the *Open* button stays in sight on a small screen (the list of tabs scrolls under it).
+- A **disabled button** now looks disabled everywhere (in the dark theme an unavailable main button looked clickable).
+- **Sweeps**: with Common parameters open, the status line shows the study and how many values hold (it said *No table open*).
 - **Command palette (Ctrl+K)**: when something matches what you typed, only those results show - no more far-fetched letter matches mixed in.
 - **Settings in groups**: Look, Time and cursor, Working, Network, then Map and objects and Storage.
 - **Calmer maps**: a Map or 3D plot that is not the one being used keeps only + / − / fit; its camera, story and

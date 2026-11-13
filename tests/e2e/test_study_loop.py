@@ -31,7 +31,7 @@ def test_a_copy_of_the_demo_runs_the_loop(pg):
     lp = pg.locator(".lp")
     lp.wait_for()
     assert "demo-sim" in lp.locator(".lp-what code").first.inner_text()            # the exact command shown
-    assert "Nothing has run yet" in pg.locator(".cp-main").inner_text()
+    pg.locator(".cp-main", has_text="Nothing has run yet").wait_for()               # after the table is read (it raced "Reading the table...")
     lp.locator(".lp-next").click()
     pg.wait_for_function("document.querySelector('.lp')?.dataset.points === '1' && document.querySelector('.lp').dataset.state !== 'running'",
                          timeout=180000)

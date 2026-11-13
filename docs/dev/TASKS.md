@@ -32,8 +32,10 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   too). R6 the Hebrew pass (the Sweeps welcome reordered: both ways in above the fold); R7 Settings grouped (Look, Time and cursor, Working, Network). R4 Create signals' kinds in an even grid (as tabs, aria-selected); R5 the Report's captions on demand. R8 the template library, Help, the Inspector, the Log seen light / he at
   1280×720: the library's Open bar now stays in sight (it was below the fold); the rest showed no fault. R9 the timeline bar, the top bar at 1024 px (en / he) and
   the command palette: the palette listed loose letter matches next to exact ones ("roll" -> "Open a template or
-  collection"); now exact matches only when there are any (`fuzzy.tieredSort`). Next: R10 the Sweeps single table and
-  Common parameters as one entry (SKILL.md §5's rough edge), the Fleet at 1280.
+  collection"); now exact matches only when there are any (`fuzzy.tieredSort`). R10 Sweeps: the welcome already gives the two ways in
+  (no merge needed); a disabled button now looks disabled everywhere (there was no `.btn:disabled` style - a disabled
+  primary looked active); the status line names the open study (it said "No table open"). Next: R11 the Fleet at
+  1280, the Recordings plot head menu (…), the file panel's row actions.
 - **Next (owner, 2026-11-13): a review of every area and every button** – fix bugs, remove what is not needed or
   move it to its place, better visualization; the most modern, practical app. Method and the known rough edges:
   `.claude/skills/signalviewer-continue/SKILL.md` §5 (screens per area light / dark, en / he; every control listed
@@ -4069,3 +4071,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-13 · Owner's notes after the round (the loop for any study, the demo explained / copied, What changed at a glance, the Fleet, the story's camera), FINAL finished: quick_check green (tsc, Vitest 173, backend 1269 passed / 14 skipped, mypy); W11 10/10 for both files (after two more causes found: a test reading axes before the answer, the templates listing a save in progress); the example pictures remade (8 cards, both themes); `frontend/dist` built once, `run.py` serves it; the agent skill `.claude/skills/signalviewer-continue/SKILL.md` · next: the review of every area (owner).
 - 2026-11-13 · Review R8: template library / Help / Inspector / Log screened (light, he, 1280×720); the library's actions stick to the bottom of its detail pane. e2e: test_templates_recent_badfiles, test_template_tabs, test_object_templates - green.
 - 2026-11-13 · Review R9: timeline / top bar at 1024 px en+he showed no fault; the palette's matching tiered (`tieredSort`, `fuzzy.test.ts`). Vitest + tsc green; e2e: calm_screen, compare_similar, move_plots_tabs, object_relations, plot_style, unsaved_close, workflows, sweeps_flow, features -k palette - green.
+- 2026-11-13 · Review R10: `.btn:disabled` / `.iconbtn:disabled` styled app-wide; Sweeps status line for a study (`swStatusStudy*`); `test_study_loop` waited on text (it raced the table reading). tsc green; e2e: the 7 sweeps / study files (53), test_features, test_workflows, test_first_minute, test_settings* (161) - green.
