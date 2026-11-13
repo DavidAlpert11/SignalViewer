@@ -329,6 +329,7 @@ def test_log_events_on_the_track_and_image(g3multi):
     # picture then goes to the folder the dialog is still in (the likely cause of the owner's run).
     out = os.path.join(tempfile.mkdtemp(prefix="sv_g3_"), "g3_view_test.png")
     pg.locator(".plot:has(.globe3d) .plot-more").click()                      # 26.U3: in the plot's ⋯ menu
+    pg.locator(".menu.ctx button", has_text="Save / export").hover()             # review: in its Save / export submenu
     pg.locator(".menu.ctx button", has_text="high resolution").click()          # twice the pixels, for a report
     pg.wait_for_selector(".dialog-foot input")
     pg.locator(".dialog-foot input").fill(out)

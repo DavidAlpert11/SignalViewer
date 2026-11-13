@@ -228,7 +228,7 @@ def test_export_the_objects_for_tacview(pg):
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.some((p) => (p.mode === 'geo' || p.mode === '3d') && (p.objects ?? []).length === 3)")
     i = S(pg, "s.ws.tabs[0].plots.findIndex((p) => (p.mode === 'geo' || p.mode === '3d'))")
     pg.locator(".plot-more").nth(i).click()
-    pg.locator(".menu.ctx button", has_text="Export the flight").hover()                # P1: one submenu
+    pg.locator(".menu.ctx button", has_text="Save / export").hover()   # review: in Save / export                # P1: one submenu
     menu_item(pg, "Tacview (.acmi)…")
     pg.wait_for_selector(".dialog:has(.savename) .crumbs input")                      # the picker has loaded its folder
     save_as(pg, "flight")

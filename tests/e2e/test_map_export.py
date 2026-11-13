@@ -23,6 +23,8 @@ def test_html_map_works_offline(pg, tmp_path):
     # the map's ⋯ menu has the map's own picture and page
     geo = pg.locator(".plot", has=pg.locator(".plot-canvas.geo")).first
     geo.locator(".plot-more").click()
+    pg.locator(".menu.ctx button", has_text="Save / export").hover()              # review: one submenu for saving / exporting
+    pg.wait_for_selector(".menu.ctx button:has-text('this view')")
     items = pg.locator(".menu.ctx button").all_inner_texts()
     assert any("this view" in x for x in items) and any("fit all tracks" in x for x in items) and any("Save as HTML" in x for x in items)
     pg.keyboard.press("Escape")

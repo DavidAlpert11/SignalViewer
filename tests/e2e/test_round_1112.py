@@ -26,7 +26,7 @@ def _map(pg):
 
 def _submenu(pg, i, label):
     pg.locator(".plot-more").nth(i).click()
-    pg.locator(".menu.ctx button", has_text="Export the flight").hover()
+    pg.locator(".menu.ctx button", has_text="Save / export").hover()   # review: in Save / export
     menu_item(pg, label)
     pg.wait_for_selector(".dialog .crumbs input")                                     # the picker has loaded its folder
 
