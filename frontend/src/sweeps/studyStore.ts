@@ -4,7 +4,7 @@
    now (unsaved edits included), relative paths read against the saved file's folder. */
 import { create } from "zustand";
 import { studyApi } from "./studyApi";
-import type { CommonResult, DemoProgress, LauncherStatusResult, LauncherSubmitResult, NextRunsResult, Study, StudyReq } from "./studyTypes";
+import type { CommonResult, DemoProgress, LoopProgress, LauncherStatusResult, LauncherSubmitResult, NextRunsResult, Study, StudyReq } from "./studyTypes";
 
 export interface StudyPanelState {
   open: boolean;
@@ -19,13 +19,14 @@ export interface StudyPanelState {
   submit: LauncherSubmitResult | null;
   status: LauncherStatusResult | null;
   demoProgress: DemoProgress | null;
+  loopProgress: LoopProgress | null;
   pinned: number | null;              // the ranked row opened
   busy: boolean;
   error: string;
 }
 
 const EMPTY: StudyPanelState = { open: false, demo: false, path: "", study: null, saved: "", past: [], future: [], result: null, next: null,
-  submit: null, status: null, demoProgress: null, pinned: null, busy: false, error: "" };
+  submit: null, status: null, demoProgress: null, loopProgress: null, pinned: null, busy: false, error: "" };
 
 export const useStudyPanel = create<StudyPanelState>(() => ({ ...EMPTY }));
 const set = useStudyPanel.setState;
@@ -53,7 +54,7 @@ export async function openStudyFile(path: string, demo = false): Promise<void> {
     const { path: p, study } = await studyApi.open(path);
     set({ path: p, study, saved: JSON.stringify(study), busy: false });
     if (demo) set({ demoProgress: await studyApi.demoProgress(p) });
-    else await evaluate();
+    else { await evaluate(); await refreshLoop(); if (get().loopProgress?.running) pollLoop(); }
   } catch (e) { set({ busy: false, error: (e as Error).message }); }
 }
 
@@ -145,7 +146,41 @@ function pollDemo(): void {
   }, 400);
 }
 
+/** The loop (any study with a launcher command): Next round / Run until converged / Stop / Reset, polled while
+ *  it runs; the answer and the study (its history) follow each finished round. */
+let loopPoll = 0;
+export async function loopAction(action: "next" | "run" | "stop" | "reset"): Promise<void> {
+  set({ error: "" });
+  try {
+    if ((action === "next" || action === "run") && (isUnsaved() || !get().path)) throw new Error("save");
+    set({ loopProgress: await studyApi.loop(get().path, action) });
+    if (action !== "reset") pollLoop();
+  } catch (e) { if ((e as Error).message !== "save") set({ error: (e as Error).message }); else throw e; }
+}
+export async function refreshLoop(): Promise<void> {
+  if (!get().path || get().demo) return;
+  try { set({ loopProgress: await studyApi.loopProgress(get().path) }); } catch { /* a study never run: nothing to show */ }
+}
+function pollLoop(): void {
+  window.clearTimeout(loopPoll);
+  loopPoll = window.setTimeout(async () => {
+    try {
+      const before = get().loopProgress?.points.length ?? 0;
+      const p = await studyApi.loopProgress(get().path);
+      set({ loopProgress: p });
+      if (p.points.length !== before) {                     // a round finished: its results are in the ranking now
+        const { study } = await studyApi.open(get().path);
+        set({ study, saved: JSON.stringify(study) });
+        void evaluate();
+      }
+      if (p.running) pollLoop();
+      else if (p.error) set({ error: p.error });
+    } catch (e) { set({ error: (e as Error).message }); }
+  }, 600);
+}
+
 export function closePanel(): void {
+  window.clearTimeout(loopPoll);
   window.clearTimeout(polling);
   window.clearTimeout(demoPoll);
   set({ ...EMPTY });

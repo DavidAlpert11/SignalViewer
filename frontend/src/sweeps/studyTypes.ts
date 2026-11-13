@@ -77,13 +77,20 @@ export interface LauncherStatusResult {
 }
 
 // ------------------------------------------------------------------ W18 demo
-export interface DemoProgress {
+/** The loop of any study (svcore/loop.py progress()): rounds so far, the runs now, the best, every value tried. */
+export interface LoopProgress {
   study: string; round: number; running: boolean; converged: boolean; exhausted: boolean;
+  state: "" | "running" | "converged" | "exhausted" | "stopped" | "error"; error: string;
   runs: { done: number; running: number; failed: number };
   points: { round: number; runs: number; best: number | null; gap_pct: number | null }[];
   best: { values: Values; score: number } | null;
+  tried: { values: Values; round: number; feasible: boolean; state?: RunState }[];
+  axes: string[];
+  launcher: { command: string[]; mode: "run" | "round"; local_workers: number | null; results: string };
+}
+/** The demo: the loop's progress plus the full grid's reference. */
+export interface DemoProgress extends LoopProgress {
   optimum: { values: Values; score: number };
   full_grid: { values: number; runs: number };
-  tried: { values: Values; round: number; feasible: boolean }[];
-  axes: string[]; saving: number | null; tolerance_pct: number; seconds: number;
+  saving: number | null; tolerance_pct: number; seconds: number;
 }
