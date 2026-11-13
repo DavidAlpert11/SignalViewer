@@ -242,7 +242,7 @@ function Trend({ points, limit, label, lang, onPick, op }: {
   return (
     <figure className="fleet-trend" aria-label={label}>
       <figcaption className="muted">{label}</figcaption>
-      <div dir="ltr"><svg viewBox={`0 0 ${W} ${H}`} role="img">
+      <div dir="ltr"><svg viewBox={`0 0 ${W} ${H}`} role="img" fontSize={8}>
         {[y0, y1].filter((v, i, a) => a.indexOf(v) === i && (limit === null || Math.abs(Y(v) - Y(limit)) > 9)).map((v) => (
           <text key={v} className="fleet-ytick" x={L - 5} y={Y(v) + 3} textAnchor="end">{fmtVal(v)}</text>))}
         {limit !== null && Number.isFinite(limit) && <>
