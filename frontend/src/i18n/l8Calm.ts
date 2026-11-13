@@ -1,5 +1,9 @@
 /* L8 Calm screen (W16, W13.7, W13.8): the texts of this lane of the 2026-11-13 round (W0). */
 export const en = {
+  setGrpLook: "Look",
+  setGrpTime: "Time and cursor",
+  setGrpWork: "Working",
+  setGrpNet: "Network",
   // T50: plots too short to read
   tooManyPlots: "Too many plots for this window to read them.",
   tooManyPlotsSolo: "Show one at a time (M)",
@@ -19,6 +23,10 @@ export const en = {
 };
 
 export const he: typeof en = {
+  setGrpLook: "מראה",
+  setGrpTime: "זמן וסמן",
+  setGrpWork: "עבודה",
+  setGrpNet: "רשת",
   tooManyPlots: "יותר מדי גרפים לחלון הזה כדי לקרוא אותם.",
   tooManyPlotsSolo: "הצג אחד בכל פעם (M)",
   menuTour: "סיור (30 שניות)",

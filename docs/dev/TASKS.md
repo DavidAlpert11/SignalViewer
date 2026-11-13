@@ -29,7 +29,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   Investigate before a span – each with its next action; R3 the Map / 3D bars (only + − fit on a map plot that is
   not being used; the hint / badge / data box overlaps fixed; e2e: the map files all pass - `test_live_report` hovers
   the Map first; `test_round_1112::test_the_wow_in_the_3d_page` now waits on the page's state - it failed on `main`
-  too). Next, in order: R4 the Create signals tabs (seven modes in two rows); R5 the Report
+  too). R6 the Hebrew pass (the Sweeps welcome reordered: both ways in above the fold); R7 Settings grouped (Look, Time and cursor, Working, Network). Next, in order: R4 the Create signals tabs (seven modes in two rows); R5 the Report
   panel (a long form: fold the per-plot captions); R6 Hebrew pass of the new panels at 1280×720; R7 the remaining
   areas of SKILL.md §5.
 - **Next (owner, 2026-11-13): a review of every area and every button** – fix bugs, remove what is not needed or
