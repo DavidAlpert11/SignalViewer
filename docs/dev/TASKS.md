@@ -36,7 +36,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   (no merge needed); a disabled button now looks disabled everywhere (there was no `.btn:disabled` style - a disabled
   primary looked active); the status line names the open study (it said "No table open"). R11 the Fleet trend got its values
   (low / high / the limit beside its line - it had no y axis); the plot's … menu and the file row's menu showed no fault.
-  Next: R12 the side panels in Hebrew at 1280 (Compare, Investigate, Report), the Map bar in Hebrew.
+  R12 Compare / Investigate / Report in Hebrew at 1280: no fault. Next: R13 the plot's … menu (six export lines at
+  its top - an Export ▸ submenu would shorten it; e2e click those items by text, update them), the Map bar in Hebrew.
 - **Next (owner, 2026-11-13): a review of every area and every button** – fix bugs, remove what is not needed or
   move it to its place, better visualization; the most modern, practical app. Method and the known rough edges:
   `.claude/skills/signalviewer-continue/SKILL.md` §5 (screens per area light / dark, en / he; every control listed
@@ -4074,3 +4075,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-13 · Review R9: timeline / top bar at 1024 px en+he showed no fault; the palette's matching tiered (`tieredSort`, `fuzzy.test.ts`). Vitest + tsc green; e2e: calm_screen, compare_similar, move_plots_tabs, object_relations, plot_style, unsaved_close, workflows, sweeps_flow, features -k palette - green.
 - 2026-11-13 · Review R10: `.btn:disabled` / `.iconbtn:disabled` styled app-wide; Sweeps status line for a study (`swStatusStudy*`); `test_study_loop` waited on text (it raced the table reading). tsc green; e2e: the 7 sweeps / study files (53), test_features, test_workflows, test_first_minute, test_settings* (161) - green.
 - 2026-11-13 · Review R11: the Fleet trend's value column (`fleet-ytick`); tsc green; e2e: test_fleet, test_owner_notes_1_20 and the round files touching the Fleet - green.
+- 2026-11-13 · Review R12 + checks: the Fleet tick size moved to the SVG (the CSS type-scale test); quick_check all green (tsc, Vitest, backend, mypy); `frontend/dist` rebuilt.
