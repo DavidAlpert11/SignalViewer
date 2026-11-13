@@ -91,6 +91,18 @@ place, give each area a better visualization; the most modern and practical app.
 3. Change one area at a time, with its e2e files (update selectors, never weaken assertions) and a recount.
 4. Report to the owner in Hebrew with before / after screenshots.
 
+Done so far (2026-11-13, R1-R13 and the owner's notes - see TASKS.md Log): every area reviewed once; a demo per
+area on the welcome screen (grouped Recordings / Sweeps / Fleet; `areaExample.ts` hands a card to its lazy area;
+`examples/sweeps/drone_tuning.svsweep` = a table with its question); every report opens with *The process in
+brief* (`reportProcess.ts`); Sweeps fast on 1M runs (the answer reused across Parameter sets / All runs, a
+50k sample keeping every set, mark arrays instead of np.unique); All runs shows the scenario axes; the plot
+menu's *Save / export* submenu; README + site home rewritten. Measure speed with a big table (a 1M-row CSV
+made with numpy, the sweep card pointed at it - see the Log) before and after a change.
+
+Next: the Compare panel and the Create-signals panel at 1280 in Hebrew; the Sweeps single table's left column
+(long); the welcome's Fleet picture (cropped by 16:9); `test_less_clutter::test_what_does_not_apply_is_hidden`
+(fails on main in the sandbox: the 3D view).
+
 Known rough edges to look at first: the Sweeps single-table area and Common parameters are two panels with
 related ideas (consider one entry with two modes); `Ctrl+Z` in Common parameters does not reach the study's own
 Undo; the 3D view's frame rate on a real GPU is unmeasured; W13.3 (smooth zoom easing) was not shipped.
