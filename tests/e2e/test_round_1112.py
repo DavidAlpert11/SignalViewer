@@ -299,6 +299,7 @@ def test_story_in_the_live_page(env, tmp_path):
         fr = next(f for f in page.frames if f != page.main_frame)                 # the 3D view's page (a sandboxed frame)
         fr.wait_for_function("window.__scene && window.__scene.state.gl")
         cam0 = fr.evaluate("window.__scene.state.cam")
+        assert not page.locator("#rp-story").is_visible()                       # 2026-11-13: it showed (as an empty box) before Story
         page.click("#rp-storybtn")
         page.wait_for_selector("#rp-story:not([hidden])", timeout=30000)
         st = page.evaluate("window.__replay.story")

@@ -60,6 +60,9 @@ pictures**, a first minute that says what to do next, and a calmer screen.
   you want one (*+ caption* under a plot) instead of a box under every plot.
 - **Templates**: the *Open* button stays in sight on a small screen (the list of tabs scrolls under it).
 - A **disabled button** now looks disabled everywhere (in the dark theme an unavailable main button looked clickable).
+- **What changed**: with two files open, each signal in the time list says which file it comes from (the same name came twice).
+- **The live HTML page**: the Story card no longer shows, empty, over the plots before *Story* is pressed.
+- **README and the documentation site** rewritten: a demo for every part, what it does for you with pictures, and how fast it is on big data.
 - **Every report opens with *The process in brief***: the data, what was checked (the log's own check, Compare's verdict, the investigation), what the report shows and the conclusion - and the Report panel says when no conclusion is written yet.
 - **Sweeps → All runs** shows each scenario column as an axis, after the parameters - how the runs spread over every scenario.
 - **Sweeps is faster on big tables**: on a million runs, opening with the answer takes half the time (4.1 → 1.9 s), and switching between *Parameter sets* and *All runs* no longer works the answer out again (0.75 → 0.2 s back, 1.3 → 0.6 s to All runs). *All runs* draws a sample of 50,000 that keeps a run of every set.

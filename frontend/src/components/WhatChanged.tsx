@@ -342,7 +342,16 @@ export default function WhatChanged() {
 const ONSET_ROWS = 18;
 function Onsets({ t, lang, xs, span, order, onRow }: { t: ReturnType<typeof useT>; lang: Lang; xs: FirstChange[];
   base: [number, number] | null; span: { a: number; b: number }; order: "likely" | "time"; onRow: (id: string) => void }) {
+  const runs = useApp((st) => st.runs);
   const timed = xs.filter((x) => x.t !== undefined && !x.isEvent);
+  // two files open: the same name comes twice - each row says its file (its tag, as on the legend)
+  const ridOf = (x: FirstChange) => x.id.slice(0, x.id.indexOf("/"));
+  const multi = new Set(timed.map(ridOf)).size > 1;
+  const label = (x: FirstChange) => {
+    if (!multi) return x.name;
+    const r = runs.find((y) => y.id === ridOf(x));
+    return `${r?.tag || fileLabel(runs, ridOf(x))} · ${x.name}`;
+  };
   const top = (order === "likely" ? [...timed].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)) : timed).slice(0, ONSET_ROWS)
     .sort((a, b) => (a.t! - b.t!));
   if (!top.length) return null;
@@ -355,7 +364,7 @@ function Onsets({ t, lang, xs, span, order, onRow }: { t: ReturnType<typeof useT
   const rel = (v: number) => (v - span.a >= 0 ? "+" : "") + fmtNum(v - span.a, lang, 3);
   return (
     <figure className="wc-onsets" aria-label={t("wcOnsets")} data-rows={top.length}>
-      <figcaption className="wc-sum">{t("wcSummary", { n: timed.length, first: first.name, at: rel(first.t!), likely: likely.name })}</figcaption>
+      <figcaption className="wc-sum">{t("wcSummary", { n: timed.length, first: label(first), at: rel(first.t!), likely: label(likely) })}</figcaption>
       <div className="wc-ohead"><span>{t("wcOnsets")}</span></div>
       <ol className="wc-orows">
         {top.map((x) => {
@@ -363,8 +372,8 @@ function Onsets({ t, lang, xs, span, order, onRow }: { t: ReturnType<typeof useT
           return (
             <li key={x.id}>
               <button className="wc-orow" onClick={() => onRow(x.id)}
-                title={`${x.name} · ${rel(x.t!)} s · ${x.up ? t("wcUp") : t("wcDown")}${x.score !== undefined ? ` · ${Math.round(x.score * 100)}` : ""}`}>
-                <bdi className="wc-oname" dir="ltr">{x.name}</bdi>
+                title={`${label(x)} · ${rel(x.t!)} s · ${x.up ? t("wcUp") : t("wcDown")}${x.score !== undefined ? ` · ${Math.round(x.score * 100)}` : ""}`}>
+                <bdi className="wc-oname" dir="ltr">{label(x)}</bdi>
                 <span className="wc-otrack">
                   <i className="wc-ospan" style={{ insetInlineStart: pct(span.a), width: `calc(100% - ${pct(span.a)})` }} />
                   <i className={`wc-obar ${x.up ? "up" : "down"}`} style={{ insetInlineStart: pct(x.t!), width: `calc(100% - ${pct(x.t!)})`, opacity: a }} />
@@ -375,7 +384,7 @@ function Onsets({ t, lang, xs, span, order, onRow }: { t: ReturnType<typeof useT
           );
         })}
       </ol>
-      <div className="wc-oaxis" dir="ltr"><span>{rel(lo)} s</span><span style={{ insetInlineStart: pct(span.a) }}>0</span><span>{rel(hi)} s</span></div>
+      <div className="wc-oaxis" dir="ltr"><span>{rel(lo)} s</span>{(span.a - lo) / (hi - lo || 1) > 0.15 && <span style={{ insetInlineStart: pct(span.a) }}>0</span>}<span>{rel(hi)} s</span></div>
       {timed.length > top.length && <p className="hint">{t("wcOnsetsMore", { n: top.length, m: timed.length })}</p>}
     </figure>
   );
