@@ -13,6 +13,20 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+- **Lane board – redesign round 2026-11-14** (plan §7.0; each lane edits only its own block; S1 = A3 + A4 on `main`).
+  <!-- lane L1 -->
+  - **L1 Look** – todo · next: A1 · tasks A1 A2 A3 A4 D11 D12 D13 · requests from other lanes: –
+  <!-- lane L2 -->
+  - **L2 Sweeps** – todo · next: C1 (no UI until S1) · tasks C1–C11, B7 · requests: –
+  <!-- lane L3 -->
+  - **L3 Plots and the frame** – todo · next: waits for S1 (B1) · tasks B1–B5, D1, D2, D8 (+ F2's legend when L5 has it) · requests: –
+  <!-- lane L4 -->
+  - **L4 Map** – todo · next: M2 (backend) · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
+  <!-- lane L5 -->
+  - **L5 Analysis and new capabilities** – todo · next: F3 (backend) · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: –
+  <!-- lane Final -->
+  - **Final** – waits for every lane · E1 E2 E4, the full checks, E3 the version
+  <!-- end of the lane board -->
 - **Redesign round (owner, 2026-11-14) – PLAN APPROVED (every recommendation of §8); no product code changed yet. Next: A1.**
   **Any agent continues with `docs/dev/REDESIGN_PROMPT.md`** (stage-independent: it finds the next task from this file,
   the roadmap and the commits). Order: A → C → B → M → D → E → F. Phase M (the map, §3.7, added at the owner's request):
@@ -4125,3 +4139,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-14 · Owner: the map should look as good as ArduDeck's (roads) while staying offline-first – plan §3.7 + Phase M (M1–M5), the map mock-up shows the background picker; and a prompt any AI agent can continue from at any stage: `docs/dev/REDESIGN_PROMPT.md`. No product code changed. Next: A1.
 - 2026-11-14 · Owner: Chase vs On the object unclear – checked the code (four overlapping camera controls), plan M6 + mock-up `map-cameras.html`; and another agent may have no GitHub rights – `REDESIGN_PROMPT.md` now hands over a patch against the current `main` by default (fetch, rebase, format-patch, checked with `git am` on a clean worktree – the commands tried here). No product code changed. Next: A1.
 - 2026-11-14 · Owner: a new agent must notice when its tokens are about to run out and stop in time – `REDESIGN_PROMPT.md` §7 (always commit + hand over per task; the signs: ~75 % of the meter, compaction, limit warnings, 80 % of a given budget; how to stop; a HAND-OVER block at the top of Current state, read first by the next agent). No product code changed. Next: A1.
+- 2026-11-14 · Owner: plan the work so it runs fast, several agents in parallel; per task only the relevant tests, the full checks once at the end before the version update. Plan §7.0 (five lanes owning their files, one sync point S1, lane blocks in shared files, the test table, a Final lane), `REDESIGN_PROMPT.md` (lanes, checks, Final), the lane board above, CLAUDE.md's e2e and dist rules updated by the owner's instruction, lane blocks opened in CHANGELOG / E2E_MAP. No product code changed.

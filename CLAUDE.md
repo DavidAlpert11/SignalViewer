@@ -48,7 +48,8 @@ when you stop in the middle of a task.
 - `cd backend && python -m pytest -q` — all green.
 - `cd backend && mypy --config-file ../pyproject.toml app svcore signalviewer` — clean (T36; no per-module
   overrides since T36b - narrow the Optional, do not silence the module).
-- `cd frontend && npx tsc -b && npm run build` — no errors (the build updates `frontend/dist`).
+- `cd frontend && npx tsc -b` — no errors. `npm run build` (it updates the committed `frontend/dist`) only once at the
+  end of a round - never in a parallel lane: every lane's build would conflict (owner, 2026-11-14).
 - `cd frontend && npm test` — the frontend's unit tests (Vitest, `src/**/*.test.ts`: store / undo, session
   migration, pairing, colours...) - all green; add one when you change frontend logic that has no screen.
 - Add or update a test for any backend behaviour you change; e2e (`tests/e2e`, Playwright)
@@ -56,8 +57,9 @@ when you stop in the middle of a task.
 - e2e while developing (owner, 2026-11-07): after each task run **only the e2e files relevant to the
   change** (the files / `-k` filters that touch what you changed - and when the change alters what is on
   screen by default, also the files of the views that lose or gain space). Run the **whole** suite
-  (`python -m pytest -q tests/e2e`, ~9 min) at the end of each task group (TASKS.md marks the groups) and
-  at the end of a round of work, and say in the Log which e2e ran. (Why the space rule: T08 - the
+  (`python -m pytest -q tests/e2e`, ~30 min) **once, at the end of a round, before the version is updated** (owner,
+  2026-11-14: the full checks take time - per task only the relevant tests; `tools/quick_check.py` before handing work
+  over), and say in the Log which e2e ran. (Why the space rule: T08 - the
   Inspector starting closed - made the 3D view wider; a 3D test that clicked two fixed places on the
   globe broke and was only found three tasks later.) CI is unchanged: manual (`[ci]`), full run before a release.
 - Update `CHANGELOG.md` (user-facing wording) and the task notes in `ROADMAP.md`.

@@ -1,6 +1,6 @@
 # Prompt – continue the redesign (any stage, any AI agent)
 
-Give this file to any AI coding agent (Claude Code, Codex, Cursor, Copilot, Gemini, …) on a clone of this repository
+Give this file to any AI coding agent – one agent, or one per lane (*"… You are lane L2."*) – (Claude Code, Codex, Cursor, Copilot, Gemini, …) on a clone of this repository
 (`git clone https://github.com/DavidAlpert11/SignalViewer`):
 *"Read `docs/dev/REDESIGN_PROMPT.md` and do it."* It is written so the agent finds by itself where the work stopped and
 continues from there, one task at a time, the same way at every stage. Nothing in it depends on one agent's tools.
@@ -40,15 +40,26 @@ patch and a hand-over note for the next agent (§7).**
    browser; each page switches dark / light, EN / HE). The app before the redesign: `docs/dev/mockups/before/`.
 7. If you are Claude Code: also load the skill `.claude/skills/signalviewer-continue/SKILL.md` (paths, sandbox quirks).
 
-## 3. Find where you are
+## 3. Find where you are – your lane, your next task
 
-- The **order of phases** is fixed: **A → C → B → M → D → E → F** (§7 of the plan; F: F3, F1, F2, F5 first, then F4, F6;
-  F7 and F8 only if the owner asks).
-- The **next task** is the first task of that order that is not done. A task is done when its line in `TASKS.md` says
-  *done* and a commit with its id exists. If `TASKS.md` says a task was **stopped in the middle**, continue it from the
-  note it left (do not start it over); check the working tree (`git status`) for unfinished changes first.
-- If `TASKS.md` and the commits disagree, trust the code: read the task's *Done when* and check it.
-- If the owner gave you a different instruction in his message, it overrides this order.
+The work is split into **five lanes that run in parallel**, each one agent, each **owning its files**, plus a **Final**
+lane after them (plan §7.0 – read it: the lanes table, the sync point S1, the shared files' lane blocks, the test policy).
+
+- **If the owner named a lane** ("You are lane L3"): do only that lane's tasks, in its order, and edit **only the files
+  it owns** – plus your own lane block in the shared files (`TASKS.md`, `ROADMAP.md`, `E2E_MAP.md`, `CHANGELOG.md`,
+  `settings.ts`, `i18n/index.ts`, `store/state.ts`). Need a file another lane owns? Do not edit it: write the request
+  under that lane in `TASKS.md` and go on. Need a new design token? Ask L1 the same way; meanwhile use the nearest token
+  with a `TODO(L1 token)` comment.
+- **If no lane was named**: you are the only agent – take the next task in the one-agent order **A → C → B → M → D → E →
+  F** (F: F3, F1, F2, F5, then F4, F6; F7 / F8 only if the owner asks).
+- **The Final lane** starts only when every lane's board line says *done* and its patches are on `main`.
+- **Sync point S1** (A3 + A4 on `main`): until it is there, lanes L2–L5 do only their tasks without UI (backend, logic,
+  tests) – the lanes table says which. Check `git log origin/main` for A3 / A4.
+- Your **next task** = the first task of your lane (or of the order) not done. Done = its line in `TASKS.md` says *done*
+  and a commit with its id is on `main` or in your unapplied patch. A **HAND-OVER** block for your lane comes first: start
+  from its *Next step*. Check `git status` for unfinished work.
+- If `TASKS.md` and the commits disagree, trust the code: check the task's *Done when*.
+- The owner's message overrides all of this.
 
 ## 4. Set up (once per machine)
 
@@ -71,14 +82,19 @@ python tools/quick_check.py                # the baseline must be green before y
 2. **Pictures before** (if the screen changes): `python tools/plan_screens.py --out docs/dev/mockups/<task>/before`.
 3. **Change** the code – only what the task needs. New strings in both languages. New CSS uses tokens. Saved files stay
    readable by the previous version and old files open.
-4. **Check**:
-   - `python tools/quick_check.py` – tsc, Vitest, backend pytest, mypy – all green.
+4. **Check – only what is relevant** (the owner: the full checks take time; they run once, at the end, before the
+   version update):
+   - `cd frontend && npx tsc -b`; the Vitest files of what changed (`npx vitest run src/<path>`).
+   - The backend tests of the modules you changed (`cd backend && python -m pytest -q tests/test_<x>.py`) and
+     `mypy --config-file ../pyproject.toml <the changed modules>`.
    - Add or update tests: a backend test for backend behaviour, Vitest for frontend logic without a screen, e2e for UI
      flows. e2e tests wait on state (`window.__sv.state()`, `window.__svSweeps`, `data-*` attributes), **never on a sleep**.
-   - Run **only the e2e files of the task** (plan §7, `E2E_MAP.md`) – and, if the change alters what is on screen by
-     default, also the files of the views that gain or lose space: `python -m pytest -q tests/e2e/test_<x>.py`.
-     Update a selector when a control moved; **never weaken an assertion**.
+   - **Only the e2e files of the task** (plan §7 tables, `E2E_MAP.md`) – and, if what is on screen by default changes, also
+     the files of the views that gain or lose space: `python -m pytest -q tests/e2e/test_<x>.py`. Update a selector when a
+     control moved; **never weaken an assertion**.
    - Where speed matters (Sweeps on a million runs, the plots' `test_perf_budget`), measure before and after.
+   - **Not** the whole backend suite, **not** the whole e2e suite. Before each patch / push only: `python
+     tools/quick_check.py` (~5 min).
 5. **Pictures after** (`.../<task>/after`), dark / light, en / he for anything visible; `python tools/count_controls.py`
    when controls moved (no screen may end with more controls than before).
 6. **Write it down** (same commit): `TASKS.md` (the task's status, "Current state", one Log line: date, task, what ran
@@ -96,7 +112,7 @@ python tools/quick_check.py                # the baseline must be green before y
    ```bash
    git fetch origin main                       # the current state of the repository (it is public: no rights needed)
    git rebase origin/main                      # your commits on top of it; resolve conflicts, re-run quick_check
-   git format-patch origin/main --stdout > <out>/signalviewer_$(date +%Y-%m-%d_%H%M)_<task-ids>.patch
+   git format-patch origin/main --stdout > <out>/signalviewer_$(date +%Y-%m-%d_%H%M)_<lane>_<task-ids>.patch
    git worktree add ../sv-check origin/main
 git -C ../sv-check -c user.name=check -c user.email=check@localhost am < <that patch>   # must apply cleanly
 git worktree remove --force ../sv-check
@@ -105,7 +121,7 @@ git worktree remove --force ../sv-check
    - The patch holds **every commit not yet on `main`** – also those of earlier patches the owner has not applied yet. So
      the newest patch is always the only one he needs; say so, and never ask him to apply two on top of each other.
    - `<out>`: the folder the owner named; otherwise a folder **outside** the repository (e.g. `../signalviewer_patches/`).
-     Never commit a patch file into the repository.
+     Never commit a patch file into the repository. Never commit `frontend/dist` from a lane (only the Final builds it).
    - If the network is closed and `git fetch` fails: ask the owner for the current `main` commit (or a fresh copy of the
      repository) before exporting; until then export against the last `main` you know and write its commit id in the
      file name and in your report (`…_base-1a2b3c4.patch`).
@@ -116,13 +132,17 @@ git worktree remove --force ../sv-check
    `git -c user.name="David Alpert" -c user.email="davidalpert11@gmail.com" commit --author="<agent> <email>" …`, then
    `git pull --rebase origin main && git push origin HEAD:main`. Never force-push. If the push is refused, fall back to (a).
 
-## 6. The end of a phase
+## 6. The end of a lane – and the Final
 
-- Run the **whole e2e suite** (`python -m pytest -q tests/e2e`, ~30 min; in the background; clean `/tmp/pytest-of-*`
-  between big runs on a small disk). Fix what it finds.
-- Build the UI once: `cd frontend && npm run build` (updates the committed `frontend/dist`).
-- **Report to the owner in Hebrew**: what changed (the outcome first), before / after pictures, what was checked and
-  passed, what was not checked, what is next. Then continue with the next phase unless he said to wait.
+- **End of a lane:** run the union of the lane's e2e files once (not the whole suite), `quick_check`, export the lane's
+  patch, set the lane's board line in `TASKS.md` to *done*, and **report to the owner in Hebrew**: what changed (the
+  outcome first), before / after pictures, what was checked and passed, what was not.
+- **The Final lane (one agent, after every lane is on `main`)** – the only time the full checks run, **before the version
+  is updated**: E1 pictures, E2 guides / features / CHANGELOG, E4 the test-bench example; then the **whole e2e suite**
+  (`python -m pytest -q tests/e2e`, ~30 min, in the background; clean `/tmp/pytest-of-*` between big runs on a small disk),
+  `quick_check`, the 1M-run Sweeps measure, `test_perf_budget`, `mkdocs build --strict`; fix what they find; then E3 – the
+  version (`backend/app/version.py`, `requirements.txt` per `pyproject.toml`'s note), `python tools/make_validation_doc.py`,
+  `cd frontend && npm run build` (the committed `frontend/dist`). Report in Hebrew. The owner tags.
 
 ## 7. Stop in time – before the tokens or the context run out
 
@@ -156,9 +176,10 @@ stop on purpose before it happens.
    *"Read `docs/dev/REDESIGN_PROMPT.md` and do it."* (The next agent needs nothing else: this file sends it to the
    hand-over block.)
 
-**The hand-over block** (top of "Current state" in `TASKS.md`; the next agent reads it first):
+**The hand-over block** (in your lane's block of the lane board in `TASKS.md`, or at the top of "Current state" when
+working alone; the next agent reads it first):
 ```
-- HAND-OVER <date time> (<agent>): stopped because <budget / context / error / done>.
+- HAND-OVER <date time> (<agent>, lane <Lx or one agent>): stopped because <budget / context / error / done>.
   Last finished task: <id> (commit <sha>, in patch <file> / on main).
   In progress: <id> – done: <…>; not done: <…>; uncommitted / stashed: <none | what>.
   Next step, exactly: <the first thing to do>.
