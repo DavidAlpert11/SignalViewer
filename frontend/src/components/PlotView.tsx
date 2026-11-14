@@ -647,6 +647,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
         <button className="iconbtn plot-more" aria-haspopup="menu" aria-label={t("plotMenu")} title={t("plotMenu")}
           onClick={openPlotMenu}><Icon.More /></button>
       </header>
+      {/* B3: the tab's mode band comes here in the top time plot (TabBand puts it in) */}
+      <div className="band-slot" />
       <div className={`plot-body${legendAt === "side" ? " with-legend" : ""}`} onContextMenu={onPlotContext}>
         <PlotBoundary label={t("plotFailed")} retry={t("tryAgain")} resetKey={`${mode}|${plot.signals.map((x) => x.sig).join(",")}|${plot.xSignal ?? ""}`}>
           {mode === "time" && <TimeChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}

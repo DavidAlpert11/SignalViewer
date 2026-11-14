@@ -13,6 +13,8 @@ const KEYS = [
   "askBeforeClose",
   // --- lane L8 ---
 
+  // --- lane L3 ---
+  "bandInCard",
 ] as const;
 type Key = (typeof KEYS)[number];
 
@@ -34,6 +36,8 @@ const VALID: Record<Key, (v: unknown) => boolean> = {
   askBeforeClose: (v) => typeof v === "boolean",
   // --- lane L8 ---
 
+  // --- lane L3 ---
+  bandInCard: (v) => typeof v === "boolean",
 };
 
 /** True when the user has chosen this setting (a session file then leaves it alone). */

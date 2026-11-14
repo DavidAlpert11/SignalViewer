@@ -18,6 +18,8 @@ export interface ViewSlice {
    *  operation with several outputs (the three axes of a frame conversion). */
   preview: { plotId: string; lines: PreviewLine[]; separate?: boolean } | null;   // separate: a plot per line under the grid
   valuesOnPlot: boolean;
+  /** B3: the tab's state lanes (the mode band) drawn inside the top plot's card; off = above the plots (a setting) */
+  bandInCard: boolean;
   follow: number | null;           // live mode: show only the last N seconds
   playing: boolean;
   playSpeed: number;               // × real time (1 = the recording's own pace, time in seconds)
@@ -45,6 +47,7 @@ export const viewSlice = (): ViewSlice => ({
   legendFocus: null,
   preview: null,
   valuesOnPlot: false,
+  bandInCard: true,
   follow: null,
   playing: false,
   playSpeed: 1,

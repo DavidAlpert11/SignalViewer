@@ -1,5 +1,6 @@
 import { countRender } from "../perf";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { api } from "../api";
 import { actions, activeTab, onTimeAxis, signalName, tabBandLanes, useApp } from "../store";
 import { fmtNum, useT } from "../i18n";
@@ -43,6 +44,19 @@ export default function TabBand() {
   const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<{ left: number; width: number } | null>(null);
   const laneKey = lanes.join("|");
+  // B3: inside the top time plot's card (its slot under the head), unless Settings put it above the plots
+  const inCard = useApp((s) => s.bandInCard);
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (!inCard || !first) { setSlot(null); return; }
+    const find = () => setSlot((cur) => {
+      const el = document.querySelector<HTMLElement>(`[data-plot="${first.id}"] .band-slot`);
+      return cur === el ? cur : el;
+    });
+    find();
+    const id = window.setInterval(find, 400);       // the card can be re-made (a layout change)
+    return () => window.clearInterval(id);
+  }, [inCard, first?.id]);
 
   // where the plots' drawing area is (the first time plot's; all of them share it in one column)
   useEffect(() => {
@@ -91,8 +105,8 @@ export default function TabBand() {
     else useApp.setState({ cursor: { ...useApp.getState().cursor, on: true, dual: true, t1: s.a, t2: s.b, active: 1 } });
   };
 
-  return (
-    <div className="tab-band" ref={ref} role="group" aria-label={t("bandTitle")}
+  const band = (
+    <div className={`tab-band${slot ? " in-card" : ""}`} ref={ref} role="group" aria-label={t("bandTitle")}
       style={box ? ({ "--band-left": `${box.left}px`, "--band-width": `${box.width}px` } as React.CSSProperties) : undefined}>
       {lanes.map((id) => {
         const segs = segsOf(marks[id]);
@@ -127,4 +141,5 @@ export default function TabBand() {
       })}
     </div>
   );
+  return slot ? createPortal(band, slot) : band;
 }

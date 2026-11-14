@@ -49,3 +49,12 @@
 .chip .u, .lrow .u { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
 .chip .u:empty, .lrow .u:empty { display: none; }
 .chip .dlt, .lrow .dlt { background: none; color: var(--muted); padding: 0; }
+
+/* B3: the mode band inside the top plot's card - a thin strip between the legend and the plot, lined up with
+   the plot's time axis (TabBand measures it); the lane's name in the value axis' gutter */
+.band-slot { flex: none; }
+.band-slot:empty { display: none; }
+.tab-band.in-card { padding: 2px 0 0; }
+.tab-band.in-card .band-row { height: 16px; margin-bottom: 1px; }
+.tab-band.in-card .band-seg { font-size: var(--fs-xs); font-weight: 600; letter-spacing: .04em; }
+.tab-band.in-card .band-label { font-size: var(--fs-xs); color: var(--muted); }
