@@ -17,7 +17,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   **Any agent continues with `docs/dev/REDESIGN_PROMPT.md`** (stage-independent: it finds the next task from this file,
   the roadmap and the commits). Order: A → C → B → M → D → E → F. Phase M (the map, §3.7, added at the owner's request):
   M1 background picker · M2 Satellite + roads · M3 Keep this area offline · M4 My maps (MBTiles, own tile server) · M5
-  the offline map's look.
+  the offline map's look · M6 the cameras named by what they do (Chase / On the object were unclear).
+  **Handing over**: an agent without GitHub write access (the default) gives the owner a patch made against the current
+  `main` each time (`REDESIGN_PROMPT.md` §5 step 7a).
   Also asked and added (§3.6): Signal Viewer is an analysis tool for any data, not only ArduPilot – every ArduDeck idea
   made format-neutral (profiles = templates; one *Checks* view = limits + data quality + a log's health; the existing
   *run at a glance* strip extended; F1 / F3 / F4 / F5 / F6 for any format), D13 wording / icons audit, D14 profiles, E4 a
@@ -4121,3 +4123,5 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-14 · Plan revised after the owner's answer: Sweeps as one study for both flows (results first / runs first, continue later; `PLAN` §4: the fourteen duplicates and their one place each, Set up · Tables · Together · Run, the engine's start grid for any study), ArduDeck compared both ways in design (§3.2) and capabilities (§3.3) with a new design idea (§3.4) and an optional Phase F; mock-up `sweeps-start.html`. No product code changed. Next: the owner's answers to §8.
 - 2026-11-14 · Owner approved the plan (all of §8). Added at his request §3.6 – the ArduDeck ideas made general for any data (profiles, one Checks view, the run-at-a-glance strip extended, F1/F3–F6 format-neutral, D13, D14, E4, F8) and the mock-up `recordings-any.html`. No product code changed. Next: Phase A, A1.
 - 2026-11-14 · Owner: the map should look as good as ArduDeck's (roads) while staying offline-first – plan §3.7 + Phase M (M1–M5), the map mock-up shows the background picker; and a prompt any AI agent can continue from at any stage: `docs/dev/REDESIGN_PROMPT.md`. No product code changed. Next: A1.
+- 2026-11-14 · Owner: Chase vs On the object unclear – checked the code (four overlapping camera controls), plan M6 + mock-up `map-cameras.html`; and another agent may have no GitHub rights – `REDESIGN_PROMPT.md` now hands over a patch against the current `main` by default (fetch, rebase, format-patch, checked with `git am` on a clean worktree – the commands tried here). No product code changed. Next: A1.
+- 2026-11-14 · Owner: a new agent must notice when its tokens are about to run out and stop in time – `REDESIGN_PROMPT.md` §7 (always commit + hand over per task; the signs: ~75 % of the meter, compaction, limit warnings, 80 % of a given budget; how to stop; a HAND-OVER block at the top of Current state, read first by the next agent). No product code changed. Next: A1.
