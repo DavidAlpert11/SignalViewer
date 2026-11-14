@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock-up · What changed</title>
+<link rel="stylesheet" href="mock.css">
+<script src="mock.js"></script>
+<style>
+  .body { grid-template-columns: 56px 400px 1fr; }
+  .panel { background: var(--panel); border-inline-end: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .panel .scroll { padding: 12px; display: grid; gap: 12px; overflow: auto; align-content: start; }
+  .verdict { padding: 12px; border-radius: var(--r-card); border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--line)); background: var(--warn-soft); }
+  .verdict p { margin: 0; color: var(--ink-strong); font-size: var(--fs-l); line-height: 1.4; }
+  .verdict small { display: block; margin-top: 6px; color: var(--muted); }
+  .onset { display: grid; grid-template-columns: 1fr 70px 48px; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-l); background: var(--panel-2); }
+  .onset .name { display: flex; gap: 6px; align-items: center; min-width: 0; }
+  .onset .name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-strong); font-weight: 500; }
+  .onset .t { font-family: var(--mono); text-align: end; color: var(--ink); }
+  .bar { height: 6px; border-radius: 3px; background: var(--line); position: relative; overflow: hidden; }
+  .bar i { position: absolute; inset-block: 0; inset-inline-start: 0; border-radius: 3px; }
+  .axis { display: grid; grid-template-columns: 1fr; position: relative; height: 54px; border-radius: var(--r-l); background: var(--plot-bg); border: 1px solid var(--line); }
+  .axis i { position: absolute; top: 10px; width: 10px; height: 10px; border-radius: 50%; transform: translateX(-50%); }
+  .grid { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <span class="brand"><i></i>Signal Viewer</span>
+    <div class="seg"><button class="on" data-he="הקלטות">Recordings</button><button data-he="סריקות">Sweeps</button><button data-he="צי">Fleet</button></div>
+    <span class="pill"><span class="dot" style="background:#0072B2"></span>A · nominal.csv</span>
+    <span class="pill"><span class="dot" style="background:#E69F00"></span>B · heavy_payload.csv</span>
+    <span class="spacer"></span>
+    <span class="pill search"><span data-he="חפש פקודה, אות, תצוגה…">Search a command, signal, view…</span><kbd>Ctrl K</kbd></span>
+    <button class="icon">↶</button><button class="icon">↷</button><button class="btn" data-he="שמור">Save</button>
+  </header>
+  <div class="body">
+    <nav class="rail">
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h10M4 18h7"/></svg><span data-he="נתונים">Data</span></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19l5-7 4 4 7-10"/></svg><span data-he="ניתוח">Analysis</span></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 4v16M17 4v16M3 9h8M13 15h8"/></svg><span data-he="השוואה">Compare</span></button>
+      <button class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></svg><span data-he="חקירה">Investigate</span></button>
+    </nav>
+    <aside class="panel">
+      <div class="side-head"><h2 data-he="מה השתנה">What changed</h2><span class="spacer"></span><div class="seg"><button class="on">A → B</button><button>B → A</button></div></div>
+      <div class="scroll">
+        <div class="verdict">
+          <span class="eyebrow" style="color:var(--warn)" data-he="במבט אחד">At a glance</span>
+          <p data-he="ב־B המנועים עובדים קשה יותר מ־12.4 ש׳ - 3 אותות עולים לפני שהגובה מתחיל לרדת.">In B the motors work harder from 12.4 s - 3 signals rise before the altitude starts to drop.</p>
+          <small data-he="השוואה של אותו קטע, לא הוכחה לסיבה. איך לקרוא ›">A comparison of the same segment, not proof of a cause. How to read it ›</small>
+        </div>
+        <div>
+          <div class="eyebrow" style="margin-bottom:6px" data-he="מתי כל אות השתנה (ש׳)">When each signal changed (s)</div>
+          <div class="axis">
+            <i style="left:22%;background:#D55E00"></i><i style="left:26%;background:#0072B2"></i><i style="left:31%;background:#009E73"></i><i style="left:58%;background:#CC79A7"></i>
+            <svg viewBox="0 0 100 20" preserveAspectRatio="none" style="position:absolute;inset:auto 8px 6px 8px;height:14px;width:calc(100% - 16px)"><line x1="0" x2="100" y1="2" y2="2" stroke="var(--line-strong)"/><text x="0" y="16" font-size="5" fill="var(--axis)" font-family="monospace">0</text><text x="100" y="16" font-size="5" fill="var(--axis)" font-family="monospace" text-anchor="end">56.0</text></svg>
+          </div>
+        </div>
+        <div style="display:grid;gap:6px">
+          <div class="onset"><span class="name"><span class="swatch" style="background:#D55E00"></span><b>RCOU.C1</b><span class="chip warn" style="height:18px">↑</span></span><div class="bar"><i style="width:92%;background:var(--warn)"></i></div><span class="t">12.4</span></div>
+          <div class="onset"><span class="name"><span class="swatch" style="background:#0072B2"></span><b>BAT.Curr</b><span class="chip warn" style="height:18px">↑</span></span><div class="bar"><i style="width:84%;background:var(--warn)"></i></div><span class="t">14.6</span></div>
+          <div class="onset"><span class="name"><span class="swatch" style="background:#009E73"></span><b>BAT.Volt</b><span class="chip info" style="height:18px">↓</span></span><div class="bar"><i style="width:71%;background:var(--info)"></i></div><span class="t">17.3</span></div>
+          <div class="onset"><span class="name"><span class="swatch" style="background:#CC79A7"></span><b>CTUN.Alt</b><span class="chip info" style="height:18px">↓</span></span><div class="bar"><i style="width:48%;background:var(--info)"></i></div><span class="t">32.5</span></div>
+        </div>
+        <div style="display:flex;gap:6px"><button class="btn primary sm" data-he="שרטט את 4 האותות">Plot these 4</button><button class="btn sm" data-he="לדוח">To the report</button><button class="btn sm ghost" data-he="מצא דומים…">Find similar…</button></div>
+      </div>
+    </aside>
+    <main class="stage">
+      <div class="grid">
+        <section class="card active">
+          <div class="card-head"><span class="eyebrow" data-he="גרף 1 · פעיל">Plot 1 · active</span><b style="color:var(--ink-strong)">RCOU.C1 · A / B</b><span class="spacer"></span><button class="icon">⋯</button></div>
+          <div class="legend"><span><i class="swatch" style="background:#0072B2"></i>A <b class="v mono">1,512</b><span class="u">µs</span></span><span><i class="swatch" style="background:#E69F00"></i>B <b class="v mono">1,688</b><span class="u">µs</span></span></div>
+          <div class="plot" data-plot="vib"></div>
+        </section>
+        <section class="card">
+          <div class="card-head"><span class="eyebrow" data-he="גרף 2">Plot 2</span><b style="color:var(--ink-strong)">CTUN.Alt · A / B</b><span class="spacer"></span><button class="icon">⋯</button></div>
+          <div class="legend"><span><i class="swatch" style="background:#0072B2"></i>A <b class="v mono">96.2</b><span class="u">m</span></span><span><i class="swatch" style="background:#E69F00"></i>B <b class="v mono">91.0</b><span class="u">m</span></span></div>
+          <div class="plot" data-plot="alt"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <footer class="status"><span class="dot"></span><b data-he="2 קבצים">2 files</b><span>·</span><span data-he="חקירה: מה השתנה">Investigate: What changed</span><span class="spacer"></span><span data-he="הכל נשמר">All saved</span></footer>
+</div>
+<div class="note" data-n="1" style="top:150px;left:470px">The verdict first, as one tinted card; the caveat stays in it, the how-to-read behind one link.</div>
+<div class="note" data-n="2" style="top:300px;left:470px">The onset strip: one dot per signal on a time line (0 and the end labelled).</div>
+<div class="note" data-n="3" style="top:400px;left:470px">One row per signal: its line colour, up / down as a chip, the likelihood as a bar, the onset in mono.</div>
+<div class="note" data-n="4" style="top:560px;left:470px">The next actions at the end, one primary.</div>
+</body>
+</html>
