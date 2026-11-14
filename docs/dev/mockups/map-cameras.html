@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock-up · Map cameras</title>
+<link rel="stylesheet" href="mock.css">
+<script src="mock.js"></script>
+<style>
+  body { padding: 24px; }
+  main { max-width: 1100px; margin: auto; display: grid; gap: 18px; }
+  h1 { margin: 0; color: var(--ink-strong); font-size: var(--fs-3xl); }
+  .bar { display: inline-flex; gap: 6px; align-items: center; padding: 6px; border-radius: var(--r-l); background: rgba(10, 16, 24, .82); color: #e6edf3; }
+  .cams { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--r-l); background: rgba(0, 0, 0, .3); }
+  .cams button { display: grid; justify-items: center; gap: 2px; width: 86px; padding: 6px 4px; border: 0; border-radius: var(--r-m); background: none; color: #b8c4d1; cursor: pointer; font-size: var(--fs-xs); }
+  .cams button.on { background: rgba(255, 255, 255, .14); color: #fff; }
+  .cams svg { width: 34px; height: 26px; }
+  .why { color: #c9d4df; font-size: var(--fs-s); padding: 0 8px; }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .c { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--panel); padding: 12px; display: grid; gap: 6px; align-content: start; }
+  .c h3 { margin: 0; color: var(--ink-strong); font-size: var(--fs-l); display: flex; gap: 8px; align-items: center; }
+  .c p { margin: 0; color: var(--muted); font-size: var(--fs-s); }
+  .c .k { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; font-size: var(--fs-xs); }
+  .c .k span:nth-child(odd) { color: var(--muted); }
+  .c .k span:nth-child(even) { color: var(--ink); }
+  .c svg { width: 100%; height: 90px; background: var(--plot-bg); border-radius: var(--r-m); }
+  table { border-collapse: collapse; width: 100%; font-size: var(--fs-s); }
+  th, td { text-align: start; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; }
+</style>
+</head>
+<body>
+<main>
+  <h1 data-he="מצלמות המפה – כל אחת עונה על שאלה אחרת">The map's cameras – each answers a different question</h1>
+
+  <div class="bar">
+    <div class="cams">
+      <button><svg viewBox="0 0 34 26"><rect x="3" y="5" width="28" height="16" rx="2" fill="none" stroke="currentColor"/><path d="M8 16 L14 10 L20 14 L27 8" stroke="#f2a93b" fill="none"/></svg><span data-he="חופשית">Free</span></button>
+      <button><svg viewBox="0 0 34 26"><circle cx="17" cy="13" r="9" fill="none" stroke="currentColor"/><path d="M17 3 v4 M17 19 v4" stroke="currentColor"/><text x="15" y="10" font-size="6" fill="currentColor">N</text><path d="M14 15 l3 -6 l3 6 z" fill="#f2a93b"/></svg><span data-he="מלמעלה">From above</span></button>
+      <button class="on"><svg viewBox="0 0 34 26"><ellipse cx="17" cy="15" rx="13" ry="6" fill="none" stroke="currentColor" stroke-dasharray="2 2"/><path d="M14 16 l3 -6 l3 6 z" fill="#f2a93b"/><path d="M28 12 l2 3 l-3 0" fill="none" stroke="currentColor"/></svg><span data-he="סביבו">Around it</span></button>
+      <button><svg viewBox="0 0 34 26"><path d="M22 14 l-5 -9 l-5 9 z" fill="#f2a93b"/><circle cx="17" cy="22" r="2.5" fill="currentColor"/><path d="M17 20 L17 15" stroke="currentColor" stroke-dasharray="1.5 1.5"/></svg><span data-he="מאחוריו">Behind it</span></button>
+      <button><svg viewBox="0 0 34 26"><path d="M3 18 Q17 6 31 18" fill="none" stroke="currentColor"/><path d="M11 14 h12" stroke="#f2a93b"/><circle cx="17" cy="14" r="1.5" fill="#f2a93b"/></svg><span data-he="תא טייס">Cockpit</span></button>
+    </div>
+    <span class="why" data-he="סביבו: האובייקט באמצע, הצפון נשאר; אתה מסובב ומתקרב.">Around it: the object in the middle, north stays; you turn and zoom.</span>
+  </div>
+
+  <div class="grid">
+    <div class="c"><h3 data-he="חופשית">Free</h3><p data-he="אתה מזיז. שום דבר לא נעקב.">You move it. Nothing is followed.</p>
+      <div class="k"><span data-he="עוקבת">Follows</span><span data-he="לא">no</span><span data-he="מסתובבת">Turns</span><span data-he="רק כשאתה">only when you do</span></div></div>
+    <div class="c"><h3 data-he="מלמעלה">From above</h3><p data-he="ישר למטה, צפון למעלה, כל המסלול בתמונה.">Straight down, north up, the whole path framed.</p>
+      <div class="k"><span data-he="עוקבת">Follows</span><span data-he="לא">no</span><span data-he="מסתובבת">Turns</span><span data-he="לא">no</span></div></div>
+    <div class="c" style="border-color:var(--amber)"><h3 data-he="סביבו">Around it</h3><p data-he="האובייקט תמיד באמצע; הכיוון והמרחק שלך.">The object always in the middle; the angle and distance are yours.</p>
+      <div class="k"><span data-he="עוקבת">Follows</span><span data-he="כן">yes</span><span data-he="מסתובבת">Turns</span><span data-he="רק כשאתה">only when you do</span></div></div>
+    <div class="c"><h3 data-he="מאחוריו">Behind it</h3><p data-he="מאחורי האובייקט ומעליו, כיוון התנועה תמיד קדימה (במפה שטוחה: למעלה).">Behind and above the object, its direction of travel always ahead (on the flat map: up).</p>
+      <div class="k"><span data-he="עוקבת">Follows</span><span data-he="כן">yes</span><span data-he="מסתובבת">Turns</span><span data-he="עם האובייקט">with the object</span></div></div>
+    <div class="c"><h3 data-he="תא טייס">Cockpit</h3><p data-he="מתוך האובייקט, לאן שהוא מכוון, מתגלגל איתו. רק בתלת־ממד.">From inside the object, where it points, rolling with it. 3D only.</p>
+      <div class="k"><span data-he="עוקבת">Follows</span><span data-he="כן">yes</span><span data-he="מסתובבת">Turns</span><span data-he="עם האובייקט, כולל גלגול">with the object, roll too</span></div></div>
+  </div>
+
+  <table>
+    <thead><tr><th data-he="היום">Today</th><th data-he="מוצע">Proposed</th><th data-he="למה">Why</th></tr></thead>
+    <tbody>
+      <tr><td data-he="כללית">General</td><td data-he="חופשית">Free</td><td data-he="אומר מה היא עושה: אתה מזיז">says what it does: you move it</td></tr>
+      <tr><td data-he="מלמעלה (וכשנבחר אובייקט – גם עוקבת)">From above (and, with an object chosen, it also follows)</td><td data-he="מלמעלה – לא עוקבת">From above – never follows</td><td data-he="היום שלוש מצלמות שומרות את האובייקט באמצע">today three cameras keep the object in the middle</td></tr>
+      <tr><td data-he="על האובייקט">On the object</td><td data-he="סביבו">Around it</td><td data-he="ההבדל ממרדף: אתה מסובב, לא האובייקט">the difference from Chase: you turn, not the object</td></tr>
+      <tr><td data-he="מרדף (במפה שטוחה: גם זום קרוב)">Chase (flat map: also zooms close)</td><td data-he="מאחוריו – בלי לשנות זום">Behind it – zoom left as it is</td><td data-he="שם שאומר איפה המצלמה; זום הוא עניין נפרד">a name that says where the camera is; zoom is separate</td></tr>
+      <tr><td data-he="תא טייס (במפה שטוחה: כמו מרדף)">Cockpit (flat map: same as Chase)</td><td data-he="תא טייס – רק בתלת־ממד">Cockpit – 3D only</td><td data-he="במפה שטוחה הוא היה כפילות">on the flat map it was a duplicate</td></tr>
+      <tr><td data-he="מתג 'מסלול למעלה' נפרד במפה השטוחה">a separate "Track up" toggle on the flat map</td><td data-he="נבלע במאחוריו (אחרי בדיקה שאין לו שימוש משלו)">folded into Behind it (after checking it has no use of its own)</td><td data-he="פקד אחד במקום אחד">one control in one place</td></tr>
+    </tbody>
+  </table>
+</main>
+</body>
+</html>

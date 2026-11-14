@@ -926,7 +926,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [ ] A1–A4 Tokens and components (new values, `--warn` and tints, elevation, IBM Plex Mono, one definition per component, cards / tables / KPI).
 - [ ] C1–C11 Sweeps as one study for both flows (results first / runs first, continue later): `start` for any study, tables by round, set-up from a table, one vocabulary, the Goal step writes the study, one store and Undo, `.svstudy.json` + `workspace`, New study + Set up, the navigator, the Run column, one Next runs, entry points, three walkthroughs as e2e.
 - [ ] B1–B7 Plots (the plot card, legend with values, mode band, uPlot theme, timeline, Map / 3D chrome, Sweeps charts).
-- [ ] M1–M5 The map, offline first (a background picker, Satellite + roads, keep an area offline, My maps: MBTiles / own tile server, the offline map's look).
+- [ ] M1–M6 The map, offline first (cameras named by what they do; a background picker, Satellite + roads, keep an area offline, My maps: MBTiles / own tile server, the offline map's look).
 - [ ] D1–D14 Every area adopts the look (pictures and a recount per area); D13 wording / icons audit; D14 profiles (templates with their at-a-glance numbers and chips).
 - [ ] E1–E4 Docs, pictures, a test-bench example, 1.28.0 (the owner tags).
 - [ ] F1–F7 New capabilities the owner picks (messages, window statistics, parameters + two logs compared, live instruments, height profile, vectors along the path, pop-out; F8 the Fleet for any format – later), all format-neutral (§3.6).
