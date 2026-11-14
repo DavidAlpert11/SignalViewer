@@ -931,6 +931,9 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
   - [x] C4 One store (`useSweeps().common`, `useStudyPanel` a view on it) and one Undo order for the study file and its tables. Done 2026-11-14 (L2): oneUndo.test.ts; e2e study_common / study_loop / study_demo / sweeps_flow.
   - [x] C5 One study file: `.svstudy.json` + optional `workspace`; one table without Set up stays `.svsweep`; every example and its 1.27 copy round-trips. Done 2026-11-14 (L2): test_study_files.py, studyFile.test.ts.
 - [ ] B1–B7 Plots (the plot card, legend with values, mode band, uPlot theme, timeline, Map / 3D chrome, Sweeps charts).
+<!-- lane L3 -->
+  - [x] B1 The plot card head: an eyebrow (*Plot n* when the plot has its own title, *Active* with several plots), the title, a muted meta (*n signals · two y axes*), the actions; the legend on a line of its own under the head; the card radius `--r-card`, the active ring `--select`. One head for every plot kind (time, X-Y, X-Y-Z, FFT, spectrogram, map, 3D). Done 2026-11-14 (L3).
+<!-- end lane L3 -->
 - [ ] M1–M6 The map, offline first (cameras named by what they do; a background picker, Satellite + roads, keep an area offline, My maps: MBTiles / own tile server, the offline map's look).
 <!-- lane L4 -->
   - [x] M2 Satellite + roads – one composed layer (`app/tiles.py` `COMPOSITES`), in 2D, 3D, the exported picture and the offline page; Esri's terms noted (no bulk download). 2026-11-14.

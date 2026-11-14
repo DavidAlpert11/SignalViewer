@@ -453,6 +453,12 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             );
             };
   const title = plot.title || t("plotTitle", { n: index + 1 });
+  const several = tab.plots.length > 1;
+  const eyebrow = [plot.title ? t("plotTitle", { n: index + 1 }) : "", active && several ? t("plotActive") : ""].filter(Boolean).join(" · ");
+  const nLines = plot.signals.length;
+  const metaText = nLines >= 2 && mode !== "geo" && mode !== "3d"
+    ? [t("plotMetaLines", { n: nLines }), mode === "time" && plot.signals.some((s) => s.axis === "right" && !s.state) ? t("plotMetaTwoY") : ""].filter(Boolean).join(" · ")
+    : "";
   const geoBase = useApp((s) => s.geoBase);
   const netOff = useApp((s) => s.offlineOnly || s.offlineForced);
   const shownBase = effectiveBase(geoBase, netOff);
@@ -485,6 +491,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
         <span className="plot-grip" draggable role="button" tabIndex={-1} aria-label={t("plotMoveGrip")} title={`${t("plotMoveGrip")} · ${t("plotMoveHint")}`}
           onDragStart={(e) => { e.dataTransfer.setData(PLOT_MIME, String(index)); e.dataTransfer.setData(PLOT_ID_MIME, plot.id); e.dataTransfer.effectAllowed = "copyMove"; useApp.setState({ plotDrag: plot.id }); }}
           onDragEnd={() => useApp.setState({ plotDrag: null })}>⠿</span>
+        {/* B1: the card's eyebrow - which plot (when it has its own title) and whether it is the active one */}
+        {eyebrow && <span className="eyebrow plot-eyebrow" data-active={active || undefined}>{eyebrow}</span>}
         {editingTitle ? (
           <input className="plot-title" autoFocus defaultValue={plot.title} placeholder={title}
             onBlur={(e) => { actions.renamePlot(plot.id, e.target.value.trim()); setEditingTitle(false); }}
@@ -492,6 +500,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
         ) : (
           <button className="plot-title" onDoubleClick={() => setEditingTitle(true)} title={title}>{title}</button>
         )}
+        {/* B1: the card's meta - how many lines and whether a second value axis is used (muted) */}
+        {metaText && <span className="plot-meta">{metaText}</span>}
         <button className={`mode-btn${mode === "time" ? " is-time" : ""}`} aria-haspopup="menu" aria-label={`${t("plotMode")}: ${modes.find(([m]) => m === modeShown)?.[1] ?? mode}`}
           title={t("plotMode")} onClick={openModeMenu}>
           {modes.find(([m]) => m === modeShown)?.[1] ?? mode}<Icon.Chevron width={12} height={12} />
@@ -618,6 +628,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             </select>
           </span>
         )}
+        {/* B1: the legend has a line of its own under the head (with the two cursors' bar at its end) */}
+        {plot.signals.length > 0 && legendAt === "top" && <span className="head-break" aria-hidden="true" />}
         {legendAt === "top" && <div className="legend">{plot.signals.map((s) => entry(s, false))}</div>}
         {legendAt !== "top" && plot.signals.length > 0 && (
           <button className="legend-hidden" onClick={() => actions.updatePlot(plot.id, { legend: legendAt === "off" ? undefined : "top" })}

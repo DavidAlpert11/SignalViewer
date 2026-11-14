@@ -29,3 +29,15 @@
 .plot-loading.skeleton i { height: 2px; width: 100%; opacity: .6; }
 @keyframes sv-shimmer { from { background-position: 200% 0; } to { background-position: 0 0; } }
 @media (prefers-reduced-motion: reduce) { .skeleton i { animation: none; } }
+
+/* ---- Lane L3 of the 2026-11-14 redesign (plan §5.3). Tokens from index.css only. ---- */
+
+/* B1: the plot card - a card radius, the active plot a thin neutral ink ring (amber is only the cursor and time,
+   decision 4); the head: an eyebrow (which plot / active), the title, a muted meta, then the plot's actions;
+   the legend on a line of its own under it */
+.plot { border-radius: var(--r-card); }                     /* the active ring: --select (index.css, A1) */
+.plot-eyebrow { flex: none; white-space: nowrap; }          /* the look: .eyebrow (A4) */
+.plot-eyebrow[data-active] { color: var(--ink-strong); }
+.plot-meta { flex: none; font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+.plot-head .head-break { order: 3; flex-basis: 100%; height: 0; margin-block-start: -4px; }   /* its own line of no height: one row gap, not two */
+.plot-head .legend { order: 4; flex: 1 1 0; }
