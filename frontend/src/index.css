@@ -4,6 +4,9 @@
 @import "@fontsource/ibm-plex-sans-hebrew/400.css";
 @import "@fontsource/ibm-plex-sans-hebrew/500.css";
 @import "@fontsource/ibm-plex-sans-hebrew/600.css";
+/* A2: numbers in IBM Plex Mono, bundled (offline); digits need the Latin subset only */
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
 @import "uplot/dist/uPlot.min.css";
 
 /* ---------------------------------------------------------------------------
@@ -101,7 +104,7 @@
   --kind-mode: #4c78a8; --kind-event: #54a24b;
   --on-color: #fff;                 /* text on a coloured badge / button (a file's tag, danger) */
   --fs-glyph: 0.55rem;              /* a sign inside an 8 px dot */
-  --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;   /* A2: numbers */
 }
 /* W13.1: motion - one speed for small things (hover, press), one for things that appear, one easing.
    Every transition this round touches uses these; reduced motion zeroes them (and the rule below). */
@@ -122,7 +125,13 @@ body {
 [lang="he"] body { font-family: "IBM Plex Sans Hebrew", "IBM Plex Sans", system-ui, sans-serif; }
 button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.num { font-variant-numeric: tabular-nums; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+/* A2 (plan §3.4 rule 4): numbers are instruments - values, readouts, clocks, ticks and number columns in
+   the mono face. Only elements that hold a number; a line of text keeps the sans face. */
+.chip .val, .chip .dlt, .lrow .val, .status .ct, .ctime input, .tl-clock, .g3-own-clock, .pval, .log-t,
+.sim-pct, .sim-err, .fleet-val, .fleet-ytick, .fleet-date, .diff-tick, .cmpobj-stats td.num, .geo-readout, .spec-read,
+.run-ftime, .fs-row .mtime, .seg-list .seg-time, .seg-list .seg-dur, .seg-wins .when, .rel-row > bdi, .job-pct,
+.sig .sig-rate, .tabs-count, .gridpick-label { font-family: var(--mono); }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: var(--r-s); border: 2px solid var(--panel); }
 ::-webkit-scrollbar-track { background: transparent; }

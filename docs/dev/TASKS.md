@@ -15,7 +15,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 - **Lane board – redesign round 2026-11-14** (plan §7.0; each lane edits only its own block; S1 = A3 + A4 on `main`).
   <!-- lane L1 -->
-  - **L1 Look** – in progress · done: A1 · next: A2 · tasks A1 A2 A3 A4 D11 D12 D13 · requests from other lanes: –
+  - **L1 Look** – in progress · done: A1 A2 · next: A3 · tasks A1 A2 A3 A4 D11 D12 D13 · requests from other lanes: –
     - New tokens (A1, on `main`): `--select` / `--select-ink` / `--select-soft` / `--select-ring` (selection, active, primary – a
       neutral ink; amber is the cursor and time only), `--warn` + `--ok-soft` / `--warn-soft` / `--danger-soft` / `--info-soft`,
       `--shadow-md` / `--shadow-lg` (`--shadow` = lg), `--r-card`, `--fs-readout`, `--eyebrow` + `--eyebrow-spacing`.
@@ -4157,3 +4157,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
   with attribution yes, bulk download no); `GeoBase` `"satroads"`, attribution, session restore by `GEO_BASES`. Ran:
   `tests/test_map_layers.py` (new, 5), `test_offline_switch`, `test_map_export` green; mypy clean; tsc clean; e2e
   `test_offline_map.py` 6/6 (one new), `test_globe3d.py` 13/13; quick_check green. Next: M3.
+- 2026-11-14 · L1 A2 IBM Plex Mono for numbers: `@fontsource/ibm-plex-mono` (Latin 400 / 500 only, bundled, offline), `--mono` now Plex Mono first, `.num` and the value / readout / clock / tick selectors of `index.css` use it (text lines keep the sans face). Ran: tsc, `tokens.test.ts`, e2e `test_plot_polish` + `test_first_minute` (9 passed; the first module once hit the UI rebuild's "connection refused", green on re-run). quick_check green (on A1). Next: A3.
