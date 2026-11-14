@@ -1,9 +1,20 @@
 /* W14 / W15 / W17 / W18: the calls of the Common parameters panel (backend app/routes/sweeps_common.py,
    sweeps_farm.py). Types: studyTypes.ts (the W0 contract). */
 import { call } from "../api";
+import type { FromTable } from "./setup";
 import type { CommonResult, DemoProgress, LoopProgress, LauncherStatusResult, LauncherSubmitResult, NextRunsResult, Study, StudyReq } from "./studyTypes";
 
+/** C2: each table's files by round, and the history's rounds (the navigator's Tables). */
+export interface StudyTables {
+  study: string; folder: string; demo_work: string | null;
+  tables: { id: string; name: string; paths: string[]; rows: number;
+    rounds: { round: number | null; rows: number; new: boolean; files: { path: string; rows: number | null; mtime: number | null; new: boolean; error?: string }[] }[] }[];
+  history: { round: number; date: string; folder: string; runs: number; done: number; failed: number; pending: number }[];
+}
+
 export const studyApi = {
+  fromTable: (id: string, roles: Record<string, string>) => call<FromTable>("/api/sweeps/setup/from-table", { id, roles }),
+  tables: (study_path: string) => call<StudyTables>(`/api/sweeps/study/tables?study_path=${encodeURIComponent(study_path)}`),
   open: (study_path: string) => call<{ path: string; study: Study }>("/api/sweeps/study/open", { study_path }),
   save: (path: string, study: Study) => call<{ path: string }>("/api/sweeps/study/save", { path, study }),
   mapping: (paths: Record<string, string[]>) =>

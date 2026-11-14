@@ -29,6 +29,7 @@ import { notify, notifyError, say } from "../../sweeps/notify";
 import { activeParams, colLabel, reorderedAxes, scaleOf, scopedColumns, scopeKey, showMask, shownAxes } from "../../sweeps/view";
 import { keptMask } from "../../sweeps/filters";
 import ReportDialog from "./ReportDialog";
+import { TABLE_EXTS } from "../../sweeps/studyFile";
 import TemplatesDialog from "./TemplatesDialog";
 import StepNav from "./StepNav";
 import { RawCenter, RawSide, ZoomButtons } from "./RawStep";
@@ -50,7 +51,9 @@ import PlotToolbar from "./PlotToolbar";
 import SetDetail from "./SetDetail";
 import SetsTable from "./SetsTable";
 import StudyPanel, { openStudyDialog } from "./StudyPanel";
-import { newStudy, openStudyFile, redoStudy, undoStudy, useStudyPanel } from "../../sweeps/studyStore";
+import NewStudy from "./NewStudy";
+import SetupView from "./SetupView";
+import { chooseNewStudy, openStudyFile, redoStudy, undoStudy, useStudyPanel } from "../../sweeps/studyStore";
 import { onStudyRequest, requestStudy, takeStudy } from "../../sweeps/studyOpen";
 import { onAreaExample, takeAreaExample } from "../../areaExample";
 import { api } from "../../api";
@@ -59,7 +62,6 @@ import "./sweeps.css";
 /** the middle (plot, tables) never narrower than this when a panel is dragged wider */
 const MIN_MIDDLE = 380;
 const LEFT_MIN = 220, LEFT_MAX = 320;
-const TABLE_EXTS = [".csv", ".tsv", ".txt", ".parquet", ".pq", ".xlsx", ".xls"];
 const STUDY_EXT = ".svsweep";
 
 async function openTable(title: string) {
@@ -127,7 +129,7 @@ registerArea("sweeps", {
       { id: "sw-open-table", label: t("swOpenTable"), group: g, icon: "open" as const, run: () => { openTable(t("swOpenTable")); } },
       { id: "sw-open-folder", label: t("swOpenFolder"), group: g, icon: "open" as const, run: () => { openFolder(t("swOpenFolder")); } },
       { id: "sw-open-study", label: t("swOpenStudy"), group: g, icon: "open" as const, run: () => { openStudy(t("swOpenStudy")).then((m) => m && notify(m, "error")); } },
-      { id: "cp-new", label: `${t("cpTitle")}: ${t("cpNew")}`, group: g, icon: "open" as const, run: newStudy },
+      { id: "cp-new", label: `${t("cpTitle")}: ${t("cpNew")}`, group: g, icon: "open" as const, run: chooseNewStudy },
       { id: "cp-open", label: `${t("cpTitle")}: ${t("cpOpen")}`, group: g, icon: "open" as const, run: () => { void openStudyDialog(tNow); } },
     ];
     if (!study) return open;
@@ -168,7 +170,13 @@ export default function SweepsScreen() {
     return onAreaExample(take);
   }, []);
   const common = useStudyPanel((s) => s.open);
-  return <><SweepsBar />{common ? <StudyPanel /> : study ? <StudyView study={study} /> : <SweepsWelcome />}</>;
+  const part = useSweeps((s) => s.part);
+  // C6: what the middle shows - the New study choice, the study's Set up, a table, or the study of several systems
+  const middle = part === "new" ? <NewStudy />
+    : common && part === "setup" ? <SetupView />
+    : part === "table" && study ? <StudyView study={study} />
+    : common ? <StudyPanel /> : study ? <StudyView study={study} /> : <SweepsWelcome />;
+  return <><SweepsBar />{middle}</>;
 }
 
 function SweepsBar() {
@@ -189,7 +197,7 @@ function SweepsBar() {
     { label: "", sep: true, run: () => {} },
     // W14: one parameter set for several tables - its own study file (.svstudy.json)
     { label: t("cpOpenMenu"), run: () => {}, items: [
-      { label: t("cpNew"), run: newStudy },
+      { label: t("cpNew"), run: chooseNewStudy },
       { label: t("cpOpen"), run: () => openStudyDialog(t) },
     ] },
   ]);
@@ -356,7 +364,7 @@ function SweepsWelcome() {
           <div className="sw-welcome-actions">
             {demoPath && <button className="btn primary sw-try-demo" onClick={() => requestStudy(demoPath, true)}>{t("swTryDemo")}</button>}
             {gainsPath && <button className="btn outline sw-try-gains" onClick={() => requestStudy(gainsPath)}>{t("swTryGains")}</button>}
-            <button className="btn outline" onClick={newStudy}>{t("cpNew")}</button>
+            <button className="btn outline sw-new-study" onClick={chooseNewStudy}>{t("cpNew")}</button>
             <button className="btn outline" onClick={() => { void openStudyDialog(t); }}>{t("cpOpen")}</button>
           </div>
         </div>

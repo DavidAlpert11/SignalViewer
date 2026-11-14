@@ -129,3 +129,31 @@
 .sw-way > .hint { margin: 0; flex: 1; line-height: 1.45; }
 .sw-way .sw-welcome-actions { flex-wrap: wrap; justify-content: flex-start; margin-top: var(--sp-2); }
 .sw-welcome-card > .tagline { align-self: center; text-align: center; }
+
+/* C6: New study (two ways in) and the study's Set up (mock-up sweeps-start.html) */
+.ns-wrap { align-content: start; }
+.ns { width: min(100%, 860px); display: flex; flex-direction: column; gap: var(--sp-4); }
+.ns-title { margin: 0; font-size: var(--fs-xl); color: var(--ink-strong); }
+.ns-ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--sp-4); }
+.ns-way { padding: var(--sp-4); }
+.ns-back { align-self: flex-start; }
+.su { display: flex; flex-direction: column; gap: var(--sp-4); padding: var(--sp-4); overflow: auto; background: var(--bg); min-height: 0; }
+.su-head { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; max-width: 1100px; }
+.su-head .su-name { font-size: var(--fs-l); font-weight: 600; flex: 1; min-width: 240px; max-width: 480px; }
+.su-to-results { margin-inline-start: auto; }
+.su-sec { padding: 0 0 var(--sp-2); max-width: 1100px; }
+.su-sec[data-done="1"] .panel-head h2::after { content: " ✓"; color: var(--ok); }
+.su-in { width: 100%; min-width: 0; padding: var(--sp-1) var(--sp-1_5); border: 1px solid var(--line); border-radius: var(--r-s);
+  background: var(--raised); color: var(--ink); font: inherit; }
+.su-in.num { font-family: var(--mono); }
+.su-in:focus { outline: 2px solid var(--focus); outline-offset: 0; }
+.su-params td, .su-scen td { padding: var(--sp-1) var(--sp-1_5); }
+.su-params td:first-child { min-width: 140px; }
+.su-scen td:first-child { width: 40%; }
+.su-foot, .su-body { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-1) var(--sp-3) 0; }
+.su-foot { flex-direction: row; flex-wrap: wrap; align-items: end; }
+.su-wide { display: flex; flex-direction: column; gap: var(--sp-1); flex: 1; min-width: 240px; color: var(--muted); font-size: var(--fs-s); }
+.su-row { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; color: var(--muted); }
+.su-row .su-workers { width: 6em; }
+.su-where { align-self: flex-start; }
+.su-note { padding: var(--sp-1) var(--sp-3) 0; }

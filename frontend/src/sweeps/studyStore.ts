@@ -6,6 +6,9 @@
    folder. */
 import { emptyCommon, registerSetupHistory, SETUP_KEY, useSweeps, type StudyPanelState } from "./state";
 import { studyApi } from "./studyApi";
+import { goalToStudy } from "./studyRoles";
+import { upgradeQuestion } from "./model";
+import { newSetupStudy, setupFromResults } from "./setup";
 import type { DemoProgress, LauncherSubmitResult, NextRunsResult, Study, StudyReq } from "./studyTypes";
 
 export type { StudyPanelState };
@@ -45,6 +48,28 @@ export async function openStudyFile(path: string, demo = false): Promise<void> {
     if (demo) set({ demoProgress: await studyApi.demoProgress(p) });
     else { await evaluate(); await refreshLoop(); if (get().loopProgress?.running) pollLoop(); }
   } catch (e) { set({ busy: false, error: (e as Error).message }); }
+}
+
+/** *New study* (C6): the choice between *I have results* and *Start from nothing*. */
+export function chooseNewStudy(): void { useSweeps.setState({ part: "new" }); }
+
+/** *Start from nothing*: a study of one system, typed in Set up. */
+export function startFromNothing(): void {
+  set({ ...EMPTY, open: true, study: newSetupStudy(""), saved: "" });
+  useSweeps.setState({ part: "setup" });
+}
+
+/** *I have results*: the table opens (its results at once) and the study's Set up is filled from its columns. */
+export async function haveResults(path: string): Promise<void> {
+  await useSweeps.getState().open(path);
+  const st = useSweeps.getState(), t = st.studies[st.active];
+  if (!t) return;
+  const roles = Object.fromEntries(t.columns.map((c) => [c.name, c.role]));
+  const guess = await studyApi.fromTable(t.tableId, roles);
+  const { patch } = goalToStudy(upgradeQuestion(t.question));
+  const name = t.name.replace(/\.[^.]+$/, "");
+  set({ ...EMPTY, open: true, study: setupFromResults(guess, t.path, name, patch), saved: "", guess });
+  useSweeps.setState({ part: "table" });
 }
 
 export function newStudy(): void {

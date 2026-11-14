@@ -1,7 +1,7 @@
 /* C5: one study file (plan §4.5). `.svstudy.json` is the study (the engine's contract) with an optional
    `workspace` block for what only this area needs: each table as its `.svsweep` document (roles as set, the
    whole question, the view, merged tables' recipes) and the place last shown. A study that is one table without
-   Set up (no command, no start, no search space, no second system, no rounds) keeps being saved as `.svsweep` -
+   Set up (no command, no start grid, no second system, no rounds) keeps being saved as `.svsweep` -
    a results-only user sees no change; anything more is saved as `.svstudy.json` (*Save as study...*). Pure
    functions: Vitest round-trips every example and its 1.27 copy. */
 import type { SavedStudy } from "./state";
@@ -10,13 +10,15 @@ import { upgradeQuestion } from "./model";
 import type { Study, StudyTable, WorkspaceBlock } from "./studyTypes";
 
 export const SWEEP_EXT = ".svsweep";
+/** The results tables the area opens. */
+export const TABLE_EXTS = [".csv", ".tsv", ".txt", ".parquet", ".pq", ".xlsx", ".xls"];
 export const STUDY_EXT = ".svstudy.json";
 
 /** The study has a part a `.svsweep` cannot hold. */
 export function hasSetup(s: Study | null | undefined): boolean {
   if (!s) return false;
-  return !!s.launcher?.submit?.length || !!s.start || (s.tables?.length ?? 0) >= 2 || Object.keys(s.search?.params ?? {}).length > 0
-    || (s.history?.length ?? 0) > 0 || !!s.demo;
+  // the parameters' ranges alone do not count: *I have results* fills them from the columns
+  return !!s.launcher?.submit?.length || !!s.start || (s.tables?.length ?? 0) >= 2 || (s.history?.length ?? 0) > 0 || !!s.demo;
 }
 
 /** Which file Save writes: the single-table file while the study is one table without Set up. */

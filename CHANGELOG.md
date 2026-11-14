@@ -13,6 +13,7 @@
 <!-- lane L2 -->
 - **Sweeps: a study can start from nothing.** A study file may say its first round (`start`: how many values of each parameter's range, and each table's scenarios); the loop runs that grid first, then aims each next round. A study with one system (one table) is now ranked on its own - it used to ask for two tables.
 - **Sweeps: one Undo.** Ctrl+Z undoes the last change you made in Sweeps, whether it was in a table's question or in the study's set-up (Common parameters) - they used to have two separate histories, chosen by which panel was open.
+- **Sweeps: New study - I have results, or start from nothing.** *I have results* opens a table of runs with its answer at once and fills the study's set-up from its columns (parameters and their ranges, scenarios, outputs). *Start from nothing* is a set-up page: what varies (ranges, steps, how many values in the first round), the scenarios, what your program writes and what is good, and the command that runs one run on this PC or your farm's launcher.
 <!-- lane L3 -->
 - **The plot card**: each plot's head names it (a small *PLOT 2 · ACTIVE* label over the title), says what it shows (*3 signals · two y axes*), and keeps its few actions at its end; the legend has a line of its own under it.
 - The legend reads like an instrument: each line's value at the cursor in a monospaced, bold number with its unit after it, and the change between the two cursors (Δ) beside it.

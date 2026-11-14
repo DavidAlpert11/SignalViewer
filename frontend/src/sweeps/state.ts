@@ -33,9 +33,15 @@ export interface StudyPanelState {
   pinned: number | null;              // the ranked row opened
   busy: boolean;
   error: string;
+  /** C6 *I have results*: what the backend guessed from the table (the values seen, for Set up) */
+  guess?: import("./setup").FromTable | null;
 }
 export const emptyCommon = (): StudyPanelState => ({ open: false, demo: false, path: "", study: null, saved: "", past: [], future: [], result: null,
-  next: null, submit: null, status: null, demoProgress: null, loopProgress: null, pinned: null, busy: false, error: "" });
+  next: null, submit: null, status: null, demoProgress: null, loopProgress: null, pinned: null, busy: false, error: "", guess: null });
+
+/** What the middle of the area shows (C6; UI only, not undone): the *New study* choice, the study's Set up, a
+ *  table in its four steps, Together (the study of several systems); "" = as before (the table, or the panel). */
+export type Part = "" | "new" | "setup" | "table" | "together";
 
 /** One Undo for the whole area (C4): which part each step was made in, oldest first - `"setup"` (the study
  *  file) or `"t:" + tableId` (a table's question, roles, view). Undo takes the newest and undoes it there. */
@@ -186,6 +192,8 @@ interface SweepsState {
   studies: Study[];
   /** the study file's part (Set up, Together, the loop) - C4 */
   common: StudyPanelState;
+  /** what the middle shows (C6) */
+  part: Part;
   /** the one Undo's order of steps, and Redo's (see SETUP_KEY) */
   undoOrder: string[];
   redoOrder: string[];
@@ -514,6 +522,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
   return {
     studies: [],
     common: emptyCommon(),
+    part: "",
     undoOrder: [],
     redoOrder: [],
     active: 0,
@@ -522,7 +531,8 @@ export const useSweeps = create<SweepsState>((set, get) => {
 
     open: async (path, saved) => {
       set({ busy: true, error: "" });
-      try { await openOne(path, saved); }
+      // a table opened from the New study choice or Set up is shown (C6)
+      try { await openOne(path, saved); if (get().part === "new" || get().part === "setup") set({ part: get().common.open ? "table" : "" }); }
       catch (e) { set({ busy: false, error: (e as Error).message }); }
     },
     reportOpen: false,
@@ -1032,6 +1042,7 @@ useSweeps.subscribe((st, prev) => {
   idle: () => !askPending && !useSweeps.getState().studies.some((s) => s.evaluating) && !useSweeps.getState().busy,
   saved: () => !savePending,
   doc: () => useSweeps.getState().saved(),          // the active study as a .svsweep document (the examples are made from it)
+  show: (part: Part) => useSweeps.setState({ part }),   // C6: a part of the study shown (the navigator's clicks, C7)
 };
 
 /** Whether the area's one Undo / Redo has a step (C4), for the buttons. */

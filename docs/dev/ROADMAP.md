@@ -930,6 +930,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
   - [x] C3 One vocabulary both ways and the Goal step ↔ the study table (`sweeps/studyRoles.ts`; what cannot be written is *this table only*). Done 2026-11-14 (L2): studyRoles.test.ts.
   - [x] C4 One store (`useSweeps().common`, `useStudyPanel` a view on it) and one Undo order for the study file and its tables. Done 2026-11-14 (L2): oneUndo.test.ts; e2e study_common / study_loop / study_demo / sweeps_flow.
   - [x] C5 One study file: `.svstudy.json` + optional `workspace`; one table without Set up stays `.svsweep`; every example and its 1.27 copy round-trips. Done 2026-11-14 (L2): test_study_files.py, studyFile.test.ts.
+  - [x] C6 *New study* (*I have results* / *Start from nothing*) and the Set up view (what varies, scenarios, outputs and goal, how to run). Done 2026-11-14 (L2): setup.test.ts, e2e test_sweeps_workspace.py.
 - [ ] B1–B7 Plots (the plot card, legend with values, mode band, uPlot theme, timeline, Map / 3D chrome, Sweeps charts).
 <!-- lane L3 -->
   - [x] B1 The plot card head: an eyebrow (*Plot n* when the plot has its own title, *Active* with several plots), the title, a muted meta (*n signals · two y axes*), the actions; the legend on a line of its own under the head; the card radius `--r-card`, the active ring `--select`. One head for every plot kind (time, X-Y, X-Y-Z, FFT, spectrogram, map, 3D). Done 2026-11-14 (L3).
