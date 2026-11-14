@@ -29,7 +29,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   <!-- lane L3 -->
   - **L3 Plots and the frame** – todo · next: waits for S1 (B1) · tasks B1–B5, D1, D2, D8 (+ F2's legend when L5 has it) · requests: –
   <!-- lane L4 -->
-  - **L4 Map** – in progress · done: M2 · next: M3 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
+  - **L4 Map** – in progress · done: M2, M3a (backend) · next: M4 (backend); M3b (its dialog) with M1 after S1 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
     - *Request to L3* (from L4, M2): `store/slices/view.ts` `geoBase`'s type → `GeoBase` from `mapBase.ts` (it now has
       `"satroads"`; today the store's union lacks it, PlotView's select casts); `PlotView.tsx` the *Borders* switch for
       `isPhotoBase(shownBase)` (from `mapBase.ts`) instead of `=== "satellite"`. Both go away with M1 if L4 may then touch PlotView's map select.
@@ -4161,3 +4161,11 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
   `test_offline_map.py` 6/6 (one new), `test_globe3d.py` 13/13; quick_check green. Next: M3.
 - 2026-11-14 · L1 A2 IBM Plex Mono for numbers: `@fontsource/ibm-plex-mono` (Latin 400 / 500 only, bundled, offline), `--mono` now Plex Mono first, `.num` and the value / readout / clock / tick selectors of `index.css` use it (text lines keep the sans face). Ran: tsc, `tokens.test.ts`, e2e `test_plot_polish` + `test_first_minute` (9 passed; the first module once hit the UI rebuild's "connection refused", green on re-run). quick_check green (on A1). Next: A3.
 - 2026-11-14 · L5 F1 (backend): `svcore/filestruct.py` + `GET /api/runs/{id}/structure` - groups by what the data has (message types / topics / structs / column prefixes), per group and column samples, rate, unit, gaps (> 3 × the typical step), state, own time, and the time base; only time vectors are read (a lazy log's values never). Ran: test_file_structure (CSV with a gap, .mat structs + own time, generated .bin, sample .ulg, ROS 2 .mcap, a followed .tlog growing) - green; mypy clean. The panel (values at the cursor via `/api/cursor`, click to plot) comes with D7 after S1. Next: F2.
+- 2026-11-14 · L4 M3a *Keep this area offline* (backend): `app/tilekeep.py` – estimate (tiles, bytes, already kept,
+  allowed + the reason), a background download through `tiles.tile` (policy, cache, User-Agent in one place), progress /
+  stop, the kept areas in `~/.signalviewer/kept_areas.json` counted on the disk when listed, Delete keeps tiles another
+  area of the layer covers; `tiles.BULK` – the terms per source: OpenStreetMap, OpenTopoMap and every Esri layer refused
+  with the reason (never sent), Terrain Tiles allowed (open data; the 3D ground and the profile offline), a user's own
+  server with M4; at most 40,000 tiles a request. Routes `/api/tiles/keep{,/estimate,/progress,/stop}`,
+  `/api/tiles/areas[/{id}]`. Ran: `tests/test_tile_keep.py` (new, 7) + the map tests green, mypy clean. The dialog
+  (M3b) comes with M1's picker (after S1). Next: M4.

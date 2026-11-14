@@ -56,6 +56,64 @@ async def map_tile(src: str, z: int, x: int, y: int):
     return Response(content=r[0], media_type=r[1], headers={"Cache-Control": "max-age=86400"})
 
 
+# M3: KEEP AN AREA OFFLINE - only from sources whose terms allow bulk downloading (app/tilekeep.py)
+
+class KeepBody(BaseModel):
+    src: str
+    bounds: List[float]
+    zmin: int = 10
+    zmax: int = 16
+    name: str = ""
+
+
+@router.post("/api/tiles/keep/estimate")
+def keep_estimate(req: KeepBody):
+    """How many tiles, about how big, how many are kept already, and whether the layer may be kept (and why)."""
+    from app import tilekeep
+    try:
+        return tilekeep.estimate(req.src, req.bounds, req.zmin, req.zmax)
+    except ValueError as e:
+        fail(400, str(e))
+
+
+@router.post("/api/tiles/keep")
+def keep_start(req: KeepBody):
+    """Start downloading the area in the background (progress: /api/tiles/keep/progress)."""
+    from app import tilekeep
+    try:
+        return tilekeep.start(req.src, req.bounds, req.zmin, req.zmax, req.name)
+    except ValueError as e:
+        fail(400, str(e))
+
+
+@router.get("/api/tiles/keep/progress")
+def keep_progress():
+    from app import tilekeep
+    return tilekeep.progress()
+
+
+@router.post("/api/tiles/keep/stop")
+def keep_stop():
+    from app import tilekeep
+    return tilekeep.stop()
+
+
+@router.get("/api/tiles/areas")
+def kept_areas():
+    """The kept areas with what of them is on the disk now."""
+    from app import tilekeep
+    return {"areas": tilekeep.areas()}
+
+
+@router.delete("/api/tiles/areas/{area_id}")
+def delete_kept_area(area_id: str):
+    from app import tilekeep
+    try:
+        return tilekeep.delete(area_id)
+    except KeyError:
+        fail(404, "This kept area is not in the list any more (it was deleted already).")
+
+
 # =============================================================================
 # P7: PLACES - My places (~/.signalviewer/places.json, a file a colleague can be given), import / export,
 # the coordinate parser, the ground under a point

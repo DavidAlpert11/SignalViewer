@@ -46,6 +46,21 @@ SOURCES: dict = {
     # in the colours - only for app/basemap.py's ground (never shown as a picture)
     "terrarium": {"url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png", "max": 15, "ext": "png"},
 }
+# M3: may a source's tiles be downloaded in bulk ("Keep this area offline")? Only where its terms allow it; the
+# reason is shown to the user as it is. A user's own server (M4) may always be.
+BULK: dict = {
+    "terrarium": (True, "Terrain Tiles are open data (Mapzen / AWS Open Data): free to download."),
+    "osm": (False, "OpenStreetMap's tile servers forbid bulk downloading (their tile usage policy). "
+                   "Places you look at stay in the cache; for a whole area use your own map server or an MBTiles file (My maps)."),
+    "topo": (False, "OpenTopoMap's servers are for light use only - no bulk downloading. "
+                    "Places you look at stay in the cache; for a whole area use your own map server or an MBTiles file (My maps)."),
+}
+_ESRI_TERMS = (False, "Esri's terms do not allow downloading its maps for offline use outside ArcGIS. "
+                      "Places you look at stay in the cache; for a whole area use your own map server or an MBTiles file (My maps).")
+for _k in ("esri", "light", "light_ref", "dark", "dark_ref", "satellite", "sat_roads", "satroads"):
+    BULK[_k] = _ESRI_TERMS
+
+
 # M2: a layer made of two - the picture and a transparent reference drawn over it (composed in `tile`)
 COMPOSITES: dict = {"satroads": ("satellite", "sat_roads")}
 _MAX_AGE = 30 * 24 * 3600          # refresh a cached tile after a month (when online)
