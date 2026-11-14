@@ -17,6 +17,7 @@
 - The legend reads like an instrument: each line's value at the cursor in a monospaced, bold number with its unit after it, and the change between the two cursors (Δ) beside it.
 - The state lanes of a tab (such as a flight mode) are a thin coloured band inside the top plot's card, lined up with its time axis, instead of a separate row above the plots.
 - Plots: axis numbers in the mono face, a quieter grid, the cursor a dashed amber line with a dot on every curve, and limits drawn as dashed red lines (a short tick in the signal's colour tells several apart).
+- The timeline shows the run's modes (or any state signal) as colour along its track, under the overview line and the amber frame of what the plots show.
 
 <!-- lane L4 -->
 - **Map: *Satellite + roads*.** A new background: the satellite photos with the roads and their names drawn over them

@@ -1,6 +1,7 @@
 import { countRender } from "../perf";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { actions, activeTab, rangeKey, recordingExtent, useApp, type PlayMode } from "../store";
+import { actions, activeTab, rangeKey, recordingExtent, tabBandLanes, useApp, type PlayMode } from "../store";
+import { stateColor } from "../values";
 import { api } from "../api";
 import { envelopePath, panSpan, pullEdge, shownWindow, type Span } from "../timelineView";
 import { fmtNum, useT } from "../i18n";
@@ -105,6 +106,26 @@ export default function Timeline() {
     return () => { gone = true; };
   }, [envKey]);          // eslint-disable-line react-hooks/exhaustive-deps
 
+  // B5: the run's modes as colour along the track - the lane the overview strip shows (the run's phase signal), else
+  // the tab's first state lane; the whole recording, one request per lane / data change
+  const theme = useApp((s) => s.theme);
+  const stripLane = useApp((s) => s.stripLanes[0]);
+  const bandLane = useApp((s) => tabBandLanes(s.ws.globalStates, activeTab(s.ws))[0]);
+  const modeLane = stripLane ?? bandLane ?? null;
+  const [modes, setModes] = useState<{ a: number; b: number; v: number }[]>([]);
+  const modeKey = open && modeLane && ext ? `${modeLane}|${ext[0]}|${ext[1]}|${dataVersion}` : "";
+  useEffect(() => {
+    if (!modeKey || !modeLane || !ext) { setModes([]); return; }
+    let gone = false;
+    api.states([modeLane], ext[0], ext[1], 400).then((r) => {
+      const m = r.states[modeLane];
+      if (gone || !m || m.tooMany) { if (!gone) setModes([]); return; }
+      const pts = m.points;
+      setModes(pts.flatMap(([a, v], i) => (v === null ? [] : [{ a, b: i + 1 < pts.length ? pts[i + 1][0] : (m.end ?? ext[1]), v }])));
+    }).catch(() => { if (!gone) setModes([]); });
+    return () => { gone = true; };
+  }, [modeKey]);          // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!ext) return null;
   const [t0, t1] = ext;
   const span = t1 - t0;
@@ -171,6 +192,10 @@ export default function Timeline() {
       aria-valuemin={0} aria-valuemax={Math.round(span * 1000) / 1000} aria-valuenow={now === null ? 0 : Math.round((now - t0) * 1000) / 1000}
       aria-valuetext={now === null ? t("tlHint") : clock(now)}
       title={t("tlHint")} onPointerDown={onDown} onKeyDown={onKey}>
+      {open && modes.length > 0 && (
+        <div className="tl-modes" aria-hidden="true">
+          {modes.map((m, k) => <i key={k} style={{ left: `${frac(m.a) * 100}%`, width: `${Math.max(0, frac(m.b) - frac(m.a)) * 100}%`, background: stateColor(m.v, theme) }} />)}
+        </div>)}
       {open && env?.d && (
         <svg className="tl-env" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
           <path d={env.d} style={{ stroke: env.color }} vectorEffect="non-scaling-stroke" />
