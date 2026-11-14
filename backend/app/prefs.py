@@ -231,7 +231,30 @@ def _validate(t: Dict[str, Any]) -> Dict[str, Any]:
             t["defaultTabs"] = list(dict.fromkeys(names))
         else:
             t.pop("defaultTabs", None)
+    _clean_profile(t)   # L5 D14
     return t
+
+
+def _clean_profile(t: Dict[str, Any]) -> None:
+    """L5 D14: a profile's *at a glance* numbers ({name, stat, label?}, at most 4) and pinned searches ({q,
+    label?}) - optional; what is malformed is dropped, an empty list removed (old templates have none)."""
+    from svcore.windowstats import GLANCE_STATS
+    g = t.get("glance")
+    if g is not None:
+        ok = [{k: str(x[k]) for k in ("name", "stat", "label") if x.get(k)} for x in (g if isinstance(g, list) else [])
+              if isinstance(x, dict) and str(x.get("name") or "").strip() and x.get("stat") in GLANCE_STATS][:4]
+        if ok:
+            t["glance"] = ok
+        else:
+            t.pop("glance", None)
+    q = t.get("searches")
+    if q is not None:
+        ok = [{k: str(x[k]).strip() for k in ("q", "label") if str(x.get(k) or "").strip()} for x in (q if isinstance(q, list) else [])
+              if isinstance(x, dict) and str(x.get("q") or "").strip()]
+        if ok:
+            t["searches"] = ok
+        else:
+            t.pop("searches", None)
 
 
 def _migrate_v1():

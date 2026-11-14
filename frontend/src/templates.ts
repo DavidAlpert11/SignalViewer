@@ -1,9 +1,10 @@
 import { api, type RunInfo, type Template, type TplObject, type TplObjectRole, type TplPlot, type TplSlot, type TplTab } from "./api";
-import { activeTab, colorAllocator, fileLabel, fileMark, TRACE_COLORS, uid, useApp, type Condition, type MapObject, type MoreTabs, type ObjectKind, type Plot, type Tab } from "./store";
+import { activeTab, colorAllocator, fileLabel, fileMark, TRACE_COLORS, uid, useApp, type Condition, type GlanceItem, type MapObject, type MoreTabs, type ObjectKind, type Plot, type Tab } from "./store";
 import { translate } from "./i18n";
 import { detectObjects, type Candidate } from "./objectDetect";
 import { addedSummary } from "./objectAdd";
 import { trackOfClass } from "./mapObjects";
+import { mergeProfile, profileOf } from "./store/actions/profile";   // L5 D14
 
 const OBJ_ROLES: TplObjectRole[] = ["lat", "lon", "alt", "yaw", "pitch", "roll", "qw", "qx", "qy", "qz"];
 
@@ -33,6 +34,12 @@ export function tx(s: string | undefined, lang = useApp.getState().lang): string
   // a user's own names are not in the table and stay as typed
   if (lang === "he") return s.split(" · ").map((part) => BUILTIN_HE[part] ?? part).join(" · ");
   return s;
+}
+
+/** D14: how an at-a-glance number is named - the profile's label ("@key" translated), else "max Engine.Temp". */
+export function glanceLabel(g: GlanceItem, lang = useApp.getState().lang): string {
+  if (g.label) return tx(g.label, lang);
+  return translate(lang, "glItem", { stat: translate(lang, `glStat_${g.stat}` as "glStat_max"), name: g.name.split("|")[0] });
 }
 
 const BUILTIN_HE: Record<string, string> = {
@@ -112,7 +119,9 @@ export function templateFromTabs(tabs: Tab[], name: string): { template: Templat
   const conds = (st.ws.conditions ?? []).map(({ visible: _v, ...c }) => c);
   // P7: the session's places too (the range, the ground station of this kind of test)
   const places = st.ws.places ?? [];
-  return { template: { version: 2, id: "", name, slots, tabs: tplTabs, ...(conds.length ? { conditions: conds } : {}), ...(places.length ? { places } : {}) }, skipped, slotRuns };
+  // D14: the run-at-a-glance numbers and the pinned searches - a template is a profile
+  return { template: { version: 2, id: "", name, slots, tabs: tplTabs, ...(conds.length ? { conditions: conds } : {}), ...(places.length ? { places } : {}),
+    ...profileOf(st.ws) }, skipped, slotRuns };
 }
 
 /** The templates' conditions not in the workspace yet (by name) - new ids, combinations re-pointed;
@@ -326,7 +335,10 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
       ws.activeTab = firstNew;
       if (emptyStart && ws.tabs.length > before) ws.tabs = ws.tabs.slice(1);
     }
-    res.conditions = mergeConditions(ws, [t, ...(t.includes ?? []).map((id) => all.find((x) => x.id === id)).filter((x): x is Template => !!x)]);
+    const withIncluded = [t, ...(t.includes ?? []).map((id) => all.find((x) => x.id === id)).filter((x): x is Template => !!x)];
+    res.conditions = mergeConditions(ws, withIncluded);
+    // D14: the profile's at-a-glance numbers (its own first, then its parts') and pinned searches
+    if (!opts.rest) mergeProfile(ws, withIncluded);
     // P7: its places not in the session yet (the same name at the same position is the same place)
     const key = (p: { name: string; lat: number; lon: number }) => `${p.name}|${p.lat.toFixed(6)}|${p.lon.toFixed(6)}`;
     const have = new Set((ws.places ?? []).map(key));

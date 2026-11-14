@@ -78,6 +78,54 @@
   "defaultTabs": [
    "Attitude",
    "Flight"
+  ],
+  "glance": [
+   {
+    "name": "CTUN.Alt|BARO.Alt",
+    "stat": "max",
+    "label": "@glMaxAlt"
+   },
+   {
+    "name": "GPS.Spd",
+    "stat": "max",
+    "label": "@glMaxSpeed"
+   },
+   {
+    "name": "BAT.CurrTot|BATT.CurrTot|CURR.CurrTot",
+    "stat": "final",
+    "label": "@glBatUsed"
+   },
+   {
+    "name": "BAT.Volt|BATT.Volt|CURR.Volt",
+    "stat": "min",
+    "label": "@glMinVolt"
+   }
+  ],
+  "searches": [
+   {
+    "q": "ATT"
+   },
+   {
+    "q": "RATE"
+   },
+   {
+    "q": "VIBE"
+   },
+   {
+    "q": "GPS"
+   },
+   {
+    "q": "BAT"
+   },
+   {
+    "q": "CTUN"
+   },
+   {
+    "q": "XKF"
+   },
+   {
+    "q": "RCOU"
+   }
   ]
  },
  {
@@ -372,6 +420,32 @@
      }
     ]
    }
+  ],
+  "glance": [
+   {
+    "name": "VIBE.VibeX",
+    "stat": "max"
+   },
+   {
+    "name": "VIBE.VibeY",
+    "stat": "max"
+   },
+   {
+    "name": "VIBE.VibeZ",
+    "stat": "max"
+   },
+   {
+    "name": "VIBE.Clip|VIBE.Clip0",
+    "stat": "final"
+   }
+  ],
+  "searches": [
+   {
+    "q": "VIBE"
+   },
+   {
+    "q": "IMU"
+   }
   ]
  },
  {
@@ -530,6 +604,31 @@
      }
     ]
    }
+  ],
+  "glance": [
+   {
+    "name": "BAT.Volt|BATT.Volt|CURR.Volt",
+    "stat": "min",
+    "label": "@glMinVolt"
+   },
+   {
+    "name": "BAT.Curr|BATT.Curr|CURR.Curr",
+    "stat": "max",
+    "label": "@glMaxCurrent"
+   },
+   {
+    "name": "BAT.CurrTot|BATT.CurrTot|CURR.CurrTot",
+    "stat": "final",
+    "label": "@glBatUsed"
+   }
+  ],
+  "searches": [
+   {
+    "q": "BAT"
+   },
+   {
+    "q": "POWR"
+   }
   ]
  },
  {
@@ -618,6 +717,28 @@
       "name": "MODE.Mode"
      }
     ]
+   }
+  ],
+  "glance": [
+   {
+    "name": "GPS.NSats",
+    "stat": "min",
+    "label": "@glMinSats"
+   },
+   {
+    "name": "GPS.HDop",
+    "stat": "max",
+    "label": "@glMaxHdop"
+   },
+   {
+    "name": "GPS.Spd",
+    "stat": "max",
+    "label": "@glMaxSpeed"
+   }
+  ],
+  "searches": [
+   {
+    "q": "GPS"
    }
   ]
  },
@@ -767,6 +888,31 @@
       "name": "MODE.Mode"
      }
     ]
+   }
+  ],
+  "glance": [
+   {
+    "name": "CTUN.Alt",
+    "stat": "max",
+    "label": "@glMaxAlt"
+   },
+   {
+    "name": "CTUN.CRt",
+    "stat": "max",
+    "label": "@glMaxClimb"
+   },
+   {
+    "name": "CTUN.CRt",
+    "stat": "min",
+    "label": "@glMinClimb"
+   }
+  ],
+  "searches": [
+   {
+    "q": "CTUN"
+   },
+   {
+    "q": "BARO"
    }
   ]
  },
@@ -965,6 +1111,48 @@
   "defaultTabs": [
    "Attitude",
    "Flight"
+  ],
+  "glance": [
+   {
+    "name": "GLOBAL_POSITION_INT.relative_alt|VFR_HUD.alt",
+    "stat": "max",
+    "label": "@glMaxAlt"
+   },
+   {
+    "name": "VFR_HUD.groundspeed",
+    "stat": "max",
+    "label": "@glMaxSpeed"
+   },
+   {
+    "name": "BATTERY_STATUS.current_consumed",
+    "stat": "final",
+    "label": "@glBatUsed"
+   },
+   {
+    "name": "SYS_STATUS.voltage_battery",
+    "stat": "min",
+    "label": "@glMinVolt"
+   }
+  ],
+  "searches": [
+   {
+    "q": "ATTITUDE"
+   },
+   {
+    "q": "SYS_STATUS"
+   },
+   {
+    "q": "GPS_RAW_INT"
+   },
+   {
+    "q": "VFR_HUD"
+   },
+   {
+    "q": "RC_CHANNELS"
+   },
+   {
+    "q": "VIBRATION"
+   }
   ]
  },
  {
@@ -1100,6 +1288,34 @@
       "name": "HEARTBEAT.custom_mode"
      }
     ]
+   }
+  ],
+  "glance": [
+   {
+    "name": "SYS_STATUS.voltage_battery",
+    "stat": "min",
+    "label": "@glMinVolt"
+   },
+   {
+    "name": "BATTERY_STATUS.current_battery|SYS_STATUS.current_battery",
+    "stat": "max",
+    "label": "@glMaxCurrent"
+   },
+   {
+    "name": "GPS_RAW_INT.satellites_visible",
+    "stat": "min",
+    "label": "@glMinSats"
+   }
+  ],
+  "searches": [
+   {
+    "q": "SYS_STATUS"
+   },
+   {
+    "q": "BATTERY_STATUS"
+   },
+   {
+    "q": "GPS_RAW_INT"
    }
   ]
  },
@@ -1415,6 +1631,34 @@
      }
     ]
    }
+  ],
+  "glance": [
+   {
+    "name": "battery_status.voltage_v",
+    "stat": "min",
+    "label": "@glMinVolt"
+   },
+   {
+    "name": "battery_status.current_a",
+    "stat": "max",
+    "label": "@glMaxCurrent"
+   },
+   {
+    "name": "battery_status.discharged_mah",
+    "stat": "final",
+    "label": "@glBatUsed"
+   }
+  ],
+  "searches": [
+   {
+    "q": "battery_status"
+   },
+   {
+    "q": "vehicle_gps_position"
+   },
+   {
+    "q": "sensor_gps"
+   }
   ]
  },
  {
@@ -1511,6 +1755,32 @@
       ]
      }
     ]
+   }
+  ],
+  "glance": [
+   {
+    "name": "vehicle_global_position.alt|sensor_gps.altitude_msl_m|vehicle_gps_position.alt",
+    "stat": "max",
+    "label": "@glMaxAlt"
+   },
+   {
+    "name": "battery_status.voltage_v",
+    "stat": "min",
+    "label": "@glMinVolt"
+   }
+  ],
+  "searches": [
+   {
+    "q": "vehicle_attitude"
+   },
+   {
+    "q": "vehicle_local_position"
+   },
+   {
+    "q": "battery_status"
+   },
+   {
+    "q": "sensor_combined"
    }
   ]
  },

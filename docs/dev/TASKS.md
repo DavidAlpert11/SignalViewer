@@ -71,6 +71,10 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   - **L3 Plots and the frame** – in progress · done: B1–B5 · next: F2's legend, then D1 · tasks B1–B5, D1, D2, D8 (+ F2's legend) · requests: L1 – a Settings row for `bandInCard` (under L1)
   - **L3 Plots and the frame** – todo · next: waits for S1 (B1) · tasks B1–B5, D1, D2, D8 (+ F2's legend when L5 has it) · requests: –
     - From L5 (D7, 2026-11-14): the *run at a glance* strip (OverviewStrip, yours) could show the Checks counts (failed / to look at) opening the Checks panel (`panel: 'log'`); the numbers come from `/api/limits` (the tab's limits), `quality[runId]` in the store and `/api/runs/{id}/health` – as `ChecksView.tsx` `Checks` computes them (I can export a helper if you want it).
+    - From L5 (D14, 2026-11-14): **profiles are on `main`** – please show them (the strip and the signal list are yours):
+      (1) *the run at a glance* strip: `ws.glance` (≤ 4 `{name, stat, label?}`) → `api.glance(rid, ws.glance)` → `{items: [{name, stat, sig, value, unit, t}]}`; the name via `glanceLabel(item)` (templates.ts), the value with `fmtNum` + `unit`; `sig: null` → say *not in this file* (`t("glNotInFile", {label, name})`), never drop it silently; a `mean` item's tooltip `t("glMeanNote")` (plain sample mean); a click on a number with `t` → go to that time; its ⋯ → `actions.unpinGlance(i)`. Re-ask on `rid` / `dataVersion` / `ws.glance` change.
+      (2) the signal list (D2 chips): `ws.searches` as chips (`q` typed into the search box on click; `label ?? q`), ✕ → `actions.unpinSearch(q)`, and *Pin this search* beside the search box → `actions.pinSearch(text)` (toast `t("glSearchPinned", {q})`).
+      (3) the Inspector's statistics (D8): *Pin to at a glance* → `actions.pinGlance(name, stat)` (false = full: toast `t("glFull")`). Strings are in `i18n/templates.ts` (gl*). Analysis (D3, mine) gets the same pin.
     - From L5 (2026-11-14): **F2's endpoint is on `main`** – `POST /api/stats/window {signals: [ids], t0, t1}` (shown time; offsets applied) → `{stats: {id: {n, min, max, mean, t0, t1}}}`, states and closed signals left out, < 5 ms per call on 20M samples (block summaries cached). For the legend on demand (B2): call it on the view's x-range after a pan / zoom settles. Backend `svcore/windowstats.py`, test `tests/test_window_stats.py`.
   <!-- lane L4 -->
   - **L4 Map** – in progress · done: M2, M3a, M4a (backends), B6 · next: M1 (+ M3b / M4b) · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
@@ -82,21 +86,11 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       `.rel-panel`'s position, `.g3-cam-hint` / `.geo-hint` / `.g3-measure`'s position) and `review.css` (R3's map lines)
       may be trimmed when convenient – nothing breaks if they stay.
   <!-- lane L5 -->
-  - **L5 Analysis and new capabilities** – in progress · done: F3 F1 F2 D7 · next: D14 · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: –
-    - HAND-OVER 2026-11-14 (Claude, lane L5): stopped because of context (the lane is long; one task at a time is safer fresh).
-      Last finished task: D7 (commit 8735af5, on main). Before it F3 483ceb8, F1 e7c485c, F2 34d5e1d (backends) – all on main.
-      In progress: none; uncommitted / stashed: none.
-      Next step, exactly: D14 profiles (plan §3.6 / §7 Phase D): the built-in templates (`backend/svcore/builtin_templates.json`)
-      gain their *at a glance* numbers and chips; *pin to at a glance* and *pin a search* saved with a template (new optional
-      template fields - old templates must still open). The strip itself (OverviewStrip.tsx) is L3's: ask there for what it shows.
-      Then D3 Analysis → D4 Compare (F3's `/api/runs/parameters/compare` is ready for *two runs compared*) → D5 → D6 → D9+F4 → D10.
-      Checks: quick_check green before every push; e2e run for D7: test_checks_view (new), test_features -k log/health/checks/event,
-      test_navigation, test_event_navigation, test_release_1_21, test_findings_report, test_live_report – green. Not run: the whole e2e suite.
-      Watch out: F2's mean is a plain mean of the samples (not time-weighted) – say so wherever it is shown (coordinator's request).
-      `api.ts` has an L5 block (runStructure / windowStats / runParameters / compareParameters + their types). Open requests: under
-      L3 (strip counts from Checks), under L1 (keep the `.hrow` alias). Sandbox: SV_CHROMIUM=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome
-      for e2e and count_controls; warm the UI first (`timeout 200 python run.py --port 8777 --no-open --browser`).
+  - **L5 Analysis and new capabilities** – in progress · done: F3 F1 F2 D7 D14 · next: D3 · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: under L3 (strip counts from Checks; the profile's numbers and chips – D14)
+    - D14 (2026-11-14): profiles in the model, the backend and the built-in templates; shown by L3. Files no lane owns, each change marked `L5 D14`: `store/model.ts` (Workspace `glance` / `searches` + their types), `store.ts` (2 lines: `profileActions`), `templates.ts` (merge on open, kept on save, `glanceLabel`), `app/prefs.py` (`_clean_profile`), `svcore/builtin_templates.json` (content). New: `store/actions/profile.ts`, `backend/tests/test_glance.py`, `src/store/profile.test.ts`.
     - D7 touched two files no lane owns (coordinator told): `App.tsx` (3 lines) and `components/rail.ts` (1 line), each marked `L5 D7`; `main.tsx` imports `styles/panels.css` (L5's).
+    - `api.ts` has an L5 block (runStructure / windowStats / runParameters / compareParameters / glance + their types). Sandbox: SV_CHROMIUM=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome for e2e and count_controls; warm the UI first (`timeout 200 python run.py --port 8777 --no-open --browser`).
+    - Watch out: F2's mean and D14's `mean` are plain means of the samples (not time-weighted) – say so wherever they are shown.
   <!-- lane Final -->
   - **Final** – waits for every lane · E1 E2 E4, the full checks, E3 the version
   <!-- end of the lane board -->
@@ -4259,3 +4253,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
   the measure line under the bar. New `styles/map.css` (L4; `main.tsx` imports it last). Pictures
   `docs/dev/mockups/B6/{before,after}` (dark en, light he). Ran: tsc; e2e `test_map_objects`, `test_map_smooth`, `test_globe3d`, `test_object_relations`, `test_live_report`, `test_offline_map` 44/44; quick_check green. Next: M1.
 - 2026-11-14 · L1 D12 Settings, palette, dialogs, library, Help, tour: dialogs on `--shadow-lg` with `--r-xl` corners over a `--scrim` token; Settings groups as eyebrows with hairlines between rows; L3's request done – Settings > Look > *Mode band* (Inside the top plot / Above the plots, `bandInCard`, strings in `i18n/common.ts`); the palette's chosen command in the selection tint with an edge; keys (`.kbd`) in mono; the tour card on `--r-card` / `--shadow-md`. Pictures `docs/dev/mockups/D12/after/` (Settings, Help, library, palette; dark en, light he). Ran: tsc, quick_check green, e2e `test_settings`, `test_file_help_menus`, `test_template_tabs`, `test_templates_recent_badfiles`, `test_tour`, `test_calm_screen`, `test_features -k "not map/globe/3d"` 147 passed. Seen for D13: the palette shows the same reload icon for move / zoom commands. Next: D13.
+- 2026-11-14 · L5 D14 profiles: a template carries its *at a glance* numbers (`glance`, ≤ 4, min / max / mean (plain sample mean) / first / final / range of a signal by name) and pinned searches (`searches`); `POST /api/runs/{id}/glance`; the built-in ArduPilot / MAVLink / PX4 templates carry theirs; opening merges (Undo), saving keeps them; old templates unchanged. The display is L3's (asked under L3). Ran: test_glance (new, 5), test_window_stats, test_templates, test_template_matching; mypy on the changed modules; tsc; Vitest store/profile.test.ts (new, 5) + undo; e2e test_template_tabs, test_templates_recent_badfiles 14 passed. No screen changed (no pictures / recount). Next: D3.

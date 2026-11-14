@@ -847,3 +847,45 @@ def run_overview(run_id: str, rows: List[str] = Query(default=[])):
         return store.overview(run_id, rows)
     except KeyError:
         fail(404, "File is not open.")
+
+
+class GlanceItem(BaseModel):
+    name: str                      # a signal NAME ("a|b": a, else b; matched without unit / instance)
+    stat: str = "max"
+
+
+class GlanceRequest(BaseModel):
+    items: List[GlanceItem]
+
+
+@router.post("/api/runs/{run_id}/glance")
+def run_glance(run_id: str, req: GlanceRequest):
+    """D14: the *run at a glance* numbers of one run - a profile's (template's) or the user's pinned ones,
+    each a signal by name and a statistic over the whole run. A name the file does not have comes back
+    with sig None (the strip leaves it out and says so); the value is as stored, in the signal's unit."""
+    from svcore import templates as tplm
+    from svcore.naming import without_unit
+    from svcore.windowstats import GLANCE_STATS, glance_value
+    try:
+        lr = store.get(run_id)
+    except KeyError:
+        fail(404, "File is not open.")
+    ix = tplm.index_of({"id": run_id, "signals": [{"name": n} for n in lr.run.signals]})
+    out = []
+    for it in req.items:
+        if it.stat not in GLANCE_STATS:
+            fail(400, f"Unknown statistic {it.stat!r} - use one of {', '.join(GLANCE_STATS)}.")
+        name = ix.match(it.name)
+        row: Dict[str, object] = {"name": it.name, "stat": it.stat, "sig": None, "value": None, "t": None, "unit": None}
+        if name is not None:
+            sid = f"{run_id}/{name}"
+            row["sig"] = sid
+            unit = name[len(without_unit(name)):].strip().strip("[]")
+            row["unit"] = unit or None
+            if not store.is_state(sid):
+                t, y, off = store.signal_parts(sid)
+                v = glance_value(t, y, it.stat)
+                if v:
+                    row.update(value=v["value"], t=None if v["t"] is None else v["t"] + off)
+        out.append(row)
+    return {"items": out}

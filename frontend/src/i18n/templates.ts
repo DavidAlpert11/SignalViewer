@@ -197,6 +197,17 @@ export const en = {
   exampleArdupilotDesc: "A real .bin log with an automatic health check",
   exampleSimVsFlightDesc: "A model beside the real flight, aligned in time",
   exampleInvestigateDesc: "A known fault - find it with Investigate",
+  // D14: a profile's run-at-a-glance numbers (the built-in templates' labels) and the statistics' words
+  glMaxAlt: "Max altitude", glMaxSpeed: "Max speed", glBatUsed: "Battery used", glMinVolt: "Lowest voltage",
+  glMaxCurrent: "Max current", glMinSats: "Fewest satellites", glMaxHdop: "Worst HDOP", glMaxClimb: "Fastest climb",
+  glMinClimb: "Lowest climb rate",
+  glStat_min: "min", glStat_max: "max", glStat_mean: "mean", glStat_first: "first", glStat_final: "final", glStat_range: "range",
+  glItem: "{stat} {name}",
+  glMeanNote: "The mean of the samples over the whole run (not weighted by time)",
+  glNotInFile: "{label}: this file has no signal {name}",
+  glFull: "At a glance holds four numbers - unpin one first",
+  glPinned: "Pinned to at a glance: {label}",
+  glSearchPinned: "Search pinned: {q}",
 };
 
 export const he: typeof en = {
@@ -396,4 +407,14 @@ export const he: typeof en = {
   exampleArdupilotDesc: "לוג ‎.bin‎ אמיתי עם בדיקת תקינות אוטומטית",
   exampleSimVsFlightDesc: "מודל לצד הטיסה האמיתית, מיושרים בזמן",
   exampleInvestigateDesc: "תקלה ידועה - מוצאים אותה בעזרת החקירה",
+  glMaxAlt: "גובה מרבי", glMaxSpeed: "מהירות מרבית", glBatUsed: "צריכת סוללה", glMinVolt: "מתח נמוך ביותר",
+  glMaxCurrent: "זרם מרבי", glMinSats: "מעט לוויינים ביותר", glMaxHdop: "HDOP גרוע ביותר", glMaxClimb: "טיפוס מהיר ביותר",
+  glMinClimb: "קצב טיפוס נמוך ביותר",
+  glStat_min: "מינימום", glStat_max: "מקסימום", glStat_mean: "ממוצע", glStat_first: "ראשון", glStat_final: "אחרון", glStat_range: "טווח",
+  glItem: "{stat} {name}",
+  glMeanNote: "ממוצע הדגימות לאורך כל ההקלטה (לא משוקלל בזמן)",
+  glNotInFile: "{label}: אין בקובץ הזה אות {name}",
+  glFull: "בשורת הריצה במבט אחד יש מקום לארבעה מספרים - יש לבטל הצמדה של אחד קודם",
+  glPinned: "הוצמד לשורת הריצה במבט אחד: {label}",
+  glSearchPinned: "החיפוש הוצמד: {q}",
 };

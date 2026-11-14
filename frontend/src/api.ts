@@ -1,5 +1,5 @@
 import { translate } from "./i18n";
-import type { MapObject } from "./store";
+import type { GlanceItem, GlanceStat, MapObject, PinnedSearch } from "./store";
 
 export type StorageKind = "cache" | "uploads" | "tiles" | "memory";
 /** memory (P2): not on disk - the results kept in memory to be fast, with its limit and per kind */
@@ -219,6 +219,8 @@ export interface Template {
   defaultTabs?: string[];
   conditions?: TplCondition[];       // the investigation's conditions: added (by name) when the template opens
   places?: import("./store").Place[];   // P7: the session's places: added (by name and position) when the template opens
+  /** D14 (a profile): its run-at-a-glance numbers and its pinned searches - added when the template opens (optional) */
+  glance?: GlanceItem[]; searches?: PinnedSearch[];
   generator?: "quicklook" | "compare" | "objects";   // built-in templates whose tabs are made from the files themselves
   builtin?: boolean; saved?: number; file?: string; broken?: boolean;
 }
@@ -547,6 +549,9 @@ export const api = {
     call<{ stats: Record<string, WindowStat> }>("/api/stats/window", { signals, t0, t1 }),
   runParameters: (id: string) => call<{ params: RunParam[] }>(`/api/runs/${encodeURIComponent(id)}/parameters`),
   compareParameters: (a: string, b: string) => call<ParamDiff>("/api/runs/parameters/compare", { a, b }),
+  /** D14: the run-at-a-glance numbers (a profile's / pinned), by signal NAME over the whole run */
+  glance: (id: string, items: GlanceItem[]) =>
+    call<{ items: GlanceValue[] }>(`/api/runs/${encodeURIComponent(id)}/glance`, { items: items.map(({ name, stat }) => ({ name, stat })) }),
   // --- end lane L5 ---
 };
 
@@ -565,6 +570,9 @@ export interface RunParam { name: string; value: number | string; source: "log" 
   last?: number; changes?: [number, number][]; default?: number }
 export interface ParamDiff { differ: { name: string; a: number | string; b: number | string; source: RunParam["source"];
   aLast?: number; bLast?: number; delta?: number }[]; onlyA: RunParam[]; onlyB: RunParam[]; same: number }
+/** D14: one at-a-glance number of a run. sig null: the file has no such signal (say so, do not hide it);
+ *  value null: no finite sample, or a state. In the signal's own unit; t = where it is reached (shown time). */
+export interface GlanceValue { name: string; stat: GlanceStat; sig: string | null; value: number | null; t: number | null; unit: string | null }
 // --- end lane L5 ---
 
 export type LogLevel = "info" | "warning" | "error";

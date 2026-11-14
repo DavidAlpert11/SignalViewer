@@ -68,3 +68,31 @@ def window_stats(t: np.ndarray, y: np.ndarray, t0: Optional[float], t1: Optional
         return {}
     return {"n": int(c), "min": float(lo), "max": float(hi), "mean": float(s / c),
             "t0": float(t[i0]), "t1": float(t[i1 - 1])}
+
+
+# ----------------------------------------------------------------------------- D14: *at a glance* numbers
+GLANCE_STATS = ("min", "max", "mean", "first", "final", "range")
+
+
+def glance_value(t: np.ndarray, y: np.ndarray, stat: str) -> Optional[Dict[str, Any]]:
+    """One number of a whole run for the *run at a glance* strip: {value, t} (t: where it is reached, for
+    min / max / first / final; None for mean / range). NaN samples are skipped; None when no sample is
+    finite. `mean` is the plain mean of the samples (not time-weighted), as the window statistics."""
+    if stat not in GLANCE_STATS:
+        raise ValueError(f"Unknown statistic {stat!r} - use one of {', '.join(GLANCE_STATS)}.")
+    if stat in ("first", "final"):
+        f = np.flatnonzero(np.isfinite(np.asarray(y, dtype=np.float64)))
+        if not len(f):
+            return None
+        i = int(f[0] if stat == "first" else f[-1])
+        return {"value": float(y[i]), "t": float(t[i])}
+    s = window_stats(t, y, None, None)
+    if not s:
+        return None
+    if stat == "mean":
+        return {"value": s["mean"], "t": None}
+    if stat == "range":
+        return {"value": s["max"] - s["min"], "t": None}
+    a = np.asarray(y, dtype=np.float64)
+    i = int(np.nanargmax(a) if stat == "max" else np.nanargmin(a))
+    return {"value": s[stat], "t": float(t[i])}
