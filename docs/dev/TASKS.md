@@ -74,10 +74,14 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
     - From L5 (D7, 2026-11-14): the *run at a glance* strip (OverviewStrip, yours) could show the Checks counts (failed / to look at) opening the Checks panel (`panel: 'log'`); the numbers come from `/api/limits` (the tab's limits), `quality[runId]` in the store and `/api/runs/{id}/health` – as `ChecksView.tsx` `Checks` computes them (I can export a helper if you want it).
     - From L5 (2026-11-14): **F2's endpoint is on `main`** – `POST /api/stats/window {signals: [ids], t0, t1}` (shown time; offsets applied) → `{stats: {id: {n, min, max, mean, t0, t1}}}`, states and closed signals left out, < 5 ms per call on 20M samples (block summaries cached). For the legend on demand (B2): call it on the view's x-range after a pan / zoom settles. Backend `svcore/windowstats.py`, test `tests/test_window_stats.py`.
   <!-- lane L4 -->
-  - **L4 Map** – in progress · done: M2, M3a, M4a (backends) · next: B6 (after S1); M3b / M4b (dialog, Settings list) with M1 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
+  - **L4 Map** – in progress · done: M2, M3a, M4a (backends), B6 · next: M1 (+ M3b / M4b) · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
     - *Request to L3* (from L4, M2): `store/slices/view.ts` `geoBase`'s type → `GeoBase` from `mapBase.ts` (it now has
       `"satroads"`; today the store's union lacks it, PlotView's select casts); `PlotView.tsx` the *Borders* switch for
       `isPhotoBase(shownBase)` (from `mapBase.ts`) instead of `=== "satellite"`. Both go away with M1 if L4 may then touch PlotView's map select.
+    - *Request to L1* (from L4, B6): the map chrome's new rules are in `styles/map.css` (L4, loaded last); the rules they
+      supersede in `index.css` (`.map-bar.geo-bar`, `.globe3d-readout`, `.globe3d-light`, `.track-keys`'s position, `.g3-fd`,
+      `.rel-panel`'s position, `.g3-cam-hint` / `.geo-hint` / `.g3-measure`'s position) and `review.css` (R3's map lines)
+      may be trimmed when convenient – nothing breaks if they stay.
   <!-- lane L5 -->
   - **L5 Analysis and new capabilities** – in progress · done: F3 F1 F2 D7 · next: D14 · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: –
     - HAND-OVER 2026-11-14 (Claude, lane L5): stopped because of context (the lane is long; one task at a time is safer fresh).
@@ -4248,3 +4252,10 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-14 · L1 D11 welcome: its rules moved from index.css to `styles/welcome.css`; *where you left off* (recent files / sessions, each list a card, paths in mono) now comes before the examples; section and group titles are eyebrows; the example cards on `--panel` with `--r-card`, their icon no longer amber; *Open files* is `.btn.primary.lg` (new size in index.css, no inline style); the duplicate `.empty-state` dropped (A4 has it). RTL: the path under its name aligned right. Pictures `docs/dev/mockups/D11/after/` (before: `mockups/before/01_welcome_*`), dark / light × en / he, with and without recent items. count_controls: welcome 42 (= before), plotted 105, Settings 58, Sweeps 16. Ran: tsc, e2e `test_welcome_cards`, `test_fresh_user`, `test_first_minute`, `test_calm_screen`, `test_features -k welcome/recent/session/...` 29 passed. Next: D12.
 - 2026-11-14 · L5 D7: one *Checks* view for any file in the Log panel's place - verdict + tinted cards (limits of every tab, data quality, a log's health check), Parameters for any file (F3, compare with another file), The file (F1, values at the cursor, click to plot); `ChecksView.tsx`, `styles/panels.css`, 4 marked lines in App.tsx / rail.ts. Ran: tsc, Vitest (222), e2e test_checks_view (new), test_features -k log/health/checks/event, test_navigation, test_event_navigation, test_release_1_21, test_findings_report, test_live_report - green; pictures en-dark / he-light looked at (RTL fine); count_controls unchanged. Next: D14.
 - 2026-11-14 · L5 hand-over after D7 (context): F3 F1 F2 D7 on main; next D14. HAND-OVER block in the L5 board line.
+- 2026-11-14 · L4 B6 the map / 3D chrome (plan §5.4): one glass bar top-start, as wide as its buttons (blur, hairlines
+  between the camera, the zoom and the view's own groups), the same in 2D and 3D; two docks at the bottom corners
+  (`.map-dock-start`: the data box, the track keys, the *reduced quality* sign; `.map-dock-end`: the pointer's position,
+  the relation box, the attitude indicator) that stack what they hold – nothing overlaps any more (the hint ran over the
+  data box and the pointer's box); the data box an instrument (muted labels `.mi-k`, mono values); the camera's hint and
+  the measure line under the bar. New `styles/map.css` (L4; `main.tsx` imports it last). Pictures
+  `docs/dev/mockups/B6/{before,after}` (dark en, light he). Ran: tsc; e2e `test_map_objects`, `test_map_smooth`, `test_globe3d`, `test_object_relations`, `test_live_report`, `test_offline_map` 44/44; quick_check green. Next: M1.

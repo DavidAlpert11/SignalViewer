@@ -1158,9 +1158,7 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
       <div ref={hostRef} className="globe3d-host" />
       <div ref={creditRef} className="globe3d-credits" />
       {!cz && <div className="plot-empty">{t("globeLoading")}</div>}
-      <TrackKeys objects={objects} colors={objColors} />
       {cz && !objects.length && !places.length && <div className="plot-empty">{emptyText}</div>}
-      {lightMode && <div className="globe3d-light" title={t("globeLightHint")}>{t("globeLight")}</div>}
       {/* the camera, the primary object and the related ones, the data box */}
       {cz && objects.length > 0 && (
         <MapBar plot={plot} objects={objects} className="globe3d-bar" chaseHint="g3CamChaseHint" onZoom={zoom3d}
@@ -1197,14 +1195,6 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
           </span>
         </MapBar>
       )}
-      {mouseAt && (
-        <div className="geo-readout g3-readout" role="status">
-          {fmtCoord(mouseAt.lat, mouseAt.lon, mouseAt.prec)}
-          {mouseAt.ground !== null && <> · {t("mapReadoutGround")} {fmtDistance(mouseAt.ground, lang)}</>}
-          {mouseAt.from && <> · {t("mapReadoutFrom", { name: mouseAt.from.name })} {fmtDistance(mouseAt.from.d, lang)} {Math.round(mouseAt.from.brg)}°</>}
-          {mouseAt.place && <> · {t("plFrom", { d: fmtDistance(mouseAt.place.d, lang), name: mouseAt.place.name })}</>}
-        </div>
-      )}
       {cz && objects.length > 0 && !measuring && !detached && (
         <div className="g3-cam-hint" role="note">{camTop ? t("g3CamTopHint") : t(!centred ? "g3HintFree" : plot.camera === "chase" ? "g3HintChase" : plot.camera === "cockpit" ? "g3CamCockpitHint" : plot.camera === "lookat" ? "g3HintLookAt" : "g3HintCentre")}</div>
       )}
@@ -1231,36 +1221,52 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
           </select>
         </div>
       )}
-      {dispState && <div className="g3-fd"><FlightDisplay s={dispState} /></div>}
       {close && miniTracks.length > 0 && <div className="g3-mini"><MiniMap tracks={miniTracks} camera={camNow}
         focus={dispSrc ? { lat: dispSrc.lat, lon: dispSrc.lon, hdg: dispSrc.hdg, color: dispSrc.color } : null}
         onPick={(lat, lon) => flyTo({ lat, lon, range: 1500, pitch: -40 })} /></div>}
-      {(allObjs.length > 1 || (allObjs.length > 0 && places.length > 0)) && <RelationPanel plot={plot} objects={allObjs} tracks={tracks} />}
-      {readout && showBox && (
-        // in the UI's direction; every number set left-to-right on its own (Hebrew names around them)
-        <div className="globe3d-readout" dir={lang === "he" ? "rtl" : "ltr"} aria-live="off">
-          <b style={{ color: readout.primary.color }}>{readout.primary.name}</b>
-          <span><bdi dir="ltr">{fmtNum(readout.primary.lat, lang, 7)}°, {fmtNum(readout.primary.lon, lang, 7)}°</bdi></span>
-          <span>{t("globeAlt")} <bdi dir="ltr">{fmtNum(readout.primary.alt, lang, 5)} m</bdi>
-            {readout.primary.agl !== null && <> · {t("globeAgl")} <bdi dir="ltr">{fmtNum(readout.primary.agl, lang, 5)} m</bdi></>}</span>
-          {readout.primary.hdg !== null && <span>{t("g3Hdg")} <bdi dir="ltr">{fmtNum((readout.primary.hdg + 360) % 360, lang, 4)}°</bdi>
-            {readout.primary.pitch !== null && <> · {t("g3Pitch")} <bdi dir="ltr">{fmtNum(readout.primary.pitch, lang, 3)}°</bdi></>}
-            {readout.primary.roll !== null && <> · {t("g3Roll")} <bdi dir="ltr">{fmtNum(readout.primary.roll, lang, 3)}°</bdi></>}</span>}
-          {(readout.primary.gs !== null || readout.primary.vs !== null) && <span>
-            {readout.primary.gs !== null && <>{t("g3Gs")} <bdi dir="ltr">{fmtNum(readout.primary.gs, lang, 4)} m/s</bdi></>}
-            {readout.primary.vs !== null && <> · {t("g3Vs")} <bdi dir="ltr">{fmtNum(readout.primary.vs, lang, 3)} m/s</bdi></>}</span>}
-          {/* 1.26: the compared object is in the relation box; a third one stays here */}
-          {readout.rel.filter((r) => r.name !== secondaryName).map((r) => (
-            <span key={r.name} className="g3-rel">
-              <i style={{ background: r.color }} />{r.name}: <bdi dir="ltr">{fmtDistance(r.horiz, lang)}</bdi>
-              {" "}· Δh <bdi dir="ltr">{r.dz >= 0 ? "+" : ""}{fmtDistance(r.dz, lang)}</bdi>
-              {" "}· {t("g3Slant")} <bdi dir="ltr">{fmtDistance(r.slant, lang)}</bdi> · <bdi dir="ltr">{fmtNum(r.brg, lang, 4)}°</bdi>
-              {r.closure !== null && <>{" "}· {t("relClosure")} <bdi dir="ltr">{fmtNum(r.closure, lang, 4)} m/s</bdi></>}
-              {r.aspect !== null && <>{" "}· {t("relAspect")} <bdi dir="ltr">{fmtNum(r.aspect, lang, 4)}°{r.side ? ` ${r.side}` : ""}</bdi></>}
-            </span>
-          ))}
-        </div>
-      )}
+      {/* B6: the corners - the data box and the track keys bottom-start (an instrument: muted labels, mono values),
+          the relation box and the attitude indicator bottom-end; each dock stacks what it holds, so nothing overlaps */}
+      <div className="map-dock map-dock-start">
+        <TrackKeys objects={objects} colors={objColors} />
+        {readout && showBox && (
+          // in the UI's direction; every number set left-to-right on its own (Hebrew names around them)
+          <div className="globe3d-readout" dir={lang === "he" ? "rtl" : "ltr"} aria-live="off">
+            <b style={{ color: readout.primary.color }}>{readout.primary.name}</b>
+            <span><bdi dir="ltr" className="num">{fmtNum(readout.primary.lat, lang, 7)}°, {fmtNum(readout.primary.lon, lang, 7)}°</bdi></span>
+            <span><span className="mi-k">{t("globeAlt")}</span> <bdi dir="ltr" className="num">{fmtNum(readout.primary.alt, lang, 5)} m</bdi>
+              {readout.primary.agl !== null && <> · <span className="mi-k">{t("globeAgl")}</span> <bdi dir="ltr" className="num">{fmtNum(readout.primary.agl, lang, 5)} m</bdi></>}</span>
+            {readout.primary.hdg !== null && <span><span className="mi-k">{t("g3Hdg")}</span> <bdi dir="ltr" className="num">{fmtNum((readout.primary.hdg + 360) % 360, lang, 4)}°</bdi>
+              {readout.primary.pitch !== null && <> · <span className="mi-k">{t("g3Pitch")}</span> <bdi dir="ltr" className="num">{fmtNum(readout.primary.pitch, lang, 3)}°</bdi></>}
+              {readout.primary.roll !== null && <> · <span className="mi-k">{t("g3Roll")}</span> <bdi dir="ltr" className="num">{fmtNum(readout.primary.roll, lang, 3)}°</bdi></>}</span>}
+            {(readout.primary.gs !== null || readout.primary.vs !== null) && <span>
+              {readout.primary.gs !== null && <><span className="mi-k">{t("g3Gs")}</span> <bdi dir="ltr" className="num">{fmtNum(readout.primary.gs, lang, 4)} m/s</bdi></>}
+              {readout.primary.vs !== null && <> · <span className="mi-k">{t("g3Vs")}</span> <bdi dir="ltr" className="num">{fmtNum(readout.primary.vs, lang, 3)} m/s</bdi></>}</span>}
+            {/* 1.26: the compared object is in the relation box; a third one stays here */}
+            {readout.rel.filter((r) => r.name !== secondaryName).map((r) => (
+              <span key={r.name} className="g3-rel">
+                <i style={{ background: r.color }} />{r.name}: <bdi dir="ltr" className="num">{fmtDistance(r.horiz, lang)}</bdi>
+                {" "}· Δh <bdi dir="ltr" className="num">{r.dz >= 0 ? "+" : ""}{fmtDistance(r.dz, lang)}</bdi>
+                {" "}· <span className="mi-k">{t("g3Slant")}</span> <bdi dir="ltr" className="num">{fmtDistance(r.slant, lang)}</bdi> · <bdi dir="ltr" className="num">{fmtNum(r.brg, lang, 4)}°</bdi>
+                {r.closure !== null && <>{" "}· <span className="mi-k">{t("relClosure")}</span> <bdi dir="ltr" className="num">{fmtNum(r.closure, lang, 4)} m/s</bdi></>}
+                {r.aspect !== null && <>{" "}· <span className="mi-k">{t("relAspect")}</span> <bdi dir="ltr" className="num">{fmtNum(r.aspect, lang, 4)}°{r.side ? ` ${r.side}` : ""}</bdi></>}
+              </span>
+            ))}
+          </div>
+        )}
+        {lightMode && <div className="globe3d-light" title={t("globeLightHint")}>{t("globeLight")}</div>}
+      </div>
+      <div className="map-dock map-dock-end">
+        {mouseAt && (
+          <div className="geo-readout g3-readout" role="status">
+            {fmtCoord(mouseAt.lat, mouseAt.lon, mouseAt.prec)}
+            {mouseAt.ground !== null && <> · {t("mapReadoutGround")} {fmtDistance(mouseAt.ground, lang)}</>}
+            {mouseAt.from && <> · {t("mapReadoutFrom", { name: mouseAt.from.name })} {fmtDistance(mouseAt.from.d, lang)} {Math.round(mouseAt.from.brg)}°</>}
+            {mouseAt.place && <> · {t("plFrom", { d: fmtDistance(mouseAt.place.d, lang), name: mouseAt.place.name })}</>}
+          </div>
+        )}
+        {dispState && <div className="g3-fd"><FlightDisplay s={dispState} /></div>}
+        {(allObjs.length > 1 || (allObjs.length > 0 && places.length > 0)) && <RelationPanel plot={plot} objects={allObjs} tracks={tracks} />}
+      </div>
     </div>
   );
 }

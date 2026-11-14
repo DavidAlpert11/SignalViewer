@@ -1035,10 +1035,15 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
         <div className="geo-hint" role="note">{t("mapHint")}
           <button className="iconbtn sm" onClick={markHintSeen} aria-label={t("close")} title={t("close")}>×</button></div>
       )}
-      {mouse && <div className="geo-readout">{fmtCoord(mouse.lat, mouse.lon, prec)}
-        {(() => { const np = nearestPlace(mouse.lat, mouse.lon, userPlaces); return np ? <> · {t("plFrom", { d: fmtDistanceShort(np.d, lang), name: np.place.name })}</> : null; })()}</div>}
-      <TrackKeys objects={objects} colors={objColors} />
-      {(allObjs.length > 1 || (allObjs.length > 0 && userPlaces.length > 0)) && <RelationPanel plot={plot} objects={allObjs} tracks={objTracks} />}
+      {/* B6: the corners as in 3D - the track keys bottom-start, the pointer's position and the relation box bottom-end */}
+      <div className="map-dock map-dock-start">
+        <TrackKeys objects={objects} colors={objColors} />
+      </div>
+      <div className="map-dock map-dock-end">
+        {mouse && <div className="geo-readout">{fmtCoord(mouse.lat, mouse.lon, prec)}
+          {(() => { const np = nearestPlace(mouse.lat, mouse.lon, userPlaces); return np ? <> · {t("plFrom", { d: fmtDistanceShort(np.d, lang), name: np.place.name })}</> : null; })()}</div>}
+        {(allObjs.length > 1 || (allObjs.length > 0 && userPlaces.length > 0)) && <RelationPanel plot={plot} objects={allObjs} tracks={objTracks} />}
+      </div>
       {ringTip && (
         <div className="ring-tip" role="tooltip" style={{ left: ringTip.x + 14, top: ringTip.y + 14 }}>
           {ringTip.kind !== "none" && <RingIcon kind={ringTip.kind} />}<b>{ringTip.name}</b>

@@ -25,6 +25,9 @@
 - **Map: *Satellite + roads*.** A new background: the satellite photos with the roads and their names drawn over them
   (Esri), in the 2D map, the 3D view, exported pictures and offline map pages. Online and opt-in like every online layer;
   *Never use the network* still blocks it, and what was already seen stays available offline.
+- **Map and 3D: a calmer frame.** The camera bar is one glass bar in the top corner, only as wide as its buttons; the data
+  box reads like an instrument (labels quiet, numbers in mono) at the bottom corner, the attitude indicator and the
+  relation box at the other; nothing covers anything else any more, in 2D and 3D, English and Hebrew.
 <!-- lane L5 -->
 - **Checks, for any file** (D7): the Log panel became *Checks* and works with every recording, not only flight logs – one verdict, then tinted cards for your limits, the data quality and (for a log) the health check; *Parameters* for any file, with *compare with* another file (only what differs); and *The file* – its groups, rates, gaps, units and the values at the cursor; click a column to plot it.
 - **Statistics of what is on screen** (F2): min, mean and max of each signal over the visible window, recomputed as you pan and zoom – fast on signals of tens of millions of samples.

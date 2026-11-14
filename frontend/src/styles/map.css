@@ -1,0 +1,48 @@
+/* B6 (lane L4): the map's and the 3D view's chrome - "a quiet frame, the data speaks" (plan §5.4).
+   One glass bar top-start (camera, + − fit, the view's own buttons), the same in 2D and 3D; two docks at the
+   bottom corners that stack what they hold, so nothing overlaps whatever is shown:
+   start = the data box (an instrument: muted labels, mono values), the track keys, the "reduced quality" sign;
+   end = the attitude indicator, the relation box, the pointer's position. Over a map the overlay tokens stay
+   theme-independent (--overlay-*). Loaded after review.css, so these rules win over the older ones. */
+
+/* the bar: glass, as wide as its buttons (not the whole plot), top-start */
+.map-bar.geo-bar, .map-bar.globe3d-bar {
+  inset-inline-start: var(--sp-2); inset-inline-end: auto; top: var(--sp-2);
+  width: max-content; max-width: calc(100% - 2 * var(--sp-2));
+  justify-content: flex-start; gap: var(--sp-1_5) var(--sp-2); padding: var(--sp-1) var(--sp-1_5);
+  border-radius: var(--r-card); border: 1px solid color-mix(in srgb, var(--overlay-ink) 14%, transparent);
+  background: var(--overlay-bg); color: var(--overlay-ink); box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px) saturate(1.2); -webkit-backdrop-filter: blur(8px) saturate(1.2);
+}
+.map-bar .g3-seg-label { color: color-mix(in srgb, var(--overlay-ink) 65%, transparent); font-size: var(--fs-xs); }
+/* the groups read as groups: a hairline between the camera, the zoom and the view's own buttons */
+.map-bar > .map-zoom, .map-bar > .rel-toggle { padding-inline-start: var(--sp-2); border-inline-start: 1px solid color-mix(in srgb, var(--overlay-ink) 18%, transparent); }
+
+/* the docks */
+.map-dock { position: absolute; bottom: var(--sp-5); z-index: 2; display: flex; flex-direction: column; gap: var(--sp-1_5);
+  max-width: min(46%, 300px); pointer-events: none; }
+.map-dock > * { pointer-events: auto; }
+.map-dock-start { inset-inline-start: var(--sp-2); align-items: flex-start; }
+.map-dock-end { inset-inline-end: var(--sp-2); align-items: flex-end; }
+.map-dock:empty { display: none; }
+.globe3d.own-time .map-dock { bottom: calc(var(--sp-6) * 2); }     /* above the own-time bar */
+/* what used to be placed one by one now flows in its dock */
+.map-dock .globe3d-readout, .map-dock .globe3d-light, .map-dock .track-keys, .map-dock .g3-fd, .map-dock .rel-panel,
+.map-dock .geo-readout, .plot-canvas.geo .map-dock .geo-readout, .map-dock .geo-readout.g3-readout {
+  position: static; inset: auto; transform: none; max-width: 100%; }
+.map-dock .track-keys { max-width: 100%; }
+.map-dock .rel-panel { box-shadow: var(--shadow-md); border-radius: var(--r-card); }
+/* the camera's hint and the measure line sit under the bar (start-aligned), clear of the docks at the bottom */
+.g3-cam-hint, .geo-hint, .g3-measure { left: auto; right: auto; bottom: auto; transform: none;
+  inset-inline-start: var(--sp-2); top: calc(var(--mapbar-bottom, 48px) + var(--sp-1_5)); max-width: min(60%, 420px); text-align: start; }
+.plot:not(.active):not(:hover):not(:focus-within) .g3-cam-hint { display: none; }   /* with the bar's buttons */
+
+/* the data box: an instrument */
+.globe3d-readout { gap: var(--sp-0_5); padding: var(--sp-1_5) var(--sp-2); border-radius: var(--r-card); box-shadow: var(--shadow-md);
+  border: 1px solid color-mix(in srgb, var(--overlay-ink) 14%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.globe3d-readout > b { font-size: var(--fs-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; }
+:lang(he) .globe3d-readout > b, [dir="rtl"] .globe3d-readout > b { text-transform: none; letter-spacing: 0; }
+.globe3d-readout .mi-k { color: color-mix(in srgb, var(--overlay-ink) 62%, transparent); font-size: var(--fs-xs); }
+.globe3d-readout .num { color: var(--overlay-ink); font-size: var(--fs-s); }
+.globe3d-light { border-radius: var(--r-l); }

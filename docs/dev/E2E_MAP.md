@@ -21,6 +21,7 @@
 
 <!-- 1114 lane L4 -->
 `test_offline_map.py` – M2 (L4): `test_satellite_with_roads_is_one_layer` new.
+`test_map_objects.py`, `test_map_smooth.py`, `test_globe3d.py`, `test_object_relations.py`, `test_live_report.py` – B6 (L4): run, no change (the map chrome moved into `styles/map.css` + docks; selectors kept).
 
 <!-- 1114 lane L5 -->
 - `tests/e2e/test_checks_view.py` – D7 + F1 + F3 screens (L5, new)
