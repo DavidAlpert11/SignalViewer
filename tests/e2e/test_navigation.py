@@ -14,7 +14,7 @@ def test_areas_rail_and_views_menu(pg):
     assert pg.locator(".areas .area-btn").all_inner_texts() == ["Recordings", "Sweeps", "Fleet"]
     assert pg.locator("nav.rail [aria-label='Fleet']").count() == 0
     log = pg.locator("nav.rail .rail-log")
-    assert log.is_disabled() and "none of the open files" in log.get_attribute("title")
+    assert log.is_disabled() and "Open a file to check it" in log.get_attribute("title")     # D7: Checks, once a file is open
     # the views menu with nothing left out: new tab, open a template
     pg.locator(".more-tabs").click()
     items = pg.locator(".menu.ctx button").all_inner_texts()

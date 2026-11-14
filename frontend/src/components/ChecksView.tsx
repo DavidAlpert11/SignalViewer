@@ -1,0 +1,270 @@
+/* D7: one *Checks* view for any file (plan §3.6) - the user's limits, the file's data quality and, for a
+   log, its health check, as tinted cards under one verdict - plus F1 *The file* (its structure) and F3 the
+   run's parameters for files that are not flight logs. Shown in the Log panel's place. */
+import { useEffect, useMemo, useState } from "react";
+import { api, type FileStructure, type HealthReport, type LimitResult, type ParamDiff, type RunParam } from "../api";
+import { actions, useApp } from "../store";
+import { fmtNum, useT } from "../i18n";
+import { Icon } from "../icons";
+import { runLabels } from "../names";
+import { signalLines } from "../quality";
+import HealthRow from "./HealthRow";
+
+const fmtTime = (t: number, lang: "en" | "he") => fmtNum(t, lang, Math.abs(t) >= 1000 ? 7 : 5);
+const fmtVal = (v: number | string, lang: "en" | "he") => (typeof v === "number" ? fmtNum(v, lang, 7) : v);
+const QUALITY_CARDS = 8;
+
+type LimitItem = { id: string; lo: number | null; hi: number | null; scale: number; offset: number; tOffset: number };
+
+/** The limits set on this run's signals in any tab (one entry per signal: the first plot that sets them). */
+function useLimitItems(runId: string): LimitItem[] {
+  const tabs = useApp((s) => s.ws.tabs);
+  return useMemo(() => {
+    const seen = new Map<string, LimitItem>();
+    for (const tab of tabs) for (const p of tab.plots) for (const s of p.signals) {
+      if (!s.sig.startsWith(`${runId}/`) || !s.limits || (s.limits.lo == null && s.limits.hi == null) || seen.has(s.sig)) continue;
+      seen.set(s.sig, { id: s.sig, lo: s.limits.lo ?? null, hi: s.limits.hi ?? null, scale: s.scale, offset: s.offset, tOffset: s.tOffset ?? 0 });
+    }
+    return [...seen.values()];
+  }, [tabs, runId]);
+}
+
+/** The Checks tab: a verdict, then Limits · Data quality · Health check (logs only). */
+export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean; runKey: string }) {
+  const t = useT();
+  const lang = useApp((s) => s.lang);
+  const q = useApp((s) => s.quality[runId]);
+  const items = useLimitItems(runId);
+  const [lim, setLim] = useState<Record<string, LimitResult> | null>(null);
+  const [health, setHealth] = useState<HealthReport | null | "none">(isLog ? null : "none");
+
+  useEffect(() => {
+    if (q) return;
+    api.runQuality(runId).then((r) => useApp.setState((s) => ({ quality: { ...s.quality, [runId]: r } }))).catch(() => {});
+  }, [runId, q]);
+  useEffect(() => {
+    let gone = false;
+    if (!items.length) { setLim({}); return; }
+    api.limits(items, null, null).then((r) => { if (!gone) setLim(r.results); }).catch(() => { if (!gone) setLim({}); });
+    return () => { gone = true; };
+  }, [items, runKey]);
+  useEffect(() => {
+    if (!isLog) return;
+    let gone = false;
+    api.runHealth(runId).then((r) => { if (!gone) setHealth(r); }).catch(() => { if (!gone) setHealth("none"); });
+    return () => { gone = true; };
+  }, [runId, runKey, isLog]);
+
+  const name = (id: string) => id.slice(id.indexOf("/") + 1);
+  const range = (it: LimitItem) => `${it.lo ?? "−∞"} … ${it.hi ?? "∞"}`;
+  const limRows = items.map((it) => ({ it, r: lim?.[it.id] })).filter((x) => x.r);
+  const badLim = limRows.filter((x) => !x.r!.pass).length;
+  const qIssues = q ? q.signals.filter((s) => s.issues.length) : [];
+  const hRep = health !== null && health !== "none" ? health : null;
+  const bad = badLim + (hRep?.errors ?? 0);
+  const warn = qIssues.length + (hRep?.warnings ?? 0);
+  const ok = limRows.length - badLim + (q && !qIssues.length ? 1 : 0) + (hRep ? hRep.findings.filter((f) => f.level === "ok").length : 0);
+  const ready = lim !== null && !!q && health !== null;
+
+  return (
+    <div className="checks" data-checks-ready={ready ? "1" : "0"} data-bad={bad} data-warn={warn}>
+      {ready && <p className={`health-sum ${bad ? "error" : warn ? "warning" : "ok"}`} data-testid="checks-verdict">
+        {bad || warn ? ([[bad, "chkBad"], [warn, "chkWarn"], [ok, "chkFine"]] as const).filter(([n]) => n > 0)
+          .map(([n, k]) => t(k, { n })).join(" · ") : t("chkVerdictOk")}</p>}
+
+      <section className="checks-sec" aria-label={t("chkLimits")}>
+        <h3 className="eyebrow">{t("chkLimits")}</h3>
+        {!items.length ? (
+          <p className="empty-state"><span>{t("chkNoLimits")}</span> <span className="muted">{t("chkNoLimitsHow")}</span></p>
+        ) : (
+          <ul className="card-list">
+            {limRows.map(({ it, r }) => (
+              <li key={it.id} className={`card ${r!.pass ? "ok" : "bad"}`} data-limit={name(it.id)}>
+                <p className="card-title">{r!.pass ? t("chkLimitOk", { name: name(it.id), range: range(it) })
+                  : t("chkLimitBad", { name: name(it.id), range: range(it), n: r!.spans.length || r!.violations, t: r!.first === null ? "–" : fmtTime(r!.first, lang) })}</p>
+                {!r!.pass && r!.spans.length > 0 && (
+                  <div className="card-next">
+                    {r!.spans.slice(0, 4).map(([a, b], k) => (
+                      <button key={k} className="pchange span" onClick={() => actions.showSpan(a - (b - a) * 0.5, b + (b - a) * 0.5)}
+                        title={t("healthSpan")}>{fmtTime(a, lang)}–{fmtTime(b, lang)}</button>))}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="checks-sec" aria-label={t("chkQuality")}>
+        <h3 className="eyebrow">{t("chkQuality")}</h3>
+        {!q ? <p className="hint">…</p> : !qIssues.length ? (
+          <ul className="card-list"><li className="card ok"><p className="card-title">{t("chkQualityOk", { n: q.checked })}</p></li></ul>
+        ) : (
+          <ul className="card-list">
+            {qIssues.slice(0, QUALITY_CARDS).map((s) => (
+              <li key={s.name} className="card warn" data-quality={s.name}>
+                <p className="card-title"><button className="linklike" onClick={() => actions.addSignalLinked(`${runId}/${s.name}`)}
+                  title={t("fsPlotHint")}>{s.name}</button></p>
+                {signalLines(s, lang).map((l, i) => <p key={i} className="card-meta">{l}</p>)}
+              </li>
+            ))}
+            {qIssues.length > QUALITY_CARDS && (
+              <li><button className="linklike" onClick={() => useApp.setState({ qualityFor: runId })}>
+                {t("chkQualityMore", { n: qIssues.length - QUALITY_CARDS })}</button></li>
+            )}
+          </ul>
+        )}
+      </section>
+
+      {isLog && (
+        <section className="checks-sec" aria-label={t("chkHealth")}>
+          <h3 className="eyebrow">{t("chkHealth")}</h3>
+          {health === null ? <p className="hint">…</p> : health === "none" ? <p className="hint">{t("healthNone")}</p> : (
+            <>
+              {!health.findings.some((f) => f.level !== "ok") && (
+                <p className="empty-state"><span>{t("emptyFindingsText")}</span>
+                  <button className="linklike" onClick={() => useApp.setState({ logMarkers: "all" })}>{t("emptyFindingsAction")}</button></p>
+              )}
+              <ol className="health-list">{health.findings.map((f, i) => <HealthRow key={i} f={f} runId={runId} />)}</ol>
+              <p className="hint log-note">{t("healthNote")}</p>
+            </>
+          )}
+        </section>
+      )}
+    </div>
+  );
+}
+
+/** F1 *The file*: groups (message types, topics, structs, column prefixes) with their rate, samples and
+ *  gaps; open one for its columns, their units and values at the cursor; a click plots a column. */
+export function FileView({ runId, runKey }: { runId: string; runKey: string }) {
+  const t = useT();
+  const lang = useApp((s) => s.lang);
+  const cursorT = useApp((s) => (s.cursor.on ? s.cursor.t1 : null));
+  const [st, setSt] = useState<FileStructure | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [vals, setVals] = useState<Record<string, number | null>>({});
+  useEffect(() => {
+    let gone = false;
+    api.runStructure(runId).then((r) => { if (!gone) setSt(r); }).catch(() => { if (!gone) setSt(null); });
+    return () => { gone = true; };
+  }, [runId, runKey]);
+  const shown = useMemo(() => {
+    if (!st) return [];
+    const ql = q.trim().toLowerCase();
+    if (!ql) return st.groups;
+    return st.groups.map((g) => ({ ...g, columns: g.columns.filter((c) => c.name.toLowerCase().includes(ql)) })).filter((g) => g.columns.length);
+  }, [st, q]);
+  const openCols = shown.find((g) => g.name === open)?.columns ?? (q ? [] : undefined);
+  useEffect(() => {
+    if (cursorT === null || !openCols?.length) { setVals({}); return; }
+    let gone = false;
+    const ids = openCols.slice(0, 200).map((c) => `${runId}/${c.name}`);
+    api.cursor(ids, cursorT).then((r) => { if (!gone) setVals(r.values); }).catch(() => {});
+    return () => { gone = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cursorT, open, st, runId]);
+  if (!st) return <p className="hint" style={{ padding: "0 14px" }}>…</p>;
+  const tb = st.timeBase;
+  const rate = (r?: number) => (r ? `${fmtNum(r, lang, 4)} Hz` : "–");
+  return (
+    <div className="fileview" data-groups={st.groups.length}>
+      <p className="card-meta fv-sum">
+        {t("fsSummary", { groups: st.groups.filter((g) => g.name).length, cols: st.columns, clocks: st.timeVectors })} ·{" "}
+        {tb.column ? t("fsTimeColumn", { c: tb.column }) : tb.index || tb.clock === "index" ? t("fsTimeIndex") : t("fsTimeLog")}
+      </p>
+      <label className="filter">
+        <Icon.Search />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("fsSearch")} aria-label={t("fsSearch")} />
+      </label>
+      <table className="data fv-table">
+        <tbody>
+          {shown.map((g) => {
+            const isOpen = open === g.name || !!q;
+            return [
+              <tr key={`g:${g.name}`} className={`fv-group${isOpen ? " sel" : ""}`} data-group={g.name}>
+                <td><button className="linklike" aria-expanded={isOpen} onClick={() => setOpen(open === g.name ? null : g.name)}>
+                  {isOpen ? "▾" : lang === "he" ? "◂" : "▸"} <b>{g.name || t("fsOther")}</b></button>
+                  {g.name && <span className="muted"> {t(`fsKind_${g.kind}` as "fsKind_message")}</span>}</td>
+                <td className="num">{g.columns.length}</td>
+                <td className="num">{rate(g.rate)}</td>
+                <td className="num">{g.gaps ? <span className="fv-gap" title={t("fsGaps", { n: g.gaps, s: fmtNum(g.longestGap ?? 0, lang, 3) })}>⚠ {g.gaps}</span> : ""}</td>
+              </tr>,
+              ...(isOpen ? g.columns.map((c) => {
+                const id = `${runId}/${c.name}`;
+                const v = vals[id];
+                return (
+                  <tr key={id} className="fv-col" data-column={c.name}>
+                    <td><button className="linklike" onClick={() => actions.addSignalLinked(id)} title={t("fsPlotHint")}>{c.field}</button>
+                      {c.unit && <span className="muted"> [{c.unit}]</span>}</td>
+                    <td className="num" title={t("fsSamples", { n: c.n })}>{c.n}</td>
+                    <td className="num">{c.rate !== g.rate || !g.rate ? rate(c.rate) : ""}</td>
+                    <td className="num" title={t("fsAtCursor")}>{cursorT !== null && v !== undefined ? (v === null ? "–" : fmtNum(v, lang, 6)) : ""}</td>
+                  </tr>
+                );
+              }) : []),
+            ];
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** F3 for any file that is not a flight log (a log keeps its own Parameters tab): the run's parameters
+ *  with their source, and - with another file chosen - only what differs. */
+export function RunParams({ runId }: { runId: string }) {
+  const t = useT();
+  const lang = useApp((s) => s.lang);
+  const runs = useApp((s) => s.runs);
+  const names = runLabels(runs);
+  const others = runs.filter((r) => r.id !== runId && r.format !== "derived");
+  const [rows, setRows] = useState<RunParam[] | null>(null);
+  const [other, setOther] = useState("");
+  const [diff, setDiff] = useState<ParamDiff | null>(null);
+  useEffect(() => {
+    let gone = false;
+    api.runParameters(runId).then((r) => { if (!gone) setRows(r.params); }).catch(() => { if (!gone) setRows([]); });
+    return () => { gone = true; };
+  }, [runId]);
+  useEffect(() => {
+    if (!other) { setDiff(null); return; }
+    let gone = false;
+    api.compareParameters(runId, other).then((r) => { if (!gone) setDiff(r); }).catch(() => { if (!gone) setDiff(null); });
+    return () => { gone = true; };
+  }, [runId, other]);
+  if (!rows) return <p className="hint" style={{ padding: "0 14px" }}>…</p>;
+  const src = (s: RunParam["source"]) => <span className="muted"> · {t(`prmSource_${s}` as "prmSource_log")}</span>;
+  return (
+    <div className="runparams" data-params={rows.length}>
+      {others.length > 0 && (
+        <label className="afield log-file"><span>{t("prmCompareWith")}</span>
+          <select value={other} onChange={(e) => setOther(e.target.value)} aria-label={t("prmCompareWith")}>
+            <option value="">{t("prmNoCompare")}</option>
+            {others.map((r) => <option key={r.id} value={r.id}>{names.get(r.id) ?? r.name}</option>)}
+          </select></label>
+      )}
+      {!other ? (
+        !rows.length ? <p className="empty-state"><span>{t("prmNone")}</span></p> : (
+          <table className="data"><tbody>
+            {rows.map((p) => <tr key={p.name} data-param={p.name}><td>{p.name}{src(p.source)}</td><td className="num">{fmtVal(p.value, lang)}</td></tr>)}
+          </tbody></table>
+        )
+      ) : !diff ? <p className="hint">…</p> : (
+        <>
+          <p className="card-meta" data-testid="param-diff-sum">{t("prmSame", { n: diff.same })}</p>
+          {!diff.differ.length && !diff.onlyA.length && !diff.onlyB.length ? <p className="empty-state"><span>{t("prmNoDiff")}</span></p> : (
+            <table className="data"><tbody>
+              {diff.differ.map((d) => (
+                <tr key={d.name} data-diff={d.name}><td>{d.name}{src(d.source)}</td><td className="num">{fmtVal(d.a, lang)}</td><td className="num">{fmtVal(d.b, lang)}</td></tr>))}
+              {diff.onlyA.map((p) => <tr key={`a:${p.name}`} data-diff={p.name}><td>{p.name}{src(p.source)}</td><td className="num">{fmtVal(p.value, lang)}</td><td className="muted">{t("prmOnlyThis")}</td></tr>)}
+              {diff.onlyB.map((p) => <tr key={`b:${p.name}`} data-diff={p.name}><td>{p.name}{src(p.source)}</td><td className="muted">{t("prmOnlyOther")}</td><td className="num">{fmtVal(p.value, lang)}</td></tr>)}
+            </tbody></table>
+          )}
+        </>
+      )}
+      <p className="hint log-note">{t("prmNote")}</p>
+    </div>
+  );
+}

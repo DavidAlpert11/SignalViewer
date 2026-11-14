@@ -31,7 +31,7 @@ def test_step_through_events_and_one_list(pg):
     # a limit on a plotted signal: its violations are events too
     pg.evaluate("""window.__sv.state().commit((ws) => { const t = ws.tabs.find(x => x.id === ws.activeTab);
         t.plots[0].signals[0].limits = { lo: -5, hi: 5 }; return ws; })""")
-    pg.locator("[aria-label='Flight log']").first.click()
+    pg.locator(".rail button[aria-label='Checks']").click()
     pg.locator(".log-tabs button", has_text="Events").click()
     chips = pg.locator(".log-chips")
     chips.locator("button", has_text="Findings").wait_for(timeout=10000)

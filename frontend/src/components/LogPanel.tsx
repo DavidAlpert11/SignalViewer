@@ -1,17 +1,17 @@
 import { collectEvents } from "../events";
 import { useEffect, useMemo, useState } from "react";
-import { api, type HealthReport, type LogEvent, type LogInfo, type LogParam } from "../api";
+import { api, type LogEvent, type LogInfo, type LogParam } from "../api";
 import { ensureLogs } from "../logs";
 import { actions, pickPath, useApp } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { runLabels } from "../names";
-import HealthRow from "./HealthRow";
+import { Checks, FileView, RunParams } from "./ChecksView";
 import { copyText } from "../errorReport";
 
-/* Flight log of an ArduPilot .bin file: its events (messages, flight modes, events, errors) and
-   its parameters. The rail button for this panel exists only while such a file is open, so
-   nothing here is seen by anyone working with CSV / MAT files. */
+/* D7 Checks - for any open file: its checks (limits, data quality, a log's health check), its parameters
+   and its structure (The file); a flight log adds its events (messages, flight modes, events, errors),
+   its own parameter view and its hardware. */
 
 // 26.U8: one list - the log's own events, and the health findings, conditions and limit violations
 type Kind = LogEvent["kind"] | "finding" | "condition" | "limit";
@@ -29,59 +29,60 @@ export default function LogPanel() {
   const logs = useApp((s) => s.logs);
   const markers = useApp((s) => s.logMarkers);
   const cursorT = useApp((s) => (s.cursor.on ? s.cursor.t1 : null));
-  const logRuns = runs.filter((r) => r.log);
+  // D7: the Checks view for any open file; a flight log adds its events, parameters and hardware
+  const files = runs.filter((r) => r.format !== "derived");
+  const logRuns = files.filter((r) => r.log);
   const names = runLabels(runs);
   const [rid, setRid] = useState<string | null>(null);
-  const run = logRuns.find((r) => r.id === rid) ?? logRuns[0];
-  const info = run ? logs[run.id] : undefined;
-  const [tab, setTab] = useState<"health" | "events" | "params" | "hw">("health");
+  const run = files.find((r) => r.id === rid) ?? logRuns[0] ?? files[0];
+  const info = run?.log ? logs[run.id] : undefined;
+  const [tab, setTab] = useState<"health" | "events" | "params" | "hw" | "file">("health");
 
   useEffect(() => { ensureLogs(); }, [runs]);
 
   if (!run) {
     return (
-      <aside className="side" aria-label={t("flightLog")}>
-        <div className="side-head"><h2>{t("flightLog")}</h2></div>
-        <p className="hint" style={{ padding: "0 14px" }}>{t("logNone")}</p>
+      <aside className="side" aria-label={t("chkTitle")}>
+        <div className="side-head"><h2>{t("chkTitle")}</h2></div>
+        <p className="hint" style={{ padding: "0 14px" }}>{t("chkNone")}</p>
       </aside>
     );
   }
+  const isLog = !!run.log;
+  const shownTab = !isLog && (tab === "events" || tab === "hw") ? "health" : tab;
+  const runKey = `${run.samples}:${run.log?.events ?? 0}:${run.timeOffset}`;
+  const tabBtn = (id: typeof tab, label: React.ReactNode) => (
+    <button role="tab" aria-selected={shownTab === id} className={shownTab === id ? "on" : ""} onClick={() => setTab(id)} data-tab={id}>{label}</button>
+  );
   return (
-    <aside className="side log-panel" aria-label={t("flightLog")}>
-      <div className="side-head"><h2>{t("flightLog")}</h2></div>
-      {logRuns.length > 1 && (
+    <aside className="side log-panel" aria-label={t("chkTitle")}>
+      <div className="side-head"><h2>{t("chkTitle")}</h2></div>
+      {files.length > 1 && (
         <label className="afield log-file"><span>{t("file")}</span>
           <select value={run.id} onChange={(e) => setRid(e.target.value)}>
-            {logRuns.map((r) => <option key={r.id} value={r.id}>{names.get(r.id) ?? r.name}</option>)}
+            {files.map((r) => <option key={r.id} value={r.id}>{names.get(r.id) ?? r.name}</option>)}
           </select></label>
       )}
       {info?.firmware && <div className="log-fw" title={info.firmware}>{info.firmware}</div>}
-      {runs.filter((r) => r.id !== run.id && r.format !== "derived").length > 0 && (
+      {isLog && files.length > 1 && (
         <div className="log-actions">
           <button className="btn" onClick={() => useApp.setState({ syncFor: run.id })} title={t("syncMenu")}><Icon.Link /> {t("syncShort")}</button>
         </div>
       )}
       <div className="seg wide log-tabs" role="tablist">
-        <button role="tab" aria-selected={tab === "health"} className={tab === "health" ? "on" : ""} onClick={() => setTab("health")}>
-          {t("logHealth")}
-        </button>
-        <button role="tab" aria-selected={tab === "events"} className={tab === "events" ? "on" : ""} onClick={() => setTab("events")}>
-          {t("logEvents")} <span className="cnt">{run.log!.events}</span>
-          {run.log!.errors > 0 && <span className="lvl-dot error" title={t("logErrorsN", { n: run.log!.errors })} />}
-        </button>
-        <button role="tab" aria-selected={tab === "params"} className={tab === "params" ? "on" : ""} onClick={() => setTab("params")}>
-          {t("logParams")} <span className="cnt">{run.log!.params}</span>
-        </button>
-        {!!info?.hardware?.sections.length && (
-          <button role="tab" aria-selected={tab === "hw"} className={tab === "hw" ? "on" : ""} onClick={() => setTab("hw")}>
-            {t("logHardware")}
-          </button>
-        )}
+        {tabBtn("health", t("chkTabChecks"))}
+        {isLog && tabBtn("events", <>{t("logEvents")} <span className="cnt">{run.log!.events}</span>
+          {run.log!.errors > 0 && <span className="lvl-dot error" title={t("logErrorsN", { n: run.log!.errors })} />}</>)}
+        {tabBtn("params", <>{t("logParams")}{isLog && <> <span className="cnt">{run.log!.params}</span></>}</>)}
+        {tabBtn("file", t("chkTabFile"))}
+        {isLog && !!info?.hardware?.sections.length && tabBtn("hw", t("logHardware"))}
       </div>
-      {!info ? <p className="hint" style={{ padding: "0 14px" }}>…</p>
-        : tab === "health" ? <Health key={run.id} runId={run.id} runKey={`${run.samples}:${run.log!.events}:${run.timeOffset}`} />
-        : tab === "hw" && info.hardware ? <Hardware hw={info.hardware} />
-        : tab === "events" ? <Events key={run.id} runId={run.id} info={info} lang={lang} cursorT={cursorT} markers={markers} />
+      {shownTab === "health" ? <Checks key={run.id} runId={run.id} isLog={isLog} runKey={runKey} />
+        : shownTab === "file" ? <FileView key={run.id} runId={run.id} runKey={runKey} />
+        : !isLog ? <RunParams key={run.id} runId={run.id} />
+        : !info ? <p className="hint" style={{ padding: "0 14px" }}>…</p>
+        : shownTab === "hw" && info.hardware ? <Hardware hw={info.hardware} />
+        : shownTab === "events" ? <Events key={run.id} runId={run.id} info={info} lang={lang} cursorT={cursorT} markers={markers} />
           : <Params key={run.id} info={info} lang={lang} others={logRuns.filter((r) => r.id !== run.id).map((r) => ({ id: r.id, name: names.get(r.id) ?? r.name }))} />}
     </aside>
   );
@@ -295,34 +296,5 @@ function Params({ info, lang, others }: { info: LogInfo; lang: "en" | "he"; othe
       </div>
       <p className="hint log-note">{filter === "all" && !q ? t("logParamNote") : t("logParamNoteShown", { n: shown.length })}</p>
     </>
-  );
-}
-
-/* ------------------------------------------------------------------------- health check */
-function Health({ runId, runKey }: { runId: string; runKey: string }) {
-  const t = useT();
-  const [rep, setRep] = useState<HealthReport | null | "none">(null);
-  useEffect(() => {
-    let off = false;
-    api.runHealth(runId).then((r) => { if (!off) setRep(r); }).catch(() => { if (!off) setRep("none"); });
-    return () => { off = true; };
-  }, [runId, runKey]);
-  if (rep === null) return <p className="hint" style={{ padding: "0 14px" }}>…</p>;
-  if (rep === "none") return <p className="hint" style={{ padding: "0 14px" }}>{t("healthNone")}</p>;
-  return (
-    <div className="health">
-      <p className={`health-sum ${rep.errors ? "error" : rep.warnings ? "warning" : "ok"}`}>
-        {rep.errors || rep.warnings ? t("healthSummary", { e: rep.errors, w: rep.warnings }) : t("healthAllOk")}
-      </p>
-      {/* W13.5: nothing found is not a dead end - one sentence, one action (every event of the log on the plots) */}
-      {!rep.findings.some((f) => f.level !== "ok") && (
-        <p className="empty-state"><span>{t("emptyFindingsText")}</span>
-          <button className="linklike" onClick={() => useApp.setState({ logMarkers: "all" })}>{t("emptyFindingsAction")}</button></p>
-      )}
-      <ol className="health-list">
-        {rep.findings.map((f, i) => <HealthRow key={i} f={f} runId={runId} />)}
-      </ol>
-      <p className="hint log-note">{t("healthNote")}</p>
-    </div>
   );
 }

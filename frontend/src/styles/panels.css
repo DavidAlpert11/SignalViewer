@@ -1,0 +1,16 @@
+/* L5 side panels (plan §7.0: the panels' area stylesheet). Components come from index.css (A3 / A4);
+   this file only places them. */
+
+/* D7 Checks, F1 The file, F3 parameters - in the Log panel's place */
+.checks, .fileview, .runparams { display: flex; flex-direction: column; gap: var(--sp-2); min-height: 0; flex: 1; overflow: auto;
+  padding: 0 var(--sp-3) var(--sp-3); }
+.checks .health-sum { margin: 0; }
+.checks .health-list { padding: 0; }
+.checks-sec { display: flex; flex-direction: column; gap: var(--sp-1_5); }
+.checks-sec > .eyebrow { margin: var(--sp-1) 0 0; }
+.checks .empty-state, .runparams .empty-state { padding-inline: 0; }
+.fileview .filter, .runparams .log-file { margin-inline: 0; }
+.fv-table, .runparams table.data { width: 100%; }
+.fv-table td:first-child { overflow-wrap: anywhere; }
+.fv-col td:first-child { padding-inline-start: var(--sp-4); }
+.fv-gap { color: var(--warn); }

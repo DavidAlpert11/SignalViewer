@@ -1968,9 +1968,10 @@ def test_live_follows_growing_text_column(pg):
     pg.wait_for_function("window.__sv.state().streaming === false")
 
 
-def test_flight_log_panel_only_for_logs(pg):
+def test_checks_panel_for_any_file_and_a_logs_events(pg):
     open_files(pg, "run_a.csv")
-    assert pg.locator(".rail-log").is_disabled()                             # CSV only: the Log button greyed (U9)
+    assert not pg.locator(".rail-log").is_disabled()                         # D7: Checks for any file (a CSV too)
+    assert pg.locator(".rail-log").get_attribute("aria-label") == "Checks"
     sys.path.insert(0, os.path.join(ROOT, "tools"))
     import make_test_bin as mk
     mk.FMTS.clear()

@@ -541,7 +541,31 @@ export const api = {
   putSettings: (changes: Record<string, unknown>) => call<{ settings: Record<string, unknown> }>("/api/settings", { changes }, "PUT"),
   putAutosave: (state: unknown) => call<{ ok: boolean }>("/api/autosave", state),
   restore: (runs: unknown[]) => call<{ restored: RunInfo[]; missing: any[] }>("/api/session/restore", { runs }),
+  // --- lane L5 --- F1 / F2 / F3 (svcore/filestruct.py, windowstats.py, runinfo.py)
+  runStructure: (id: string) => call<FileStructure>(`/api/runs/${encodeURIComponent(id)}/structure`),
+  windowStats: (signals: string[], t0: number | null, t1: number | null) =>
+    call<{ stats: Record<string, WindowStat> }>("/api/stats/window", { signals, t0, t1 }),
+  runParameters: (id: string) => call<{ params: RunParam[] }>(`/api/runs/${encodeURIComponent(id)}/parameters`),
+  compareParameters: (a: string, b: string) => call<ParamDiff>("/api/runs/parameters/compare", { a, b }),
+  // --- end lane L5 ---
 };
+
+// --- lane L5 ---
+/** F1: one column of "The file" (a signal's samples, mean rate, unit, gaps). */
+export interface FileColumn { name: string; field: string; n: number; rate?: number; gaps?: number; unit?: string; state?: boolean; ownTime?: boolean }
+/** F1: a group - a log's message type, an MCAP topic, a MAT / HDF5 struct, a table's column prefix ("" = the rest). */
+export interface FileGroup { name: string; kind: "message" | "topic" | "struct" | "prefix" | "columns"; columns: FileColumn[];
+  n?: number; rate?: number; gaps?: number; longestGap?: number; t0?: number; t1?: number }
+export interface FileStructure { format: string; columns: number; timeVectors: number; groups: FileGroup[];
+  timeBase: { column?: string; index?: boolean; clock?: "log" | "index"; start?: number; end?: number } }
+/** F2: the visible window's statistics - a plain mean of the samples (not time-weighted). */
+export interface WindowStat { n: number; min: number; max: number; mean: number; t0: number; t1: number }
+/** F3: one parameter of a run and where it comes from. */
+export interface RunParam { name: string; value: number | string; source: "log" | "file" | "constant" | "name";
+  last?: number; changes?: [number, number][]; default?: number }
+export interface ParamDiff { differ: { name: string; a: number | string; b: number | string; source: RunParam["source"];
+  aLast?: number; bLast?: number; delta?: number }[]; onlyA: RunParam[]; onlyB: RunParam[]; same: number }
+// --- end lane L5 ---
 
 export type LogLevel = "info" | "warning" | "error";
 export interface LogEvent { t: number; kind: "msg" | "mode" | "event" | "error"; text: string; level: LogLevel }

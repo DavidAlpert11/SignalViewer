@@ -116,6 +116,7 @@ export default function App() {
     const lr = runs.filter((r) => r.log);
     return lr.length ? lr.reduce((n, r) => n + (r.log?.errors ?? 0), 0) : null;
   }, [runs]);
+  const hasFiles = runs.some((r) => r.format !== "derived");      // L5 D7: Checks for any open file
   const liveAutoStop = useApp((s) => s.liveAutoStop);
   const liveNewFiles = useApp((s) => s.liveNewFiles);
   const [dropping, setDropping] = useState(false);
@@ -178,8 +179,8 @@ export default function App() {
   // flight-log data: fetched only for files that have it, when the panel or the plot markers need it
   useEffect(() => {
     if (logErrors !== null && (panel === "log" || logMarkers !== "off")) ensureLogs();
-    if (logErrors === null && panel === "log") useApp.setState({ panel: "data" });
-  }, [runs, panel, logMarkers, logErrors]);
+    if (!hasFiles && panel === "log") useApp.setState({ panel: "data" });     // L5 D7: Checks for any file
+  }, [runs, panel, logMarkers, logErrors, hasFiles]);
 
 
   /* playback (the timeline): the time runs through the whole recording at `playSpeed` × real time;
@@ -344,9 +345,9 @@ export default function App() {
           {RAIL.map((r) => {
             const I = Icon[r.icon];
             // U9: the Log tool stays in its place, disabled while no flight log is open (it used to vanish)
-            const off = r.id === "log" && logErrors === null;
+            const off = r.id === "log" && !hasFiles;     // L5 D7: Checks for any open file
             return (
-              <button key={r.id} className={`${panel === r.id ? "on" : ""}${r.id === "log" ? " rail-log" : ""}`} title={off ? t("railLogNone") : t(r.key)}
+              <button key={r.id} className={`${panel === r.id ? "on" : ""}${r.id === "log" ? " rail-log" : ""}`} title={off ? t("chkNone") : t(r.key)}
                 data-tour={r.id === "compare" ? "compare" : undefined}
                 aria-label={t(r.key)} aria-pressed={panel === r.id} disabled={off}
                 onClick={() => useApp.setState({ panel: panel === r.id ? null : r.id })}><I /><span className="rail-label" aria-hidden="true">{t(r.short)}</span>
@@ -358,7 +359,7 @@ export default function App() {
         </nav>
         <Suspense fallback={<aside className="side" />}>
           {panel === "data" ? <DataPanel /> : panel === "analysis" ? <AnalysisPanel /> : panel === "compare" ? <ComparePanel />
-            : panel === "report" ? <ReportPanel /> : panel === "log" && logErrors !== null ? <LogPanel />
+            : panel === "report" ? <ReportPanel /> : panel === "log" && hasFiles ? <LogPanel />
             : panel === "investigate" ? <InvestigatePanel /> : <div />}
         </Suspense>
         <main className="stage">

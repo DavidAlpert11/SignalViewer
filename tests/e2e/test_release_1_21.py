@@ -49,7 +49,7 @@ def test_filter_review_and_hardware(pg):
     pg.locator(".plot-head .btn", has_text="Filters").click()
     pg.wait_for_selector(".plot-canvas[data-notches]", state="detached")
     # Log panel > Hardware: the frame and the IMU from its device id
-    pg.locator(".rail button[aria-label='Flight log']").click()
+    pg.locator(".rail button[aria-label='Checks']").click()
     pg.locator(".log-tabs [role=tab]", has_text="Hardware").click()
     hw = pg.locator(".log-hw").inner_text()
     assert "Quad X" in hw and "ICM42688 (SPI 2, address 0x01)" in hw
