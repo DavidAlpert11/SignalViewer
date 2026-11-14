@@ -8,7 +8,7 @@ with sync_playwright() as p:
     exe = os.environ.get("SV_CHROMIUM")
     b = p.chromium.launch(**({"executable_path": exe} if exe else {}), args=["--no-sandbox"])
     pg = b.new_page(viewport={"width": 1440, "height": 900})
-    for name in ("recordings", "map", "sweeps", "sweeps-start", "what-changed"):
+    for name in ("recordings", "recordings-any", "map", "sweeps", "sweeps-start", "what-changed"):
         for q, sfx in (("theme=dark&lang=en", "dark_en"), ("theme=light&lang=he&notes=0", "light_he"), ("theme=dark&lang=en&notes=0", "dark_en_clean")):
             pg.goto(f"file://{HERE}/{name}.html?{q}")
             pg.wait_for_timeout(400)

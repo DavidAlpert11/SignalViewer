@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock-up · Recordings, any data</title>
+<link rel="stylesheet" href="mock.css">
+<script src="mock.js"></script>
+<style>
+  .grid { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+  .grid .wide { grid-column: 1 / span 2; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <span class="brand"><i></i>Signal Viewer</span>
+    <div class="seg" role="tablist"><button class="on" data-he="הקלטות">Recordings</button><button data-he="סריקות">Sweeps</button><button data-he="צי">Fleet</button></div>
+    <span class="pill"><span class="dot" style="background:#0072B2"></span>A · run_012.csv</span>
+    <span class="pill"><span class="dot" style="background:#E69F00"></span>B · run_013.csv</span>
+    <span class="pill"><span class="dot" style="background:#009E73"></span>C · run_014.csv</span>
+    <button class="btn ghost sm" data-he="+ פתח">+ Open</button>
+    <span class="spacer"></span>
+    <span class="pill search"><span data-he="חפש פקודה, אות, תצוגה…">Search a command, signal, view…</span><kbd>Ctrl K</kbd></span>
+    <button class="icon" title="Undo">↶</button><button class="icon" title="Redo">↷</button>
+    <button class="btn" data-he="שמור">Save</button>
+    <button class="icon" title="Settings">⚙</button>
+  </header>
+
+  <div class="body">
+    <nav class="rail">
+      <button class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h10M4 18h7"/></svg><span data-he="נתונים">Data</span></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19l5-7 4 4 7-10"/></svg><span data-he="ניתוח">Analysis</span></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 4v16M17 4v16M3 9h8M13 15h8"/></svg><span data-he="השוואה">Compare</span></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></svg><span data-he="חקירה">Investigate</span></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l4 4v14H6z"/></svg><span data-he="דוח">Report</span></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg><span data-he="יומן">Log</span></button>
+    </nav>
+
+    <aside class="side">
+      <div class="side-head"><h2 data-he="אותות">Signals</h2><span class="spacer"></span><span class="chip">18</span></div>
+      <div style="padding:var(--sp-3);display:grid;gap:var(--sp-2)">
+        <div class="field">⌕ <span data-he="סנן אותות…">Filter signals…</span></div>
+        <div class="chips">
+          <span class="chip on" data-he="מנוע">Engine</span><span class="chip" data-he="מהירות">Speed</span><span class="chip" data-he="מצבים">States</span><span class="chip" data-he="בגבולות?">Has limits</span><span class="chip">+ <span data-he="שמור חיפוש">pin a search</span></span>
+        </div>
+      </div>
+      <div class="tree">
+        <div class="eyebrow" style="padding:4px 8px">A · run_012.csv · 600 s · 10 Hz</div>
+        <div class="grp sel"><span class="dot" style="background:#0072B2"></span>EngineTemp<span class="n mono">88.6 °C</span></div>
+        <div class="grp"><span class="dot" style="background:#0072B2"></span>RPM<span class="n mono">2,412</span></div>
+        <div class="grp"><span class="dot" style="background:#0072B2"></span>Speed<span class="n mono">74.2 km/h</span></div>
+        <div class="grp"><span class="dot" style="background:#0072B2"></span>Throttle<span class="n mono">41 %</span></div>
+        <div class="grp"><span class="dot" style="background:#0072B2"></span>Gear<span class="n mono">4</span></div>
+        <div class="grp"><span class="dot" style="background:#0072B2"></span>DriveMode<span class="n">CRUISE</span></div>
+        <div class="eyebrow" style="padding:12px 8px 4px">B · run_013.csv · 600 s</div>
+        <div class="grp"><span class="dot" style="background:#E69F00"></span>EngineTemp<span class="n mono">84.1 °C</span></div>
+        <div class="grp"><span class="dot" style="background:#E69F00"></span>Speed<span class="n mono">71.9 km/h</span></div>
+        <div class="eyebrow" style="padding:12px 8px 4px">C · run_014.csv · 600 s</div>
+        <div class="grp"><span class="dot" style="background:#009E73"></span>EngineTemp<span class="n mono">83.7 °C</span></div>
+      </div>
+    </aside>
+
+    <main class="stage">
+      <div class="kpis">
+        <div class="kpi"><div class="l" data-he="אורך">Length</div><div class="v">10:00<small>min</small></div></div>
+        <div class="kpi"><div class="l" data-he="מהירות מרבית">Max speed</div><div class="v">78.4<small>km/h</small></div></div>
+        <div class="kpi"><div class="l" data-he="טמפ׳ מנוע מרבית">Max engine temp</div><div class="v">91.2<small>°C</small></div></div>
+        <div class="kpi"><div class="l" data-he="זמן בשיוט">Time in CRUISE</div><div class="v">6:12<small>min</small></div></div>
+        <span class="spacer"></span>
+        <span class="chip bad">● 1 <span data-he="גבול נחצה">limit crossed</span></span><span class="chip warn">● 1 <span data-he="פער בנתונים">data gap</span></span><span class="chip ok">● 5 <span data-he="עברו">passed</span></span>
+        <button class="btn sm" data-he="בדיקות ›">Checks ›</button>
+      </div>
+      <div class="stagebar">
+        <div class="seg"><button class="on" data-he="מנוע">Engine</button><button data-he="השוואת ריצות">Compare runs</button><button>+</button></div>
+        <span class="spacer"></span>
+        <span class="eyebrow" data-he="פריסה">Layout</span>
+        <div class="seg"><button>1</button><button class="on">2×2</button><button>3</button><button>⋯</button></div>
+        <button class="btn sm"><span data-he="סמנים">Cursors</span> <kbd>T</kbd></button>
+        <button class="btn sm" data-he="התאם הכל">Fit all</button>
+      </div>
+      <div class="grid">
+        <section class="card active wide">
+          <div class="card-head"><span class="eyebrow" data-he="גרף 1 · פעיל">Plot 1 · active</span><b style="color:var(--ink-strong)" data-he="טמפרטורת מנוע, שלוש ריצות">Engine temperature, three runs</b>
+            <span class="eyebrow" style="text-transform:none;letter-spacing:0" data-he="3 ריצות · גבול 88 °C">3 runs · limit 88 °C</span><span class="spacer"></span>
+            <button class="btn ghost sm">⇄ <span data-he="מסונכרן">Synced</span></button><button class="icon">⤢</button><button class="icon">⋯</button></div>
+          <div class="legend">
+            <span><i class="swatch" style="background:#0072B2"></i>A EngineTemp <b class="v mono">88.6</b><span class="u">°C</span></span>
+            <span><i class="swatch" style="background:#E69F00"></i>B <b class="v mono">84.1</b><span class="u">°C</span></span>
+            <span><i class="swatch" style="background:#009E73"></i>C <b class="v mono">83.7</b><span class="u">°C</span></span>
+          </div>
+          <div class="band">
+            <div style="flex:8;background:color-mix(in srgb,#4c78a8 55%,transparent)">IDLE</div>
+            <div style="flex:30;background:color-mix(in srgb,#54a24b 55%,transparent)">ACCEL</div>
+            <div style="flex:44;background:color-mix(in srgb,#b279a2 55%,transparent)">CRUISE</div>
+            <div style="flex:18;background:color-mix(in srgb,#e45756 55%,transparent)">BRAKE</div>
+          </div>
+          <div class="plot" data-plot="temp"></div>
+        </section>
+        <section class="card">
+          <div class="card-head"><span class="eyebrow" data-he="גרף 2">Plot 2</span><b style="color:var(--ink-strong)" data-he="מהירות">Speed</b><span class="spacer"></span><button class="icon">⋯</button></div>
+          <div class="legend"><span><i class="swatch" style="background:#0072B2"></i>A Speed <b class="v mono">74.2</b><span class="u">km/h</span></span>
+            <span><i class="swatch" style="background:#E69F00"></i>B <b class="v mono">71.9</b><span class="u">km/h</span></span></div>
+          <div class="plot" data-plot="speed"></div>
+        </section>
+        <section class="card">
+          <div class="card-head"><span class="eyebrow" data-he="גרף 3">Plot 3</span><b style="color:var(--ink-strong)">RPM</b><span class="chip ok" style="height:18px" data-he="בגבולות">within limits</span><span class="spacer"></span><button class="icon">⋯</button></div>
+          <div class="legend"><span><i class="swatch" style="background:#0072B2"></i>A RPM <b class="v mono">2,412</b></span>
+            <span><i class="swatch" style="background:#E69F00"></i>B <b class="v mono">2,288</b></span></div>
+          <div class="plot" data-plot="rpm"></div>
+        </section>
+      </div>
+      <div class="timeline">
+        <button class="icon">▶</button>
+        <div class="track">
+          <div class="modes"><div style="flex:8;background:#4c78a8"></div><div style="flex:30;background:#54a24b"></div><div style="flex:44;background:#b279a2"></div><div style="flex:18;background:#e45756"></div></div>
+          <svg class="spark" viewBox="0 0 100 10" preserveAspectRatio="none"><path d="M0 9 L8 2 L20 3 L35 1.5 L50 3 L65 2 L80 3 L90 2 L100 9" fill="none" stroke="var(--muted)" stroke-width=".6"/></svg>
+          <div class="win" style="inset-inline-start:0;width:100%"></div>
+        </div>
+        <span class="mono" style="color:var(--muted);font-size:var(--fs-xs)">372.0 / 600.0 s</span>
+      </div>
+    </main>
+  </div>
+
+  <footer class="status">
+    <span class="dot"></span><b data-he="3 קבצים">3 files</b><span>·</span><span data-he="3 גרפים, 7 קווים">3 plots, 7 lines</span><span>·</span>
+    <span class="mono">T1 372.0 s</span><span class="spacer"></span><span data-he="הכל נשמר">All saved</span>
+  </footer>
+</div>
+
+<div class="note" data-n="1" style="top:96px;left:560px">The same "at a glance" strip on three car runs (CSV): the numbers come from the file's profile or are pinned by the user; the counts from ONE Checks view - the user's limits + data quality (+ the log's health check when there is one).</div>
+<div class="note" data-n="2" style="top:150px;left:70px">Quick chips from the file's own structure (column prefixes, MAT structs, log messages, MCAP topics) or a pinned search - not a flight list.</div>
+<div class="note" data-n="3" style="top:250px;left:1080px">The mode band is any state signal: here DriveMode. No positions in these files: no Map / 3D buttons (what does not apply is hidden).</div>
+<div class="note" data-n="4" style="top:300px;left:70px">Each file a tag and a colour (A, B, C) - the legend and the tree use them.</div>
+</body>
+</html>

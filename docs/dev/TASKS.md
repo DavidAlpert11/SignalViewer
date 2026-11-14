@@ -13,7 +13,11 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- **Redesign round (owner, 2026-11-14) – PLANNING DONE, WAITING FOR THE OWNER'S APPROVAL; no product code changed.**
+- **Redesign round (owner, 2026-11-14) – PLAN APPROVED (every recommendation of §8); no product code changed yet. Next: A1.**
+  Also asked and added (§3.6): Signal Viewer is an analysis tool for any data, not only ArduPilot – every ArduDeck idea
+  made format-neutral (profiles = templates; one *Checks* view = limits + data quality + a log's health; the existing
+  *run at a glance* strip extended; F1 / F3 / F4 / F5 / F6 for any format), D13 wording / icons audit, D14 profiles, E4 a
+  test-bench example, F8 (later) the Fleet for any format; mock-up `recordings-any.html` (three car runs).
   Spec `docs/dev/AGENT_PROMPT_2026-11-14.md`, plan `docs/dev/PLAN_2026-11-14.md` (the inventory and the acceptance
   checklist §2, ArduDeck and other tools §3, Sweeps as one workspace §4, the design system §5, what moves where §6, the
   phases §7, the owner's eight decisions §8), mock-ups `docs/dev/mockups/` (`index.html`; pictures `*_dark_en.webp`,
@@ -4111,3 +4115,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-14 · Owner: next is a planned redesign - Sweeps feels like separate apps (the demo's tables cannot be opened with the single-table tools on the same screen), plots inspired by ArduDeck, a modern look that keeps every feature. The prompt for the new session: `docs/dev/AGENT_PROMPT_2026-11-14.md` (planning first; the owner approves before code).
 - 2026-11-14 · Redesign round, Phase 1 (planning): `docs/dev/PLAN_2026-11-14.md` + mock-ups (`docs/dev/mockups/`, 4 pages × dark en / light he) + the app as it is (`docs/dev/mockups/before/`, 31 pictures, `tools/plan_screens.py`); ArduDeck read from its site, repository, forum thread and three screenshots (sources in the plan §3). No product code changed; nothing to test (no checks run). Next: the owner decides §8, then Phase A.
 - 2026-11-14 · Plan revised after the owner's answer: Sweeps as one study for both flows (results first / runs first, continue later; `PLAN` §4: the fourteen duplicates and their one place each, Set up · Tables · Together · Run, the engine's start grid for any study), ArduDeck compared both ways in design (§3.2) and capabilities (§3.3) with a new design idea (§3.4) and an optional Phase F; mock-up `sweeps-start.html`. No product code changed. Next: the owner's answers to §8.
+- 2026-11-14 · Owner approved the plan (all of §8). Added at his request §3.6 – the ArduDeck ideas made general for any data (profiles, one Checks view, the run-at-a-glance strip extended, F1/F3–F6 format-neutral, D13, D14, E4, F8) and the mock-up `recordings-any.html`. No product code changed. Next: Phase A, A1.
