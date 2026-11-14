@@ -325,6 +325,51 @@ button, input, select { font: inherit; color: inherit; }
   background: var(--bg); color: var(--muted); font: inherit; font-size: var(--fs-xs); cursor: pointer; }
 .toast-fold { align-self: flex-start; font-size: var(--fs-s); }
 /* --- end of A3 components --- */
+
+/* ---------------------------------------------------------------------------
+   A4 Surfaces (plan §5.2, §3.4 rules 2-4): the eyebrow, the panel head, the card (tinted by its verdict,
+   ending with its next action), the data table, the KPI and the empty state. One definition each.
+--------------------------------------------------------------------------- */
+/* Eyebrow: a small label over a value or a section. Hebrew has no capitals - it keeps the size and weight. */
+.eyebrow { font: var(--eyebrow); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--muted); }
+:lang(he) .eyebrow, .eyebrow:lang(he) { text-transform: none; letter-spacing: 0; }
+/* Panel head: title · count · actions (the side panels' .side-head is the same head) */
+.panel-head, .side-head { display: flex; align-items: center; gap: var(--sp-1_5); padding: 10px 10px 6px 14px; }
+.panel-head h2, .panel-head .ph-title { margin: 0; font-size: var(--fs-base); font-weight: 600; color: var(--ink-strong); white-space: nowrap; }
+.ph-count { font-family: var(--mono); font-size: var(--fs-s); color: var(--muted); }
+.ph-actions { display: inline-flex; align-items: center; gap: var(--sp-1); margin-inline-start: auto; }
+/* Card: a surface with the same anatomy everywhere - eyebrow, title, one muted meta line, body, next action.
+   A verdict tints it (.ok / .warn / .bad / .info) with a coloured start edge. The Log's health rows are cards. */
+.card, .hrow { display: flex; gap: var(--sp-2); padding: var(--sp-2) var(--sp-2_5); border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--panel); }
+.card { flex-direction: column; gap: var(--sp-1); }
+.card.ok, .hrow.ok { background: var(--ok-soft); border-inline-start: 3px solid var(--ok); }
+.card.warn, .hrow.warning { background: var(--warn-soft); border-inline-start: 3px solid var(--warn); }
+.card.bad, .hrow.error { background: var(--danger-soft); border-inline-start: 3px solid var(--danger); }
+.card.info { background: var(--info-soft); border-inline-start: 3px solid var(--info); }
+.card-title { margin: 0; font-weight: 600; color: var(--ink-strong); }
+.card-meta { margin: 0; font-size: var(--fs-s); color: var(--muted); }
+.card-next { display: flex; flex-wrap: wrap; gap: var(--sp-1_5); margin-top: var(--sp-1); }
+.card-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1_5); }
+/* Data table: eyebrow headers, number columns in mono and end-aligned, the chosen row in the selection tint */
+table.data { width: 100%; border-collapse: collapse; font-size: var(--fs-m); }
+table.data th { font: var(--eyebrow); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--muted);
+  text-align: start; padding: 4px 8px; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
+:lang(he) table.data th { text-transform: none; letter-spacing: 0; }
+table.data td { padding: 4px 8px; border-bottom: 1px solid var(--line); }
+table.data .num { text-align: end; direction: ltr; }
+table.data tbody tr:hover { background: var(--panel-2); }
+table.data tr.sel, table.data tr[aria-selected="true"] { background: var(--select-soft); }
+/* KPI: a muted label over a big mono value, the unit smaller */
+.kpi { display: flex; flex-direction: column; gap: var(--sp-0_5); min-width: 0; }
+.kpi-label { font: var(--eyebrow); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--muted); }
+:lang(he) .kpi-label { text-transform: none; letter-spacing: 0; }
+.kpi-value { font-family: var(--mono); font-size: var(--fs-readout); line-height: 1.1; color: var(--ink-strong); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+.kpi-unit { font-family: var(--mono); font-size: var(--fs-s); color: var(--muted); margin-inline-start: 2px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: var(--sp-3); }
+/* Empty state: one sentence and one action (W13.5) */
+.empty-state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); padding: 12px 14px; color: var(--muted); }
+.empty-state > p { margin: 0; }
 .sep { width: 1px; height: 20px; background: var(--line); margin-inline: 4px; }
 .kbd { font-size: var(--fs-s); color: var(--faint); border: 1px solid var(--line); border-radius: var(--r-s); padding: 0 4px; }
 
@@ -348,7 +393,6 @@ button, input, select { font: inherit; color: inherit; }
 
 /* ------------------------------ side panel ------------------------------ */
 .side { width: auto; min-width: 0; overflow: hidden; display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-inline-end: 1px solid var(--line); }
-.side-head { display: flex; align-items: center; gap: var(--sp-1_5); padding: 10px 10px 6px 14px; }
 .side-head h2 { margin: 0; font-size: var(--fs-base); font-weight: 600; color: var(--ink-strong); flex: 1 0 auto; white-space: nowrap; }
 .side-head > :not(h2):not(.split-btn) { flex-shrink: 0; }
 /* T50: when the header is full, the "Open files" label gives way (its + stays), not the title */
@@ -380,7 +424,7 @@ button, input, select { font: inherit; color: inherit; }
 .sig mark { background: none; color: var(--ink-strong); font-weight: 600; }
 .sig .add { opacity: 0; color: var(--faint); font-size: var(--fs-sm); }
 .sig:hover .add { opacity: 1; }
-.empty-note { color: var(--muted); padding: 12px 14px; }
+.empty-note { color: var(--muted); padding: 12px 14px; }   /* a one-line empty state; with an action use .empty-state */
 .coming { padding: 20px 14px; color: var(--muted); }
 
 /* ------------------------------- plot area ------------------------------- */
@@ -1072,12 +1116,11 @@ input.fx-input { width: 100%; }
 .stats-where { margin: 0 0 6px !important; }
 .stats-where-note { margin: -2px 0 6px; font-size: var(--fs-s); }
 .health { display: flex; flex-direction: column; min-height: 0; flex: 1; overflow: auto; }
-.health-sum { margin: 0 12px 8px; padding: 6px 10px; border-radius: var(--r-m); font-weight: 600; }
-.health-sum.ok { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+.health-sum { margin: 0 12px 8px; padding: 6px 10px; border-radius: var(--r-card); font-weight: 600; }   /* A4: a verdict card */
+.health-sum.ok { background: var(--ok-soft); color: var(--ok); }
 .health-sum.warning { background: var(--warn-soft); color: var(--warn); }
-.health-sum.error { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
-.health-list { list-style: none; margin: 0; padding: 0 8px; }
-.hrow { display: flex; gap: var(--sp-2); padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.health-sum.error { background: var(--danger-soft); color: var(--danger); }
+.health-list { list-style: none; margin: 0; padding: 0 8px; display: flex; flex-direction: column; gap: var(--sp-1_5); }   /* A4: rows are cards */
 .hicon { flex: none; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: var(--fs-s); font-weight: 700; color: var(--on-color); margin-top: 1px; }
 .hicon.ok { background: var(--ok); } .hicon.warning { background: var(--warn); color: var(--bg); } .hicon.error { background: var(--danger); }
 .hbody { flex: 1; min-width: 0; }

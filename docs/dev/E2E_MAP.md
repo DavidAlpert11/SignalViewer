@@ -6,6 +6,7 @@
 - A1 ran `test_calm_screen.py`, `test_settings.py` (no change to them) (L1)
 - A2 ran `test_plot_polish.py`, `test_first_minute.py` (no change) (L1)
 - A3 ran `test_calm_screen.py`, `test_welcome_cards.py`, `test_plot_menus.py` (no change) (L1)
+- A4 ran `test_findings_report.py`, `test_live_report.py` (no change) (L1)
 
 <!-- 1114 lane L2 -->
 
