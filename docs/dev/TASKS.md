@@ -34,13 +34,14 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
     - 2026-11-14 · C3 `frontend/src/sweeps/studyRoles.ts`: the area's roles (param / hold / output / id / recording / ignore) ↔ the study's (shared / local / scenario / output / ignore); the Goal step's question ↔ a study table's `constraints` / `objective` / `aggregate` / `drop` (conditions *in every combination* on identifier columns or row formulas → constraints; the goal's mean → `mean`, its worst side → `worst`; kept scenario values ↔ values left out); what the engine cannot hold (k of n, among values, per-set columns, names that are not identifiers, any-of with a part not written, several goals / objectives, Pareto, robust, split, runs left out) is listed as *this table only* and kept on the way back. Ran: Vitest `studyRoles.test.ts` (new, 8: drone_tuning.svsweep, the demo, the drones fixture - both ways) - green; tsc clean. Next: C4.
   <!-- lane L3 -->
   - **L3 Plots and the frame** – todo · next: waits for S1 (B1) · tasks B1–B5, D1, D2, D8 (+ F2's legend when L5 has it) · requests: –
+    - From L5 (2026-11-14): **F2's endpoint is on `main`** – `POST /api/stats/window {signals: [ids], t0, t1}` (shown time; offsets applied) → `{stats: {id: {n, min, max, mean, t0, t1}}}`, states and closed signals left out, < 5 ms per call on 20M samples (block summaries cached). For the legend on demand (B2): call it on the view's x-range after a pan / zoom settles. Backend `svcore/windowstats.py`, test `tests/test_window_stats.py`.
   <!-- lane L4 -->
   - **L4 Map** – in progress · done: M2, M3a (backend) · next: M4 (backend); M3b (its dialog) with M1 after S1 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
     - *Request to L3* (from L4, M2): `store/slices/view.ts` `geoBase`'s type → `GeoBase` from `mapBase.ts` (it now has
       `"satroads"`; today the store's union lacks it, PlotView's select casts); `PlotView.tsx` the *Borders* switch for
       `isPhotoBase(shownBase)` (from `mapBase.ts`) instead of `=== "satellite"`. Both go away with M1 if L4 may then touch PlotView's map select.
   <!-- lane L5 -->
-  - **L5 Analysis and new capabilities** – in progress · done: F3, F1 (backend; their screens with D4 / D7) · next: F2 (backend) · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: –
+  - **L5 Analysis and new capabilities** – in progress · done: F3, F1, F2 (backend; their screens with D4 / D7, F2's legend by L3) · next: D7 (waits for S1 = A3 + A4) · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: –
   <!-- lane Final -->
   - **Final** – waits for every lane · E1 E2 E4, the full checks, E3 the version
   <!-- end of the lane board -->
@@ -4175,3 +4176,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
   server with M4; at most 40,000 tiles a request. Routes `/api/tiles/keep{,/estimate,/progress,/stop}`,
   `/api/tiles/areas[/{id}]`. Ran: `tests/test_tile_keep.py` (new, 7) + the map tests green, mypy clean. The dialog
   (M3b) comes with M1's picker (after S1). Next: M4.
+- 2026-11-14 · L5 F2 (backend): `svcore/windowstats.py` + `POST /api/stats/window` - min / mean / max / samples of each signal over the visible window (NaN skipped, offsets applied, states left out); block summaries (4096 samples) cached with the arrays, so after the first call a 20M-sample window costs < 5 ms. Ran: test_window_stats (= numpy on 5 windows incl. empty and all-NaN blocks, offsets, speed) - green; mypy clean. Line written under L3 for the legend. Next: D7 after S1.

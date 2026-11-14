@@ -14,6 +14,7 @@
 `test_offline_map.py` – M2 (L4): `test_satellite_with_roads_is_one_layer` new.
 
 <!-- 1114 lane L5 -->
+- F2 (backend only): backend `tests/test_window_stats.py`; the legend's e2e is L3's (`test_plot_polish`, B2).
 - F1 (backend only, no screen yet): backend `tests/test_file_structure.py`; the e2e comes with the panel (D7).
 - F3 (backend only, no screen yet): backend `tests/test_run_parameters.py`; no e2e file (the screens come with D4 / D7).
 

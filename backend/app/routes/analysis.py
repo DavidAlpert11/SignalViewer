@@ -801,6 +801,31 @@ def compare_parameters(req: ParamsCompareRequest):
     return runinfo.compare(runinfo.parameters(ra, WIDE_PARAMS), runinfo.parameters(rb, WIDE_PARAMS))
 
 
+class WindowStatsRequest(BaseModel):
+    signals: List[str]
+    t0: Optional[float] = None
+    t1: Optional[float] = None
+
+
+@router.post("/api/stats/window")
+def window_stats_route(req: WindowStatsRequest):
+    """F2: min / mean / max of each signal over the visible window (shown time; each run's offset applied),
+    fast enough for every pan and zoom. States and closed signals are left out."""
+    from svcore.windowstats import window_stats
+    out: Dict[str, dict] = {}
+    for sid in req.signals:
+        try:
+            t, y, off = store.signal_parts(sid)
+        except (KeyError, ValueError):
+            continue
+        if store.is_state(sid):
+            continue
+        s = window_stats(t, y, None if req.t0 is None else req.t0 - off, None if req.t1 is None else req.t1 - off)
+        if s:
+            out[sid] = {**s, "t0": s["t0"] + off, "t1": s["t1"] + off}
+    return {"stats": out}
+
+
 @router.get("/api/runs/{run_id}/structure")
 def run_structure(run_id: str):
     """F1 *The file*: groups (message types, topics, structs, column prefixes), each column's samples,
