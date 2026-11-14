@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock-up · Sweeps workspace</title>
+<link rel="stylesheet" href="mock.css">
+<script src="mock.js"></script>
+<style>
+  .body { grid-template-columns: 260px 1fr 300px; }
+  .nav { background: var(--panel); border-inline-end: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .nav .tree { flex: 1; }
+  .nav .sec { display: flex; align-items: center; gap: 6px; padding: 12px 8px 4px; }
+  .nav .item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: var(--r-m); cursor: pointer; white-space: nowrap; }
+  .nav .item:hover { background: var(--raised); }
+  .nav .item.sel { background: var(--amber-soft); color: var(--ink-strong); box-shadow: inset 2px 0 0 var(--amber); }
+  [dir="rtl"] .nav .item.sel { box-shadow: inset -2px 0 0 var(--amber); }
+  .nav .item .n { margin-inline-start: auto; color: var(--muted); font-size: var(--fs-xs); font-family: var(--mono); }
+  .nav .sub { padding-inline-start: 22px; }
+  .nav .round { display: flex; align-items: center; gap: 6px; padding: 5px 8px; color: var(--ink); }
+  .nav .round .n { margin-inline-start: auto; color: var(--muted); font-size: var(--fs-xs); }
+  .tag { font: var(--eyebrow); letter-spacing: .04em; padding: 2px 5px; border-radius: var(--r-s); background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); }
+  .center { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .crumb { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--bg); }
+  .crumb b { color: var(--ink-strong); }
+  .steps { display: flex; gap: 6px; padding: 10px 14px; }
+  .step { flex: 1; display: flex; gap: 8px; align-items: center; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-l); background: var(--panel); min-width: 0; }
+  .step i { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: var(--fs-2xs); background: var(--panel-2); color: var(--muted); flex: none; }
+  .step.done i { background: var(--ok-soft); color: var(--ok); }
+  .step.on { border-color: var(--amber); background: var(--amber-soft); }
+  .step.on i { background: var(--amber); color: var(--amber-ink); }
+  .step small { display: block; color: var(--muted); font-size: var(--fs-2xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tabs { display: flex; gap: 2px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+  .tabs span { padding: 8px 12px; color: var(--muted); border-bottom: 2px solid transparent; }
+  .tabs span.on { color: var(--ink-strong); border-bottom-color: var(--amber); }
+  .work { flex: 1; min-height: 0; display: grid; grid-template-rows: 1fr auto; gap: 8px; padding: 10px 14px; }
+  .pc { position: relative; }
+  .pc svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .right { background: var(--panel); border-inline-start: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow: auto; }
+  .box { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--panel-2); padding: 10px; }
+  .box h3 { margin: 0 0 6px; font-size: var(--fs-base); color: var(--ink-strong); display: flex; align-items: center; gap: 6px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: var(--fs-s); }
+  .kv span:nth-child(odd) { color: var(--muted); }
+  .kv span:nth-child(even) { font-family: var(--mono); color: var(--ink-strong); text-align: end; }
+  .workers { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; margin: 6px 0; }
+  .workers i { height: 8px; border-radius: 2px; background: var(--line-strong); }
+  .workers i.run { background: var(--info); } .workers i.ok { background: var(--ok); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <span class="brand"><i></i>Signal Viewer</span>
+    <div class="seg"><button data-he="הקלטות">Recordings</button><button class="on" data-he="סריקות">Sweeps</button><button data-he="צי">Fleet</button></div>
+    <span class="pill"><b style="color:var(--ink-strong)" data-he="הדגמת סריקה חכמה">Smart-sweep demo</b><span class="tag" data-he="מחקר">study</span></span>
+    <button class="btn ghost sm" data-he="פתח ▾">Open ▾</button>
+    <span class="spacer"></span>
+    <span class="pill search"><span data-he="חפש פקודה, עמודה, טבלה…">Search a command, column, table…</span><kbd>Ctrl K</kbd></span>
+    <button class="icon" title="Undo">↶</button><button class="icon" title="Redo">↷</button>
+    <button class="btn" data-he="שמור">Save</button><button class="btn ghost" data-he="דוח">Report</button>
+  </header>
+
+  <div class="body">
+    <aside class="nav">
+      <div class="side-head"><div><div class="eyebrow" data-he="המחקר">The study</div><h2 data-he="שלושה רחפנים, סט רווחים אחד">Three drones, one set of gains</h2></div></div>
+      <div class="tree">
+        <div class="sec"><span class="eyebrow" data-he="ביחד">Together</span></div>
+        <div class="item"><span>★</span><span data-he="פרמטרים משותפים">Common parameters</span><span class="n">Kp Ki Kd</span></div>
+        <div class="item"><span>↻</span><span data-he="הלולאה">The loop</span><span class="chip info" style="height:18px;margin-inline-start:auto" data-he="סבב 2">round 2</span></div>
+
+        <div class="sec"><span class="eyebrow" data-he="טבלאות">Tables</span><span class="spacer"></span><span class="eyebrow" data-he="ריצות">runs</span></div>
+        <div class="item"><span class="dot" style="background:#0072B2"></span><span data-he="רחפן A · קל">Drone A · light quad</span><span class="n">1,536</span></div>
+        <div class="item"><span class="dot" style="background:#E69F00"></span><span data-he="רחפן B · משושה כבד">Drone B · heavy hexa</span><span class="n">3,072</span></div>
+        <div class="item sub"><span style="color:var(--muted)">└</span><span data-he="סבב 1">Round 1</span><span class="n">1,536</span></div>
+        <div class="item sub sel"><span style="color:var(--muted)">└</span><span data-he="סבב 2">Round 2</span><span class="tag" data-he="חדש">new</span><span class="n">1,536</span></div>
+        <div class="item"><span class="dot" style="background:#009E73"></span><span data-he="רחפן C · VTOL">Drone C · VTOL</span><span class="n">2,304</span></div>
+
+        <div class="sec"><span class="eyebrow" data-he="ממוזגות">Merged</span></div>
+        <div class="item"><span class="dot" style="background:var(--muted)"></span><span data-he="A + B + C, כל הסבבים">A + B + C, all rounds</span><span class="n">6,912</span></div>
+        <div class="item" style="color:var(--muted)">+ <span data-he="הוסף טבלה או מזג…">Add a table or merge…</span></div>
+      </div>
+      <div style="padding:10px;border-top:1px solid var(--line);font-size:var(--fs-xs);color:var(--muted)" data-he="demo.svstudy.json · נשמר">demo.svstudy.json · saved</div>
+    </aside>
+
+    <main class="center">
+      <div class="crumb">
+        <span data-he="רחפן B">Drone B</span><span style="color:var(--muted)">›</span><b data-he="סבב 2">Round 2</b>
+        <span class="mono" style="color:var(--muted);font-size:var(--fs-xs)">next/round_2/collected_B.csv · 1,536 runs</span>
+        <span class="spacer"></span>
+        <div class="seg"><button class="on" data-he="סבב זה">This round</button><button data-he="כל הסבבים">All rounds</button></div>
+      </div>
+      <div class="steps">
+        <div class="step done"><i>✓</i><div><b data-he="נתונים">Data</b><small data-he="1,536 ריצות · 10 עמודות">1,536 runs · 10 columns</small></div></div>
+        <div class="step done"><i>✓</i><div><b data-he="עמודות">Columns</b><small data-he="מהמחקר: Kp Ki Kd · mass, wind">from the study: Kp Ki Kd · mass, wind</small></div></div>
+        <div class="step done"><i>✓</i><div><b data-he="מטרה">Goal</b><small>overshoot &lt; 12 · motor_sat &lt; 0.9 · ↓ settling</small></div></div>
+        <div class="step on"><i>4</i><div><b data-he="תוצאות">Results</b><small data-he="9 מתוך 64 סטים עומדים">9 of 64 sets hold</small></div></div>
+      </div>
+      <div class="tabs"><span class="on" data-he="סטי פרמטרים · 64">Parameter sets · 64</span><span data-he="כל הריצות · 1,536">All runs · 1,536</span><span data-he="גרפים">Charts</span><span data-he="ריצות הבאות">Next runs</span></div>
+      <div class="work">
+        <div class="card pc" style="padding:0">
+          <svg id="pc" viewBox="0 0 800 300" preserveAspectRatio="none"></svg>
+        </div>
+        <table class="table">
+          <thead><tr><th>#</th><th>Kp</th><th>Ki</th><th>Kd</th><th data-he="עומד">holds</th><th>settling_time · worst</th><th>overshoot · worst</th><th>motor_sat · worst</th></tr></thead>
+          <tbody>
+            <tr class="sel"><td>1</td><td class="num">3.40</td><td class="num">0.85</td><td class="num">1.20</td><td style="color:var(--ok)">✓</td><td class="num">1.238</td><td class="num">9.8</td><td class="num">0.81</td></tr>
+            <tr><td>2</td><td class="num">3.40</td><td class="num">1.00</td><td class="num">1.20</td><td style="color:var(--ok)">✓</td><td class="num">1.262</td><td class="num">10.6</td><td class="num">0.83</td></tr>
+            <tr><td>3</td><td class="num">3.10</td><td class="num">0.85</td><td class="num">1.05</td><td style="color:var(--ok)">✓</td><td class="num">1.301</td><td class="num">8.7</td><td class="num">0.78</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <aside class="right">
+      <div class="box">
+        <h3>↻ <span data-he="הלולאה">The loop</span><span class="spacer"></span><span class="chip info" data-he="רץ">running</span></h3>
+        <div class="kv"><span data-he="סבב">Round</span><span>2 / ≤ 10</span><span data-he="ריצות שבוצעו">Runs done</span><span>2,304</span><span data-he="פער מהרשת המלאה">Gap to the full grid</span><span>3.1 %</span></div>
+        <div class="workers"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="run"></i><i class="run"></i><i class="run"></i><i class="run"></i><i class="run"></i><i class="run"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <svg viewBox="0 0 260 90" style="width:100%;height:90px;background:var(--plot-bg);border-radius:var(--r-m)">
+          <line x1="0" x2="260" y1="70" y2="70" stroke="var(--muted)" stroke-dasharray="4 3"/>
+          <path d="M20 14 L80 14 L80 52 L150 52 L150 66" fill="none" stroke="var(--amber)" stroke-width="2"/>
+          <circle cx="20" cy="14" r="3" fill="var(--amber)"/><circle cx="80" cy="52" r="3" fill="var(--amber)"/><circle cx="150" cy="66" r="3.5" fill="var(--amber)"/>
+          <text x="256" y="84" text-anchor="end" fill="var(--muted)" font-size="9" font-family="monospace" data-he="ריצות (לוג)">runs (log)</text>
+        </svg>
+        <div style="display:flex;gap:6px;margin-top:8px"><button class="btn sm" data-he="סבב הבא">Next round</button><button class="btn sm primary" data-he="עד התכנסות">Until converged</button><button class="btn sm ghost" data-he="עצור">Stop</button></div>
+      </div>
+      <div class="box">
+        <h3>★ <span data-he="הטוב ביותר לכל הרחפנים">Best for every drone</span></h3>
+        <div class="chips"><span class="chip">Kp 3.40</span><span class="chip">Ki 0.85</span><span class="chip">Kd 1.20</span></div>
+        <div class="kv" style="margin-top:8px"><span>A</span><span style="color:var(--ok)">✓ 1.104</span><span>B</span><span style="color:var(--ok)">✓ 1.238</span><span>C</span><span style="color:var(--ok)">✓ 1.191</span></div>
+        <button class="btn sm" style="margin-top:8px" data-he="פתח בפרמטרים משותפים ›">Open in Common parameters ›</button>
+      </div>
+      <div class="box">
+        <h3 data-he="הטבלה הזו במחקר">This table in the study</h3>
+        <p style="margin:0;color:var(--muted);font-size:var(--fs-s)" data-he="המטרה כאן היא של רחפן B במחקר. שינוי בה משנה את הדירוג המשותף (בטל עם Ctrl+Z).">The goal here is Drone B's in the study. Changing it changes the common ranking (undo with Ctrl+Z).</p>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="status"><span class="dot" style="background:var(--info)"></span><b data-he="הלולאה רצה: סבב 2">The loop is running: round 2</b><span>·</span><span data-he="רחפן B · סבב 2 · 1,536 ריצות">Drone B · round 2 · 1,536 runs</span><span class="spacer"></span><span data-he="שינויים לא שמורים">Unsaved changes</span></footer>
+</div>
+
+<div class="note" data-n="1" style="top:110px;left:270px">ONE study on the left: what is shared (Common parameters, the loop), each table with its rounds, merged tables. One click opens any of them in the middle.</div>
+<div class="note" data-n="2" style="top:300px;left:270px">The demo's round 2 for Drone B: its collected_B.csv, opened in the single-table tools - no second app.</div>
+<div class="note" data-n="3" style="top:58px;left:690px">Where you are: table › round, with This round / All rounds.</div>
+<div class="note" data-n="4" style="top:158px;left:880px">The same four steps as any table; Columns and Goal come from the study's table (roles, constraints, objective).</div>
+<div class="note" data-n="5" style="top:120px;left:1170px">The loop and the shared answer stay in sight while you look at a table (collapsible).</div>
+<div class="note" data-n="6" style="top:58px;left:420px">One file (.svstudy.json), one Save, one Undo for the whole study; .svsweep opens as a study with one table.</div>
+
+<script>
+  // the parallel plot: a few lines that hold (amber) over many that do not
+  (function () {
+    const svg = document.getElementById("pc"), axes = 7, W = svg.clientWidth || 800, H = svg.clientHeight || 300, L = 40, R = 40, T = 28, B = 24;
+    const x = (i) => L + i * (W - L - R) / (axes - 1);
+    const names = ["Kp", "Ki", "Kd", "mass", "overshoot", "motor_sat", "settling"];
+    let s = "", seed = 3; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    names.forEach((n, i) => { s += `<line x1="${x(i)}" x2="${x(i)}" y1="${T}" y2="${H - B}" stroke="var(--line-strong)"/><text x="${x(i)}" y="16" text-anchor="middle" fill="var(--ink)" font-size="11" font-family="IBM Plex Sans, sans-serif">${n}</text>`; });
+    s += `<rect x="${x(4) - 5}" y="${T + 110}" width="10" height="${H - B - T - 110}" fill="var(--amber-soft)" stroke="var(--amber)" rx="2"/>`;
+    for (let k = 0; k < 64; k++) {
+      const hold = k < 9, ys = names.map((_, i) => T + (hold ? (i === 4 ? 0.55 + r() * 0.4 : i === 6 ? 0.6 + r() * 0.3 : 0.25 + r() * 0.5) : r()) * (H - T - B));
+      s += `<path d="${ys.map((y, i) => `${i ? "L" : "M"}${x(i)} ${y}`).join("")}" fill="none" stroke="${hold ? "var(--amber)" : "var(--muted)"}" stroke-opacity="${hold ? 0.95 : 0.18}" stroke-width="${hold ? 1.5 : 1}"/>`;
+    }
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.innerHTML = s;
+  })();
+</script>
+</body>
+</html>

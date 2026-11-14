@@ -13,6 +13,22 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+- **Redesign round (owner, 2026-11-14) – PLANNING DONE, WAITING FOR THE OWNER'S APPROVAL; no product code changed.**
+  Spec `docs/dev/AGENT_PROMPT_2026-11-14.md`, plan `docs/dev/PLAN_2026-11-14.md` (the inventory and the acceptance
+  checklist §2, ArduDeck and other tools §3, Sweeps as one workspace §4, the design system §5, what moves where §6, the
+  phases §7, the owner's eight decisions §8), mock-ups `docs/dev/mockups/` (`index.html`; pictures `*_dark_en.webp`,
+  `*_light_he.webp`), the app as it is in `docs/dev/mockups/before/` (`tools/plan_screens.py`). Control counts on the
+  base: welcome 42, plotted 105, Settings 58, Sweeps 16. Next: the owner's answers to §8, then Phase A (A1 first).
+  The round's tasks (one commit each; status `todo` until the owner approves):
+  - Phase A – tokens and components: A1 tokens + AA check · A2 IBM Plex Mono for numbers · A3 one definition per
+    component · A4 panel head / card / table / KPI / empty state.
+  - Phase C – Sweeps as one workspace: C1 `/api/sweeps/study/tables` (files by round) · C2 `studyRoles.ts` · C3 one store,
+    one Undo · C4 files (`.svstudy.json` + optional `workspace`; `.svsweep` unchanged) · C5 the navigator · C6 the middle
+    (a round's table prefilled; Common parameters / About as centre views) · C7 the right column (loop, best, convergence)
+    · C8 entry points · C9 the walkthrough e2e `test_sweeps_workspace.py`.
+  - Phase B – plots: B1 plot card head · B2 legend with values · B3 mode band · B4 uPlot theme (perf budget) · B5 timeline
+    · B6 Map / 3D chrome · B7 Sweeps charts.
+  - Phase D – every area (D1 top row … D12 dialogs; pictures + recount each). Phase E – docs, pictures, 1.28.0.
 - **Round of 2026-11-13 (1.27.0 prepared, not tagged)**: spec and status box `docs/dev/AGENT_PROMPT_2026-11-13.md`,
   plan `docs/dev/PLAN_2026-11-13.md`, per-lane notes `docs/dev/lanes/*.md`, e2e map `docs/dev/E2E_MAP.md`. Done in
   one session (stacked branches `sv1113/base` → `l3` → `l4` → `l6` → `l1` → `l5` → `l2` → `l7` → `l8` → `release`;
@@ -4089,3 +4105,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-13 · Readability pass (owner: What changed, Find similar, operations on signals, CSV comparison, every mode): Create signals, Compare (CSV), Live read well - kept. What changed: Investigate has its own panel width (380 px, remembered, `sv3.w.investigate`); the how-to-read notes folded under one line that keeps the caveat (`wcHowRead`); the onset axis shows 0 and the end (the left value collided); the chain names its dots. Find similar: the condition editor scrolls into sight (it opened below the fold). e2e: what_changed (the caveat checked in the summary, then the full text), conditions, findings_report, compare_similar, one_per_plot, overview_strip, runs_matrix, welcome_cards - green; quick_check green.
 - 2026-11-13 · 1.27.0 final on main (9bf5eab + this log line): the whole e2e suite again - 433 passed, 1 timed out under load (`test_object_templates::...recreates_them_from_another_file`, a 30 s wait in open_files; green 3/3 alone and in the previous full run). Releasing from this session is refused (tag push 403; `gh release create`: "not permitted for this session type") - the owner pushes the tag: `git tag -a v1.27.0 -m "Signal Viewer 1.27.0" origin/main && git push origin v1.27.0` (build.yml builds every package and opens a draft release).
 - 2026-11-14 · Owner: next is a planned redesign - Sweeps feels like separate apps (the demo's tables cannot be opened with the single-table tools on the same screen), plots inspired by ArduDeck, a modern look that keeps every feature. The prompt for the new session: `docs/dev/AGENT_PROMPT_2026-11-14.md` (planning first; the owner approves before code).
+- 2026-11-14 · Redesign round, Phase 1 (planning): `docs/dev/PLAN_2026-11-14.md` + mock-ups (`docs/dev/mockups/`, 4 pages × dark en / light he) + the app as it is (`docs/dev/mockups/before/`, 31 pictures, `tools/plan_screens.py`); ArduDeck read from its site, repository, forum thread and three screenshots (sources in the plan §3). No product code changed; nothing to test (no checks run). Next: the owner decides §8, then Phase A.

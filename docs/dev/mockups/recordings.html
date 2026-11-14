@@ -1,0 +1,142 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock-up · Recordings</title>
+<link rel="stylesheet" href="mock.css">
+<script src="mock.js"></script>
+<style>
+  .grid { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+  .grid .wide { grid-column: 1 / span 2; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <span class="brand"><i></i>Signal Viewer</span>
+    <div class="seg" role="tablist"><button class="on" data-he="הקלטות">Recordings</button><button data-he="סריקות">Sweeps</button><button data-he="צי">Fleet</button></div>
+    <span class="pill"><span class="dot" style="background:#0072B2"></span>copter_flight.bin</span>
+    <span class="pill"><span class="dot" style="background:#E69F00"></span>copter_flight_2.bin</span>
+    <button class="btn ghost sm" data-he="+ פתח">+ Open</button>
+    <span class="spacer"></span>
+    <span class="pill search"><span data-he="חפש פקודה, אות, תצוגה…">Search a command, signal, view…</span><kbd>Ctrl K</kbd></span>
+    <button class="icon" title="Undo">↶</button><button class="icon" title="Redo">↷</button>
+    <button class="btn" data-he="שמור">Save</button>
+    <button class="icon" title="Settings">⚙</button>
+  </header>
+
+  <div class="body">
+    <nav class="rail">
+      <button class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h10M4 18h7"/></svg><span data-he="נתונים">Data</span></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19l5-7 4 4 7-10"/></svg><span data-he="ניתוח">Analysis</span></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 4v16M17 4v16M3 9h8M13 15h8"/></svg><span data-he="השוואה">Compare</span></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></svg><span data-he="חקירה">Investigate</span></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l4 4v14H6z"/></svg><span data-he="דוח">Report</span></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg><span data-he="יומן">Log</span></button>
+    </nav>
+
+    <aside class="side">
+      <div class="side-head"><h2 data-he="אותות">Signals</h2><span class="spacer"></span><span class="chip">1,284</span></div>
+      <div style="padding:var(--sp-3);display:grid;gap:var(--sp-2)">
+        <div class="field">⌕ <span data-he="סנן אותות…">Filter signals…</span></div>
+        <div class="chips">
+          <span class="chip on" data-he="גישה">Attitude</span><span class="chip" data-he="קצבים">Rates</span><span class="chip" data-he="רעידות">Vibration</span>
+          <span class="chip">GPS</span><span class="chip" data-he="סוללה">Battery</span><span class="chip" data-he="מנועים">Motors</span><span class="chip" data-he="מצבים">Modes</span>
+        </div>
+      </div>
+      <div class="tree">
+        <div class="eyebrow" style="padding:4px 8px">copter_flight.bin · 7.0 min</div>
+        <div class="grp sel"><span class="dot" style="background:#0072B2"></span>ATT<span class="n">4 · 723</span></div>
+        <div class="grp sig"><span class="swatch" style="background:#56B4E9"></span>Roll<span class="n mono">12.4°</span></div>
+        <div class="grp sig"><span class="swatch" style="background:#E69F00"></span>DesRoll<span class="n mono">11.9°</span></div>
+        <div class="grp sig"><span class="swatch" style="background:var(--line-strong)"></span>Pitch<span class="n mono">−2.1°</span></div>
+        <div class="grp sig"><span class="swatch" style="background:var(--line-strong)"></span>Yaw<span class="n mono">184°</span></div>
+        <div class="grp"><span class="dot" style="background:#009E73"></span>CTUN<span class="n">8 · 723</span></div>
+        <div class="grp"><span class="dot" style="background:#D55E00"></span>VIBE<span class="n">7 · 1446</span></div>
+        <div class="grp"><span class="dot" style="background:#CC79A7"></span>BAT<span class="n">6 · 1446</span></div>
+        <div class="grp"><span class="dot" style="background:#56B4E9"></span>GPS<span class="n">12 · 362</span></div>
+        <div class="grp"><span class="dot" style="background:#F0E442"></span>RCOU<span class="n">14 · 723</span></div>
+        <div class="grp"><span class="dot" style="background:#7F7F7F"></span>MODE<span class="n">3 · 2</span></div>
+        <div class="eyebrow" style="padding:12px 8px 4px">copter_flight_2.bin · 6.4 min</div>
+        <div class="grp"><span class="dot" style="background:#0072B2"></span>ATT<span class="n">4 · 690</span></div>
+        <div class="grp"><span class="dot" style="background:#009E73"></span>CTUN<span class="n">8 · 690</span></div>
+      </div>
+    </aside>
+
+    <main class="stage">
+      <div class="kpis">
+        <div class="kpi"><div class="l" data-he="משך">Duration</div><div class="v">7:02<small>min</small></div></div>
+        <div class="kpi"><div class="l" data-he="גובה מרבי">Max altitude</div><div class="v">103.0<small>m</small></div></div>
+        <div class="kpi"><div class="l" data-he="מרחק">Distance</div><div class="v">1.84<small>km</small></div></div>
+        <div class="kpi"><div class="l" data-he="סוללה">Battery used</div><div class="v">2,140<small>mAh</small></div></div>
+        <span class="spacer"></span>
+        <span class="chip bad">● 1 <span data-he="נכשל">failed</span></span><span class="chip warn">● 1 <span data-he="אזהרה">warning</span></span><span class="chip ok">● 6 <span data-he="עברו">passed</span></span>
+        <button class="btn sm" data-he="בדיקת תקינות ›">Health check ›</button>
+      </div>
+      <div class="stagebar">
+        <div class="seg"><button class="on" data-he="סקירה">Overview</button><button data-he="כוונון">Tuning</button><button data-he="רעידות">Vibration</button><button>+</button></div>
+        <span class="spacer"></span>
+        <span class="eyebrow" data-he="פריסה">Layout</span>
+        <div class="seg"><button>1</button><button class="on">2×2</button><button>3</button><button>⋯</button></div>
+        <button class="btn sm" data-he="מפה">Map</button>
+        <button class="btn sm" data-he="תלת־ממד">3D</button>
+        <button class="btn sm"><span data-he="סמנים">Cursors</span> <kbd>T</kbd></button>
+        <button class="btn sm" data-he="התאם הכל">Fit all</button>
+      </div>
+      <div class="grid">
+        <section class="card active wide">
+          <div class="card-head"><span class="eyebrow" data-he="גרף 1 · פעיל">Plot 1 · active</span><b style="color:var(--ink-strong)" data-he="גלגול: רצוי מול בפועל">Roll: desired vs actual</b>
+            <span class="eyebrow" style="text-transform:none;letter-spacing:0" data-he="2 אותות · ציר y משותף">2 signals · shared y</span><span class="spacer"></span>
+            <button class="btn ghost sm">⇄ <span data-he="מסונכרן">Synced</span></button><button class="icon">⤢</button><button class="icon">⋯</button></div>
+          <div class="legend">
+            <span><i class="swatch" style="background:#56B4E9"></i>ATT.Roll <b class="v mono">12.41</b><span class="u">°</span></span>
+            <span><i class="swatch" style="background:#E69F00"></i>ATT.DesRoll <b class="v mono">11.93</b><span class="u">°</span></span>
+            <span class="u mono">Δ 0.48°</span>
+          </div>
+          <div class="band">
+            <div style="flex:8;background:color-mix(in srgb,#4c78a8 55%,transparent)">STABILIZE</div>
+            <div style="flex:30;background:color-mix(in srgb,#54a24b 55%,transparent)">LOITER</div>
+            <div style="flex:44;background:color-mix(in srgb,#b279a2 55%,transparent)">AUTO</div>
+            <div style="flex:18;background:color-mix(in srgb,#e45756 55%,transparent)">RTL</div>
+          </div>
+          <div class="plot" data-plot="att"></div>
+        </section>
+        <section class="card">
+          <div class="card-head"><span class="eyebrow" data-he="גרף 2">Plot 2</span><b style="color:var(--ink-strong)" data-he="גובה">Altitude</b><span class="spacer"></span><button class="icon">⋯</button></div>
+          <div class="legend"><span><i class="swatch" style="background:#009E73"></i>CTUN.Alt <b class="v mono">96.2</b><span class="u">m</span></span>
+            <span><i class="swatch" style="background:#CC79A7"></i>CTUN.DAlt <b class="v mono">97.0</b><span class="u">m</span></span></div>
+          <div class="plot" data-plot="alt"></div>
+        </section>
+        <section class="card">
+          <div class="card-head"><span class="eyebrow" data-he="גרף 3">Plot 3</span><b style="color:var(--ink-strong)" data-he="רעידות">Vibration</b><span class="chip bad" style="height:18px">1 <span data-he="מעל הסף">over the limit</span></span><span class="spacer"></span><button class="icon">⋯</button></div>
+          <div class="legend"><span><i class="swatch" style="background:#0072B2"></i>VIBE.VibeZ <b class="v mono">31.8</b><span class="u">m/s²</span></span>
+            <span><i class="swatch" style="background:#D55E00"></i>VIBE.VibeX <b class="v mono">14.2</b><span class="u">m/s²</span></span></div>
+          <div class="plot" data-plot="vib"></div>
+        </section>
+      </div>
+      <div class="timeline">
+        <button class="icon">▶</button>
+        <div class="track">
+          <div class="modes"><div style="flex:8;background:#4c78a8"></div><div style="flex:30;background:#54a24b"></div><div style="flex:44;background:#b279a2"></div><div style="flex:18;background:#e45756"></div></div>
+          <svg class="spark" viewBox="0 0 100 10" preserveAspectRatio="none"><path d="M0 9 L8 2 L20 3 L35 1.5 L50 3 L65 2 L80 3 L90 2 L100 9" fill="none" stroke="var(--muted)" stroke-width=".6"/></svg>
+          <div class="win" style="inset-inline-start:0;width:100%"></div>
+        </div>
+        <span class="mono" style="color:var(--muted);font-size:var(--fs-xs)">148.9 / 422.0 s</span>
+      </div>
+    </main>
+  </div>
+
+  <footer class="status">
+    <span class="dot"></span><b data-he="2 קבצים">2 files</b><span>·</span><span data-he="3 גרפים, 6 אותות">3 plots, 6 signals</span><span>·</span>
+    <span class="mono">T1 148.9 s</span><span class="spacer"></span><span data-he="הכל נשמר">All saved</span>
+  </footer>
+</div>
+
+<div class="note" data-n="1" style="top:58px;left:430px">The top bar: areas as one switch, open files as pills (their colour = their lines), Ctrl+K as a search field. Save / Undo stay.</div>
+<div class="note" data-n="2" style="top:96px;left:980px">NEW: a flight log's numbers at a glance + the health check's counts (from the existing check), one click to the Log panel.</div>
+<div class="note" data-n="3" style="top:198px;left:640px">The plot card: an eyebrow (amber when active), the title, what it shows, its few actions. The legend carries the cursor's values in mono.</div>
+<div class="note" data-n="4" style="top:250px;left:1080px">The mode band (the existing shared state lane) drawn inside the card, above the lines.</div>
+<div class="note" data-n="5" style="top:300px;left:70px">Quick groups as chips above the tree; each message group with its colour dot and count; the cursor's value beside each signal.</div>
+<div class="note" data-n="6" style="bottom:70px;left:700px">The timeline: the modes as colour, an overview line, the zoom window as an amber frame.</div>
+</body>
+</html>

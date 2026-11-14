@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock-up · Map and 3D</title>
+<link rel="stylesheet" href="mock.css">
+<script src="mock.js"></script>
+<style>
+  .body { grid-template-columns: 56px 1fr 340px; }
+  .mapwrap { position: relative; margin: 8px; border-radius: var(--r-card); overflow: hidden; border: 1px solid var(--line); background: #0b1b16; }
+  [data-theme="light"] .mapwrap { background: #dfe8de; }
+  .mapwrap svg.ground { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .float { position: absolute; display: flex; gap: 6px; align-items: center; padding: 4px; border-radius: var(--r-l);
+    background: var(--overlay, rgba(10, 16, 24, .78)); color: #e6edf3; backdrop-filter: blur(6px); border: 1px solid rgba(255, 255, 255, .08); box-shadow: var(--shadow-md); }
+  .float .seg { background: rgba(0, 0, 0, .25); border-color: rgba(255, 255, 255, .1); }
+  .float .seg button { color: #b8c4d1; }
+  .float .seg button.on { background: rgba(255, 255, 255, .14); color: #fff; box-shadow: none; }
+  .float .icon { color: #d3dce6; }
+  .readout { position: absolute; inset-inline-start: 12px; bottom: 12px; padding: 10px 12px; border-radius: var(--r-l); background: rgba(10, 16, 24, .82); color: #e6edf3;
+    display: grid; grid-template-columns: auto auto; gap: 2px 18px; font-size: var(--fs-s); min-width: 190px; border: 1px solid rgba(255, 255, 255, .08); }
+  .readout span:nth-child(odd) { color: #9fb0c2; }
+  .readout span:nth-child(even) { font-family: var(--mono); text-align: end; }
+  .ai { position: absolute; inset-inline-end: 14px; bottom: 14px; width: 120px; height: 120px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255, 255, 255, .7); box-shadow: var(--shadow-md); }
+  .right { background: var(--panel); border-inline-start: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .right .list { padding: 10px; display: grid; gap: 8px; overflow: auto; }
+  .obj { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--panel-2); }
+  .obj.sel { border-color: var(--amber); }
+  .obj .meta { grid-column: 2 / span 2; color: var(--muted); font-size: var(--fs-xs); font-family: var(--mono); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <span class="brand"><i></i>Signal Viewer</span>
+    <div class="seg"><button class="on" data-he="הקלטות">Recordings</button><button data-he="סריקות">Sweeps</button><button data-he="צי">Fleet</button></div>
+    <span class="pill"><span class="dot" style="background:#0072B2"></span>uav_flight.csv</span>
+    <span class="pill"><span class="dot" style="background:#E69F00"></span>uav_flight_windy.csv</span>
+    <span class="spacer"></span>
+    <span class="pill search"><span data-he="חפש פקודה, אות, תצוגה…">Search a command, signal, view…</span><kbd>Ctrl K</kbd></span>
+    <button class="icon">↶</button><button class="icon">↷</button><button class="btn" data-he="שמור">Save</button>
+  </header>
+  <div class="body">
+    <nav class="rail">
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h10M4 18h7"/></svg><span data-he="נתונים">Data</span></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19l5-7 4 4 7-10"/></svg><span data-he="ניתוח">Analysis</span></button>
+      <button class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 4v16M17 4v16M3 9h8M13 15h8"/></svg><span data-he="השוואה">Compare</span></button>
+      <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></svg><span data-he="חקירה">Investigate</span></button>
+    </nav>
+    <main class="stage">
+      <div class="stagebar">
+        <div class="seg"><button data-he="סקירה">Overview</button><button class="on" data-he="מפה">Map</button><button>+</button></div>
+        <span class="spacer"></span><button class="btn sm" data-he="סיפור">▶ Story</button><button class="btn sm" data-he="מדידה">Measure</button>
+      </div>
+      <div class="mapwrap" style="flex:1">
+        <svg class="ground" viewBox="0 0 1000 640" preserveAspectRatio="xMidYMid slice">
+          <defs><pattern id="g" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(255,255,255,.05)"/></pattern></defs>
+          <rect width="1000" height="640" fill="url(#g)"/>
+          <path d="M0 420 C 200 380, 300 520, 520 470 S 900 380, 1000 430" stroke="rgba(120,170,220,.35)" stroke-width="18" fill="none"/>
+          <path d="M120 80 L 300 200 L 620 140 L 900 260" stroke="rgba(255,255,255,.12)" stroke-width="6" fill="none"/>
+          <!-- track coloured by mode -->
+          <path d="M260 470 L 300 360" stroke="#4c78a8" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M300 360 L 420 250 L 600 210 L 760 280" stroke="#54a24b" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M760 280 L 720 420 L 540 470 L 420 430" stroke="#b279a2" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M420 430 L 300 470 L 262 472" stroke="#e45756" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="1 0"/>
+          <!-- second flight -->
+          <path d="M262 476 L 320 380 L 450 270 L 640 230 L 780 310 L 700 440 L 470 470 L 266 480" stroke="#E69F00" stroke-width="2" fill="none" stroke-opacity=".7" stroke-dasharray="6 5"/>
+          <circle cx="262" cy="472" r="7" fill="none" stroke="#fff" stroke-width="2"/><text x="250" y="500" fill="#fff" font-size="12" font-family="IBM Plex Sans">H</text>
+          <g transform="translate(600 210) rotate(-15)"><circle r="20" fill="rgba(242,169,59,.18)" stroke="#f2a93b" stroke-width="2"/><path d="M0 -12 L8 10 L0 5 L-8 10 Z" fill="#f2a93b"/></g>
+          <line x1="600" y1="210" x2="640" y2="230" stroke="#f2a93b" stroke-dasharray="3 3"/>
+          <g transform="translate(640 230)"><circle r="6" fill="#E69F00"/></g>
+          <rect x="612" y="168" rx="4" width="112" height="22" fill="rgba(10,16,24,.82)"/><text x="620" y="183" fill="#e6edf3" font-size="11" font-family="monospace">Δ 44.7 m · 2.1 s</text>
+        </svg>
+        <div class="float" style="top:10px;inset-inline-start:10px">
+          <div class="seg"><button class="on">2D</button><button>3D</button></div>
+          <div class="seg"><button data-he="כללי">General</button><button class="on" data-he="על האובייקט">On the object</button><button data-he="מרדף">Chase</button><button data-he="תא טייס">Cockpit</button></div>
+          <button class="icon">+</button><button class="icon">−</button><button class="icon">⤢</button>
+        </div>
+        <div class="float" style="top:10px;inset-inline-end:10px">
+          <span style="padding:0 6px;font-size:var(--fs-xs)" data-he="שכבות">Layers</span><button class="icon">◧</button>
+        </div>
+        <div class="readout">
+          <span data-he="גובה">Alt</span><span>96.4 m</span><span data-he="מהירות">Speed</span><span>12.8 m/s</span><span data-he="כיוון">Heading</span><span>074°</span>
+          <span data-he="מהבית">From home</span><span>412 m</span><span data-he="מיקום">Position</span><span>32.0812, 34.7811</span>
+        </div>
+        <div class="ai"><svg viewBox="0 0 100 100" style="width:100%;height:100%"><g transform="rotate(-12 50 50)"><rect x="-50" y="-50" width="200" height="102" fill="#3b82c4"/><rect x="-50" y="52" width="200" height="100" fill="#8a5a2b"/><line x1="0" x2="100" y1="52" y2="52" stroke="#fff" stroke-width="1.5"/></g><path d="M30 52 H44 L50 58 L56 52 H70" stroke="#f2a93b" stroke-width="3" fill="none"/></svg></div>
+      </div>
+      <div class="timeline">
+        <button class="icon">▶</button>
+        <div class="track"><div class="modes"><div style="flex:8;background:#4c78a8"></div><div style="flex:40;background:#54a24b"></div><div style="flex:36;background:#b279a2"></div><div style="flex:16;background:#e45756"></div></div><div class="win" style="inset-inline-start:0;width:100%"></div></div>
+        <span class="mono" style="color:var(--muted);font-size:var(--fs-xs)">212.6 / 599.9 s · ×1</span>
+      </div>
+    </main>
+    <aside class="right">
+      <div class="side-head"><h2 data-he="השוואה">Compare</h2><span class="spacer"></span><span class="chip ok" data-he="דומים">similar</span></div>
+      <div class="list">
+        <div class="eyebrow" data-he="אובייקטים">Objects</div>
+        <div class="obj sel"><span class="dot" style="background:#0072B2"></span><b data-he="טיסה">Flight</b><span class="chip" style="height:18px">👁</span><span class="meta">uav_flight.csv · 599.9 s</span></div>
+        <div class="obj"><span class="dot" style="background:#E69F00"></span><b data-he="טיסה ברוח">Windy flight</b><span class="chip" style="height:18px">👁</span><span class="meta">uav_flight_windy.csv · 612.3 s</span></div>
+        <div class="eyebrow" style="margin-top:6px" data-he="הקשר ביניהם">Between them</div>
+        <div class="scard"><div class="kv" style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:var(--fs-s)">
+          <span style="color:var(--muted)" data-he="מרחק עכשיו">Distance now</span><span class="mono" style="text-align:end">44.7 m</span>
+          <span style="color:var(--muted)" data-he="הכי קרוב">Closest</span><span class="mono" style="text-align:end">3.2 m · 118.4 s ›</span>
+          <span style="color:var(--muted)" data-he="שגיאת גובה RMS">Height error RMS</span><span class="mono" style="text-align:end">1.5 m</span></div></div>
+        <div class="scard warn"><h3>⚠ <span data-he="סטייה ברוח">Off course in the wind</span></h3><p data-he="בין 260 ל־300 ש׳ הטיסה ברוח סטתה עד 18 מ׳ מהמסלול. פתח את הקטע ›">From 260 to 300 s the windy flight drifts up to 18 m off the track. Open the segment ›</p></div>
+      </div>
+    </aside>
+  </div>
+  <footer class="status"><span class="dot"></span><b data-he="2 קבצים">2 files</b><span>·</span><span data-he="מפה · על האובייקט">Map · On the object</span><span class="spacer"></span><span data-he="ללא חיבור: אריחים שמורים">Offline: saved tiles</span></footer>
+</div>
+<div class="note" data-n="1" style="top:108px;left:400px">One floating bar (today's MapBar) - glass over the map, the same in 2D and 3D; layers on the other corner.</div>
+<div class="note" data-n="2" style="top:380px;left:250px">The track coloured by flight mode (the existing "map by mode"); the second flight dashed in its file colour; the relation line with its distance.</div>
+<div class="note" data-n="3" style="bottom:120px;left:330px">The data box as an instrument: labels muted, values in mono, always bottom-start; the attitude indicator (FlightDisplay) bottom-end.</div>
+<div class="note" data-n="4" style="top:280px;right:20px">Panel findings as cards with a severity tint; each ends with its next action.</div>
+</body>
+</html>
