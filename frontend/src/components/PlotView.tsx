@@ -386,6 +386,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             let val: string | null = null;
             const unit = signalUnit(runs, s.sig, s.label);
             let hv = false;
+            let vu: string | null = null;              // B2: the value's unit, after it in its own muted span
             if (mode === "fft") val = Number.isFinite(peaks[s.sig]) ? `${fmtNum(peaks[s.sig], lang, 4)} Hz` : null;
             const labels = labelsOf(runs, s.sig);
             const plain = s.scale === 1 && s.offset === 0;
@@ -393,10 +394,14 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             // the unit once: a name that already ends in [deg] does not repeat it after the value
             const u = unit && shownName.includes(`[${unit}]`) ? null : unit;
             if (mode === "fft" || mode === "occ") { /* peak above; occ: its axis is not the recording's time */ }
-            else if (cursor.on && raw !== undefined && raw !== null) val = (plain && labelText(labels, raw)) || withUnit(fmtNum(raw * s.scale + s.offset, lang), u);
+            else if (cursor.on && raw !== undefined && raw !== null) {
+              const lt = plain && labelText(labels, raw);
+              val = lt || fmtNum(raw * s.scale + s.offset, lang); vu = lt ? null : u;
+            }
             else if (hover && mode === "time" && hover.vals[s.sig] !== null && hover.vals[s.sig] !== undefined) {
               const hvv = hover.vals[s.sig] as number;     // already scaled
-              val = (plain && labelText(labels, hvv)) || withUnit(fmtNum(hvv, lang), u); hv = true;
+              const lt = plain && labelText(labels, hvv);
+              val = lt || fmtNum(hvv, lang); vu = lt ? null : u; hv = true;
             }
             // while values are shown every entry keeps a place for one, as wide as the widest it had:
             // a value that grows or comes and goes no longer moves the legend (owner, 2026-11-03)
@@ -404,7 +409,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             const wkey = `${s.sig}|${s.scale}|${s.offset}`;
             if (val && showing) valW.current[wkey] = Math.max(valW.current[wkey] ?? 0, val.length);
             const slot = showing ? valW.current[wkey] ?? 0 : 0;
-            if (showing && !val) { val = "—"; hv = !cursor.on; }
+            if (showing && !val) { val = "—"; hv = !cursor.on; vu = labels ? null : u; }   // the unit keeps its place too
             // R2: with two cursors, how much the line changed between them (cursor 2 - cursor 1) - read at a
             // glance in the chip, as on a scope; a state's labels have no difference
             const raw2 = cvals[s.sig]?.[1];
@@ -446,6 +451,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
                 {s.state && mode === "time" && <span className="tag">{t("stateTag")}</span>}
                 {s.axis === "right" && !s.state && mode === "time" && <span className="tag" title={t("toLeftAxis")}>{t("rightAxisTag")}</span>}
                 {val && <span className={`val${hv ? " hov" : ""}`} style={slot ? { minWidth: `${slot}ch` } : undefined} title={mode === "fft" ? t("peak") : hv ? t("hoverValue") : undefined}>{val}</span>}
+                {val && showing && <span className="u">{vu ?? ""}</span>}
                 {dlt && <span className="dlt" style={{ minWidth: `${valW.current[`${wkey}|d`]}ch` }} title={t("deltaHint")}>Δ {dlt}</span>}
                 <span className="rm" role="button" aria-label={t("remove")}
                   onClick={(e) => { e.stopPropagation(); actions.removeSignal(plot.id, s.sig); }}><Icon.X width={11} height={11} /></span>

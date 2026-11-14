@@ -14,6 +14,7 @@
 - **Sweeps: one Undo.** Ctrl+Z undoes the last change you made in Sweeps, whether it was in a table's question or in the study's set-up (Common parameters) - they used to have two separate histories, chosen by which panel was open.
 <!-- lane L3 -->
 - **The plot card**: each plot's head names it (a small *PLOT 2 · ACTIVE* label over the title), says what it shows (*3 signals · two y axes*), and keeps its few actions at its end; the legend has a line of its own under it.
+- The legend reads like an instrument: each line's value at the cursor in a monospaced, bold number with its unit after it, and the change between the two cursors (Δ) beside it.
 
 <!-- lane L4 -->
 - **Map: *Satellite + roads*.** A new background: the satellite photos with the roads and their names drawn over them

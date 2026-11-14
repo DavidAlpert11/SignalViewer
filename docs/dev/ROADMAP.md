@@ -933,6 +933,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [ ] B1–B7 Plots (the plot card, legend with values, mode band, uPlot theme, timeline, Map / 3D chrome, Sweeps charts).
 <!-- lane L3 -->
   - [x] B1 The plot card head: an eyebrow (*Plot n* when the plot has its own title, *Active* with several plots), the title, a muted meta (*n signals · two y axes*), the actions; the legend on a line of its own under the head; the card radius `--r-card`, the active ring `--select`. One head for every plot kind (time, X-Y, X-Y-Z, FFT, spectrogram, map, 3D). Done 2026-11-14 (L3).
+  - [x] B2 The legend carries the cursor's values: the number in mono and ink (amber stays the cursor's), the unit muted after it (a span of its own, so a value reads as a number), Δ between the two cursors a quiet tag. The Inspector's cursor table stays (it has T2, Δ and the slope per signal - more than the legend); it is reviewed with D8. Done 2026-11-14 (L3).
 <!-- end lane L3 -->
 - [ ] M1–M6 The map, offline first (cameras named by what they do; a background picker, Satellite + roads, keep an area offline, My maps: MBTiles / own tile server, the offline map's look).
 <!-- lane L4 -->

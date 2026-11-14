@@ -12,6 +12,7 @@
 
 <!-- 1114 lane L3 -->
 - B1 ran `test_plot_menus`, `test_plot_polish`, `test_move_plots`, `test_one_per_plot`, `test_aligned_plots`, `test_owner_notes_1_20`, `test_flat_line_solo` (no change to them) (L3)
+- B2 ran `test_plot_polish`, `test_plot_style`, `test_replay`, `test_workflows` (`.chip .val` still the bare number) (no change) (L3)
 
 <!-- 1114 lane L4 -->
 `test_offline_map.py` – M2 (L4): `test_satellite_with_roads_is_one_layer` new.
