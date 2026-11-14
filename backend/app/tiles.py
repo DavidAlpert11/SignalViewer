@@ -114,6 +114,9 @@ def tile(src: str, z: int, x: int, y: int) -> Optional[tuple]:
         return data, "image/jpeg"
     if src in COMPOSITES:
         return _composite(src, z, x, y)
+    if src.startswith("my:"):                                   # M4: an MBTiles file or the user's own server
+        from app import mymaps
+        return mymaps.tile(src, z, x, y)
     s = SOURCES.get(src)
     if s is None or not (0 <= z <= s["max"]) or not (0 <= x < 2 ** z) or not (0 <= y < 2 ** z):
         return None

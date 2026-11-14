@@ -134,14 +134,39 @@ def map_data(store, spec: Dict) -> Dict:
         o["at"] = k
     base = str(geo.get("base") or "offline")
     return {"title": spec.get("title") or "", "objects": objs, "bounds": (s_, w_, n_, e_), "cursor": cur,
-            "base": base if base in ATTRIB else "offline", "pair": {"primary": geo.get("primary"), "secondary": geo.get("secondary")},
+            "base": base if base in ATTRIB or _mine(base) else "offline", "pair": {"primary": geo.get("primary"), "secondary": geo.get("secondary")},
             "places": page_places(geo), **page_look(geo)}
+
+
+def _mine(base: str) -> bool:
+    """M4: a layer of My maps that is still in the list."""
+    from app import mymaps
+    return mymaps.is_mine(base) and mymaps.get(base) is not None
+
+
+def attribution(src: str) -> str:
+    if src.startswith("my:"):
+        from app import mymaps
+        return mymaps.attribution(src)
+    return ATTRIB.get(src, "")
+
+
+def max_zoom(base: str) -> int:
+    if base == "offline":
+        return basemap.MAX_ZOOM
+    if base.startswith("my:"):
+        from app import mymaps
+        return mymaps.max_zoom(base)
+    return tiles.SOURCES.get(base, {"max": 19})["max"]
 
 
 # ---- tiles ---------------------------------------------------------------------------------------
 
 def _cached_online(src: str, z: int, x: int, y: int) -> Optional[bytes]:
     """An online layer's tile only if it is already in the app's tile cache - never fetched here (Q9)."""
+    if src.startswith("my:"):                                          # M4: an MBTiles file / the user's server's cache
+        from app import mymaps
+        return mymaps.cached_tile(src, z, x, y)
     if src in tiles.COMPOSITES:                                        # M2: the picture with its roads over it
         under_src, over_src = tiles.COMPOSITES[src]
         under = _cached_online(under_src, z, x, y)
@@ -221,7 +246,7 @@ def render(mdata: Dict, fmt: str = "png", theme: str = "light", scale: float = 1
         c = (x0 + x1) / 2; half = (y1 - y0) * W / H / 2; x0, x1 = c - half, c + half
     else:
         c = (y0 + y1) / 2; half = (x1 - x0) * H / W / 2; y0, y1 = c - half, c + half
-    z = max(1, min(basemap.MAX_ZOOM if mdata["base"] == "offline" else tiles.SOURCES.get(mdata["base"], {"max": 19})["max"],
+    z = max(1, min(max_zoom(mdata["base"]),
                    int(math.floor(math.log2(W / ((x1 - x0) * TILE))))))
     used = set()
     n = 2 ** z
@@ -263,7 +288,7 @@ def render(mdata: Dict, fmt: str = "png", theme: str = "light", scale: float = 1
     nx, ny = x0 + (x1 - x0) * 0.95, y0 + (y1 - y0) * 0.08
     ax.annotate("N", xy=(nx, ny), xytext=(nx, ny + (y1 - y0) * 0.07), ha="center", color=ink, fontsize=10 * scale, fontweight="bold",
                 arrowprops=dict(arrowstyle="-|>", color=ink, lw=1.5 * scale), zorder=7)
-    att = " · ".join(ATTRIB[s] for s in sorted(used or {"offline"}))
+    att = " · ".join(a for a in (attribution(s) for s in sorted(used or {"offline"})) if a)
     fig.text(0.995, 0.005, att, ha="right", va="bottom", fontsize=6 * scale, color=ink,
              bbox=dict(boxstyle="square,pad=0.2", fc=paper, ec="none", alpha=0.75))
     if mdata.get("title"):
@@ -372,7 +397,7 @@ def build_html(mdata: Dict, theme: str = "light", budget: int = 15 * 1024 * 1024
              "lon": np.round(o["lon"], 7).tolist(), "alt": None if o["alt"] is None else np.round(o["alt"], 2).tolist()} for o in mdata["objects"]]
     data = {"title": mdata["title"], "objects": objs, "bounds": list(_padded(mdata["bounds"])), "cursor": mdata["cursor"],
             "tiles": {"light": light_t, "dark": dark_t}, "levels": {"light": light_lv, "dark": dark_lv},
-            "attribution": " · ".join(ATTRIB[s] for s in sorted((used_l | used_d) or {"offline"})), "dark": theme == "dark",
+            "attribution": " · ".join(a for a in (attribution(s) for s in sorted((used_l | used_d) or {"offline"})) if a), "dark": theme == "dark",
             "pair": mdata.get("pair") or {}, "S": {**PAGE_STRINGS["he" if lang == "he" else "en"], "units": mdata.get("units", "metric")},
             "places": mdata.get("places") or [], "names": mdata.get("names", True), "trackWidth": mdata.get("trackWidth", 2.5)}
     note = (f"Embedded: {len(light_t)} light and {len(dark_t)} dark map tiles, zoom levels {light_lv or '-'} / {dark_lv or '-'} "

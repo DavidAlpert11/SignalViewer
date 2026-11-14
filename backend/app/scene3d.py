@@ -115,7 +115,7 @@ def _ground_image(bounds, base: str, dark: bool, width: int = TEX_PX) -> Tuple[O
     """The map tiles over `bounds` (s, w, n, e) stitched into one picture, north up, cropped to the box."""
     s_, w_, n_, e_ = bounds
     x0, x1, y0, y1 = float(mapimage.mx(w_)), float(mapimage.mx(e_)), float(mapimage.my(n_)), float(mapimage.my(s_))
-    maxz = basemap.MAX_ZOOM if base == "offline" else 19
+    maxz = mapimage.max_zoom(base)
     z = max(1, min(maxz, int(math.floor(math.log2(width / ((x1 - x0) * mapimage.TILE))))))
     n = 2 ** z
     tx0, tx1 = int(math.floor(x0 * n)), int(math.floor(x1 * n))
@@ -234,7 +234,7 @@ def scene_data(store, spec: Dict) -> Dict:
         u = np.full(len(g), float(p["alt"])) if (p["kind"] == "point" and p.get("alt") is not None) else g + (0.0 if p["kind"] == "point" else 2.0)
         places.append({**p, "e": e, "n": n, "u": u, "g": g})
     base = str(geo.get("base") or "offline")
-    base = base if base in mapimage.ATTRIB else "offline"
+    base = base if base in mapimage.ATTRIB or mapimage._mine(base) else "offline"
     return {"title": spec.get("title") or "", "objects": objs, "origin": (lat0, lon0), "bounds": box,
             "extent": (float(E0), float(E1), float(N0), float(N1)), "heights": H, "cursor": cur, "base": base,
             "far": {"bounds": far_box, "extent": (-far_side / 2, far_side / 2, -far_side / 2, far_side / 2), "heights": HF},
@@ -325,7 +325,7 @@ def render(sd: Dict, fmt: str = "png", theme: str = "light", scale: float = 1.0,
     leg = ax.legend(loc="upper left", fontsize=8 * scale, framealpha=0.85, facecolor=paper, edgecolor="none")
     for txt in leg.get_texts():
         txt.set_color(ink)
-    att = " · ".join(mapimage.ATTRIB[s] for s in sorted(used or {"offline"}))
+    att = " · ".join(a for a in (mapimage.attribution(s) for s in sorted(used or {"offline"})) if a)
     fig.text(0.995, 0.005, att, ha="right", va="bottom", fontsize=6 * scale, color=ink)
     fig.text(0.005, 0.005, f"heights x{ex:g}" if ex > 1 else "", ha="left", va="bottom", fontsize=7 * scale, color=ink)
     if sd.get("title"):
@@ -421,7 +421,7 @@ def build_html(sd: Dict, theme: str = "light", lang: str = "en", fallback_png: O
         "step": sd.get("step"), "sun": sd.get("sun"), "story": sd.get("story") or [],
         "places": [{"name": p["name"], "kind": p["kind"], "color": p.get("color") or "#d29922", "img": p.get("img"),
                     "e": _r(p["e"], 1), "n": _r(p["n"], 1), "u": _r(p["u"], 1), "g": _r(p["g"], 1)} for p in sd.get("places") or []],
-        "attribution": " · ".join(mapimage.ATTRIB[s] for s in sorted(used or {"offline"})),
+        "attribution": " · ".join(a for a in (mapimage.attribution(s) for s in sorted(used or {"offline"})) if a),
         "S": {**STRINGS.get(lang, STRINGS["en"]), "units": sd.get("units", "metric")},
         "names": sd.get("names", True), "trackWidth": sd.get("trackWidth", 2.5),
         "fallback": "data:image/png;base64," + base64.b64encode(fallback_png if fallback_png is not None else render(sd, "png", theme, 1.4)).decode(),

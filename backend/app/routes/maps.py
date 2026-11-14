@@ -1,7 +1,7 @@
 """Offline map: terrain heights, places and map tiles."""
 
 import asyncio
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -112,6 +112,42 @@ def delete_kept_area(area_id: str):
         return tilekeep.delete(area_id)
     except KeyError:
         fail(404, "This kept area is not in the list any more (it was deleted already).")
+
+
+# M4: MY MAPS - raster MBTiles files and the user's own tile server (app/mymaps.py), layers "my:<id>"
+
+class MyMapBody(BaseModel):
+    kind: str
+    path: str = ""
+    url: str = ""
+    name: str = ""
+    maxzoom: Optional[int] = None
+    attribution: str = ""
+
+
+@router.get("/api/mymaps")
+def my_maps():
+    from app import mymaps
+    return {"maps": mymaps.listing()}
+
+
+@router.post("/api/mymaps")
+def add_my_map(req: MyMapBody):
+    from app import mymaps
+    try:
+        return mymaps.add(req.kind, req.path, req.url, req.name, req.maxzoom, req.attribution)
+    except ValueError as e:
+        fail(400, str(e))
+
+
+@router.delete("/api/mymaps/{mid}")
+def remove_my_map(mid: str):
+    from app import mymaps
+    try:
+        mymaps.remove(mid)
+    except KeyError:
+        fail(404, "This map is not in My maps any more.")
+    return {"maps": mymaps.listing()}
 
 
 # =============================================================================

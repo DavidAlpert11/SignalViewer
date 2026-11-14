@@ -61,12 +61,18 @@ def count(bounds, zmin: int, zmax: int) -> int:
 
 
 def _path(src: str, z: int, x: int, y: int) -> Optional[str]:
+    from app import mymaps
+    if mymaps.is_mine(src):
+        return mymaps.tile_file(src, z, x, y)
     s = tiles.SOURCES.get(src)
     return os.path.join(tiles.CACHE, src, str(z), str(x), f"{y}.{s['ext']}") if s else None
 
 
 def allowed(src: str) -> Tuple[bool, str]:
     """May `src` be downloaded in bulk, and why (or why not)."""
+    from app import mymaps
+    if mymaps.is_mine(src):
+        return mymaps.keepable(src)
     if src not in tiles.SOURCES and src not in tiles.COMPOSITES:
         return False, f"Unknown map layer: {src}."
     ok, why = tiles.BULK.get(src, (False, "This map's terms do not allow bulk downloading."))
@@ -80,7 +86,8 @@ def _clean(src: str, bounds, zmin: int, zmax: int) -> Tuple[List[float], int, in
     s_, w_, n_, e_ = (float(v) for v in bounds)
     if not (-90 <= s_ < n_ <= 90 and -180 <= w_ < e_ <= 180):
         raise ValueError("The area is empty or outside the world: give south < north and west < east, in degrees.")
-    top = tiles.SOURCES.get(src, {"max": 19})["max"]
+    from app import mymaps
+    top = mymaps.max_zoom(src) if mymaps.is_mine(src) else tiles.SOURCES.get(src, {"max": 19})["max"]
     zmin, zmax = int(zmin), int(zmax)
     if not (0 <= zmin <= zmax):
         raise ValueError("The zoom range is empty: the first zoom must not be above the last.")
@@ -173,7 +180,9 @@ def start(src: str, bounds, zmin: int, zmax: int, name: str = "") -> Dict:
         raise ValueError(est["reason"])
     if est["tooMany"]:
         raise ValueError(f"{est['tiles']:,} tiles is more than {MAX_TILES:,} at once: choose a smaller area or a lower last zoom.")
-    if not tiles.network_allowed():
+    from app import mymaps
+    local = mymaps.is_mine(src) and mymaps.local_only(src)
+    if not local and not tiles.network_allowed():
         raise ValueError("\"Never use the network\" is on (Settings, or SV_OFFLINE=1): turn it off to download the area.")
     with _lock:
         if _job.get("running"):
@@ -185,11 +194,11 @@ def start(src: str, bounds, zmin: int, zmax: int, name: str = "") -> Dict:
                     stopped=False, error="")
         _stop.clear()
     _save([a for a in _areas() if a.get("id") != area["id"]] + [area])
-    threading.Thread(target=_run, args=(area,), daemon=True, name="keep-area").start()
+    threading.Thread(target=_run, args=(area, local), daemon=True, name="keep-area").start()
     return {**area, "estimate": est}
 
 
-def _run(area: Dict) -> None:
+def _run(area: Dict, local: bool = False) -> None:
     fails_in_row = 0
     for z, x, y in _tiles(area["bounds"], area["zmin"], area["zmax"]):
         if _stop.is_set():
@@ -210,7 +219,7 @@ def _run(area: Dict) -> None:
                 _job.update(error="The map server does not answer (25 tiles in a row failed): check the network or the "
                                   "server's address, then keep the area again - tiles already kept are not fetched twice.")
             break
-        if not tiles.network_allowed():
+        if not local and not tiles.network_allowed():
             with _lock:
                 _job.update(error="\"Never use the network\" was turned on: the download stopped.")
             break

@@ -48,7 +48,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   - **L3 Plots and the frame** – todo · next: waits for S1 (B1) · tasks B1–B5, D1, D2, D8 (+ F2's legend when L5 has it) · requests: –
     - From L5 (2026-11-14): **F2's endpoint is on `main`** – `POST /api/stats/window {signals: [ids], t0, t1}` (shown time; offsets applied) → `{stats: {id: {n, min, max, mean, t0, t1}}}`, states and closed signals left out, < 5 ms per call on 20M samples (block summaries cached). For the legend on demand (B2): call it on the view's x-range after a pan / zoom settles. Backend `svcore/windowstats.py`, test `tests/test_window_stats.py`.
   <!-- lane L4 -->
-  - **L4 Map** – in progress · done: M2, M3a (backend) · next: M4 (backend); M3b (its dialog) with M1 after S1 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
+  - **L4 Map** – in progress · done: M2, M3a, M4a (backends) · next: B6 (after S1); M3b / M4b (dialog, Settings list) with M1 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
     - *Request to L3* (from L4, M2): `store/slices/view.ts` `geoBase`'s type → `GeoBase` from `mapBase.ts` (it now has
       `"satroads"`; today the store's union lacks it, PlotView's select casts); `PlotView.tsx` the *Borders* switch for
       `isPhotoBase(shownBase)` (from `mapBase.ts`) instead of `=== "satellite"`. Both go away with M1 if L4 may then touch PlotView's map select.
@@ -4191,3 +4191,12 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-14 · L5 F2 (backend): `svcore/windowstats.py` + `POST /api/stats/window` - min / mean / max / samples of each signal over the visible window (NaN skipped, offsets applied, states left out); block summaries (4096 samples) cached with the arrays, so after the first call a 20M-sample window costs < 5 ms. Ran: test_window_stats (= numpy on 5 windows incl. empty and all-NaN blocks, offsets, speed) - green; mypy clean. Line written under L3 for the legend. Next: D7 after S1.
 - 2026-11-14 · L1 A3 components: buttons (28 / 24, default · outline · primary = `--select` · ghost · danger), segmented, chips (neutral / on / ok / warn / bad / info), pills with a status dot, menus (shadow-md), toasts (shadow-md) gathered into one block of `index.css`; `review.css` / `welcome.css` lost their variants (focus / pressed states, `.seg.wide.kinds`, the template chips' size, `.start-next .linklike`). New `test_design_tokens::test_components_are_defined_once` (area files may only place a component). Ran: tsc, Vitest 210, `test_design_tokens` 4, e2e `test_calm_screen` + `test_welcome_cards` + `test_plot_menus` 13/13. Pictures not taken (S1 first). Next: A4.
 - 2026-11-14 · L1 A4 surfaces: `.eyebrow`, `.panel-head` (one rule with `.side-head`), `.card` with verdict tints and its parts, `table.data`, `.kpi` / `.kpis`, `.empty-state` in index.css; the Log's health rows and summary drawn as tinted cards (the proof). **S1 (A3 + A4) is on `main`** – lanes L2–L5 may start their UI tasks. Ran: tsc, `tokens.test.ts`, `test_design_tokens`, e2e `test_findings_report` + `test_live_report` 5/5; quick_check green (on A3). Pictures not taken yet. Next: D11.
+- 2026-11-14 · L4 M4a *My maps* (backend): `app/mymaps.py` – a raster MBTiles file (read-only `sqlite3`, rows flipped
+  from TMS; vector / pbf files refused with what to do) and a user's tile server (XYZ, or TMS → `{-y}`), layers
+  `"my:<id>"` in `~/.signalviewer/mymaps.json`, through `tiles.tile` (2D, 3D), the exported picture / page and the 3D
+  page (`mapimage.attribution / max_zoom`, cache only); a server's area may be kept offline (M3); removing a server
+  drops its cached tiles. **Decision taken (tell the owner):** "Never use the network" blocks a server on the internet but
+  not one on this PC / a private address (the setting is about the internet; a closed network's map server keeps
+  working) – a host *name* counts as the internet. Routes `GET/POST /api/mymaps`, `DELETE /api/mymaps/{id}`. Ran:
+  `tests/test_my_maps.py` (new, 5), the map / tile / scene3d tests green; mypy clean. The Settings list and the picker
+  entry (M4b) with M1. Next: B6 after S1.
