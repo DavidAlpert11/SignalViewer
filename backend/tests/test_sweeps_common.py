@@ -212,9 +212,16 @@ def test_the_ranking_exports_as_a_csv(tmp_path):
 
 def test_a_study_with_one_table_or_no_shared_column_says_what_to_do():
     s = S.load(os.path.join(FIX, "fixture.svstudy.json"))
-    one = copy.deepcopy(s)
+    none = copy.deepcopy(s)
+    none.tables = []
+    with pytest.raises(C.StudyError, match="at least one table"):
+        C.rank(none)
+    one = copy.deepcopy(s)                 # one system (C1: a study started from nothing): ranked on its own
     one.tables = one.tables[:1]
-    with pytest.raises(C.StudyError, match="at least two tables"):
+    r = C.rank(one)
+    assert r["rows"] and all(len(x["tables"]) == 1 for x in r["rows"])
+    one.shared, one.search.params = [], {}
+    with pytest.raises(C.StudyError, match="Say which columns are the parameters"):
         C.rank(one)
     s.table("C").rename = {}
     with pytest.raises(C.StudyError, match="Map its name"):

@@ -20,7 +20,7 @@ import datetime
 import hashlib
 import itertools
 import os
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -109,16 +109,18 @@ class Space:
                     raise StudyError(f"Search constraint '{c}': {e}") from None
         return ok
 
-    def grid(self, per_axis: int) -> np.ndarray:
+    def grid(self, per_axis: Union[int, Sequence[int]]) -> np.ndarray:
+        """A grid of `per_axis` values per parameter (one count for all, or one per parameter in `names` order)."""
+        counts = [int(per_axis)] * len(self.params) if isinstance(per_axis, (int, np.integer)) else [int(n) for n in per_axis]
         axes = []
-        for p in self.params:
+        for p, n in zip(self.params, counts):
             if p["values"] is not None:
-                idx = np.unique(np.round(np.linspace(0, len(p["values"]) - 1, min(per_axis, len(p["values"])))).astype(int))
+                idx = np.unique(np.round(np.linspace(0, len(p["values"]) - 1, min(n, len(p["values"])))).astype(int))
                 axes.append(p["values"][idx])
             elif p["log"]:
-                axes.append(np.geomspace(p["lo"], p["hi"], per_axis))
+                axes.append(np.geomspace(p["lo"], p["hi"], n))
             else:
-                axes.append(np.linspace(p["lo"], p["hi"], per_axis))
+                axes.append(np.linspace(p["lo"], p["hi"], n))
         return self.snap(np.array(list(itertools.product(*axes)), float))
 
 

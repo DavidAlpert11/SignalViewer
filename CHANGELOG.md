@@ -7,6 +7,7 @@
 - A calmer look: a deeper background, whiter panels in the light theme, and amber kept for the cursor and time only – the selection, the active plot and the active area now use a neutral ink ring; warnings have their own colour. Every text colour meets WCAG AA in both themes.
 - The second trace colour is now bluish green (orange moved further down the list), so a trace never looks like the cursor.
 <!-- lane L2 -->
+- **Sweeps: a study can start from nothing.** A study file may say its first round (`start`: how many values of each parameter's range, and each table's scenarios); the loop runs that grid first, then aims each next round. A study with one system (one table) is now ranked on its own - it used to ask for two tables.
 <!-- lane L3 -->
 <!-- lane L4 -->
 - **Map: *Satellite + roads*.** A new background: the satellite photos with the roads and their names drawn over them

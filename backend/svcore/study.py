@@ -12,6 +12,7 @@ saved in the Sweeps panel; the same file drives the panel, the API (``/api/sweep
 * ``search``  - the space new runs are proposed in (W15);
 * ``next``    - the next-run settings (batch size counted in candidate values of S);
 * ``launcher``- how runs are handed to the user's launcher application (W17);
+* ``start``   - round 1 of a study that has no runs yet: a start grid and each table's scenarios (C1);
 * ``demo``    - the smart-sweep demo's reference settings (W18);
 * ``history`` - written by the app: each round's proposals and their state.
 
@@ -148,6 +149,20 @@ class Demo:
 
 
 @dataclass
+class Start:
+    """Round 1 of a study with no runs yet (any study, C1): per shared parameter how many values of its range
+    (``grid``: a count for all, or parameter -> count) x each table's scenario / local columns' values."""
+    grid: Any = 4                      # int (every parameter) or {param: n}
+    scenarios: Dict[str, Dict[str, List[Any]]] = field(default_factory=dict)   # table -> scenario / local column -> values
+    extra: Dict[str, Any] = field(default_factory=dict)
+
+    def count(self, name: str) -> int:
+        g = self.grid
+        n = g.get(name, 4) if isinstance(g, dict) else g
+        return max(1, int(n))
+
+
+@dataclass
 class Proposal:
     run_id: str = ""
     table: str = ""
@@ -176,6 +191,7 @@ class Study:
     search: Search = field(default_factory=Search)
     next: NextSettings = field(default_factory=NextSettings)
     launcher: Launcher = field(default_factory=Launcher)
+    start: Optional[Start] = None
     demo: Optional[Demo] = None
     history: List[Round] = field(default_factory=list)
     extra: Dict[str, Any] = field(default_factory=dict)
@@ -199,6 +215,15 @@ class Study:
             hits = sorted(glob.glob(full)) if any(c in p for c in "*?[") else ([full] if os.path.isfile(full) else [])
             out += [os.path.abspath(h) for h in hits if os.path.abspath(h) not in out]
         return out
+
+    def start_plan(self) -> Optional[Start]:
+        """The start round as the study says it: ``start`` first, else the demo's ``start_grid`` / ``scenarios``
+        (studies written before C1); None when neither says the scenarios."""
+        if self.start is not None:
+            return self.start
+        if self.demo is not None and self.demo.scenarios:
+            return Start(grid=int(self.demo.start_grid), scenarios=self.demo.scenarios)
+        return None
 
     def pending(self) -> List[Proposal]:
         return [p for r in self.history for p in r.proposals if p.state in ("pending", "submitted")]

@@ -45,18 +45,28 @@ def busy(s: studies.Study) -> bool:
 
 # ------------------------------------------------------------------ one round
 
+def start_names(s: studies.Study) -> List[str]:
+    """The parameters a study varies: its shared ones, else (one system, nothing shared yet) its search space's."""
+    return [p.name for p in s.shared] or list(s.search.params)
+
+
 def start_round(s: studies.Study) -> Dict[str, Any]:
-    """Round 1 of a study whose tables are still empty: a coarse grid (demo.start_grid values per shared
-    parameter) x each table's scenarios and local values as the study declares them (demo.scenarios)."""
-    d = s.demo or studies.Demo()
-    names = [p.name for p in s.shared]
+    """Round 1 of a study whose tables are still empty: a coarse grid (start.grid values per parameter) x each
+    table's scenarios and local values as the study declares them (start.scenarios; older studies: demo.*)."""
+    plan = s.start_plan() or studies.Start()
+    if not s.tables:
+        raise L.LauncherError("The study has no table yet: add a system (a table) for the runs to belong to.")
+    names = start_names(s)
+    if not names:
+        raise L.LauncherError("The study varies no parameter yet: add one (its range) under Set up - What varies.")
     space = sweeps_next.Space(s, names, np.zeros((0, len(names))))
-    grid = space.grid(int(d.start_grid))
+    grid = space.grid([plan.count(n) for n in names])
     grid = grid[space.allowed(grid)]
     runs = []
     for t in s.tables:
-        combos = list(itertools.product(*d.scenarios.get(t.id, {}).values())) or [()]
-        keys = list(d.scenarios.get(t.id, {}))
+        sc = plan.scenarios.get(t.id, {})
+        combos = list(itertools.product(*sc.values())) or [()]
+        keys = list(sc)
         own = {c: o for o, c in t.rename.items()}
         for g in grid:
             for c in combos:
@@ -75,11 +85,11 @@ def _tables_empty(s: studies.Study) -> bool:
 
 
 def propose(s: studies.Study) -> Dict[str, Any]:
-    """The next round: the start grid when nothing has been run yet (and the study says its scenarios), else W15."""
+    """The next round: the start grid when nothing has been run yet (and the study says its start), else W15."""
     if not s.history and _tables_empty(s):
-        if not (s.demo and s.demo.scenarios):
-            raise L.LauncherError("The tables have no runs yet: give the study a start (demo.scenarios and demo.start_grid) "
-                                  "or a first table of runs to begin from.")
+        if s.start_plan() is None:
+            raise L.LauncherError("The tables have no runs yet: give the study a start (Set up - the start grid and the "
+                                  "scenarios; in the file: start.grid and start.scenarios) or a first table of runs to begin from.")
         return start_round(s)
     r = sweeps_next.next_runs(s, write=True)
     return {"round": r["round"], "candidates": r["counts"]["candidates"], "runs": r["counts"]["runs"], "exhausted": r["exhausted"]}
