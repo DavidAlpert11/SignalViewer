@@ -930,3 +930,6 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [ ] D1–D14 Every area adopts the look (pictures and a recount per area); D13 wording / icons audit; D14 profiles (templates with their at-a-glance numbers and chips).
 - [ ] E1–E4 Docs, pictures, a test-bench example, 1.28.0 (the owner tags).
 - [ ] F1–F7 New capabilities the owner picks (messages, window statistics, parameters + two logs compared, live instruments, height profile, vectors along the path, pop-out; F8 the Fleet for any format – later), all format-neutral (§3.6).
+<!-- lane L5 -->
+  - [x] F3 (backend) Parameters of a run for every format + two runs compared. Done 2026-11-14: `svcore/runinfo.py` (log PARM / PARAM_VALUE / PX4 · MAT scalars, texts, struct fields (`Run.file_params`, v5 and v7.3) · constant signals · file-name numbers; one source - `investigate.run_params` (Runs × conditions) reads it), `GET /api/runs/{id}/parameters`, `POST /api/runs/parameters/compare`; test_run_parameters.py. Its screens come with D7 (Log / Checks) and D4 (Compare), after S1.
+<!-- end lane L5 -->

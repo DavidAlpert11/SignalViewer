@@ -353,26 +353,7 @@ def overview(src: Source, r, run_id: str, rows: Optional[List[str]] = None, wide
 
 
 def run_params(r, wide: int = 300) -> Dict[str, float]:
-    """Investigation step 5: what tells a run apart - signals that hold one value the whole run (a
-    payload, a gain, a seed) and numbers in its file name ("mass2.4", "wind=8", "run_012")."""
-    import os
-    import re
-    token = re.compile(r"^([A-Za-z][A-Za-z]*)[=]?(-?\d+(?:\.\d+)?)$")
-    ps: Dict[str, float] = {}
-    stem = os.path.splitext(os.path.basename(r.file_path))[0]
-    parts = [x for x in re.split(r"[_\s-]+", stem) if x]
-    for i, part in enumerate(parts):
-        m = token.match(part)
-        if m:
-            ps[m.group(1)] = float(m.group(2))
-        elif i + 1 < len(parts) and re.fullmatch(r"-?\d+(?:\.\d+)?", parts[i + 1]) and part.isalpha():
-            ps[part] = float(parts[i + 1])
-    if len(r.signals) <= wide:
-        for name, sg in r.signals.items():
-            if sg.labels or not getattr(sg, "loaded", True):
-                continue
-            y = np.asarray(sg.data, dtype=np.float64)
-            y = y[np.isfinite(y)]
-            if len(y) > 1 and float(y.min()) == float(y.max()):
-                ps[name] = float(y[0])
-    return ps
+    """Investigation step 5: what tells a run apart - its numeric parameters from the one source
+    (svcore/runinfo.py, F3): a log's parameters, the file's own settings, constant signals, file-name numbers."""
+    from svcore import runinfo
+    return runinfo.numeric(runinfo.parameters(r, wide))

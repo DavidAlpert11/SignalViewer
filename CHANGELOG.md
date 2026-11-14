@@ -10,6 +10,7 @@
 <!-- lane L3 -->
 <!-- lane L4 -->
 <!-- lane L5 -->
+- **The parameters of a run, for every format** (F3): a flight log's parameters, a MATLAB file's scalars, texts and struct fields, signals that hold one value, numbers in the file name – one list; and **two runs compared**, only what differs (a parameter changed during a flight counts by its start and its end). *Runs × conditions* now also shows a MATLAB file's settings and a log's parameters when they differ between the runs.
 <!-- end of lanes -->
 
 ## 1.27.0 – 2026-11-13

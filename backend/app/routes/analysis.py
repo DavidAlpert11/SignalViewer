@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from app.common import b64, fail, y_reference
 from app.store import LoadError
-from app.store import store
+from app.store import WIDE as WIDE_PARAMS, store
 from svcore.analysis import OPS, OpError, fft_display, fft_for, transitions, xy_pair
 from svcore.decimate import decimate_for_view
 
@@ -771,6 +771,34 @@ class ParamsRequest(BaseModel):
 def runs_params(req: ParamsRequest):
     """Investigation step 5: per file, the values that tell runs apart (constant signals, name numbers)."""
     return {"params": store.run_params(req.runs)}
+
+
+# F3: the parameters of a run (any format) and two runs compared - svcore/runinfo.py
+@router.get("/api/runs/{run_id}/parameters")
+def run_parameters(run_id: str):
+    """Every parameter of a run with where it comes from (log / file / constant / name)."""
+    from svcore import runinfo
+    try:
+        run = store.get(run_id).run
+    except KeyError:
+        fail(404, "File is not open.")
+    return {"params": runinfo.parameters(run, WIDE_PARAMS)}
+
+
+class ParamsCompareRequest(BaseModel):
+    a: str
+    b: str
+
+
+@router.post("/api/runs/parameters/compare")
+def compare_parameters(req: ParamsCompareRequest):
+    """Two runs' parameters - only what differs (and what only one of them has)."""
+    from svcore import runinfo
+    try:
+        ra, rb = store.get(req.a).run, store.get(req.b).run
+    except KeyError:
+        fail(404, "One of the two files is no longer open - open it again and compare.")
+    return runinfo.compare(runinfo.parameters(ra, WIDE_PARAMS), runinfo.parameters(rb, WIDE_PARAMS))
 
 
 @router.get("/api/runs/{run_id}/overview")

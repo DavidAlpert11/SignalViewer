@@ -184,6 +184,8 @@ class Run:
     uid: int = field(default_factory=lambda: next(_RUN_UID))   # unique per loaded Run object
     # what the loader wants the user told (skipped columns, damaged parts...): sent with the run
     load_report: Dict[str, Any] = field(default_factory=dict)
+    # F3: settings the file states itself, not as signals (MAT scalars / short texts, struct fields)
+    file_params: Dict[str, Any] = field(default_factory=dict)
     # flight logs: the parsed log behind the signals (T36 - were attributes set from outside)
     _flightlog: Any = None        # parameters / events / health for the Log panel (.bin .tlog .ulg)
     _dataflash: Any = None        # .bin: formats and units, for live mode
