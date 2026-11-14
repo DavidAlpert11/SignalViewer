@@ -3,6 +3,7 @@
 ## Round of 2026-11-14 (the redesign; plan §7.0 – one block per lane, add lines only inside yours)
 
 <!-- 1114 lane L1 -->
+- A1 ran `test_calm_screen.py`, `test_settings.py` (no change to them) (L1)
 
 <!-- 1114 lane L2 -->
 
