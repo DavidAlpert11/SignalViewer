@@ -801,6 +801,19 @@ def compare_parameters(req: ParamsCompareRequest):
     return runinfo.compare(runinfo.parameters(ra, WIDE_PARAMS), runinfo.parameters(rb, WIDE_PARAMS))
 
 
+@router.get("/api/runs/{run_id}/structure")
+def run_structure(run_id: str):
+    """F1 *The file*: groups (message types, topics, structs, column prefixes), each column's samples,
+    rate, unit and gaps, and the time base - for any format, a followed (live) file too."""
+    from app.livewatch import run_format
+    from svcore import filestruct
+    try:
+        run = store.get(run_id).run
+    except KeyError:
+        fail(404, "File is not open.")
+    return filestruct.structure(run, run_format(run))
+
+
 @router.get("/api/runs/{run_id}/overview")
 def run_overview(run_id: str, rows: List[str] = Query(default=[])):
     """Investigation step 7: phases and automatic flags of a run, for the overview strip (and the
