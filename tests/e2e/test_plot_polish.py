@@ -46,3 +46,38 @@ def test_a_flight_logs_message_part_is_dimmed_in_a_flat_list(pg):
     pg.fill(".filter input", "ATT.DesRoll")                        # one match: listed flat, with its message
     pg.wait_for_selector(".sig .nm .nm-grp")
     assert pg.locator(".sig .nm .nm-grp").first.inner_text() == "ATT."
+
+
+def test_window_statistics_in_the_legend(pg):
+    """F2 (lane L3): the legend shows, on demand, the shown window's min · mean · max - the same numbers as
+    numpy over the samples on screen, and they follow a zoom."""
+    import csv
+    import os
+    from test_features import menu_item
+    open_files(pg, "run_a.csv")
+    sig(pg, "Speed").click()
+    pg.wait_for_function("(() => { const s = window.__sv.state(); const p = s.ws.tabs[0].plots[0]; return p.signals.length && s.xViews[p.id]; })()")
+    pg.locator(".plot-more").first.click()
+    pg.locator(".menu.ctx button", has_text="Legend").first.hover()
+    menu_item(pg, "Statistics of the shown window")
+    with open(os.path.join(pg.env["data"], "run_a.csv"), newline="") as f:
+        rows = list(csv.DictReader(f))
+    tcol = next(k for k in rows[0] if k.lower().startswith("t"))
+    scol = next(k for k in rows[0] if k.startswith("Speed"))
+
+    def check():
+        pg.wait_for_selector(".chip .wstat b")
+        a, b = pg.evaluate("(() => { const s = window.__sv.state(); return s.xViews[s.ws.tabs[0].plots[0].id]; })()")
+        ys = [float(r[scol]) for r in rows if a <= float(r[tcol]) <= b]
+        shown = [float(x.replace(",", "")) for x in pg.locator(".chip .wstat b").all_inner_texts()]
+        ref = [min(ys), sum(ys) / len(ys), max(ys)]
+        assert all(abs(s - r) <= 1e-3 * max(1.0, abs(r)) for s, r in zip(shown, ref)), (shown, ref)
+        return shown
+
+    whole = check()
+    # zoomed to the first half: the numbers follow
+    pg.evaluate("""(() => { const s = window.__sv.state(); const tb = s.ws.tabs[0], p = tb.plots[0], v = s.xViews[p.id];
+        window.__sv.setState({ ranges: { ...s.ranges, [tb.linkX ? tb.id : p.id]: [v[0], (v[0] + v[1]) / 2] } }); })()""")
+    pg.wait_for_function("(w) => { const t = [...document.querySelectorAll('.chip .wstat b')].map((e) => e.textContent).join('|'); return t && t !== w; }",
+                         arg="|".join(pg.locator(".chip .wstat b").all_inner_texts()))
+    assert check() != whole

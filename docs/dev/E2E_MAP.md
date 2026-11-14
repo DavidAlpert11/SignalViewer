@@ -20,6 +20,7 @@
 - B3 ran `test_tab_band`, `test_state_lanes`, `test_less_clutter`, `test_features -k state` (`.tab-band` now inside the top card; no change to the files) (L3)
 - B4 ran `test_perf_budget` (0.7–1.0 s, before 0.72–1.02 s), `test_plot_polish`, `test_aligned_plots` (no change) (L3)
 - B5 ran `test_timeline`, `test_overview_strip` (no change) (L3)
+- F2 (legend): `test_plot_polish.py::test_window_statistics_in_the_legend` new (= the CSV's numbers over the window, follows a zoom) (L3)
 
 <!-- 1114 lane L4 -->
 `test_offline_map.py` – M2 (L4): `test_satellite_with_roads_is_one_layer` new.

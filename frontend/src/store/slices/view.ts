@@ -20,6 +20,8 @@ export interface ViewSlice {
   valuesOnPlot: boolean;
   /** B3: the tab's state lanes (the mode band) drawn inside the top plot's card; off = above the plots (a setting) */
   bandInCard: boolean;
+  /** F2: plots whose legend shows the statistics of the visible window (min · mean · max; UI only, on demand) */
+  windowStats: Record<string, true>;
   follow: number | null;           // live mode: show only the last N seconds
   playing: boolean;
   playSpeed: number;               // × real time (1 = the recording's own pace, time in seconds)
@@ -48,6 +50,7 @@ export const viewSlice = (): ViewSlice => ({
   preview: null,
   valuesOnPlot: false,
   bandInCard: true,
+  windowStats: {},
   follow: null,
   playing: false,
   playSpeed: 1,

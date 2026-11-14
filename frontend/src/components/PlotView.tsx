@@ -1,7 +1,7 @@
 import { RingIcon } from "./RelationPanel";
 import { countRender } from "../perf";
 import TrustBadge, { AngleGuessBadge, AttitudeSourceBadge } from "./TrustBadge";
-import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { mergeKind, PLOT_ID_MIME } from "../store/actions/layout";
 import { plotHasContent, actions, onTimeAxis, tabBandLanes, fileMark, pickPath, rangeKey, showFileTags, signalName, useApp, type MenuItem, type Plot, type PlotMode, type Tab } from "../store";
 import { GEO_BASES, effectiveBase, isOnlineBase } from "../mapBase";
@@ -375,8 +375,36 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     headMin.current = Math.max(headMin.current, h.offsetHeight);
     h.style.minHeight = `${headMin.current}px`;
   });
-  const legendItems = (): MenuItem[] => ([["auto", "legendAuto"], ["top", "legendTop"], ["side", "legendSide"], ["off", "legendOff"]] as const)
-    .map(([k, key]) => ({ label: t(key), checked: legendPref === k, run: () => actions.updatePlot(plot.id, { legend: k === "auto" ? undefined : k }) }));
+  const legendItems = (): MenuItem[] => [
+    ...([["auto", "legendAuto"], ["top", "legendTop"], ["side", "legendSide"], ["off", "legendOff"]] as const)
+      .map(([k, key]) => ({ label: t(key), checked: legendPref === k, run: () => actions.updatePlot(plot.id, { legend: k === "auto" ? undefined : k }) })),
+    // F2: on demand - the statistics of the time on screen beside each line (a view choice, not saved)
+    ...(mode === "time" ? [{ label: "", run: () => {}, sep: true }, { label: t("legendWinStats"), checked: winOn, run: () => useApp.setState((st) => {
+      const w = { ...st.windowStats };
+      if (w[plot.id]) delete w[plot.id]; else w[plot.id] = true;
+      return { windowStats: w };
+    }) }] : []),
+  ];
+  /* F2: the statistics of the visible window (L5's /api/stats/window), asked again when the view settles */
+  const winOn = useApp((s) => !!s.windowStats[plot.id]) && mode === "time";
+  const xView = useApp((s) => (winOn ? s.xViews[plot.id] : undefined));
+  const dataVersion = useApp((s) => s.dataVersion);
+  const [winStats, setWinStats] = useState<Record<string, { min: number; max: number; mean: number }>>({});
+  const winKey = winOn && xView ? `${xView[0]}|${xView[1]}|${plot.signals.map((s) => `${s.sig}:${s.tOffset ?? 0}`).join(",")}|${dataVersion}` : "";
+  useEffect(() => {
+    if (!winKey || !xView) { setWinStats({}); return; }
+    let gone = false;
+    const h = window.setTimeout(() => {
+      // a line moved in time (its own offset) is read over its own stretch of the shown window
+      const groups = new Map<number, string[]>();
+      plot.signals.filter((s) => !s.state).forEach((s) => { const o = s.tOffset ?? 0; groups.set(o, [...(groups.get(o) ?? []), s.sig]); });
+      Promise.all(Array.from(groups, ([o, ids]) => api.windowStats(ids, xView[0] - o, xView[1] - o)))
+        .then((rs) => { if (!gone) setWinStats(Object.assign({}, ...rs.map((r) => r.stats))); })
+        .catch(() => { if (!gone) setWinStats({}); });
+    }, 150);
+    return () => { gone = true; window.clearTimeout(h); };
+  }, [winKey]);          // eslint-disable-line react-hooks/exhaustive-deps
+
   /* one entry of the legend: a chip above the plot, or a row of the column beside it */
   const entry = (s: Plot["signals"][number], side: boolean) => {
             const inMulti = multi.some((m) => m.plotId === plot.id && m.sig === s.sig);
@@ -452,6 +480,11 @@ export default function PlotView({ tab, plot, index, active }: Props) {
                 {s.axis === "right" && !s.state && mode === "time" && <span className="tag" title={t("toLeftAxis")}>{t("rightAxisTag")}</span>}
                 {val && <span className={`val${hv ? " hov" : ""}`} style={slot ? { minWidth: `${slot}ch` } : undefined} title={mode === "fft" ? t("peak") : hv ? t("hoverValue") : undefined}>{val}</span>}
                 {val && showing && <span className="u">{vu ?? ""}</span>}
+                {winOn && winStats[s.sig] && !s.state && (() => {
+                  const w = winStats[s.sig], f = (v: number) => fmtNum(v * s.scale + s.offset, lang, 4);
+                  const [lo, hi] = s.scale < 0 ? [w.max, w.min] : [w.min, w.max];
+                  return <span className="wstat" title={t("winStatsHint")}>{t("winMin")} <b>{f(lo)}</b> · {t("winMean")} <b>{f(w.mean)}</b> · {t("winMax")} <b>{f(hi)}</b></span>;
+                })()}
                 {dlt && <span className="dlt" style={{ minWidth: `${valW.current[`${wkey}|d`]}ch` }} title={t("deltaHint")}>Δ {dlt}</span>}
                 <span className="rm" role="button" aria-label={t("remove")}
                   onClick={(e) => { e.stopPropagation(); actions.removeSignal(plot.id, s.sig); }}><Icon.X width={11} height={11} /></span>
