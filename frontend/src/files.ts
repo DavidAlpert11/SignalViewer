@@ -5,6 +5,7 @@ import { isEmptyStart, offerStart } from "./smartStart";
 import { api, type FaultyMessage, type JobInfo, type LoadErrorInfo } from "./api";
 import { actions, useApp } from "./store";
 import { clock, forgetNewer } from "./fileTimes";
+import { GEO_BASES } from "./mapBase";
 import { dictionaries, translate, type Lang, type TKey } from "./i18n";
 
 /** P3: what the load report says about message types left out because the firmware wrote them with
@@ -342,7 +343,7 @@ export async function applyState(state: any, opts: { announce?: boolean } = {}) 
     if (typeof state.ui?.timelineOpen === "boolean") useApp.setState({ timelineOpen: state.ui.timelineOpen });
     if (state.ui && "liveAutoStop" in state.ui && (state.ui.liveAutoStop === null || typeof state.ui.liveAutoStop === "number") && !hasSetting("liveAutoStop")) useApp.setState({ liveAutoStop: state.ui.liveAutoStop });
     if (["ask", "auto", "ignore"].includes(state.ui?.liveNewFiles) && !hasSetting("liveNewFiles")) useApp.setState({ liveNewFiles: state.ui.liveNewFiles });
-    if (["auto", "osm", "esri", "light", "dark", "satellite", "topo", "offline"].includes(state.ui?.geoBase)) useApp.setState({ geoBase: state.ui.geoBase });
+    if ((GEO_BASES as string[]).includes(state.ui?.geoBase)) useApp.setState({ geoBase: state.ui.geoBase });
     if (typeof state.ui?.geoBorders === "boolean") useApp.setState({ geoBorders: state.ui.geoBorders });
     const res = state.runs?.length ? await api.restore(state.runs) : { restored: [], missing: [] };
     const keep = new Set<string>(res.restored.map((r) => r.id));

@@ -131,3 +131,17 @@ def test_never_use_the_network_turns_online_layers_off(pg):
         pg.wait_for_timeout(250)
     else:
         raise AssertionError("offlineOnly was not saved with the settings")
+
+
+def test_satellite_with_roads_is_one_layer(pg):
+    """M2: *Satellite + roads* - one layer of the app (the photo with the roads composed over it in the backend),
+    marked online. (Its *Borders* switch comes with M1's picker: the plot head's switch is L3's file.)"""
+    pg.route("**/api/tiles/satroads/**", lambda route: route.fulfill(status=404, body=""))   # no real download in tests
+    asked = []
+    pg.on("request", lambda r: asked.append(r.url) if "/api/tiles/" in r.url else None)
+    pg.evaluate("window.__sv.setState({ geoBase: 'satroads', geoBorders: true })")
+    _map(pg)
+    assert _wait_for_tiles(pg, asked, "/api/tiles/satroads/")
+    assert not any("/api/tiles/satellite/" in u or "/api/tiles/sat_roads/" in u for u in asked)
+    pg.wait_for_selector(".net-badge", timeout=5000)
+    assert pg.locator(".plot select[aria-label='Map'] option[value='satroads']").count() == 1

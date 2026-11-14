@@ -9,6 +9,9 @@
 <!-- lane L2 -->
 <!-- lane L3 -->
 <!-- lane L4 -->
+- **Map: *Satellite + roads*.** A new background: the satellite photos with the roads and their names drawn over them
+  (Esri), in the 2D map, the 3D view, exported pictures and offline map pages. Online and opt-in like every online layer;
+  *Never use the network* still blocks it, and what was already seen stays available offline.
 <!-- lane L5 -->
 - **The parameters of a run, for every format** (F3): a flight log's parameters, a MATLAB file's scalars, texts and struct fields, signals that hold one value, numbers in the file name – one list; and **two runs compared**, only what differs (a parameter changed during a flight counts by its start and its end). *Runs × conditions* now also shows a MATLAB file's settings and a log's parameters when they differ between the runs.
 <!-- end of lanes -->

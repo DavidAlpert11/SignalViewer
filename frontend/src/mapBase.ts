@@ -4,8 +4,10 @@
    the backend refuses to download in that case too (app/tiles.py). */
 import { useApp } from "./store";
 
-export type GeoBase = "auto" | "osm" | "esri" | "light" | "dark" | "satellite" | "topo" | "offline";
-export const GEO_BASES: GeoBase[] = ["auto", "offline", "osm", "esri", "light", "dark", "satellite", "topo"];
+export type GeoBase = "auto" | "osm" | "esri" | "light" | "dark" | "satellite" | "satroads" | "topo" | "offline";
+export const GEO_BASES: GeoBase[] = ["auto", "offline", "osm", "esri", "light", "dark", "satellite", "satroads", "topo"];
+/** A layer whose picture is a photo (names and borders drawn light over it). M2: "satroads" = the photo + roads. */
+export const isPhotoBase = (b: string): boolean => b === "satellite" || b === "satroads";
 
 export const isOnlineBase = (b: GeoBase): boolean => b !== "auto" && b !== "offline";
 

@@ -3,7 +3,7 @@ import { runsDataKey } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { actions, activeTab, shownSpan, useApp, type MapObject, type Plot } from "../store";
-import { useMapBase } from "../mapBase";
+import { isPhotoBase, useMapBase } from "../mapBase";
 import { drawObjectIcon } from "./mapIcons";
 import { altAt, angleUnitOf, colorRuns, fmtDistance as fmtDistanceShort, derivedAttitude, objectAt, trackColors, trackKey, trackRequest, trackTime, type ObjTrack, type TrackColors, shownObjects } from "../mapObjects";
 import TrackKeys from "./TrackKeys";
@@ -30,7 +30,7 @@ interface Track { id: string; lon: Float64Array; lat: Float64Array; t: Float64Ar
 /** cx, cy: map centre in Web-Mercator world units (0..1); z: zoom (256 * 2^z pixels across the world). */
 interface View { cx: number; cy: number; z: number }
 
-const MAXZ: Record<string, number> = { osm: 19, esri: 19, light: 16, dark: 16, satellite: 19, topo: 17, offline: 14 };
+const MAXZ: Record<string, number> = { osm: 19, esri: 19, light: 16, dark: 16, satellite: 19, satroads: 19, topo: 17, offline: 14 };
 /* The offline map: tiles the app draws itself from bundled data (terrain, water, roads), so a map
    works on a machine with no internet; also what fills in for an online tile that cannot be had. */
 const OFFLINE_MAXZ = 14;
@@ -40,6 +40,7 @@ const ESRI_ATT = "Esri, HERE, Garmin, © OpenStreetMap contributors, GIS User Co
 const ATTRIB: Record<string, string> = {
   osm: "© OpenStreetMap contributors", esri: ESRI_ATT, light: ESRI_ATT, dark: ESRI_ATT,
   satellite: "Tiles © Esri — Esri, Maxar, Earthstar Geographics, GIS User Community",
+  satroads: "Tiles © Esri — Esri, Maxar, Earthstar Geographics, HERE, Garmin, © OpenStreetMap contributors, GIS User Community",
   topo: "© OpenStreetMap contributors, SRTM | © OpenTopoMap (CC-BY-SA)",
   offline: "Natural Earth · Terrain Tiles (Mapzen: SRTM, GMTED2010, ETOPO1) · © OpenStreetMap contributors",
 };
@@ -451,9 +452,9 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     // 3. what the offline map's tiles and the satellite photos do not carry: borders, and names
     //    (drawn here: crisp, in the UI language). A halo under each border so it reads on any land,
     //    and dashed, so it is not taken for a road.
-    const ownLayer = borders && (base === "offline" || base === "satellite");
+    const ownLayer = borders && (base === "offline" || isPhotoBase(base));
     const ownNames = ownLayer || offlineUsed > 0 || tilesShown < tilesWanted / 2;
-    const onDark = dark || base === "satellite";                 // names and borders light on a photo
+    const onDark = dark || isPhotoBase(base);                 // names and borders light on a photo
     if (countries && (ownLayer || offlineUsed > 0)) {
       const z = view.z, w = z < 3 ? 0.8 : z < 4 ? 1.1 : z < 7 ? 1.5 : 2;
       const path = (c: Country) => {
@@ -478,7 +479,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
           ctx.strokeStyle = onDark ? "rgba(0,0,0,.45)" : "rgba(255,255,255,.75)"; ctx.stroke();
         }
         ctx.setLineDash([7, 3]); ctx.lineWidth = w;
-        ctx.strokeStyle = base === "satellite" ? "rgba(255,226,140,.95)" : onDark ? "rgba(214,196,245,.9)" : "rgba(118,62,160,.9)";
+        ctx.strokeStyle = isPhotoBase(base) ? "rgba(255,226,140,.95)" : onDark ? "rgba(214,196,245,.9)" : "rgba(118,62,160,.9)";
         ctx.stroke();
       }
       ctx.setLineDash([]);
