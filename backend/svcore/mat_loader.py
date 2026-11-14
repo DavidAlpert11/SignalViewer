@@ -43,28 +43,56 @@ def _add_array(out: Dict[str, np.ndarray], name: str, a: np.ndarray):
                 out[f"{name}[{k + 1}]"] = a[:, k]
 
 
-def _walk_scipy(obj, prefix: str, out: Dict[str, np.ndarray], depth: int = 0):
+def _text(a) -> Optional[str]:
+    """A MATLAB char array as text (None when it is not one, or too long to be a setting)."""
+    if isinstance(a, str):
+        s = a
+    elif isinstance(a, np.ndarray) and a.dtype.kind == "U" and a.size >= 1:
+        s = "".join(str(x) for x in a.reshape(-1))
+    else:
+        return None
+    s = s.strip()
+    return s if 0 < len(s) <= 200 else None
+
+
+def _const(consts: Optional[Dict[str, object]], name: str, obj) -> None:
+    """F3: a scalar (gain, mass, seed) or a short text (a mode, a case name) - the run's parameters."""
+    if consts is None or not name:
+        return
+    txt = _text(obj)
+    if txt is not None:
+        consts[name] = txt
+    elif isinstance(obj, np.ndarray) and obj.dtype.kind in "fiub" and obj.size == 1:
+        v = float(obj.reshape(-1)[0])
+        if np.isfinite(v):
+            consts[name] = v
+
+
+def _walk_scipy(obj, prefix: str, out: Dict[str, np.ndarray], depth: int = 0,
+                consts: Optional[Dict[str, object]] = None):
     if depth > 6:
         return
     if isinstance(obj, np.ndarray) and obj.dtype.names:  # struct array
         if obj.size == 1:
             rec = obj.reshape(-1)[0]
             for f in obj.dtype.names:
-                _walk_scipy(rec[f], f"{prefix}.{f}" if prefix else f, out, depth + 1)
+                _walk_scipy(rec[f], f"{prefix}.{f}" if prefix else f, out, depth + 1, consts)
         return
     if isinstance(obj, np.ndarray) and obj.dtype == object:
         if obj.size == 1:
-            _walk_scipy(obj.reshape(-1)[0], prefix, out, depth + 1)
+            _walk_scipy(obj.reshape(-1)[0], prefix, out, depth + 1, consts)
         return
     if hasattr(obj, "_fieldnames"):  # mat_struct (squeeze_me/struct_as_record=False)
         for f in obj._fieldnames:
-            _walk_scipy(getattr(obj, f), f"{prefix}.{f}" if prefix else f, out, depth + 1)
+            _walk_scipy(getattr(obj, f), f"{prefix}.{f}" if prefix else f, out, depth + 1, consts)
         return
     if _is_numeric(obj):
         _add_array(out, prefix, obj)
+    else:
+        _const(consts, prefix, obj)
 
 
-def _read_scipy(path: str) -> Tuple[Dict[str, np.ndarray], bool]:
+def _read_scipy(path: str, consts: Optional[Dict[str, object]] = None) -> Tuple[Dict[str, np.ndarray], bool]:
     """(vectors, cut_off). A v5 file that ends in the middle (MATLAB stopped while saving, a
     half-copied file) keeps every variable that was complete before the cut (T33)."""
     from scipy.io import loadmat
@@ -79,7 +107,7 @@ def _read_scipy(path: str) -> Tuple[Dict[str, np.ndarray], bool]:
     out: Dict[str, np.ndarray] = {}
     for k, v in data.items():
         if not k.startswith("__"):
-            _walk_scipy(v, k, out)
+            _walk_scipy(v, k, out, 0, consts)
     return out, cut
 
 
@@ -113,16 +141,23 @@ def _read_v5_until_damage(path: str) -> Dict:
     return out
 
 
-def _read_h5(path: str) -> Dict[str, np.ndarray]:
+def _read_h5(path: str, consts: Optional[Dict[str, object]] = None) -> Dict[str, np.ndarray]:
     import h5py
     out: Dict[str, np.ndarray] = {}
 
     def visit(name, node):
-        if isinstance(node, h5py.Dataset) and node.dtype.kind in "fiub" and node.size > 1:
-            if name.startswith("#refs#"):
-                return
+        if not isinstance(node, h5py.Dataset) or name.startswith("#refs#") or node.dtype.kind not in "fiub":
+            return
+        cls = node.attrs.get("MATLAB_class", b"")
+        cls = cls.decode("latin1") if isinstance(cls, bytes) else str(cls)
+        if cls == "char" and consts is not None and node.size <= 200:
+            # v7.3 keeps text as uint16 code points
+            _const(consts, name.replace("/", "."), np.array(["".join(chr(int(c)) for c in np.asarray(node[()]).reshape(-1))]))
+        elif node.size > 1:
             # MATLAB stores arrays transposed in HDF5
             _add_array(out, name.replace("/", "."), np.asarray(node[()]).T)
+        elif node.size == 1:
+            _const(consts, name.replace("/", "."), np.asarray(node[()]))
 
     with h5py.File(path, "r") as f:
         f.visititems(visit)
@@ -151,11 +186,11 @@ def read_mat_vectors(path: str) -> Dict[str, np.ndarray]:
     return _read_mat(path)[0]
 
 
-def _read_mat(path: str) -> Tuple[Dict[str, np.ndarray], bool]:
+def _read_mat(path: str, consts: Optional[Dict[str, object]] = None) -> Tuple[Dict[str, np.ndarray], bool]:
     # v7.3 files are HDF5 containers: detect by content, not by scipy's error text
     if _is_hdf5(path):
-        return _read_h5(path), False
-    return _read_scipy(path)
+        return _read_h5(path, consts), False
+    return _read_scipy(path, consts)
 
 
 def choose_time(vectors: Dict[str, np.ndarray], wanted: Optional[str] = None) -> Tuple[Optional[str], int]:
@@ -180,7 +215,8 @@ def choose_time(vectors: Dict[str, np.ndarray], wanted: Optional[str] = None) ->
 
 def load_mat(path: str, display_name: str, time_variable: Optional[str] = None) -> Tuple[Optional[Run], List[str]]:
     """Returns (Run or None, list of skipped variable names)."""
-    vectors, cut = _read_mat(path)
+    consts: Dict[str, object] = {}
+    vectors, cut = _read_mat(path, consts)
     if not vectors:
         return None, []
     tname, n = choose_time(vectors, time_variable)
@@ -211,6 +247,7 @@ def load_mat(path: str, display_name: str, time_variable: Optional[str] = None) 
         if order is not None:
             a = a[order]
         run.signals[name] = Signal(name=name, data=a)
+    run.file_params = consts
     run.import_settings = {"format": "mat", "time_column": tname}
     run.time_source = tname
     if pairs:
