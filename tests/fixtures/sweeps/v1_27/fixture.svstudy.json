@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "name": "fixture drones",
+  "tables": [
+    {"id": "A", "name": "Drone A - light quad", "paths": ["drone_a.csv"],
+     "roles": {"wind": "scenario", "overshoot": "output", "settling_time": "output"},
+     "constraints": ["overshoot < 10"], "objective": {"expr": "settling_time", "sense": "min"}, "aggregate": "worst"},
+    {"id": "B", "name": "Drone B - heavy hexa", "paths": ["drone_b.csv"],
+     "roles": {"mass": "scenario", "overshoot": "output", "motor_sat": "output", "energy": "output"},
+     "constraints": ["overshoot < 12 and motor_sat < 0.9"], "objective": {"expr": "energy", "sense": "min"}, "aggregate": "worst"},
+    {"id": "C", "name": "Drone C - VTOL", "paths": ["drone_c.csv"], "rename": {"P_gain": "Kp", "I_gain": "Ki"},
+     "roles": {"filter_hz": "local", "wind": "scenario", "phase_margin": "output", "settling_time": "output"},
+     "constraints": ["phase_margin > 45"], "objective": {"expr": "settling_time", "sense": "min"}, "aggregate": "worst"}
+  ],
+  "shared": [{"name": "Kp"}, {"name": "Ki"}],
+  "combine": {"mode": "auto"},
+  "search": {"params": {"Kp": {"min": 0.5, "max": 4, "step": 0.25}, "Ki": {"min": 0.25, "max": 1.5, "step": 0.125}},
+             "constraints": ["Kp * Ki < 5"]},
+  "next": {"batch": 4}
+}

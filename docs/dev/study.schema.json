@@ -469,6 +469,32 @@
     "required": [],
     "additionalProperties": true
    }
+  },
+  "workspace": {
+   "type": [
+    "object",
+    "null"
+   ],
+   "description": "C5: what only the Sweeps area needs - each table as the area shows it (roles as set, the whole question, the view, merged tables' recipes) and the place last shown. Optional; the engine never reads it.",
+   "properties": {
+    "version": {
+     "type": "integer"
+    },
+    "sweeps": {
+     "type": "array",
+     "items": {
+      "type": "object"
+     }
+    },
+    "active": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "place": {
+     "type": "object"
+    }
+   },
+   "additionalProperties": true
   }
  },
  "required": [

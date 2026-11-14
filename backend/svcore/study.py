@@ -14,7 +14,9 @@ saved in the Sweeps panel; the same file drives the panel, the API (``/api/sweep
 * ``launcher``- how runs are handed to the user's launcher application (W17);
 * ``start``   - round 1 of a study that has no runs yet: a start grid and each table's scenarios (C1);
 * ``demo``    - the smart-sweep demo's reference settings (W18);
-* ``history`` - written by the app: each round's proposals and their state.
+* ``history`` - written by the app: each round's proposals and their state;
+* ``workspace`` - what only the Sweeps area needs (C5): each table as the area shows it (its roles as set, the
+  whole question, the view, merged tables' recipes) and the place last shown. The engine never reads it.
 
 Loading is backward compatible: unknown keys are kept (``extra``) and written back; missing keys take their
 defaults. Nothing here computes anything - see ``svcore/sweeps_common.py`` (W14), ``sweeps_next.py`` (W15),
@@ -194,6 +196,7 @@ class Study:
     start: Optional[Start] = None
     demo: Optional[Demo] = None
     history: List[Round] = field(default_factory=list)
+    workspace: Optional[Dict[str, Any]] = None
     extra: Dict[str, Any] = field(default_factory=dict)
     path: str = ""                     # where it was read from (not saved)
 
@@ -275,12 +278,16 @@ def from_dict(cls: Type[T], d: Dict[str, Any]) -> T:
     return obj
 
 
+# optional blocks written only when there (a study without them stays as it was: older versions read it unchanged)
+_OMIT_NONE = ("start", "workspace")
+
+
 def to_dict(obj: Any) -> Any:
     """Back to plain JSON values, the unknown keys of `extra` written where they were."""
     if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
         out: Dict[str, Any] = {}
         for f in dataclasses.fields(obj):
-            if f.name in ("extra", "path"):
+            if f.name in ("extra", "path") or (f.name in _OMIT_NONE and getattr(obj, f.name) is None):
                 continue
             out[f.name] = to_dict(getattr(obj, f.name))
         out.update(getattr(obj, "extra", {}) or {})

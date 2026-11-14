@@ -34,6 +34,18 @@ export interface Study extends Extra {
   search?: { params: Record<string, SearchParam>; constraints?: string[] };
   next?: { batch?: number; mix?: { refine: number; boundary: number; gap: number }; folder?: string; columns?: string[] | null; format?: "csv" | "xlsx" };
   launcher?: LauncherBlock; demo?: DemoBlock | null; history?: StudyRound[];
+  /** C1: round 1 of a study with no runs yet - values per parameter (one count or per parameter) x each table's scenarios */
+  start?: StartBlock | null;
+  /** C5: what only the Sweeps area needs (each table as shown, the place last shown); the engine never reads it */
+  workspace?: WorkspaceBlock | null;
+}
+export interface StartBlock extends Extra { grid?: number | Record<string, number>; scenarios?: Record<string, Record<string, (number | string)[]>> }
+export interface WorkspaceBlock extends Extra {
+  version: 1;
+  /** each table of the area as its single-table file holds it (.svsweep's document) */
+  sweeps: import("./state").SavedStudy[];
+  active?: number;
+  place?: { part: "setup" | "table" | "together"; table?: number };
 }
 
 /** The request of every /api/sweeps/* POST: a saved study, or the panel's study as it is now. */
