@@ -15,7 +15,12 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 - **Lane board – redesign round 2026-11-14** (plan §7.0; each lane edits only its own block; S1 = A3 + A4 on `main`).
   <!-- lane L1 -->
-  - **L1 Look** – todo · next: A1 · tasks A1 A2 A3 A4 D11 D12 D13 · requests from other lanes: –
+  - **L1 Look** – in progress · done: A1 · next: A2 · tasks A1 A2 A3 A4 D11 D12 D13 · requests from other lanes: –
+    - New tokens (A1, on `main`): `--select` / `--select-ink` / `--select-soft` / `--select-ring` (selection, active, primary – a
+      neutral ink; amber is the cursor and time only), `--warn` + `--ok-soft` / `--warn-soft` / `--danger-soft` / `--info-soft`,
+      `--shadow-md` / `--shadow-lg` (`--shadow` = lg), `--r-card`, `--fs-readout`, `--eyebrow` + `--eyebrow-spacing`.
+    - For L2 (`styles/study.css` is yours): its `--amber` uses that mean a selection (`.cp-rank tr.on`, `.dm-workers i.on`) or a
+      state (`.lp-state.running`, `.cp-mapping`) should move to `--select` / `--warn` / `--info` when you restyle (C6+).
   <!-- lane L2 -->
   - **L2 Sweeps** – todo · next: C1 (no UI until S1) · tasks C1–C11, B7 · requests: –
   <!-- lane L3 -->
@@ -4140,3 +4145,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-14 · Owner: Chase vs On the object unclear – checked the code (four overlapping camera controls), plan M6 + mock-up `map-cameras.html`; and another agent may have no GitHub rights – `REDESIGN_PROMPT.md` now hands over a patch against the current `main` by default (fetch, rebase, format-patch, checked with `git am` on a clean worktree – the commands tried here). No product code changed. Next: A1.
 - 2026-11-14 · Owner: a new agent must notice when its tokens are about to run out and stop in time – `REDESIGN_PROMPT.md` §7 (always commit + hand over per task; the signs: ~75 % of the meter, compaction, limit warnings, 80 % of a given budget; how to stop; a HAND-OVER block at the top of Current state, read first by the next agent). No product code changed. Next: A1.
 - 2026-11-14 · Owner: plan the work so it runs fast, several agents in parallel; per task only the relevant tests, the full checks once at the end before the version update. Plan §7.0 (five lanes owning their files, one sync point S1, lane blocks in shared files, the test table, a Final lane), `REDESIGN_PROMPT.md` (lanes, checks, Final), the lane board above, CLAUDE.md's e2e and dist rules updated by the owner's instruction, lane blocks opened in CHANGELOG / E2E_MAP. No product code changed.
+- 2026-11-14 · L1 A1 tokens: new dark / light values (plan §5.1), the accent split (`--select` neutral ink for selection / active / primary; warnings `--warn`; amber only cursor + time), soft tints, elevation, `--r-card`, `--fs-readout`, `--eyebrow`; the 2nd trace colour is now bluish green (orange moved to 6th, off the cursor's hue). New Vitest `src/tokens.test.ts` (AA for every text token on every surface, each verdict on its tint, both themes). Ran: tsc, all Vitest (210), `test_design_tokens`, e2e `test_calm_screen` + `test_settings` (7 passed). Pictures not taken (S1 first). Next: A2.

@@ -189,9 +189,10 @@ export interface Condition {
 /* 26.U2: the first eight are Okabe & Ito's colours for colour-blind readers (blue, orange, bluish green,
    vermilion, sky blue, reddish purple, yellow, grey - told apart with any of the common colour vision
    deficiencies), the next twelve their darker / lighter companions. Drawn through chartUtil.ink(), which
-   keeps each at 3:1 or more against the plot in either theme (yellow on white, grey on dark). */
+   keeps each at 3:1 or more against the plot in either theme (yellow on white, grey on dark).
+   A1 (2026-11-14): orange moved from 2nd to 6th - the 2nd trace must not look like the amber cursor. */
 export const TRACE_COLORS = [
-  "#0072B2", "#E69F00", "#009E73", "#D55E00", "#56B4E9", "#CC79A7", "#F0E442", "#7F7F7F",
+  "#0072B2", "#009E73", "#CC79A7", "#D55E00", "#56B4E9", "#E69F00", "#F0E442", "#7F7F7F",
   "#004C7A", "#A86F00", "#00694C", "#9A4200", "#2A86C0", "#9A4F7E",
   "#B0A500", "#4D4D4D", "#3399CC", "#FFB733", "#33CC99", "#FF7A33",
 ];

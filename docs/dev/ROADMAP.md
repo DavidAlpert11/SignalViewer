@@ -923,7 +923,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 
 ## Milestone 32 — the redesign: Sweeps as one workspace, modern plots and look (owner's round 2026-11-14). Spec: docs/dev/AGENT_PROMPT_2026-11-14.md; plan: docs/dev/PLAN_2026-11-14.md.
 - [x] Phase 1: the plan – inventory and acceptance checklist, ArduDeck and other tools, the Sweeps model and layout options, the design system, mock-ups, phases. Done 2026-11-14; approved by the owner the same day (every recommendation); §3.6 (any data, not only ArduPilot) added at his request.
-- [ ] A1–A4 Tokens and components (new values, `--warn` and tints, elevation, IBM Plex Mono, one definition per component, cards / tables / KPI).
+- [ ] A1–A4 Tokens and components (new values, `--warn` and tints, elevation, IBM Plex Mono, one definition per component, cards / tables / KPI). A1 done 2026-11-14 (tokens + `--select` accent split, `src/tokens.test.ts` AA check).
 - [ ] C1–C11 Sweeps as one study for both flows (results first / runs first, continue later): `start` for any study, tables by round, set-up from a table, one vocabulary, the Goal step writes the study, one store and Undo, `.svstudy.json` + `workspace`, New study + Set up, the navigator, the Run column, one Next runs, entry points, three walkthroughs as e2e.
 - [ ] B1–B7 Plots (the plot card, legend with values, mode band, uPlot theme, timeline, Map / 3D chrome, Sweeps charts).
 - [ ] M1–M6 The map, offline first (cameras named by what they do; a background picker, Satellite + roads, keep an area offline, My maps: MBTiles / own tile server, the offline map's look).
