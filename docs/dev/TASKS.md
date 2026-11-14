@@ -22,8 +22,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
     - For L2 (`styles/study.css` is yours): its `--amber` uses that mean a selection (`.cp-rank tr.on`, `.dm-workers i.on`) or a
       state (`.lp-state.running`, `.cp-mapping`) should move to `--select` / `--warn` / `--info` when you restyle (C6+).
   <!-- lane L2 -->
-  - **L2 Sweeps** – in progress · done: C1 · next: C2 (no UI until S1) · tasks C1–C11, B7 · requests: –
+  - **L2 Sweeps** – in progress · done: C1 C2 · next: C3 (no UI until S1) · tasks C1–C11, B7 · requests: –
     - 2026-11-14 · C1 `start` for any study (`svcore/study.py` `Start`, `Study.start_plan()` reads `start` then the old `demo.start_grid` / `demo.scenarios`; `Space.grid` takes a count per parameter; the loop's round 1 from it; a one-table study ranks on its own - `sweeps_common` needed two tables - with its parameters from `shared` or `search.params`; the loop's `run_id` column is never guessed a scenario). Ran: test_study_start (new, 4), test_loop, test_demo, test_sweeps_common, test_sweeps_next, test_study_contract, test_launcher_mode - green; mypy on the changed modules clean. Next: C2.
+    - 2026-11-14 · C2 `GET /api/sweeps/study/tables` (each table's files by `round_<k>`, rows counted once per file version - a CSV by its lines -, *new* = changed since the study was saved or `since`; the history's rounds with their states; a demo study listed from its work folder) and `POST /api/sweeps/setup/from-table` (an open table's id + its roles as set, or a path → parameters with range / values seen, scenarios, outputs, and the study's `shared` / `search` / roles). Ran: test_study_tables (new, 4) - green; mypy clean. Next: C3.
   <!-- lane L3 -->
   - **L3 Plots and the frame** – todo · next: waits for S1 (B1) · tasks B1–B5, D1, D2, D8 (+ F2's legend when L5 has it) · requests: –
   <!-- lane L4 -->

@@ -21,6 +21,7 @@ and J - then per S the best L. The reference with plain loops lives in the tests
 from __future__ import annotations
 
 import ast
+import os
 import difflib
 import re
 import time
@@ -467,3 +468,91 @@ def to_csv_rows(result: Dict[str, Any]) -> pd.DataFrame:
                                                   + ("" if not f["scenario"] else " at " + ", ".join(f"{k}={v}" for k, v in f["scenario"].items())))
         out.append(row)
     return pd.DataFrame(out)
+
+
+# ------------------------------------------------------------------ C2: the tables by round, the set-up from a table
+
+_ROUND = re.compile(r"round_(\d+)")
+_ROWS: Dict[str, Tuple[int, int, int]] = {}      # path -> (mtime_ns, size, rows): each file counted once
+
+
+def count_rows(path: str) -> int:
+    """A file's rows, counted once per version of it (mtime and size) - polled with the loop's progress."""
+    st = os.stat(path)
+    hit = _ROWS.get(path)
+    if hit and hit[0] == st.st_mtime_ns and hit[1] == st.st_size:
+        return hit[2]
+    if path.lower().endswith((".csv", ".tsv", ".txt")):
+        with open(path, "rb") as f:
+            lines = sum(1 for line in f if line.strip())
+        n = max(0, lines - 1)
+    else:
+        n = int(len(read_any(path)))
+    _ROWS[path] = (st.st_mtime_ns, st.st_size, n)
+    return n
+
+
+def tables_by_round(s: studies.Study, since: Optional[float] = None) -> Dict[str, Any]:
+    """Each table's files now, grouped by the round they belong to (`round_<k>` in the path; other files are the
+    table's own, round None), with their rows. A file is *new* when it changed after `since` (seconds; default:
+    when the study file was last saved). Also each round of the history with its runs' states."""
+    if since is None:
+        try:
+            since = os.path.getmtime(s.path) if s.path else None
+        except OSError:
+            since = None
+    tables = []
+    for t in s.tables:
+        rounds: Dict[Optional[int], List[Dict[str, Any]]] = {}
+        for f in s.table_files(t):
+            m = _ROUND.search(os.path.relpath(f, s.folder).replace("\\", "/"))
+            k = int(m.group(1)) if m else None
+            try:
+                rows, mtime = count_rows(f), os.path.getmtime(f)
+            except (OSError, ValueError) as e:
+                rounds.setdefault(k, []).append({"path": f, "rows": None, "mtime": None, "new": False, "error": str(e)})
+                continue
+            rounds.setdefault(k, []).append({"path": f, "rows": rows, "mtime": mtime,
+                                             "new": bool(since is not None and mtime > since)})
+        out_rounds: List[Dict[str, Any]] = [
+            {"round": k, "files": fs, "rows": sum(x["rows"] or 0 for x in fs), "new": any(bool(x["new"]) for x in fs)}
+                      for k, fs in sorted(rounds.items(), key=lambda kv: (kv[0] is not None, kv[0] or 0))]
+        tables.append({"id": t.id, "name": t.name or t.id, "paths": list(t.paths), "rounds": out_rounds,
+                       "rows": sum(r["rows"] for r in out_rounds)})
+    history = []
+    for r in s.history:
+        states = [p.state for p in r.proposals]
+        history.append({"round": r.round, "date": r.date, "folder": r.folder, "runs": len(states),
+                        "done": states.count("done"), "failed": states.count("failed"),
+                        "pending": states.count("pending") + states.count("submitted")})
+    return {"study": s.path, "folder": s.folder, "tables": tables, "history": history}
+
+
+def setup_from_table(df: pd.DataFrame, roles: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """*I have results*: the study's set-up guessed from one table - what varies (the parameters, their range and
+    the values seen), the scenarios (the conditions held per run, their values) and the outputs. `roles` are the
+    Sweeps area's own (param / hold / output / id / ignore / recording), as set on the open table; missing ones
+    are guessed."""
+    cols = {c["name"]: c for c in describe(df)}
+    role = {n: (roles or {}).get(n, c["role"]) for n, c in cols.items()}
+    params, scenarios, outputs, other = [], [], [], []
+    for n, c in cols.items():
+        r = role[n]
+        if r == "param":
+            item: Dict[str, Any] = {"name": n, "kind": c["kind"], "distinct": c["distinct"], "values": c.get("values")}
+            if c["kind"] == "number":
+                item.update(min=c.get("min"), max=c.get("max"), integer=bool(c.get("integer")), log=c["scale"] == "log")
+            params.append(item)
+        elif r == "hold":
+            scenarios.append({"name": n, "kind": c["kind"], "distinct": c["distinct"], "values": c.get("values")})
+        elif r == "output":
+            outputs.append(n)
+        else:
+            other.append(n)
+    numeric = [p for p in params if p["kind"] == "number"]
+    search = {p["name"]: {"min": p["min"], "max": p["max"], "integer": p["integer"], "log": p["log"]} for p in numeric}
+    study_roles = {**{p["name"]: "shared" for p in numeric}, **{x["name"]: "scenario" for x in scenarios},
+                   **{n: "output" for n in outputs},
+                   **{n: "ignore" for n in other + [p["name"] for p in params if p["kind"] != "number"]}}
+    return {"rows": int(len(df)), "params": params, "scenarios": scenarios, "outputs": outputs, "other": other,
+            "shared": [{"name": p["name"]} for p in numeric], "search": {"params": search}, "roles": study_roles}
