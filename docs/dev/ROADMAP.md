@@ -928,6 +928,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
   - [x] C1 `start` (start grid per parameter + scenarios) for any study; `demo.*` still read; a one-table study is ranked on its own. Done 2026-11-14 (L2): test_study_start.py.
   - [x] C2 The tables by round (`GET /api/sweeps/study/tables`) and the set-up guessed from a table (`POST /api/sweeps/setup/from-table`). Done 2026-11-14 (L2): test_study_tables.py.
   - [x] C3 One vocabulary both ways and the Goal step ↔ the study table (`sweeps/studyRoles.ts`; what cannot be written is *this table only*). Done 2026-11-14 (L2): studyRoles.test.ts.
+  - [x] C4 One store (`useSweeps().common`, `useStudyPanel` a view on it) and one Undo order for the study file and its tables. Done 2026-11-14 (L2): oneUndo.test.ts; e2e study_common / study_loop / study_demo / sweeps_flow.
 - [ ] B1–B7 Plots (the plot card, legend with values, mode band, uPlot theme, timeline, Map / 3D chrome, Sweeps charts).
 - [ ] M1–M6 The map, offline first (cameras named by what they do; a background picker, Satellite + roads, keep an area offline, My maps: MBTiles / own tile server, the offline map's look).
 <!-- lane L4 -->

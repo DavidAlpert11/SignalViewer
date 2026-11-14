@@ -23,7 +23,7 @@ import { stepTitle } from "./StepNav";
 import { useLeftHidden } from "../../sweeps/narrow";
 import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
-import { recipeFiles, savedOf, useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
+import { recipeFiles, savedOf, useCanRedo, useCanUndo, useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
 import { emptyView, newGoal, materialize } from "../../sweeps/model";
 import { notify, notifyError, say } from "../../sweeps/notify";
 import { activeParams, colLabel, reorderedAxes, scaleOf, scopedColumns, scopeKey, showMask, shownAxes } from "../../sweeps/view";
@@ -115,9 +115,8 @@ registerArea("sweeps", {
     if (!(e.ctrlKey || e.metaKey)) return false;
     const k = e.key.toLowerCase();
     const undo = k === "z" && !e.shiftKey, redo = k === "y" || (k === "z" && e.shiftKey);
-    // Common parameters open: its study's own Undo / Redo (not the single-table study behind it)
-    if (useStudyPanel.getState().open) { if (undo) undoStudy(); else if (redo) redoStudy(); return undo || redo; }
-    if (!st.studies[st.active]) return false;
+    // one Undo for the area (C4): the newest step, in a table or in the study file
+    if (!st.studies[st.active] && !useStudyPanel.getState().open) return false;
     if (undo) { st.undo(); return true; }
     if (redo) { st.redo(); return true; }
     return false;
@@ -133,9 +132,8 @@ registerArea("sweeps", {
     ];
     if (!study) return open;
     return [
-      // with Common parameters open, Ctrl+Z / Ctrl+Y undo the study being edited there (its own history)
-      { id: "sw-undo", label: t("undo"), group: g, icon: "undo" as const, keys: "Ctrl Z", run: () => (useStudyPanel.getState().open ? undoStudy() : st.undo()) },
-      { id: "sw-redo", label: t("redo"), group: g, icon: "redo" as const, keys: "Ctrl Y", run: () => (useStudyPanel.getState().open ? redoStudy() : st.redo()) },
+      { id: "sw-undo", label: t("undo"), group: g, icon: "undo" as const, keys: "Ctrl Z", run: undoStudy },
+      { id: "sw-redo", label: t("redo"), group: g, icon: "redo" as const, keys: "Ctrl Y", run: redoStudy },
       ...open,
       { id: "sw-save-study", label: t("swSaveStudy"), group: g, icon: "save" as const, run: () => { saveStudy(t); } },
       { id: "sw-report", label: t("swReportMenu"), group: g, icon: "report" as const, run: () => useSweeps.setState({ reportOpen: true }) },
@@ -174,6 +172,7 @@ export default function SweepsScreen() {
 }
 
 function SweepsBar() {
+  const canUndo = useCanUndo(), canRedo = useCanRedo();
   const t = useT();
   const studies = useSweeps((s) => s.studies);
   const active = useSweeps((s) => s.active);
@@ -260,8 +259,8 @@ function SweepsBar() {
         </div>
       </nav>
       {study && <>
-        <button className="iconbtn" disabled={!study.history.past.length} onClick={() => useSweeps.getState().undo()} title={`${t("undo")} (Ctrl+Z)`} aria-label={t("undo")}><Icon.Undo /></button>
-        <button className="iconbtn" disabled={!study.history.future.length} onClick={() => useSweeps.getState().redo()} title={`${t("redo")} (Ctrl+Y)`} aria-label={t("redo")}><Icon.Redo /></button>
+        <button className="iconbtn" disabled={!canUndo} onClick={() => useSweeps.getState().undo()} title={`${t("undo")} (Ctrl+Z)`} aria-label={t("undo")}><Icon.Undo /></button>
+        <button className="iconbtn" disabled={!canRedo} onClick={() => useSweeps.getState().redo()} title={`${t("redo")} (Ctrl+Y)`} aria-label={t("redo")}><Icon.Redo /></button>
       </>}
       <button className="btn outline" onClick={openMenuAt}><Icon.Open /> {t("swOpen")} ▾</button>
       {study && <button className="btn outline" onClick={studyMenu}>{t("swStudy")} ▾</button>}

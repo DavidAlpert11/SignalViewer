@@ -6,7 +6,7 @@ import { useT } from "../../i18n";
 import { FAILS, FLAG_COLS, HOLDS, rampCss } from "../../sweeps/colors";
 import { hasFilter } from "../../sweeps/filters";
 import { fmtValue, makeScale } from "../../sweeps/scales";
-import { useSweeps, type Study } from "../../sweeps/state";
+import { useCanRedo, useCanUndo, useSweeps, type Study } from "../../sweeps/state";
 import { axisChoices, axisOptions, colLabel, modeColumns, presetChoices, scaleOf, scopeKey, shownAxes, type ColumnPreset } from "../../sweeps/view";
 import ColumnPicker from "./ColumnPicker";
 import type { TKey } from "../../i18n";
@@ -17,6 +17,7 @@ import { openMenu } from "../Overlays";
 
 export default function PlotToolbar({ study, shown, total, onKeep, onExclude, onExport, onExportPlot }:
   { study: Study; shown: number; total: number; onKeep: () => void; onExclude: () => void; onExport: () => void; onExportPlot: () => void }) {
+  const canUndo = useCanUndo(), canRedo = useCanRedo();
   const t = useT();
   const { setView } = useSweeps.getState();
   const v = study.view;
@@ -51,8 +52,8 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
         <button className="btn outline" onClick={() => useSweeps.getState().restore(true)}>{t("swRestore", { n: scoped })}</button>
       </>}
       {/* undo / redo beside them (also Ctrl+Z / Ctrl+Y and the bar above) */}
-      <button className="iconbtn sw-undo" aria-label={t("undo")} title={t("undo")} disabled={!study.history?.past.length} onClick={() => useSweeps.getState().undo()}>↶</button>
-      <button className="iconbtn sw-redo" aria-label={t("redo")} title={t("redo")} disabled={!study.history?.future.length} onClick={() => useSweeps.getState().redo()}>↷</button>
+      <button className="iconbtn sw-undo" aria-label={t("undo")} title={t("undo")} disabled={!canUndo} onClick={() => useSweeps.getState().undo()}>↶</button>
+      <button className="iconbtn sw-redo" aria-label={t("redo")} title={t("redo")} disabled={!canRedo} onClick={() => useSweeps.getState().redo()}>↷</button>
       <button className="btn outline" disabled={!shown} onClick={onExport} title={t("swExportShownHint")}>{t("swExportShown")}</button>
       <button className="btn outline" onClick={onExportPlot} title={t("swExportPlotHint")}>{t("swExportPlot")}</button>
       {/* S15: the axes taken off lately, one click each to bring back */}

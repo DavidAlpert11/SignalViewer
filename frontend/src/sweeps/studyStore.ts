@@ -1,36 +1,25 @@
-/* W14 / W15 / W17 / W18: the Common parameters panel's state - the study being edited (with its own Undo /
-   Redo, like a Sweeps study), its answer, the next runs, the launcher, the demo. The study is the file:
-   editing changes the panel's copy, Save writes the file; the panel asks the backend with the copy as it is
-   now (unsaved edits included), relative paths read against the saved file's folder. */
-import { create } from "zustand";
+/* W14 / W15 / W17 / W18: the study file's part of the Sweeps area - the study being edited (Set up, Together),
+   its answer, the next runs, the launcher, the loop, the demo. C4: it lives in the area's one store
+   (`useSweeps().common`, state.ts) and its edits are steps of the area's one Undo; `useStudyPanel` is a view
+   on it for the panels. The study is the file: editing changes the copy, Save writes the file; the backend
+   is asked with the copy as it is now (unsaved edits included), relative paths read against the saved file's
+   folder. */
+import { emptyCommon, registerSetupHistory, SETUP_KEY, useSweeps, type StudyPanelState } from "./state";
 import { studyApi } from "./studyApi";
-import type { CommonResult, DemoProgress, LoopProgress, LauncherStatusResult, LauncherSubmitResult, NextRunsResult, Study, StudyReq } from "./studyTypes";
+import type { DemoProgress, LauncherSubmitResult, NextRunsResult, Study, StudyReq } from "./studyTypes";
 
-export interface StudyPanelState {
-  open: boolean;
-  demo: boolean;
-  path: string;
-  study: Study | null;
-  saved: string;                      // the study as last saved / opened (JSON) - unsaved while different
-  past: Study[];
-  future: Study[];
-  result: CommonResult | null;
-  next: NextRunsResult | null;
-  submit: LauncherSubmitResult | null;
-  status: LauncherStatusResult | null;
-  demoProgress: DemoProgress | null;
-  loopProgress: LoopProgress | null;
-  pinned: number | null;              // the ranked row opened
-  busy: boolean;
-  error: string;
-}
+export type { StudyPanelState };
 
-const EMPTY: StudyPanelState = { open: false, demo: false, path: "", study: null, saved: "", past: [], future: [], result: null, next: null,
-  submit: null, status: null, demoProgress: null, loopProgress: null, pinned: null, busy: false, error: "" };
+const get = (): StudyPanelState => useSweeps.getState().common;
+const set = (p: Partial<StudyPanelState>) => useSweeps.setState((st) => ({ common: { ...st.common, ...p } }));
+const EMPTY = emptyCommon();
+const SETUP_DEPTH = 50;
 
-export const useStudyPanel = create<StudyPanelState>(() => ({ ...EMPTY }));
-const set = useStudyPanel.setState;
-const get = useStudyPanel.getState;
+/** The study file's state, read like a store of its own (a selector, `getState`, `setState`). */
+export const useStudyPanel = Object.assign(
+  <T = StudyPanelState>(sel?: (s: StudyPanelState) => T): T => useSweeps((st) => (sel ? sel(st.common) : (st.common as unknown as T))),
+  { getState: get, setState: set },
+);
 
 /** What the backend is asked with: the panel's copy, read against the saved file's folder. */
 export const reqOf = (s = get()): StudyReq => (s.study ? { study: s.study, study_path: s.path || undefined } : { study_path: s.path });
@@ -63,27 +52,36 @@ export function newStudy(): void {
   set({ ...EMPTY, open: true, study, saved: "" });
 }
 
-/** One edit of the study: recorded for Undo; the answer asked again. */
+/** One edit of the study: a step of the area's one Undo; the answer asked again. */
 export function editStudy(f: (s: Study) => Study): void {
   const s = get();
   if (!s.study) return;
   const next = f(structuredClone(s.study));
   if (JSON.stringify(next) === JSON.stringify(s.study)) return;
-  set({ study: next, past: [...s.past.slice(-49), s.study], future: [] });
+  const study = s.study;
+  useSweeps.setState((st) => ({ common: { ...st.common, study: next, past: [...st.common.past.slice(-(SETUP_DEPTH - 1)), study], future: [] },
+    undoOrder: [...st.undoOrder, SETUP_KEY], redoOrder: [] }));
   void evaluate();
 }
-export function undoStudy(): void {
+/** The study file's own step back / again - the area's Undo / Redo call them in their order (state.ts). */
+function undoSetup(): boolean {
   const s = get();
-  if (!s.past.length || !s.study) return;
+  if (!s.past.length || !s.study) return false;
   set({ study: s.past[s.past.length - 1], past: s.past.slice(0, -1), future: [s.study, ...s.future] });
   void evaluate();
+  return true;
 }
-export function redoStudy(): void {
+function redoSetup(): boolean {
   const s = get();
-  if (!s.future.length || !s.study) return;
+  if (!s.future.length || !s.study) return false;
   set({ study: s.future[0], future: s.future.slice(1), past: [...s.past, s.study] });
   void evaluate();
+  return true;
 }
+registerSetupHistory({ undo: undoSetup, redo: redoSetup });
+/** The area's one Undo / Redo (kept by these names for the panels and the palette). */
+export const undoStudy = (): void => useSweeps.getState().undo();
+export const redoStudy = (): void => useSweeps.getState().redo();
 
 export async function saveStudyAs(path: string): Promise<string> {
   const s = get();

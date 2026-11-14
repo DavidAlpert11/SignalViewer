@@ -12,6 +12,39 @@ import { sweepApi, type MergeSpec, type Role, type Scale, type SweepColumn, type
 import { decodeCol } from "./decode";
 import { emptyQuestion, emptyView, materialize, newGoal, upgradeQuestion, type Answer, type Condition, type Derived, type Filter, type GoalVariant, type Iteration, type LogEntry, type LogKind, type Question, type Tolerance, type View } from "./model";
 import { changes, entry, withEntry, withIteration } from "./journal";
+import type { CommonResult, DemoProgress, LauncherStatusResult, LauncherSubmitResult, LoopProgress, NextRunsResult, Study as StudyFile } from "./studyTypes";
+
+/** The study file's part of the area (C4: one store) - Set up / Together / the loop / the demo, edited as the
+ *  `.svstudy.json` it is saved to (studyStore.ts holds its actions). Its edits share the area's one Undo. */
+export interface StudyPanelState {
+  open: boolean;
+  demo: boolean;
+  path: string;
+  study: StudyFile | null;
+  saved: string;                      // the study as last saved / opened (JSON) - unsaved while different
+  past: StudyFile[];
+  future: StudyFile[];
+  result: CommonResult | null;
+  next: NextRunsResult | null;
+  submit: LauncherSubmitResult | null;
+  status: LauncherStatusResult | null;
+  demoProgress: DemoProgress | null;
+  loopProgress: LoopProgress | null;
+  pinned: number | null;              // the ranked row opened
+  busy: boolean;
+  error: string;
+}
+export const emptyCommon = (): StudyPanelState => ({ open: false, demo: false, path: "", study: null, saved: "", past: [], future: [], result: null,
+  next: null, submit: null, status: null, demoProgress: null, loopProgress: null, pinned: null, busy: false, error: "" });
+
+/** One Undo for the whole area (C4): which part each step was made in, oldest first - `"setup"` (the study
+ *  file) or `"t:" + tableId` (a table's question, roles, view). Undo takes the newest and undoes it there. */
+export const SETUP_KEY = "setup";
+const tableKey = (s: { tableId: string }) => "t:" + s.tableId;
+const ORDER_DEPTH = 200;
+/** The study file's own steps (studyStore.ts registers them: they ask the backend again). */
+const setupHistory = { undo: (): boolean => false, redo: (): boolean => false };
+export function registerSetupHistory(h: typeof setupHistory): void { Object.assign(setupHistory, h); }
 
 export interface StudyColumn extends SweepColumn {
   guessRole: Role;
@@ -151,6 +184,11 @@ export interface SavedStudy {
 
 interface SweepsState {
   studies: Study[];
+  /** the study file's part (Set up, Together, the loop) - C4 */
+  common: StudyPanelState;
+  /** the one Undo's order of steps, and Redo's (see SETUP_KEY) */
+  undoOrder: string[];
+  redoOrder: string[];
   active: number;
   busy: boolean;
   error: string;
@@ -220,7 +258,7 @@ interface SweepsState {
   /** a template from a file (exported here or by a colleague); its name as kept */
   importTemplate: (path: string) => Promise<string>;
   close: (i: number) => void;
-  // undo / redo of the active study
+  // undo / redo: the newest step of the area, wherever it was made (a table's or the study file's)
   undo: () => void;
   redo: () => void;
   // columns
@@ -367,21 +405,49 @@ export const useSweeps = create<SweepsState>((set, get) => {
    *  (consecutive changes of the same kind within UNDO_MERGE_MS are one) and goes into the journal
    *  (`as`: the action's own line instead of what changed); `track: false` is for what the app does
    *  by itself (answers, summaries, a re-read file). */
-  const patch = (f: (s: Study) => Study, track = true, as?: LogEntry) => set((st) => ({ studies: st.studies.map((s, i) => {
-    if (i !== st.active) return s;
-    let n = f(s);
-    if (!track || n === s) return n;
-    const kind = changedKind(s, n);
-    if (!kind) return n;
-    // the journal: this action as one line (`as`), or what changed
-    n = { ...n, log: (as ? [as] : changes(s, n)).reduce(withEntry, n.log) };
-    const h = s.history, now = Date.now();
-    // one step: the same kind of change again soon, or a second change made by the same action
-    const same = h.past.length > 0 && ((kind === h.kind && now - h.at < UNDO_MERGE_MS) || now - h.at < UNDO_SAME_ACTION_MS);
-    const past = same ? h.past : [...h.past, snapOf(s)].slice(-UNDO_DEPTH);
-    return { ...n, history: { past, future: [], kind, at: now } };
-  }) }));
+  const patch = (f: (s: Study) => Study, track = true, as?: LogEntry) => set((st) => {
+    let step: "" | "new" | "merged" = "";
+    const studies = st.studies.map((s, i) => {
+      if (i !== st.active) return s;
+      let n = f(s);
+      if (!track || n === s) return n;
+      const kind = changedKind(s, n);
+      if (!kind) return n;
+      // the journal: this action as one line (`as`), or what changed
+      n = { ...n, log: (as ? [as] : changes(s, n)).reduce(withEntry, n.log) };
+      const h = s.history, now = Date.now();
+      // one step: the same kind of change again soon, or a second change made by the same action
+      // - and only when no step was made elsewhere in between (the one Undo's order)
+      const same = h.past.length > 0 && st.undoOrder[st.undoOrder.length - 1] === tableKey(s)
+        && ((kind === h.kind && now - h.at < UNDO_MERGE_MS) || now - h.at < UNDO_SAME_ACTION_MS);
+      step = same ? "merged" : "new";
+      const past = same ? h.past : [...h.past, snapOf(s)].slice(-UNDO_DEPTH);
+      return { ...n, history: { past, future: [], kind, at: now } };
+    });
+    if (!step) return { studies };
+    const key = tableKey(studies[st.active]);
+    return { studies, redoOrder: [], undoOrder: step === "new" ? [...st.undoOrder, key].slice(-ORDER_DEPTH) : st.undoOrder };
+  });
   const forget = (x: Study): Study => ({ ...x, history: emptyHistory() });
+  /** the active table's own step back / again (the one Undo's order picks the table) */
+  const undoTable = () => {
+    const s = get().studies[get().active];
+    const snap = s?.history.past[s.history.past.length - 1];
+    if (!snap) return;
+    patch((x) => { const n = applySnap(x, snap); remember(n);
+      return { ...n, history: { past: x.history.past.slice(0, -1), future: [...x.history.future, snapOf(x)], kind: "", at: 0 } }; }, false);
+    refreshSummary();
+    get().evaluate();
+  };
+  const redoTable = () => {
+    const s = get().studies[get().active];
+    const snap = s?.history.future[s.history.future.length - 1];
+    if (!snap) return;
+    patch((x) => { const n = applySnap(x, snap); remember(n);
+      return { ...n, history: { past: [...x.history.past, snapOf(x)], future: x.history.future.slice(0, -1), kind: "", at: 0 } }; }, false);
+    refreshSummary();
+    get().evaluate();
+  };
   const ask = () => { window.clearTimeout(timer); askPending = true; timer = window.setTimeout(() => { askPending = false; get().evaluate(); }, 200); };
   const patchQ = (f: (q: Question) => Question) => { patch((s) => ({ ...s, question: f(s.question) })); ask(); };
   /** change the active goal; the question's goal, conditions and objectives follow it */
@@ -447,6 +513,9 @@ export const useSweeps = create<SweepsState>((set, get) => {
   };
   return {
     studies: [],
+    common: emptyCommon(),
+    undoOrder: [],
+    redoOrder: [],
     active: 0,
     busy: false,
     error: "",
@@ -713,22 +782,37 @@ export const useSweeps = create<SweepsState>((set, get) => {
     deleteTemplate: async (name) => { set({ templates: (await sweepApi.deleteTemplate(name)).templates }); },
 
     undo: () => {
-      const s = get().studies[get().active];
-      const snap = s?.history.past[s.history.past.length - 1];
-      if (!snap) return;
-      patch((x) => { const n = applySnap(x, snap); remember(n);
-        return { ...n, history: { past: x.history.past.slice(0, -1), future: [...x.history.future, snapOf(x)], kind: "", at: 0 } }; }, false);
-      refreshSummary();
-      get().evaluate();
+      // the newest step: the study file's, or a table's (that table shown first); steps of tables closed since are skipped
+      const order = [...get().undoOrder];
+      for (let key = order.pop(); key !== undefined; key = order.pop()) {
+        if (key === SETUP_KEY) {
+          if (!setupHistory.undo()) continue;
+        } else {
+          const i = get().studies.findIndex((x) => tableKey(x) === key && x.history.past.length > 0);
+          if (i < 0) continue;
+          if (i !== get().active) set({ active: i });
+          undoTable();
+        }
+        set((st) => ({ undoOrder: order, redoOrder: [...st.redoOrder, key!].slice(-ORDER_DEPTH) }));
+        return;
+      }
+      set({ undoOrder: [] });
     },
     redo: () => {
-      const s = get().studies[get().active];
-      const snap = s?.history.future[s.history.future.length - 1];
-      if (!snap) return;
-      patch((x) => { const n = applySnap(x, snap); remember(n);
-        return { ...n, history: { past: [...x.history.past, snapOf(x)], future: x.history.future.slice(0, -1), kind: "", at: 0 } }; }, false);
-      refreshSummary();
-      get().evaluate();
+      const order = [...get().redoOrder];
+      for (let key = order.pop(); key !== undefined; key = order.pop()) {
+        if (key === SETUP_KEY) {
+          if (!setupHistory.redo()) continue;
+        } else {
+          const i = get().studies.findIndex((x) => tableKey(x) === key && x.history.future.length > 0);
+          if (i < 0) continue;
+          if (i !== get().active) set({ active: i });
+          redoTable();
+        }
+        set((st) => ({ redoOrder: order, undoOrder: [...st.undoOrder, key!].slice(-ORDER_DEPTH) }));
+        return;
+      }
+      set({ redoOrder: [] });
     },
 
     close: (i) => {
@@ -949,6 +1033,10 @@ useSweeps.subscribe((st, prev) => {
   saved: () => !savePending,
   doc: () => useSweeps.getState().saved(),          // the active study as a .svsweep document (the examples are made from it)
 };
+
+/** Whether the area's one Undo / Redo has a step (C4), for the buttons. */
+export const useCanUndo = () => useSweeps((s) => s.undoOrder.length > 0);
+export const useCanRedo = () => useSweeps((s) => s.redoOrder.length > 0);
 
 /** The active study (or undefined), for components. */
 export const useStudy = () => useSweeps((s) => s.studies[s.active]);
