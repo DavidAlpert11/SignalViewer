@@ -108,6 +108,42 @@ def open_study(req: StudyReq):
     return {"path": s.path, "study": studies.to_dict(s)}
 
 
+@router.get("/api/sweeps/study/tables")
+def study_tables(study_path: str, since: Optional[float] = None):
+    """C2: each table's files grouped by round (rows counted once per file version), and the history's rounds -
+    the navigator's Tables, polled with the loop's progress. A demo study is listed from its work folder."""
+    s = study_of(StudyReq(study_path=study_path))
+    if s.demo is not None:
+        from svcore import demo
+        work = os.path.join(demo.workdir(s.path), os.path.basename(s.path))
+        if os.path.isfile(work) and os.path.abspath(work) != os.path.abspath(s.path):
+            s = study_of(StudyReq(study_path=work))
+    return {**sweeps_common.tables_by_round(s, since), "demo_work": s.path if s.demo is not None else None}
+
+
+class FromTableReq(BaseModel):
+    id: Optional[str] = None               # an open table of the Sweeps area (/api/sweep/open)
+    path: Optional[str] = None             # or a file
+    roles: Optional[Dict[str, str]] = None  # the area's roles as set on the table (param / hold / output / ...)
+
+
+@router.post("/api/sweeps/setup/from-table")
+def setup_from_table(req: FromTableReq):
+    """C2: *I have results* - the study's set-up guessed from a table: parameters (range, values seen),
+    scenarios, outputs, and the study's `shared` / `search` / roles for it."""
+    if req.id:
+        from app.routes.sweep import _get
+        df = _get(req.id)["df"]
+    elif req.path:
+        try:
+            df = sweeps_common.read_table_files([os.path.abspath(os.path.expanduser(req.path))])
+        except sweeps_common.StudyError as e:
+            fail(400, str(e))
+    else:
+        fail(400, "No table: send the open table's id or a file's path.")
+    return sweeps_common.setup_from_table(df, req.roles)
+
+
 class RunsReq(StudyReq):
     table: str
     rows: List[int]
