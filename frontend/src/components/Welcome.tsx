@@ -75,7 +75,7 @@ export default function Welcome() {
   const forget = async (path: string) => useApp.setState({ recent: (await api.forgetRecent(path)).items });
   const list = (title: string, xs: typeof items, icon: React.ReactNode) => xs.length > 0 && (
     <div className="recent-col">
-      <h3>{title}</h3>
+      <h3 className="eyebrow">{title}</h3>
       {xs.map((x) => (
         <div key={x.path} className={`recent-row${x.exists ? "" : " gone"}`}>
           <button className="recent-open" disabled={!x.exists} onClick={() => openRecent(x)} title={x.path}>
@@ -101,31 +101,32 @@ export default function Welcome() {
         <h1>{t("dropTitle")}</h1>
         <p className="tagline">{t("welcomeTagline")}</p>
         <p>{t("dropHint")}</p>
-        <button className="btn primary" style={{ height: 36, paddingInline: 16 }} onClick={() => useApp.setState({ browserOpen: true })}>
+        <button className="btn primary lg" onClick={() => useApp.setState({ browserOpen: true })}>
           <Icon.Folder /> {t("openFiles")}
         </button>
-        {examples.length > 0 && (
-          <>
-            {/* cards, not a line of links: the line did not wrap and its last example (the
-                Investigate one) ran off the screen below 1920 px */}
-            <h2 className="examples-title">{t("startFromExample")}</h2>
-            {/* review (owner, 2026-11-13: a clear demo for everything): grouped by the area each one shows */}
-            {EXAMPLE_GROUPS.map((g) => {
-              const xs = examples.filter((ex) => ex.id in EXAMPLE_LABEL && (ex.open === "sweep" || ex.open === "study" ? "sweeps" : ex.open === "fleet" ? "fleet" : "recordings") === g.area);
-              return xs.length > 0 && (
-                <section key={g.area} className="examples-group" aria-label={t(g.label)}>
-                  <h3 className="examples-group-title">{t(g.label)}<span className="hint"> · {t(g.hint)}</span></h3>
-                  <div className="examples-line">{xs.map((ex) => <ExampleCard key={ex.id} ex={ex} />)}</div>
-                </section>
-              );
-            })}
-          </>
-        )}
+        {/* D11: where you left off comes before the examples - a returning user's first need */}
         {(files.length > 0 || sessions.length > 0) && (
           <div className="recent">
             {list(t("recentFiles"), files, <Icon.File />)}
             {list(t("recentSessions"), sessions, <Icon.Open />)}
           </div>
+        )}
+        {examples.length > 0 && (
+          <>
+            {/* cards, not a line of links: the line did not wrap and its last example (the
+                Investigate one) ran off the screen below 1920 px */}
+            <h2 className="examples-title eyebrow">{t("startFromExample")}</h2>
+            {/* review (owner, 2026-11-13: a clear demo for everything): grouped by the area each one shows */}
+            {EXAMPLE_GROUPS.map((g) => {
+              const xs = examples.filter((ex) => ex.id in EXAMPLE_LABEL && (ex.open === "sweep" || ex.open === "study" ? "sweeps" : ex.open === "fleet" ? "fleet" : "recordings") === g.area);
+              return xs.length > 0 && (
+                <section key={g.area} className="examples-group" aria-label={t(g.label)}>
+                  <h3 className="examples-group-title"><span className="eyebrow">{t(g.label)}</span><span className="hint">{t(g.hint)}</span></h3>
+                  <div className="examples-line">{xs.map((ex) => <ExampleCard key={ex.id} ex={ex} />)}</div>
+                </section>
+              );
+            })}
+          </>
         )}
       </div>
     </div>

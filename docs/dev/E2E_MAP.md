@@ -7,6 +7,7 @@
 - A2 ran `test_plot_polish.py`, `test_first_minute.py` (no change) (L1)
 - A3 ran `test_calm_screen.py`, `test_welcome_cards.py`, `test_plot_menus.py` (no change) (L1)
 - A4 ran `test_findings_report.py`, `test_live_report.py` (no change) (L1)
+- D11 ran `test_welcome_cards.py`, `test_fresh_user.py`, `test_first_minute.py`, `test_calm_screen.py`, `test_features.py -k "welcome or recent or session …"` (no change) (L1)
 
 <!-- 1114 lane L2 -->
 

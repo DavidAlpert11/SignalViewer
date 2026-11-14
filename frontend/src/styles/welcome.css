@@ -1,4 +1,28 @@
-/* Lane L1 of the 2026-11-13 round: its own rules (W0). Tokens from index.css only. */
+/* The welcome screen (D11, plan 2026-11-14): one call to action, then where you left off, then a demo per
+   area as cards. All its rules are here (moved out of index.css); the components come from index.css. */
+.welcome { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--sp-6); overflow: auto; }
+.welcome-card { width: min(720px, 100%); max-width: 760px; text-align: center; }
+.welcome-card > p { max-width: 480px; margin-inline: auto; }
+.welcome-card svg.trace { width: 220px; height: 64px; margin-bottom: 18px; }
+.welcome-card h1 { margin: 0 0 8px; font-size: var(--fs-4xl); font-weight: 600; color: var(--ink-strong); letter-spacing: -.01em; }
+.welcome-card p { margin: 0 0 20px; color: var(--muted); font-size: var(--fs-l); }
+.welcome-card .tagline { color: var(--ink); font-size: var(--fs-xl); margin-bottom: 6px; }
+/* section titles are eyebrows (.eyebrow in index.css): small, quiet, the same over every group */
+.welcome-card .examples-title { margin: 28px 0 0; }
+.welcome-section-title { display: block; margin: 0 0 var(--sp-2); text-align: start; }
+
+/* D11: where you left off - before the examples (a returning user's first need), each list a card */
+.recent { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--sp-3); margin-top: var(--sp-6); text-align: start; }
+.recent-col { min-width: 0; padding: var(--sp-2); border: 1px solid var(--line); border-radius: var(--r-card); background: var(--panel); }
+.recent-col h3 { margin: var(--sp-1) var(--sp-2) var(--sp-1_5); }
+.recent-row { display: flex; align-items: center; gap: var(--sp-1); }
+.recent-open { flex: 1; min-width: 0; display: grid; grid-template-columns: 18px 1fr; column-gap: var(--sp-2); align-items: center; padding: 6px 8px; border: 0; background: none; border-radius: var(--r-m); cursor: pointer; color: var(--ink); text-align: start; }
+.recent-open:hover:not(:disabled) { background: var(--panel-2); }
+.recent-open svg { width: 15px; height: 15px; color: var(--muted); grid-row: span 2; }
+.recent-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
+.recent-folder { font-family: var(--mono); font-size: var(--fs-2xs); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; text-align: start; }
+.recent-row.gone .recent-name { text-decoration: line-through; color: var(--muted); }
+[dir="rtl"] .recent-folder { text-align: right; }   /* a path stays LTR but sits under its name */
 
 /* W1: the welcome screen's example cards - a picture on top (16:9, the card's width), title and line under
    it; a card without its picture keeps the icon layout. 3 columns from ~1400 px, 2 below, 1 on a narrow window. */
@@ -7,15 +31,15 @@
 .welcome-card .examples-line { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); text-align: start; }
 @media (max-width: 1400px) { .welcome-card .examples-line { grid-template-columns: repeat(2, minmax(0, 1fr)); } .welcome-card.with-examples { width: min(760px, 100%); } }
 @media (max-width: 760px) { .welcome-card .examples-line { grid-template-columns: minmax(0, 1fr); } }
-.ex-card { display: flex; align-items: flex-start; gap: var(--sp-2_5); padding: 12px; border: 1px solid var(--line); border-radius: var(--r-l);
-  background: var(--raised); color: var(--ink); font: inherit; text-align: start; cursor: pointer;
+.ex-card { display: flex; align-items: flex-start; gap: var(--sp-2_5); padding: 12px; border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--panel); color: var(--ink); font: inherit; text-align: start; cursor: pointer;
   transition: border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
 .ex-card:hover, .ex-card:focus-visible { border-color: var(--select); box-shadow: var(--shadow-md); }
-.ex-card > svg { flex: none; margin-top: 1px; color: var(--amber); }
+.ex-card > svg { flex: none; margin-top: 1px; color: var(--muted); }   /* amber is the cursor only (A1) */
 .ex-card.pic { flex-direction: column; gap: 0; padding: 0; overflow: hidden; }
 .ex-card.pic .ex-text { padding: 10px 12px 12px; }
 .ex-pic { display: block; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: var(--panel-2);
-  border-bottom: 1px solid var(--line); border-radius: var(--r-l) var(--r-l) 0 0; }
+  border-bottom: 1px solid var(--line); border-radius: var(--r-card) var(--r-card) 0 0; }
 .ex-pic img { display: block; width: 100%; height: 100%; object-fit: cover; transform: translateY(0);
   transition: transform var(--motion-base) var(--ease-out); }
 .ex-card:hover .ex-pic img, .ex-card:focus-visible .ex-pic img { transform: translateY(-2px) scale(1.02); }
@@ -27,8 +51,9 @@
 
 /* review: the examples grouped by area */
 .welcome-card .examples-group { margin-top: var(--sp-4); text-align: start; }
-.welcome-card .examples-group-title { margin: 0 0 var(--sp-2); font-size: var(--fs-s); font-weight: 600; color: var(--ink-strong); }
-.welcome-card .examples-group-title .hint { font-weight: 400; }
+.welcome-card .examples-group-title { margin: 0 0 var(--sp-2); display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; }
+.welcome-card .examples-group-title .eyebrow { color: var(--ink-strong); }
+.welcome-card .examples-group-title .hint { font-size: var(--fs-s); color: var(--muted); font-weight: 400; }
 /* Lane L2 of the 2026-11-13 round: its own rules (W0). Tokens from index.css only. */
 
 /* W3: the empty plot's suggestions - its sentence, the chips that fit, the library; clickable (the plain
@@ -40,9 +65,7 @@
 /* W4: the start card's next step */
 .start-next { margin: 0 0 var(--sp-2); color: var(--ink); font-size: var(--fs-sm); }
 
-/* W13.5: empty states - one sentence and one action, never a dead end */
-.empty-state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); padding: 12px 14px; color: var(--muted); }
-.empty-state p { margin: 0; }
+/* W13.5: empty states - one sentence and one action (.empty-state in index.css, A4) */
 .health .empty-state { padding-inline: 0; }
 
 /* W6: the status bar's sentence keeps its numbers in the tooltip */

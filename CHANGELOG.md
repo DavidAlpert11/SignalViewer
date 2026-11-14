@@ -8,6 +8,7 @@
 - Numbers – cursor values, clocks, ticks, number columns – are drawn in IBM Plex Mono (bundled, works offline), so digits line up and read like an instrument.
 - Buttons, switches, chips, menus and messages look the same everywhere (one definition each); menus and messages float on a softer shadow.
 - The health check's findings are cards tinted by their verdict (green / amber-yellow / red edge), the first of the new card look.
+- The welcome screen shows your recent files and sessions first (as two cards), then the examples by area.
 - The second trace colour is now bluish green (orange moved further down the list), so a trace never looks like the cursor.
 <!-- lane L2 -->
 - **Sweeps: a study can start from nothing.** A study file may say its first round (`start`: how many values of each parameter's range, and each table's scenarios); the loop runs that grid first, then aims each next round. A study with one system (one table) is now ranked on its own - it used to ask for two tables.

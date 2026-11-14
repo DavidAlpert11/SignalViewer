@@ -243,6 +243,7 @@ button, input, select { font: inherit; color: inherit; }
 .btn.cursor-btn[aria-pressed="true"] { background: var(--amber-soft); color: var(--amber); box-shadow: none; }
 .iconbtn svg, .btn svg { width: 16px; height: 16px; flex: none; }
 .btn.sm { height: 24px; font-size: var(--fs-sm); padding-inline: 8px; }
+.btn.lg { height: 36px; padding-inline: 16px; }   /* the one call to action of a screen (the welcome's Open files) */
 .iconbtn.sm { height: 22px; min-width: 22px; padding: 0; }
 .iconbtn.sm svg { width: 13px; height: 13px; }
 .btn-split { display: inline-flex; }
@@ -618,15 +619,6 @@ button.run-ftime.newer { font: inherit; font-size: var(--fs-xs); color: var(--am
 button.run-ftime.newer:hover { background: var(--amber); color: var(--amber-ink); }
 
 /* ------------------------------ empty state ------------------------------ */
-.welcome { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; }
-.welcome-card { width: min(720px, 100%); text-align: center; }
-.welcome-card > p { max-width: 480px; margin-inline: auto; }
-.welcome-card .tagline { color: var(--ink); font-size: var(--fs-xl); margin-bottom: 6px; }
-.welcome-card .examples-title { margin: 28px 0 10px; font-size: var(--fs-m); font-weight: 600; color: var(--muted); }
-/* the example cards: styles/welcome.css (W1) */
-.welcome-card svg.trace { width: 220px; height: 64px; margin-bottom: 18px; }
-.welcome-card h1 { margin: 0 0 8px; font-size: var(--fs-4xl); font-weight: 600; color: var(--ink-strong); letter-spacing: -.01em; }
-.welcome-card p { margin: 0 0 20px; color: var(--muted); font-size: var(--fs-l); }
 .drop-overlay { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; background: rgba(5, 10, 18, .55); pointer-events: none; }
 .drop-overlay div { padding: 22px 36px; border: 2px dashed var(--select); border-radius: var(--r-xl); color: var(--ink-strong); font-size: var(--fs-3xl); font-weight: 600; background: var(--raised); }
 
@@ -853,18 +845,6 @@ table.cmp-sub tr.base td { color: var(--muted); }
 .tpl-main { flex: 1; min-width: 0; }
 .tpl-name { font-weight: 600; color: var(--ink-strong); }
 .tpl-meta { color: var(--muted); font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
-.welcome-card { max-width: 760px; }
-.recent { display: flex; gap: 28px; justify-content: center; margin-top: 28px; text-align: start; flex-wrap: wrap; }
-.recent-col { min-width: 260px; max-width: 360px; flex: 1; }
-.recent-col h3 { margin: 0 0 6px; font-size: var(--fs-m); font-weight: 600; color: var(--muted); }
-.recent-row { display: flex; align-items: center; gap: var(--sp-1); }
-.recent-open { flex: 1; min-width: 0; display: grid; grid-template-columns: 18px 1fr; column-gap: var(--sp-2); align-items: center; padding: 6px 8px; border: 0; background: none; border-radius: var(--r-m); cursor: pointer; color: var(--ink); text-align: start; }
-.recent-open:hover:not(:disabled) { background: var(--panel-2); }
-.recent-open svg { width: 15px; height: 15px; color: var(--muted); grid-row: span 2; }
-.recent-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
-.recent-folder { font-size: var(--fs-s); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; text-align: start; }
-.recent-row.gone .recent-name { text-decoration: line-through; color: var(--muted); }
-.welcome { overflow: auto; }
 /* ---- compare: similarity list ---- */
 .cmp-panel .acheck .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
 .run-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; border: 1px solid var(--line-strong); display: inline-block; margin-inline-end: 4px; }
