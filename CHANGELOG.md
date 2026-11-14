@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.28.0 – unreleased
+
+<!-- Redesign round 2026-11-14: each lane writes only inside its block (docs/dev/PLAN_2026-11-14.md §7.0); the Final lane merges them into sections. -->
+<!-- lane L1 -->
+<!-- lane L2 -->
+<!-- lane L3 -->
+<!-- lane L4 -->
+<!-- lane L5 -->
+<!-- end of lanes -->
+
 ## 1.27.0 – 2026-11-13
 
 Highlights: **a demo for every part of the app** on the welcome screen, grouped by area; **one set of parameters for many systems** – the gains that hold for all of them, the next runs, and **the loop** that runs your program or your farm until it converges (the smart-sweep demo shows it against the whole grid); **Sweeps fast on a million runs**; **every report opens with the process in brief**; and a cleaner, calmer screen.

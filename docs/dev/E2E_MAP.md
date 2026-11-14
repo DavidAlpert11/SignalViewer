@@ -1,4 +1,20 @@
-# E2E map – round of 2026-11-13
+# E2E map
+
+## Round of 2026-11-14 (the redesign; plan §7.0 – one block per lane, add lines only inside yours)
+
+<!-- 1114 lane L1 -->
+
+<!-- 1114 lane L2 -->
+
+<!-- 1114 lane L3 -->
+
+<!-- 1114 lane L4 -->
+
+<!-- 1114 lane L5 -->
+
+<!-- 1114 lane Final -->
+
+## Round of 2026-11-13
 
 Which e2e files each task wrote or whose selectors it changed, so FINAL runs exactly those (never the whole
 suite during a lane). One line per file: `<file> – <task> (<lane>)[ – selector change by Lx]`. Add lines only,
