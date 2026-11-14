@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock-up · Sweeps, a new study</title>
+<link rel="stylesheet" href="mock.css">
+<script src="mock.js"></script>
+<style>
+  .body { grid-template-columns: 260px 1fr 300px; }
+  .nav { background: var(--panel); border-inline-end: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .nav .sec { display: flex; align-items: center; gap: 6px; padding: 12px 16px 4px; }
+  .nav .item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; margin: 0 8px; border-radius: var(--r-m); white-space: nowrap; }
+  .nav .item.sel { background: var(--amber-soft); color: var(--ink-strong); box-shadow: inset 2px 0 0 var(--amber); }
+  [dir="rtl"] .nav .item.sel { box-shadow: inset -2px 0 0 var(--amber); }
+  .nav .item .st { margin-inline-start: auto; font-size: var(--fs-xs); }
+  .nav .item.dim { color: var(--muted); }
+  .center { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; padding: 18px 22px; gap: 14px; }
+  .ways { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .way { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--panel); padding: 14px; display: grid; gap: 6px; }
+  .way.on { border-color: var(--amber); box-shadow: 0 0 0 1px color-mix(in srgb, var(--amber) 35%, transparent); }
+  .way h3 { margin: 0; font-size: var(--fs-l); color: var(--ink-strong); }
+  .way p { margin: 0; color: var(--muted); font-size: var(--fs-s); }
+  .form { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--panel); }
+  .form h4 { margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: center; color: var(--ink-strong); font-size: var(--fs-base); }
+  .form .table td input { width: 100%; height: 26px; border: 1px solid var(--line); border-radius: var(--r-s); background: var(--bg); color: var(--ink); padding: 0 6px; font-family: var(--mono); }
+  .right { background: var(--panel); border-inline-start: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .box { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--panel-2); padding: 10px; }
+  .box h3 { margin: 0 0 6px; font-size: var(--fs-base); color: var(--ink-strong); display: flex; align-items: center; gap: 6px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: var(--fs-s); }
+  .kv span:nth-child(odd) { color: var(--muted); }
+  .kv span:nth-child(even) { font-family: var(--mono); color: var(--ink-strong); text-align: end; }
+  code { font-family: var(--mono); font-size: var(--fs-xs); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 6px 8px; display: block; color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <span class="brand"><i></i>Signal Viewer</span>
+    <div class="seg"><button data-he="הקלטות">Recordings</button><button class="on" data-he="סריקות">Sweeps</button><button data-he="צי">Fleet</button></div>
+    <span class="pill"><b style="color:var(--ink-strong)" data-he="מחקר חדש">New study</b><span class="tag" style="font:var(--eyebrow);color:var(--muted)" data-he="לא נשמר">unsaved</span></span>
+    <button class="btn ghost sm" data-he="פתח ▾">Open ▾</button>
+    <span class="spacer"></span>
+    <span class="pill search"><span data-he="חפש פקודה, עמודה, טבלה…">Search a command, column, table…</span><kbd>Ctrl K</kbd></span>
+    <button class="icon">↶</button><button class="icon">↷</button><button class="btn" data-he="שמור…">Save…</button>
+  </header>
+  <div class="body">
+    <aside class="nav">
+      <div class="side-head"><div><div class="eyebrow" data-he="המחקר">The study</div><h2 data-he="כוונון גלגול">Roll tuning</h2></div></div>
+      <div class="sec"><span class="eyebrow" data-he="הגדרה">Set up</span></div>
+      <div class="item sel"><span>1</span><span data-he="מה משתנה">What varies</span><span class="st" style="color:var(--ok)">✓</span></div>
+      <div class="item"><span>2</span><span data-he="תרחישים">Scenarios</span><span class="st" style="color:var(--ok)">✓</span></div>
+      <div class="item"><span>3</span><span data-he="תוצאות ומטרה">Outputs and goal</span><span class="st" style="color:var(--warn)">●</span></div>
+      <div class="item"><span>4</span><span data-he="איך מריצים">How to run</span><span class="st" style="color:var(--muted)">○</span></div>
+      <div class="sec"><span class="eyebrow" data-he="טבלאות">Tables</span></div>
+      <div class="item dim" data-he="עוד אין ריצות - סבב 1 ייצור את הראשונה">No runs yet - round 1 makes the first</div>
+      <div class="item dim">+ <span data-he="טען טבלת תוצאות…">Load a results table…</span></div>
+      <div class="sec"><span class="eyebrow" data-he="ביחד">Together</span></div>
+      <div class="item dim" data-he="מופיע עם מערכת שנייה">Appears with a second system</div>
+      <div style="margin-top:auto;padding:10px;border-top:1px solid var(--line);font-size:var(--fs-xs);color:var(--muted)" data-he="שמור כדי להריץ: הסבבים נכתבים ליד הקובץ">Save to run: the rounds are written next to the file</div>
+    </aside>
+
+    <main class="center">
+      <div class="ways">
+        <div class="way"><span class="eyebrow" data-he="יש לי תוצאות">I have results</span><h3 data-he="טען טבלה, תיקייה או מחקר שמור">Load a table, a folder or a saved study</h3>
+          <p data-he="התפקידים מנוחשים מהעמודות, ההגדרה מתמלאת מהן - ממשיכים לתוצאות ולריצות הבאות.">The roles are guessed from the columns and fill the set-up - continue to the results and the next runs.</p>
+          <div style="display:flex;gap:6px"><button class="btn sm" data-he="טבלה…">Table…</button><button class="btn sm" data-he="תיקייה…">Folder…</button><button class="btn sm" data-he="מחקר שמור…">Saved study…</button></div></div>
+        <div class="way on"><span class="eyebrow" style="color:var(--amber)" data-he="מתחילים מאפס">Start from nothing</span><h3 data-he="הגדר מה להריץ, והתוכנה מריצה">Say what to run, the app runs it</h3>
+          <p data-he="פרמטרים וטווחים, תרחישים, מה התוכנית כותבת, והפקודה. סבב 1 הוא רשת התחלה; כל סבב אחריו מכוון לפי התוצאות.">Parameters and ranges, scenarios, what your program writes, the command. Round 1 is a start grid; each round after it is aimed by the results.</p></div>
+      </div>
+
+      <section class="form">
+        <h4>1 <span data-he="מה משתנה - הפרמטרים">What varies - the parameters</span><span class="spacer"></span><span class="chip">3</span></h4>
+        <table class="table">
+          <thead><tr><th data-he="שם">name</th><th data-he="מינימום">min</th><th data-he="מקסימום">max</th><th data-he="צעד">step</th><th data-he="סולם">scale</th><th data-he="ברשת ההתחלה">in the start grid</th></tr></thead>
+          <tbody>
+            <tr><td><input value="kp_roll"></td><td><input value="0.05"></td><td><input value="0.40"></td><td><input value="0.01"></td><td><span class="chip" data-he="ליניארי">linear</span></td><td><input value="4"></td></tr>
+            <tr><td><input value="ki_roll"></td><td><input value="0.005"></td><td><input value="0.05"></td><td><input value="0.005"></td><td><span class="chip" data-he="לוגריתמי">log</span></td><td><input value="4"></td></tr>
+            <tr><td><input value="filter_hz"></td><td colspan="3"><input value="10, 20, 40"></td><td><span class="chip" data-he="ערכים">values</span></td><td><input value="3"></td></tr>
+          </tbody>
+        </table>
+        <div style="padding:8px 14px;color:var(--muted);font-size:var(--fs-s)">+ <span data-he="פרמטר">parameter</span> · <span data-he="אילוץ על הפרמטרים (למשל kp_roll * ki_roll < 0.01)">a constraint on them (e.g. kp_roll * ki_roll &lt; 0.01)</span></div>
+      </section>
+      <section class="form">
+        <h4>2 <span data-he="תרחישים - כל סט חייב לעמוד בכולם">Scenarios - every set must hold in all of them</span><span class="spacer"></span><span class="chip">3 × 2 = 6</span></h4>
+        <table class="table"><tbody>
+          <tr><td style="width:30%">scenario_wind_mps</td><td class="mono">0, 5, 10</td></tr>
+          <tr><td>scenario_payload_kg</td><td class="mono">0.5, 1.5</td></tr>
+        </tbody></table>
+      </section>
+      <section class="form">
+        <h4>4 <span data-he="איך מריצים">How to run</span><span class="spacer"></span><div class="seg"><button class="on" data-he="במחשב הזה">This PC</button><button data-he="משגר חווה">Farm launcher</button></div></h4>
+        <div style="padding:10px 14px;display:grid;gap:6px">
+          <code>python sim.py {{params_file}}</code>
+          <span style="color:var(--muted);font-size:var(--fs-s)" data-he="כל ריצה מקבלת קובץ פרמטרים וכותבת שורת תוצאה אחת ל־results/{{run_id}}.csv">Each run gets a parameters file and writes one result row to results/{{run_id}}.csv</span>
+        </div>
+      </section>
+    </main>
+
+    <aside class="right">
+      <div class="box">
+        <h3>↻ <span data-he="סבב 1">Round 1</span><span class="spacer"></span><span class="chip" data-he="מוכן?">ready?</span></h3>
+        <div class="kv"><span data-he="סטים">Sets</span><span>4 × 4 × 3 = 48</span><span data-he="תרחישים">Scenarios</span><span>6</span><span data-he="ריצות">Runs</span><span>288</span><span data-he="הרשת המלאה">The full grid</span><span>36 × 10 × 3 × 6 = 6,480</span></div>
+        <div class="scard warn" style="margin-top:8px;padding:8px"><p data-he="חסר: מה התוכנית כותבת (שלב 3) - בלי זה אין מטרה לדרג לפיה.">Missing: what your program writes (step 3) - without it there is no goal to rank by.</p></div>
+        <div style="display:flex;gap:6px;margin-top:8px"><button class="btn sm" data-he="רק כתוב את הקבצים">Only write the files</button><button class="btn sm primary" disabled style="opacity:.5" data-he="הרץ סבב 1">Run round 1</button></div>
+      </div>
+      <div class="box">
+        <h3 data-he="אחר כך">Then</h3>
+        <p style="margin:0;color:var(--muted);font-size:var(--fs-s)" data-he="תוצאות סבב 1 מופיעות תחת 'טבלאות'. לחיצה פותחת אותן בארבעת השלבים; 'סבב הבא' מציע את הבא. שמור - ופתח שוב מחר כדי להמשיך.">Round 1's results appear under Tables. A click opens them in the four steps; Next round proposes the next. Save - and open it again tomorrow to continue.</p>
+      </div>
+    </aside>
+  </div>
+  <footer class="status"><span class="dot" style="background:var(--warn)"></span><b data-he="מחקר חדש: הגדרה 3 מתוך 4">New study: set-up 3 of 4</b><span class="spacer"></span><span data-he="לא נשמר">Not saved</span></footer>
+</div>
+<div class="note" data-n="1" style="top:58px;left:540px">ONE way in for both: New study. "I have results" and "Start from nothing" land in the same study.</div>
+<div class="note" data-n="2" style="top:150px;left:20px">The set-up is part of the study (not a separate app): with a loaded table it is filled from the columns; from nothing it is typed here.</div>
+<div class="note" data-n="3" style="top:420px;left:640px">Start from nothing: parameters with ranges, scenarios, the command. The engine's start grid (today only for the demo) becomes any study's.</div>
+<div class="note" data-n="4" style="top:330px;right:20px">Round 1 says what it will run and what is missing; the same column runs every later round.</div>
+</body>
+</html>

@@ -924,7 +924,8 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 ## Milestone 32 — the redesign: Sweeps as one workspace, modern plots and look (owner's round 2026-11-14). Spec: docs/dev/AGENT_PROMPT_2026-11-14.md; plan: docs/dev/PLAN_2026-11-14.md.
 - [x] Phase 1: the plan – inventory and acceptance checklist, ArduDeck and other tools, the Sweeps model and layout options, the design system, mock-ups, phases. Done 2026-11-14 (waiting for the owner's approval).
 - [ ] A1–A4 Tokens and components (new values, `--warn` and tints, elevation, IBM Plex Mono, one definition per component, cards / tables / KPI).
-- [ ] C1–C9 Sweeps as one workspace (tables by round, one role vocabulary, one store and Undo, `.svstudy.json` + `workspace`, the navigator, the middle, the loop column, entry points, the walkthrough e2e).
+- [ ] C1–C11 Sweeps as one study for both flows (results first / runs first, continue later): `start` for any study, tables by round, set-up from a table, one vocabulary, the Goal step writes the study, one store and Undo, `.svstudy.json` + `workspace`, New study + Set up, the navigator, the Run column, one Next runs, entry points, three walkthroughs as e2e.
 - [ ] B1–B7 Plots (the plot card, legend with values, mode band, uPlot theme, timeline, Map / 3D chrome, Sweeps charts).
 - [ ] D1–D12 Every area adopts the look (pictures and a recount per area).
 - [ ] E1–E3 Docs, pictures, 1.28.0 (the owner tags).
+- [ ] F1–F7 New capabilities the owner picks (messages, window statistics, parameters + two logs compared, live instruments, height profile, wind along the track, pop-out).

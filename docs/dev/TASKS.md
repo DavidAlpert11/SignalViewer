@@ -22,13 +22,17 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   The round's tasks (one commit each; status `todo` until the owner approves):
   - Phase A – tokens and components: A1 tokens + AA check · A2 IBM Plex Mono for numbers · A3 one definition per
     component · A4 panel head / card / table / KPI / empty state.
-  - Phase C – Sweeps as one workspace: C1 `/api/sweeps/study/tables` (files by round) · C2 `studyRoles.ts` · C3 one store,
-    one Undo · C4 files (`.svstudy.json` + optional `workspace`; `.svsweep` unchanged) · C5 the navigator · C6 the middle
-    (a round's table prefilled; Common parameters / About as centre views) · C7 the right column (loop, best, convergence)
-    · C8 entry points · C9 the walkthrough e2e `test_sweeps_workspace.py`.
+  - Phase C – Sweeps as one study (revised after the owner's answer: both flows – results first / runs first – and
+    continuing later, in one area; the fourteen duplicates each in one place): C1 `start` for any study · C2 tables by
+    round + set-up from a table · C3 one vocabulary, the Goal step writes the study · C4 one store, one Undo · C5 files
+    · C6 *New study* + Set up · C7 the navigator · C8 the Run column · C9 one Next runs, Together, About · C10 entry
+    points · C11 three walkthroughs as e2e.
   - Phase B – plots: B1 plot card head · B2 legend with values · B3 mode band · B4 uPlot theme (perf budget) · B5 timeline
     · B6 Map / 3D chrome · B7 Sweeps charts.
   - Phase D – every area (D1 top row … D12 dialogs; pictures + recount each). Phase E – docs, pictures, 1.28.0.
+  - Phase F – new capabilities from the ArduDeck comparison, only those the owner picks: F1 a log's messages · F2
+    statistics of the visible window · F3 parameters + two logs compared · F4 live instruments · F5 height profile · F6
+    the wind along the track · F7 pop-out (later).
 - **Round of 2026-11-13 (1.27.0 prepared, not tagged)**: spec and status box `docs/dev/AGENT_PROMPT_2026-11-13.md`,
   plan `docs/dev/PLAN_2026-11-13.md`, per-lane notes `docs/dev/lanes/*.md`, e2e map `docs/dev/E2E_MAP.md`. Done in
   one session (stacked branches `sv1113/base` → `l3` → `l4` → `l6` → `l1` → `l5` → `l2` → `l7` → `l8` → `release`;
@@ -4106,3 +4110,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-13 · 1.27.0 final on main (9bf5eab + this log line): the whole e2e suite again - 433 passed, 1 timed out under load (`test_object_templates::...recreates_them_from_another_file`, a 30 s wait in open_files; green 3/3 alone and in the previous full run). Releasing from this session is refused (tag push 403; `gh release create`: "not permitted for this session type") - the owner pushes the tag: `git tag -a v1.27.0 -m "Signal Viewer 1.27.0" origin/main && git push origin v1.27.0` (build.yml builds every package and opens a draft release).
 - 2026-11-14 · Owner: next is a planned redesign - Sweeps feels like separate apps (the demo's tables cannot be opened with the single-table tools on the same screen), plots inspired by ArduDeck, a modern look that keeps every feature. The prompt for the new session: `docs/dev/AGENT_PROMPT_2026-11-14.md` (planning first; the owner approves before code).
 - 2026-11-14 · Redesign round, Phase 1 (planning): `docs/dev/PLAN_2026-11-14.md` + mock-ups (`docs/dev/mockups/`, 4 pages × dark en / light he) + the app as it is (`docs/dev/mockups/before/`, 31 pictures, `tools/plan_screens.py`); ArduDeck read from its site, repository, forum thread and three screenshots (sources in the plan §3). No product code changed; nothing to test (no checks run). Next: the owner decides §8, then Phase A.
+- 2026-11-14 · Plan revised after the owner's answer: Sweeps as one study for both flows (results first / runs first, continue later; `PLAN` §4: the fourteen duplicates and their one place each, Set up · Tables · Together · Run, the engine's start grid for any study), ArduDeck compared both ways in design (§3.2) and capabilities (§3.3) with a new design idea (§3.4) and an optional Phase F; mock-up `sweeps-start.html`. No product code changed. Next: the owner's answers to §8.
