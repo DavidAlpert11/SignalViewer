@@ -81,9 +81,9 @@ python tools/quick_check.py            # tsc -b, vitest, backend pytest -x, mypy
 
 **2026-11-14 (newest): a planned redesign - start with `docs/dev/AGENT_PROMPT_2026-11-14.md`** (Sweeps as one
 workspace, plots inspired by ArduDeck, a modern design system; planning first, the owner approves before code).
-The plan is written: `docs/dev/PLAN_2026-11-14.md` (mock-ups `docs/dev/mockups/`, the app as it was in
+**Approved; continue with `docs/dev/REDESIGN_PROMPT.md`** (any stage). The plan: `docs/dev/PLAN_2026-11-14.md` (mock-ups `docs/dev/mockups/`, the app as it was in
 `docs/dev/mockups/before/` via `tools/plan_screens.py`). Build only after the owner answered its §8; then phase by phase
-(A → C → B → D → E unless he chose otherwise), one task per commit.
+(A → C → B → M → D → E → F), one task per commit.
 
 ### Earlier (the owner, 2026-11-13)
 

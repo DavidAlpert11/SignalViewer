@@ -26,6 +26,14 @@
   .obj { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--panel-2); }
   .obj.sel { border-color: var(--amber); }
   .obj .meta { grid-column: 2 / span 2; color: var(--muted); font-size: var(--fs-xs); font-family: var(--mono); }
+  .layers { position: absolute; top: 56px; inset-inline-end: 10px; width: 300px; padding: 10px; border-radius: var(--r-card); background: var(--raised);
+    border: 1px solid var(--line); box-shadow: var(--shadow-md); display: grid; gap: 8px; z-index: 3; }
+  .layers .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .layers .t { border: 1px solid var(--line); border-radius: var(--r-m); overflow: hidden; font-size: var(--fs-2xs); background: var(--panel-2); }
+  .layers .t.on { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber); }
+  .layers .t i { display: block; height: 44px; }
+  .layers .t span { display: flex; gap: 4px; align-items: center; padding: 3px 5px; color: var(--ink); }
+  .layers .row { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--muted); }
 </style>
 </head>
 <body>
@@ -78,6 +86,19 @@
         <div class="float" style="top:10px;inset-inline-end:10px">
           <span style="padding:0 6px;font-size:var(--fs-xs)" data-he="שכבות">Layers</span><button class="icon">◧</button>
         </div>
+        <div class="layers">
+          <div class="row"><b style="color:var(--ink-strong);font-size:var(--fs-s)" data-he="רקע המפה">Map background</b><span class="spacer"></span><span class="chip ok" style="height:18px" data-he="רשת מותרת">network allowed</span></div>
+          <div class="tiles">
+            <div class="t"><i style="background:linear-gradient(135deg,#2e4a3a,#5d7a5a 40%,#8aa5c8 41%,#8aa5c8 55%,#6b7d5a 56%)"></i><span data-he="לא מקוון">Offline</span></div>
+            <div class="t"><i style="background:repeating-linear-gradient(25deg,#eef0ea 0 9px,#f6d58a 9px 11px,#eef0ea 11px 22px,#fff 22px 24px)"></i><span>☁ <span data-he="כבישים">Streets</span></span></div>
+            <div class="t"><i style="background:radial-gradient(circle at 30% 40%,#6f7c55,#3e4a33 50%,#5c6046)"></i><span>☁ <span data-he="לוויין">Satellite</span></span></div>
+            <div class="t on"><i style="background:linear-gradient(20deg,transparent 45%,#f2d27a 46%,#f2d27a 49%,transparent 50%),radial-gradient(circle at 30% 40%,#6f7c55,#3e4a33 50%,#5c6046)"></i><span>☁ <span data-he="לוויין + כבישים">Satellite + roads</span></span></div>
+            <div class="t"><i style="background:repeating-radial-gradient(circle at 60% 60%,#e9e4cf 0 5px,#d9cfa8 5px 6px)"></i><span>☁ <span data-he="טופוגרפי">Topo</span></span></div>
+            <div class="t"><i style="background:linear-gradient(135deg,#2b3240,#1d232d)"></i><span>📁 <span data-he="המפות שלי">My maps</span></span></div>
+          </div>
+          <div class="row">☁ <span data-he="מקוון: האריחים נשמרים בדיסק ונשארים זמינים בלי רשת">online: tiles are kept on the disk and stay available offline</span></div>
+          <div style="display:flex;gap:6px"><button class="btn sm" data-he="שמור את האזור הזה ללא רשת…">Keep this area offline…</button><button class="btn sm ghost" data-he="הוסף מפה…">Add a map…</button></div>
+        </div>
         <div class="readout">
           <span data-he="גובה">Alt</span><span>96.4 m</span><span data-he="מהירות">Speed</span><span>12.8 m/s</span><span data-he="כיוון">Heading</span><span>074°</span>
           <span data-he="מהבית">From home</span><span>412 m</span><span data-he="מיקום">Position</span><span>32.0812, 34.7811</span>
@@ -110,6 +131,7 @@
 <div class="note" data-n="1" style="top:108px;left:400px">One floating bar (today's MapBar) - glass over the map, the same in 2D and 3D; layers on the other corner.</div>
 <div class="note" data-n="2" style="top:380px;left:250px">The track coloured by flight mode (the existing "map by mode"); the second flight dashed in its file colour; the relation line with its distance.</div>
 <div class="note" data-n="3" style="bottom:120px;left:330px">The data box as an instrument: labels muted, values in mono, always bottom-start; the attitude indicator (FlightDisplay) bottom-end.</div>
+<div class="note" data-n="5" style="top:330px;right:350px">The background picker with thumbnails (today a select in the plot head): Offline stays the default; online layers marked ☁, kept on disk; Satellite + roads is new; My maps = MBTiles or your organisation's tile server; Keep this area offline… fills the cache before going to the field.</div>
 <div class="note" data-n="4" style="top:280px;right:20px">Panel findings as cards with a severity tint; each ends with its next action.</div>
 </body>
 </html>
