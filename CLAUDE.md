@@ -2,8 +2,10 @@
 
 You are working on Signal Viewer: a local, offline desktop app (Python FastAPI backend +
 React/TypeScript frontend, shown in a pywebview window or a browser) for analysing time
-signals. Primary users: **flight-test and drone engineers** (ArduPilot .bin, MAVLink .tlog,
-PX4 .ulg, CSV) and **simulation engineers** (MATLAB/Simulink .mat and Python pipelines).
+signals: an engineering data analysis and validation workbench for **any** time-series or measurement
+data - test engineers (flight, vehicle, bench: .bin, .tlog, .ulg, CAN + DBC, CSV, Parquet, HDF5, .mcap) and
+simulation engineers (MATLAB/Simulink .mat, Python). ArduPilot logs are convenient sample data, not the
+product's identity: generic chrome and models; domain content only in profiles / templates (plan §3.6).
 
 The work queue is `docs/dev/TASKS.md` (what to do next, in order, with full specs, current
 state and a log - written so another developer or agent can take over). `docs/dev/ROADMAP.md`

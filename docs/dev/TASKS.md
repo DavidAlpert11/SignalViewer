@@ -13,6 +13,12 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+- **RECOVERY 2026-11-14 22:30 (coordinator session, owner-approved):** every lane stopped at ~19:30 on the account's shared
+  5-hour limit, each with work not yet committed (L1 A3, L2 C4, L4 M4, L5 F2 finished). `main` at `0847e4d` checked green
+  (quick_check: tsc, Vitest 218, pytest 1305, mypy). Lanes are resumed **two or three at a time** (the limit is shared: more
+  lanes do not mean more work done). **A resumed lane first runs `git status`: if its container was replaced and the
+  uncommitted work is gone, it redoes it from its own transcript**, then `git pull --rebase origin main`. The original
+  coordinator session is not resumed (kept for reference); this session coordinates and runs the Final lane.
 - **Lane board – redesign round 2026-11-14** (plan §7.0; each lane edits only its own block; S1 = A3 + A4 on `main`).
   <!-- lane L1 -->
   - **L1 Look** – in progress · done: A1 A2 · next: A3 · tasks A1 A2 A3 A4 D11 D12 D13 · requests from other lanes: –
