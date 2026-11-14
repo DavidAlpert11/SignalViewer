@@ -52,7 +52,7 @@ function softwareWebGL(): boolean {
   } catch { return false; }
 }
 
-const TILE_MAXZ: Record<string, number> = { osm: 19, esri: 19, light: 16, dark: 16, satellite: 19, topo: 17 };
+const TILE_MAXZ: Record<string, number> = { osm: 19, esri: 19, light: 16, dark: 16, satellite: 19, satroads: 19, topo: 17 };
 const TRACK_POINTS = 3000;                      // drawn track: at most this many points per object
 type Track3 = ObjTrack & { alt: Float32Array | null; pitch: Float32Array | null; roll: Float32Array | null; ground: Float32Array | null };
 

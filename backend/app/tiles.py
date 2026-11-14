@@ -10,6 +10,13 @@ network access. Tiles already in the cache are still shown then (they are on the
 Every source asks for attribution, which the map shows. (CARTO's basemaps now need an API key, so
 the light / dark maps are Esri's grey canvases.) OpenStreetMap's tile servers are for light
 use: the cache, a real User-Agent and no bulk downloading keep within their policy.
+
+M2 - *Satellite + roads*: Esri's World Imagery with Esri's own transportation reference layer
+(roads and their names, a transparent PNG made to be drawn over that imagery) composed here into one
+tile, so the 2D map, the 3D globe, the exported picture and the offline page all show the same thing.
+Terms: both layers are Esri ArcGIS Online basemaps - display in an application with the attribution
+shown is allowed; bulk download / offline packaging is not (Esri's terms of use), so neither may be
+"kept offline" in bulk (M3) - only what was seen stays in the cache.
 """
 import os
 import threading
@@ -32,11 +39,15 @@ SOURCES: dict = {
     "dark": {"url": _ESRI.format(svc="Canvas/World_Dark_Gray_Base"), "max": 16, "ext": "jpg"},
     "dark_ref": {"url": _ESRI.format(svc="Canvas/World_Dark_Gray_Reference"), "max": 16, "ext": "png"},
     "satellite": {"url": _ESRI.format(svc="World_Imagery"), "max": 19, "ext": "jpg"},
+    # M2: roads and road names, transparent - drawn over the imagery (never shown alone)
+    "sat_roads": {"url": _ESRI.format(svc="Reference/World_Transportation"), "max": 19, "ext": "png"},
     "topo": {"url": "https://tile.opentopomap.org/{z}/{x}/{y}.png", "max": 17, "ext": "png"},
     # P5: elevation for the whole world (Mapzen / AWS open data: SRTM, GMTED2010, ETOPO1), heights encoded
     # in the colours - only for app/basemap.py's ground (never shown as a picture)
     "terrarium": {"url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png", "max": 15, "ext": "png"},
 }
+# M2: a layer made of two - the picture and a transparent reference drawn over it (composed in `tile`)
+COMPOSITES: dict = {"satroads": ("satellite", "sat_roads")}
 _MAX_AGE = 30 * 24 * 3600          # refresh a cached tile after a month (when online)
 _offline_until = 0.0               # after a failure, do not try the network again for a while
 _lock = threading.Lock()
@@ -86,6 +97,8 @@ def tile(src: str, z: int, x: int, y: int) -> Optional[tuple]:
         except OSError:
             pass                                                  # served anyway, just not kept
         return data, "image/jpeg"
+    if src in COMPOSITES:
+        return _composite(src, z, x, y)
     s = SOURCES.get(src)
     if s is None or not (0 <= z <= s["max"]) or not (0 <= x < 2 ** z) or not (0 <= y < 2 ** z):
         return None
@@ -116,6 +129,36 @@ def tile(src: str, z: int, x: int, y: int) -> Optional[tuple]:
         with _lock:
             _offline_until = time.time() + 30          # no network: stop trying for half a minute
         return (cached, media) if cached else None
+
+
+def compose(under: bytes, over: Optional[bytes]) -> bytes:
+    """A picture with a transparent reference layer drawn over it, as a JPEG (M2)."""
+    if not over:
+        return under
+    import io
+
+    from PIL import Image
+    base = Image.open(io.BytesIO(under)).convert("RGBA")
+    top = Image.open(io.BytesIO(over)).convert("RGBA")
+    if top.size != base.size:
+        top = top.resize(base.size)
+    out = io.BytesIO()
+    Image.alpha_composite(base, top).convert("RGB").save(out, "JPEG", quality=88)
+    return out.getvalue()
+
+
+def _composite(src: str, z: int, x: int, y: int) -> Optional[tuple]:
+    """The picture tile with its reference layer over it; the picture alone when the reference is not to be had
+    (it is not kept composed: the next ask adds the roads once they arrive)."""
+    under_src, over_src = COMPOSITES[src]
+    under = tile(under_src, z, x, y)
+    if under is None:
+        return None
+    over = tile(over_src, z, x, y)
+    try:
+        return compose(under[0], over[0] if over else None), "image/jpeg"
+    except Exception:                                   # a broken reference tile: the picture still shows
+        return under
 
 
 def cache_size() -> int:

@@ -31,6 +31,7 @@ ATTRIB = {
     "light": "Esri, HERE, Garmin, © OpenStreetMap contributors, GIS User Community",
     "dark": "Esri, HERE, Garmin, © OpenStreetMap contributors, GIS User Community",
     "satellite": "Tiles © Esri — Esri, Maxar, Earthstar Geographics, GIS User Community",
+    "satroads": "Tiles © Esri — Esri, Maxar, Earthstar Geographics, HERE, Garmin, © OpenStreetMap contributors, GIS User Community",
     "topo": "© OpenStreetMap contributors, SRTM | © OpenTopoMap (CC-BY-SA)",
 }
 
@@ -141,6 +142,10 @@ def map_data(store, spec: Dict) -> Dict:
 
 def _cached_online(src: str, z: int, x: int, y: int) -> Optional[bytes]:
     """An online layer's tile only if it is already in the app's tile cache - never fetched here (Q9)."""
+    if src in tiles.COMPOSITES:                                        # M2: the picture with its roads over it
+        under_src, over_src = tiles.COMPOSITES[src]
+        under = _cached_online(under_src, z, x, y)
+        return tiles.compose(under, _cached_online(over_src, z, x, y)) if under else None
     s = tiles.SOURCES.get(src)
     if not s:
         return None
