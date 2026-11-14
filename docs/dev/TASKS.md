@@ -32,7 +32,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       `"satroads"`; today the store's union lacks it, PlotView's select casts); `PlotView.tsx` the *Borders* switch for
       `isPhotoBase(shownBase)` (from `mapBase.ts`) instead of `=== "satellite"`. Both go away with M1 if L4 may then touch PlotView's map select.
   <!-- lane L5 -->
-  - **L5 Analysis and new capabilities** – in progress · done: F3 (backend; its screens with D4 / D7) · next: F1 (backend) · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: –
+  - **L5 Analysis and new capabilities** – in progress · done: F3, F1 (backend; their screens with D4 / D7) · next: F2 (backend) · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: –
   <!-- lane Final -->
   - **Final** – waits for every lane · E1 E2 E4, the full checks, E3 the version
   <!-- end of the lane board -->
@@ -4158,3 +4158,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
   `tests/test_map_layers.py` (new, 5), `test_offline_switch`, `test_map_export` green; mypy clean; tsc clean; e2e
   `test_offline_map.py` 6/6 (one new), `test_globe3d.py` 13/13; quick_check green. Next: M3.
 - 2026-11-14 · L1 A2 IBM Plex Mono for numbers: `@fontsource/ibm-plex-mono` (Latin 400 / 500 only, bundled, offline), `--mono` now Plex Mono first, `.num` and the value / readout / clock / tick selectors of `index.css` use it (text lines keep the sans face). Ran: tsc, `tokens.test.ts`, e2e `test_plot_polish` + `test_first_minute` (9 passed; the first module once hit the UI rebuild's "connection refused", green on re-run). quick_check green (on A1). Next: A3.
+- 2026-11-14 · L5 F1 (backend): `svcore/filestruct.py` + `GET /api/runs/{id}/structure` - groups by what the data has (message types / topics / structs / column prefixes), per group and column samples, rate, unit, gaps (> 3 × the typical step), state, own time, and the time base; only time vectors are read (a lazy log's values never). Ran: test_file_structure (CSV with a gap, .mat structs + own time, generated .bin, sample .ulg, ROS 2 .mcap, a followed .tlog growing) - green; mypy clean. The panel (values at the cursor via `/api/cursor`, click to plot) comes with D7 after S1. Next: F2.
