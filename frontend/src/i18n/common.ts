@@ -122,6 +122,11 @@ export const en = {
   worstRms: "RMS Δ %",
   exportData: "Export data (CSV)",
   copied: "Image copied",
+  // D12: Settings > Look - where the mode band sits (L3's B3 setting `bandInCard`)
+  setBandInCard: "Mode band",
+  setBandInCardHint: "The states (modes, gears, phases) as a coloured band",
+  setBandInCardIn: "Inside the top plot",
+  setBandInCardAbove: "Above the plots",
 };
 
 export const he: typeof en = {
@@ -246,4 +251,8 @@ export const he: typeof en = {
   worstRms: "RMS Δ %",
   exportData: "ייצוא נתונים (CSV)",
   copied: "התמונה הועתקה",
+  setBandInCard: "פס המצבים",
+  setBandInCardHint: "המצבים (מצבי פעולה, הילוכים, שלבים) כפס צבעוני",
+  setBandInCardIn: "בתוך הגרף העליון",
+  setBandInCardAbove: "מעל הגרפים",
 };

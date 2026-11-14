@@ -98,6 +98,7 @@
   --eyebrow-spacing: .08em;
   /* the same in both themes: over the 3D globe / the satellite map (imagery under them), the report's
      paper, a video's letterbox, the 3D view's own-time marks, the log's event kinds */
+  --scrim: rgba(5, 10, 18, .5);     /* D12: behind a dialog, both themes */
   --overlay-bg: rgba(10, 16, 24, .72); --overlay-bg-strong: rgba(10, 16, 24, .78); --overlay-ink: #e6edf3;
   --overlay-control-bg: rgba(255, 255, 255, .94); --overlay-control-ink: #1b1f24;
   --own-time: #b083f0; --own-time-ink: #160f22; --paper: #fff; --letterbox: #000;
@@ -372,7 +373,7 @@ table.data tr.sel, table.data tr[aria-selected="true"] { background: var(--selec
 .empty-state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); padding: 12px 14px; color: var(--muted); }
 .empty-state > p { margin: 0; }
 .sep { width: 1px; height: 20px; background: var(--line); margin-inline: 4px; }
-.kbd { font-size: var(--fs-s); color: var(--faint); border: 1px solid var(--line); border-radius: var(--r-s); padding: 0 4px; }
+.kbd { font-family: var(--mono); font-size: var(--fs-xs); color: var(--faint); border: 1px solid var(--line); border-radius: var(--r-s); padding: 0 4px; }   /* D12: keys in mono */
 
 .search-trigger {
   display: flex; align-items: center; gap: var(--sp-2); height: 30px; width: 260px; padding-inline: 10px; white-space: nowrap; overflow: hidden;
@@ -568,15 +569,16 @@ table.vals .sw { display: inline-block; width: 8px; height: 8px; border-radius: 
 .status .ct { color: var(--amber); font-variant-numeric: tabular-nums; }
 
 /* -------------------------------- overlays -------------------------------- */
-.scrim { position: fixed; inset: 0; background: rgba(5, 10, 18, .45); display: grid; place-items: start center; padding-top: 12vh; z-index: 50; }
-.dialog { width: min(640px, 92vw); max-height: 76vh; display: flex; flex-direction: column; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-l); box-shadow: var(--shadow); overflow: hidden; }
-.dialog-head { display: flex; align-items: center; gap: var(--sp-2); padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.scrim { position: fixed; inset: 0; background: var(--scrim); display: grid; place-items: start center; padding-top: 12vh; z-index: 50; }
+.dialog { width: min(640px, 92vw); max-height: 76vh; display: flex; flex-direction: column; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-xl); box-shadow: var(--shadow-lg); overflow: hidden; }   /* D12: dialogs sit highest */
+.dialog-head { display: flex; align-items: center; gap: var(--sp-2); padding: 12px 14px 12px 18px; border-bottom: 1px solid var(--line); }
 .dialog-head h2 { margin: 0; font-size: var(--fs-l); font-weight: 600; flex: 1; color: var(--ink-strong); }
 .dialog-body { overflow: auto; padding: 8px 0; flex: 1; }
 .dialog-foot { display: flex; align-items: center; gap: var(--sp-2); padding: 10px 14px; border-top: 1px solid var(--line); }
 .palette-input { width: 100%; border: 0; background: none; font-size: var(--fs-xl); padding: 14px 16px; outline: none; border-bottom: 1px solid var(--line); }
 .pal-item { display: flex; align-items: center; gap: var(--sp-2_5); width: 100%; padding: 7px 16px; border: 0; background: none; text-align: start; cursor: pointer; color: var(--ink); }
-.pal-item.on { background: var(--panel-2); }
+.pal-item.on { background: var(--select-soft); box-shadow: inset 2px 0 0 var(--select); }   /* D12: the chosen command, as a selection */
+[dir="rtl"] .pal-item.on { box-shadow: inset -2px 0 0 var(--select); }
 .pal-item .grp { margin-inline-start: auto; color: var(--faint); font-size: var(--fs-sm); }
 .pal-item svg { width: 15px; height: 15px; color: var(--muted); flex: none; }
 .crumbs { display: flex; align-items: center; gap: var(--sp-1_5); padding: 6px 14px; color: var(--muted); border-bottom: 1px solid var(--line); direction: ltr; }
@@ -676,7 +678,7 @@ table.vals.cmp2 th:first-child { width: auto; }
 table.keys { border-collapse: collapse; width: 100%; align-self: start; }
 table.keys td { padding: 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 table.keys td:first-child { white-space: nowrap; padding-inline-end: 12px; width: 1%; }
-table.keys .kbd { font-size: var(--fs-s); color: var(--ink); background: var(--panel-2); padding: 1px 6px; direction: ltr; display: inline-block; }
+table.keys .kbd { font-size: var(--fs-xs); color: var(--ink); background: var(--panel-2); padding: 1px 6px; direction: ltr; display: inline-block; }
 table.keys td.mouse { color: var(--muted); white-space: normal; width: 42%; }   /* a long gesture wraps: it used to squeeze what it does into a few words a line */
 @media (max-width: 720px) { .help-body { grid-template-columns: 1fr; } }
 .help-foot { display: flex; align-items: center; gap: var(--sp-3); padding: 10px 18px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: var(--fs-s); }
@@ -1594,7 +1596,7 @@ input.fx-input { width: 100%; }
 
 /* T18: Settings */
 .dialog.settings { width: min(560px, 94vw); }
-.settings-body { display: flex; flex-direction: column; gap: 14px; padding: 8px 20px 18px; }
+.settings-body { display: flex; flex-direction: column; gap: var(--sp-1); padding: 8px 20px 18px; }
 .set-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); }
 .set-row > span:first-child { display: flex; flex-direction: column; }
 .set-row small { color: var(--muted); font-size: .85em; margin-top: 2px; max-width: 260px; }

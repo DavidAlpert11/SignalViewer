@@ -99,6 +99,7 @@ export default function SettingsDialog() {
   const clickPlacesCursor = useApp((s) => s.clickPlacesCursor);
   const lineWidth = useApp((s) => s.lineWidth);
   const lineStyle = useApp((s) => s.lineStyle);
+  const bandInCard = useApp((s) => s.bandInCard);
   const tplTabChoice = useApp((s) => s.tplTabChoice);
   const offlineOnly = useApp((s) => s.offlineOnly);
   const offlineForced = useApp((s) => s.offlineForced);
@@ -129,6 +130,8 @@ export default function SettingsDialog() {
                 {LINE_STYLES.map((k) => <option key={k} value={k}>{t(`lineStyle_${k}` as TKey)}</option>)}</select></label>
               <button className="btn sm outline set-lines-apply" onClick={() => actions.applyLineDefaults()}>{t("setLinesApply")}</button>
             </span></div>
+          <div className="set-row"><span>{t("setBandInCard")}<small>{t("setBandInCardHint")}</small></span>
+            {seg(bandInCard ? "in" : "above", [["in", t("setBandInCardIn")], ["above", t("setBandInCardAbove")]], (v) => useApp.setState({ bandInCard: v === "in" }), t("setBandInCard"))}</div>
           <h3 className="set-group-title">{t("setGrpTime")}</h3>
           <div className="set-row"><span>{t("setTime")}<small>{t("setTimeHint")}</small></span>
             {seg(timeFormat, [["seconds", t("setTimeSeconds")], ["clock", t("setTimeClock")]], (v) => useApp.setState({ timeFormat: v }), t("setTime"))}</div>

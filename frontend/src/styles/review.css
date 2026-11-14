@@ -20,8 +20,8 @@
 /* W13.8: the tour's coach marks - a ring on the anchor, a card beside it; no scrim, nothing blocked */
 .tour-ring { position: fixed; z-index: 90; border: 2px solid var(--select); border-radius: var(--r-l); pointer-events: none;
   box-shadow: 0 0 0 4px var(--select-soft); animation: sv-tour-in var(--motion-base) var(--ease-out) both; }
-.tour-card { position: fixed; z-index: 91; padding: var(--sp-3); border-radius: var(--r-l); background: var(--raised); color: var(--ink);
-  border: 1px solid var(--line-strong); box-shadow: var(--shadow); animation: sv-tour-in var(--motion-base) var(--ease-out) both; }
+.tour-card { position: fixed; z-index: 91; padding: var(--sp-3); border-radius: var(--r-card); background: var(--raised); color: var(--ink);
+  border: 1px solid var(--line-strong); box-shadow: var(--shadow-md); animation: sv-tour-in var(--motion-base) var(--ease-out) both; }
 .tour-card h3 { margin: 0 0 var(--sp-1); font-size: var(--fs-l); color: var(--ink-strong); }
 .tour-card p { margin: 0 0 var(--sp-2); color: var(--muted); line-height: 1.4; }
 .tour-foot { display: flex; align-items: center; gap: var(--sp-2); }
@@ -82,7 +82,11 @@
 .globe3d-light { bottom: 6px; }
 .g3-cam-hint, .geo-hint { max-width: calc(100% - 24px); white-space: normal; text-align: center; }
 .plot.active .globe3d-readout, .plot:hover .globe3d-readout, .plot:focus-within .globe3d-readout { top: calc(var(--mapbar-bottom, 76px) + 8px); }
-.set-group-title { margin: var(--sp-3) 0 var(--sp-1); font-size: var(--fs-s); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+/* D12: Settings - each group an eyebrow over its rows, the rows divided by hairlines */
+.set-group-title { margin: var(--sp-5) 0 var(--sp-1); padding-bottom: var(--sp-1); font: var(--eyebrow); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); }
+:lang(he) .set-group-title { text-transform: none; letter-spacing: 0; }
+.settings-body > .set-row { padding: var(--sp-1_5) 0; }
+.settings-body > .set-row + .set-row { border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
 .settings-body > .set-group-title:first-child { margin-top: 0; }
 
 /* Review R5: the report plot captions on demand */

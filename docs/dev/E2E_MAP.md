@@ -8,6 +8,7 @@
 - A3 ran `test_calm_screen.py`, `test_welcome_cards.py`, `test_plot_menus.py` (no change) (L1)
 - A4 ran `test_findings_report.py`, `test_live_report.py` (no change) (L1)
 - D11 ran `test_welcome_cards.py`, `test_fresh_user.py`, `test_first_minute.py`, `test_calm_screen.py`, `test_features.py -k "welcome or recent or session …"` (no change) (L1)
+- D12 ran `test_settings.py`, `test_file_help_menus.py`, `test_template_tabs.py`, `test_templates_recent_badfiles.py`, `test_tour.py`, `test_calm_screen.py`, `test_features.py -k "not (map or globe or 3d)"` (no change) (L1)
 
 <!-- 1114 lane L2 -->
 - `tests/e2e/test_sweeps_workspace.py` – C6 (results first: Set up filled; start from nothing: Set up typed, Undo) (L2); C11 adds the rest of the walkthroughs
