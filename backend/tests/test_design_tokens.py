@@ -26,3 +26,23 @@ def test_radii_are_tokens():
 def test_colours_are_tokens():
     bad = re.findall(r"#[0-9a-fA-F]{3,8}\b", _rules())
     assert not bad, f"use a colour token (index.css), not {sorted(set(bad))}"
+
+
+STYLES = os.path.join(os.path.dirname(CSS), "styles")
+COMPONENT = re.compile(r"\.(btn|iconbtn|chipbtn|linkbtn|linklike|pill|seg|toast|menu)(?![\w-])")
+PLACEMENT = re.compile(r"^(margin|align-self|justify-self|flex|order|grid-|position|inset|top|bottom|left|right|z-index|width|max-width|min-width)")
+
+
+def test_components_are_defined_once():
+    """A3: buttons, segmented controls, chips, pills, menus and toasts are defined in index.css only; an area's
+    stylesheet may place one (margin, flex, ...) but not restyle it - one way to draw each component."""
+    bad = []
+    for name in sorted(os.listdir(STYLES)):
+        text = re.sub(r"/\*.*?\*/", "", open(os.path.join(STYLES, name), encoding="utf-8").read(), flags=re.S)
+        for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", text):
+            last = [s.strip().split()[-1] for s in sel.split(",") if s.strip()]
+            if not any(COMPONENT.search(s) for s in last):
+                continue
+            props = [d.split(":")[0].strip() for d in body.split(";") if ":" in d]
+            bad += [f"{name}: {sel.strip()} {{{p}}}" for p in props if not PLACEMENT.match(p)]
+    assert not bad, "restyle components in index.css (A3), not in an area file:\n" + "\n".join(bad)

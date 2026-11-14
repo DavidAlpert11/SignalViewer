@@ -36,11 +36,9 @@
 .plot-empty.plot-empty-start { pointer-events: auto; align-content: center; gap: var(--sp-2); }
 .plot-empty-start p { margin: 0; max-width: 34em; color: var(--muted); font-size: var(--fs-m); }
 .plot-empty-start .tpl-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-1_5); }
-.plot-empty-start .tpl-chips .chipbtn { font-size: var(--fs-m); padding: 4px 12px; }
 
 /* W4: the start card's next step */
 .start-next { margin: 0 0 var(--sp-2); color: var(--ink); font-size: var(--fs-sm); }
-.start-next .linklike { font-weight: 600; }
 
 /* W13.5: empty states - one sentence and one action, never a dead end */
 .empty-state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); padding: 12px 14px; color: var(--muted); }

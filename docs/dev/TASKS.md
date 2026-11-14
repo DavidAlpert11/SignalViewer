@@ -21,12 +21,17 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   coordinator session is not resumed (kept for reference); this session coordinates and runs the Final lane.
 - **Lane board – redesign round 2026-11-14** (plan §7.0; each lane edits only its own block; S1 = A3 + A4 on `main`).
   <!-- lane L1 -->
-  - **L1 Look** – in progress · done: A1 A2 · next: A3 · tasks A1 A2 A3 A4 D11 D12 D13 · requests from other lanes: –
+  - **L1 Look** – in progress · done: A1 A2 A3 · next: A4 · tasks A1 A2 A3 A4 D11 D12 D13 · requests from other lanes: –
     - New tokens (A1, on `main`): `--select` / `--select-ink` / `--select-soft` / `--select-ring` (selection, active, primary – a
       neutral ink; amber is the cursor and time only), `--warn` + `--ok-soft` / `--warn-soft` / `--danger-soft` / `--info-soft`,
       `--shadow-md` / `--shadow-lg` (`--shadow` = lg), `--r-card`, `--fs-readout`, `--eyebrow` + `--eyebrow-spacing`.
     - For L2 (`styles/study.css` is yours): its `--amber` uses that mean a selection (`.cp-rank tr.on`, `.dm-workers i.on`) or a
       state (`.lp-state.running`, `.cp-mapping`) should move to `--select` / `--warn` / `--info` when you restyle (C6+).
+    - Components (A3, on `main`) – one definition each in `index.css`'s "A3 Components" block: `.btn` (+ `.outline`
+      `.primary` `.ghost` `.danger` `.sm`), `.iconbtn` (`.sm`), `.btn-split`, `.linkbtn` / `.linklike`, `.seg` (`.wide`
+      `.small` `.kinds` `.wrap`), `.chipbtn` (`.on` `.ok` `.warn` `.bad` `.info` `.lg`), `.pill` (`.on`, `.dot` `.ok/.warn/.bad/.live`),
+      `.menu` (+ `.ctx` `.sub` `.menu-keys`), `.toast`. Area stylesheets may only *place* them (margin / flex / width ...):
+      `test_design_tokens.py::test_components_are_defined_once` fails otherwise. Need a variant? Ask here.
   <!-- lane L2 -->
   - **L2 Sweeps** – in progress · done: C1 C2 C3 C4 · next: C5 (no UI until S1) · tasks C1–C11, B7 · requests: –
     - 2026-11-14 · C1 `start` for any study (`svcore/study.py` `Start`, `Study.start_plan()` reads `start` then the old `demo.start_grid` / `demo.scenarios`; `Space.grid` takes a count per parameter; the loop's round 1 from it; a one-table study ranks on its own - `sweeps_common` needed two tables - with its parameters from `shared` or `search.params`; the loop's `run_id` column is never guessed a scenario). Ran: test_study_start (new, 4), test_loop, test_demo, test_sweeps_common, test_sweeps_next, test_study_contract, test_launcher_mode - green; mypy on the changed modules clean. Next: C2.
@@ -4178,3 +4183,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
   `/api/tiles/areas[/{id}]`. Ran: `tests/test_tile_keep.py` (new, 7) + the map tests green, mypy clean. The dialog
   (M3b) comes with M1's picker (after S1). Next: M4.
 - 2026-11-14 · L5 F2 (backend): `svcore/windowstats.py` + `POST /api/stats/window` - min / mean / max / samples of each signal over the visible window (NaN skipped, offsets applied, states left out); block summaries (4096 samples) cached with the arrays, so after the first call a 20M-sample window costs < 5 ms. Ran: test_window_stats (= numpy on 5 windows incl. empty and all-NaN blocks, offsets, speed) - green; mypy clean. Line written under L3 for the legend. Next: D7 after S1.
+- 2026-11-14 · L1 A3 components: buttons (28 / 24, default · outline · primary = `--select` · ghost · danger), segmented, chips (neutral / on / ok / warn / bad / info), pills with a status dot, menus (shadow-md), toasts (shadow-md) gathered into one block of `index.css`; `review.css` / `welcome.css` lost their variants (focus / pressed states, `.seg.wide.kinds`, the template chips' size, `.start-next .linklike`). New `test_design_tokens::test_components_are_defined_once` (area files may only place a component). Ran: tsc, Vitest 210, `test_design_tokens` 4, e2e `test_calm_screen` + `test_welcome_cards` + `test_plot_menus` 13/13. Pictures not taken (S1 first). Next: A4.

@@ -1,18 +1,14 @@
 /* Lane L8 of the 2026-11-13 round: its own rules (W0). Tokens from index.css only. */
 
-/* W13.7: every button class has a pressed state and a focus ring visible in both themes; cards lift alike */
-.btn, .iconbtn, .chipbtn, .linkbtn, .linklike, .ex-card, .pal-item, .search-trigger, .rail button, .seg button {
+/* W13.7: the buttons' pressed state and focus ring are in index.css (A3); here the other focusable things */
+.ex-card, .pal-item, .search-trigger, .rail button {
   transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out),
     border-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
-.btn:focus-visible, .iconbtn:focus-visible, .chipbtn:focus-visible, .linkbtn:focus-visible, .linklike:focus-visible,
-.search-trigger:focus-visible, .rail button:focus-visible, .seg button:focus-visible, .pal-item:focus-visible,
+.search-trigger:focus-visible, .rail button:focus-visible, .pal-item:focus-visible,
 .ex-card:focus-visible, .tab:focus-visible, .sig:focus-visible {
   outline: 2px solid var(--focus); outline-offset: 2px; }
-.btn:active:not(:disabled), .iconbtn:active:not(:disabled), .chipbtn:active:not(:disabled), .seg button:active:not(:disabled) {
-  transform: translateY(1px); }
 .ex-card:hover, .cp-table:hover { transform: translateY(-1px); }
-@media (prefers-reduced-motion: reduce) {
-  .btn:active, .iconbtn:active, .chipbtn:active, .seg button:active, .ex-card:hover, .cp-table:hover { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ex-card:hover, .cp-table:hover { transform: none; } }
 
 /* T50: plots too short to read */
 .grid { position: relative; }
@@ -60,7 +56,6 @@
 
 /* Fleet (owner, 2026-11-13): the questions it answers, the fleet at a glance, the trend's verdict */
 .fleet-questions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1_5); margin-bottom: var(--sp-2); }
-.fleet-questions .chipbtn.on { border-color: var(--select); color: var(--ink-strong); background: var(--select-soft); }
 .fleet-summary { border: 1px solid var(--line); border-radius: var(--r-l); background: var(--panel); padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-2); }
 .fleet-tiles { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); }
 .fleet-tiles span { display: flex; align-items: baseline; gap: var(--sp-1); color: var(--muted); font-size: var(--fs-sm); }
@@ -90,10 +85,7 @@
 .set-group-title { margin: var(--sp-3) 0 var(--sp-1); font-size: var(--fs-s); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .settings-body > .set-group-title:first-child { margin-top: 0; }
 
-/* Review R4: Create signals' six kinds in an even 3 x 2 grid (they wrapped 4 + 2, the last two stretched wide);
-   the chosen kind marked, the tabs announced as tabs */
-.seg.wide.kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; }
-.seg.wide.kinds button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Review R5: the report plot captions on demand */
 .rplot-cap { font-size: var(--fs-s); margin-inline-start: 24px; }
 /* Settings > New lines: width, style and Apply on one tidy row (they ran together) */
 .set-lines-ctl { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--sp-2) var(--sp-3); }
