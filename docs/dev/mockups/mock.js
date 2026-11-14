@@ -36,6 +36,16 @@
     vib: { y: [0, 60], ticks: [0, 30, 60], cur: 0.62, limit: 30, lines: [
       { c: C[0], d: series(420, (x) => 14 + 10 * x + Math.abs(rnd()) * 18 + (x > 0.7 && x < 0.74 ? 22 : 0)) },
       { c: C[3], d: series(420, (x) => 9 + 6 * x + Math.abs(rnd()) * 10) }] },
+    temp: { y: [60, 100], ticks: [60, 70, 80, 90, 100], cur: 0.62, limit: 88, lines: [
+      { c: C[0], d: series(400, (x) => 70 + 19 * (1 - Math.exp(-x * 2.4)) + 3 * Math.sin(x * 14) * x + rnd() * 0.5) },
+      { c: C[1], d: series(400, (x) => 70 + 14 * (1 - Math.exp(-x * 2.6)) + 2 * Math.sin(x * 12) * x + rnd() * 0.5) },
+      { c: C[2], d: series(400, (x) => 70 + 13.5 * (1 - Math.exp(-x * 2.2)) + 2 * Math.sin(x * 13) * x + rnd() * 0.5) }] },
+    speed: { y: [0, 90], ticks: [0, 30, 60, 90], cur: 0.62, lines: [
+      { c: C[0], d: series(300, (x) => (x < 0.1 ? x * 300 : x > 0.85 ? Math.max(0, (1 - x) * 480) : 72 + 5 * Math.sin(x * 10)) + rnd()) },
+      { c: C[1], d: series(300, (x) => (x < 0.12 ? x * 240 : x > 0.88 ? Math.max(0, (1 - x) * 560) : 69 + 5 * Math.sin(x * 10 - 0.3)) + rnd()) }] },
+    rpm: { y: [0, 3500], ticks: [0, 1000, 2000, 3000], cur: 0.62, limit: 3000, lines: [
+      { c: C[0], d: series(300, (x) => 1400 + 1000 * Math.min(1, x * 6) + 250 * Math.sin(x * 25) + rnd() * 120) },
+      { c: C[1], d: series(300, (x) => 1400 + 900 * Math.min(1, x * 5) + 220 * Math.sin(x * 22) + rnd() * 120) }] },
     pc: null,
   };
   window.MOCK_PLOTS = PLOTS;
