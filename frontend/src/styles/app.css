@@ -11,3 +11,9 @@
 
 /* W10: the close prompt's three choices */
 .unsaved-foot .btn.discard { margin-inline-end: auto; }
+
+/* ---- Lane L3 of the 2026-11-14 redesign. Tokens from index.css only. ---- */
+
+/* D2: the file panel - the count of open signals in its head (.ph-count, A4), quick chips under the search for big
+   files (the groups this tab uses, then the largest) */
+.quick-chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); padding: 0 10px 6px 14px; }

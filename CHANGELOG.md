@@ -23,6 +23,7 @@
 - Plots: axis numbers in the mono face, a quieter grid, the cursor a dashed amber line with a dot on every curve, and limits drawn as dashed red lines (a short tick in the signal's colour tells several apart).
 - The timeline shows the run's modes (or any state signal) as colour along its track, under the overview line and the amber frame of what the plots show.
 - On demand, the legend shows the statistics of the time on screen beside each line – lowest, mean and highest – and they follow every zoom and pan (the plot's ⋯ menu › Legend).
+- The file panel counts the open signals, and for a big file offers quick filters under the search while you use it – the groups the current tab uses first – one click shows only that group.
 
 <!-- lane L4 -->
 - **Map: *Satellite + roads*.** A new background: the satellite photos with the roads and their names drawn over them

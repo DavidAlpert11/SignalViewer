@@ -74,3 +74,26 @@ def test_mat_struct_three_levels(pg):
     groups = [r[1] for r in _rows(pg) if r[0] == "g"]
     # sim > nav > pos / att; truth has only pos, so truth.pos is one row
     assert groups == ["sim", "nav", "pos", "att", "truth.pos"]
+
+
+def test_quick_chips_and_the_count_for_a_big_file(pg):
+    """D2 (lane L3): the panel head counts the open signals; a big file gets quick chips under the search while it
+    is in use - the groups the tab uses first - one click filters to that group, a second click shows all again."""
+    from test_template_tabs import open_ardupilot_example
+    open_ardupilot_example(pg)
+    assert pg.locator(".quick-chips").count() == 0                  # only while the search is in use
+    pg.locator(".filter input").focus()
+    pg.wait_for_selector(".quick-chips .chipbtn")
+    n = S(pg, "s.runs.reduce((a, r) => a + r.signals.length, 0)")
+    assert pg.locator(".side-head .ph-count").inner_text().replace(",", "") == str(n)
+    used = S(pg, "[...new Set(s.ws.tabs.find((t) => t.id === s.ws.activeTab).plots.flatMap((p) => p.signals.map((x) => x.sig.split('/')[1].split('.')[0])))]")
+    first = pg.locator(".quick-chips .chipbtn").first
+    assert first.inner_text() in used
+    g = first.inner_text()
+    first.click()
+    assert pg.locator(".filter input").input_value() == g + "."
+    assert first.get_attribute("aria-pressed") == "true"
+    first.click()
+    assert pg.locator(".filter input").input_value() == ""
+    pg.evaluate("document.activeElement.blur()")                    # the search left: the chips go
+    pg.wait_for_selector(".quick-chips", state="detached")

@@ -40,6 +40,9 @@ type Row =
 const H_RUN = 30, H_GROUP = 26, H_SIG = 26, OVERSCAN = 10;
 
 import { exactMatch, fuzzyMatch } from "../fuzzy";
+/** D2: quick chips show from this many signals on (a small file is read at a glance), at most QUICK_N. */
+const QUICK_MIN = 40, QUICK_N = 6;
+
 /** Smart search: substrings, letters in order, or one typo (see fuzzy.ts). */
 const match = (name: string, q: string) => fuzzyMatch(name, q);
 
@@ -270,6 +273,27 @@ export default function DataPanel() {
     activePlot?.signals.forEach((s) => m.set(s.sig, s.color));
     return m;
   }, [activePlot]);
+
+  // D2: how many signals are open (the panel head's count), and quick chips for big files: the groups this
+  // tab already uses, then the largest - any format (a log's messages, a .mat's structs, a table's prefixes)
+  const nSignals = runs.reduce((a, r) => a + r.signals.length, 0);
+  const quick = useMemo(() => {
+    if (nSignals < QUICK_MIN) return [];
+    const grp = (name: string) => { const i = name.indexOf("."); return i > 0 ? name.slice(0, i) : null; };
+    const size = new Map<string, number>(), used: string[] = [];
+    for (const r of runs) for (const s of r.signals) {
+      const g = grp(s.name);
+      if (!g) continue;
+      size.set(g, (size.get(g) ?? 0) + 1);
+      if (onTab.has(s.id) && !used.includes(g)) used.push(g);
+    }
+    const big = Array.from(size.keys()).sort((a, b) => size.get(b)! - size.get(a)!);
+    return Array.from(new Set([...used, ...big])).slice(0, QUICK_N);
+  }, [runs, onTab, nSignals]);
+
+  // shown while the search is in use (focused, or one of them chosen): the screen keeps its count of controls
+  const [searchFocus, setSearchFocus] = useState(false);
+  const quickShown = quick.length > 0 && (searchFocus || quick.some((g) => q === `${g}.`));
 
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>({});
   // while searching every match starts open, but files and groups can still be collapsed
@@ -625,7 +649,7 @@ export default function DataPanel() {
   return (
     <aside className="side" aria-label={t("data")}>
       <div className="side-head">
-        <h2>{t("files")}</h2>
+        <h2>{t("files")}{nSignals > 0 && <> <span className="ph-count" title={t("signalsOpenN", { n: nSignals })}>{nSignals.toLocaleString(lang === "he" ? "he-IL" : "en-US")}</span></>}</h2>
         {runs.some((r) => r.format !== "derived") && (
           <button className="iconbtn" onClick={() => { refreshAll(); }} title={`${t("refreshAll")} (F5)`} aria-label={t("refreshAll")}><Icon.Reload /></button>
         )}
@@ -698,12 +722,23 @@ export default function DataPanel() {
         <label className="filter">
           <Icon.Search />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchSignals")} aria-label={t("searchSignals")}
+            onFocus={() => setSearchFocus(true)} onBlur={() => setSearchFocus(false)}
             onKeyDown={(e) => {
               if (e.key !== "Escape") return;
               if (q) { setQ(""); e.stopPropagation(); } else if (picked.length) { clearSel(); e.stopPropagation(); }
             }} />
           {q && <button className="iconbtn" style={{ height: 20, minWidth: 20 }} onClick={() => setQ("")} aria-label={t("close")}><Icon.X /></button>}
         </label>
+      )}
+      {quickShown && (
+        <div className="quick-chips" role="group" aria-label={t("quickGroups")}>
+          {quick.map((g) => {
+            const on = q === `${g}.`;
+            return <button key={g} className={`chipbtn${on ? " on" : ""}`} aria-pressed={on} title={t("quickGroupHint", { g })}
+              onMouseDown={(e) => e.preventDefault()}            // the search keeps the focus (and the chips stay)
+              onClick={() => setQ(on ? "" : `${g}.`)}>{g}</button>;
+          })}
+        </div>
       )}
       <div className="tree" ref={treeRef}
         onKeyDown={(e) => { if (e.key === "Escape" && picked.length) { clearSel(); e.stopPropagation(); } }}
