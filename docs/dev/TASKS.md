@@ -21,12 +21,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   coordinator session is not resumed (kept for reference); this session coordinates and runs the Final lane.
 - **Lane board – redesign round 2026-11-14** (plan §7.0; each lane edits only its own block; S1 = A3 + A4 on `main`).
   <!-- lane L1 -->
-  - **L1 Look** – in progress · done: A1 A2 A3 A4 (**S1 on `main`**) · next: D11 · tasks A1 A2 A3 A4 D11 D12 D13 · requests from other lanes: –
-    - From L3 (2026-11-14): a Settings row (Look, beside the plot choices) for L3's setting `bandInCard` (B3; boolean, default on; `useApp.setState({ bandInCard })`, saved via settings.ts): en *Mode band – Inside the top plot / Above the plots*, he *פס המצבים – בתוך הגרף העליון / מעל הגרפים*. Until then it is set only by the store / prefs.
-  - **L1 Look** – in progress · done: A1 A2 A3 A4 (**S1 on `main`**) D11 · next: D12 · tasks A1 A2 A3 A4 D11 D12 D13 · requests from other lanes: –
-    - From L5 (D7, 2026-11-14): please keep the `.hrow` alias of the card rules for now – `HealthRow` lays its icon beside the text (a row), `.card` is a column; the Checks view's own cards use `.card`.
   - **L1 Look** – in progress · done: A1 A2 A3 A4 (**S1 on `main`**) D11 D12 · next: D13 · tasks A1 A2 A3 A4 D11 D12 D13 · requests from other lanes: –
     - DONE (D12, 2026-11-14) – From L3 (2026-11-14): a Settings row (Look, beside the plot choices) for L3's setting `bandInCard` (B3; boolean, default on; `useApp.setState({ bandInCard })`, saved via settings.ts): en *Mode band – Inside the top plot / Above the plots*, he *פס המצבים – בתוך הגרף העליון / מעל הגרפים*. Until then it is set only by the store / prefs.
+    - Noted (L1): From L5 (D7, 2026-11-14): please keep the `.hrow` alias of the card rules for now – `HealthRow` lays its icon beside the text (a row), `.card` is a column; the Checks view's own cards use `.card`.
     - New tokens (A1, on `main`): `--select` / `--select-ink` / `--select-soft` / `--select-ring` (selection, active, primary – a
       neutral ink; amber is the cursor and time only), `--warn` + `--ok-soft` / `--warn-soft` / `--danger-soft` / `--info-soft`,
       `--shadow-md` / `--shadow-lg` (`--shadow` = lg), `--r-card`, `--fs-readout`, `--eyebrow` + `--eyebrow-spacing`.
