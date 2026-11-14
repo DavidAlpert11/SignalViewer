@@ -5,8 +5,8 @@ import { useApp, type Tab } from "../store";
 /* Plot colors per theme. Read from this table (not from CSS) because React runs
    chart effects before App sets <html data-theme>. Keep in sync with index.css. */
 export const PLOT_THEME = {
-  dark: { axis: "#8e9cad", grid: "#222c39", amber: "#f2a93b", amberInk: "#1b1305", label: "#dde4ec", bg: "#121820", text: "#dde4ec" },
-  light: { axis: "#5a6979", grid: "#e6ebf0", amber: "#945d0b", amberInk: "#ffffff", label: "#1f2a36", bg: "#ffffff", text: "#1f2a36" },
+  dark: { axis: "#8796a8", grid: "#1a2330", amber: "#f2a93b", amberInk: "#1b1305", label: "#d9e1ea", bg: "#0b1016", text: "#d9e1ea", danger: "#ef6b73" },
+  light: { axis: "#5a6979", grid: "#edf1f5", amber: "#945d0b", amberInk: "#ffffff", label: "#1f2a36", bg: "#ffffff", text: "#1f2a36", danger: "#b9343e" },
 } as const;
 
 /** Dash patterns of preview lines, in order: axis 1, 2, 3 of a frame conversion are told apart by
@@ -43,9 +43,16 @@ export function ink(color: string, theme: ThemeName): string {
 /** UI text scale (accessibility): canvas text follows the same setting as the page. */
 export const uiScale = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ui-scale")) || 1;
 
+/** B4: numbers on the canvas (axes, the cursor's flag) in the mono face of the design system, the page's
+ *  font where it is not defined. */
+export function monoFamily(): string {
+  const v = getComputedStyle(document.documentElement).getPropertyValue("--mono").trim();
+  return v || getComputedStyle(document.body).fontFamily;
+}
+
 export function axisStyle(theme: ThemeName): uPlot.Axis {
   const pt = PLOT_THEME[theme];
-  const font = `${Math.round(11 * uiScale())}px ${getComputedStyle(document.body).fontFamily}`;
+  const font = `${Math.round(10 * uiScale())}px ${monoFamily()}`;
   return { stroke: pt.axis, grid: { stroke: pt.grid, width: 1 }, ticks: { stroke: pt.grid, width: 1 }, font, labelFont: font };
 }
 
@@ -70,7 +77,7 @@ export const dpr = () => window.devicePixelRatio || 1;
 export function flag(ctx: CanvasRenderingContext2D, x: number, top: number, text: string, bg: string, fg: string,
   bounds: { left: number; width: number }, alpha = 1) {
   const r = dpr();
-  ctx.font = `${11 * r * uiScale()}px ${getComputedStyle(document.body).fontFamily}`;
+  ctx.font = `${11 * r * uiScale()}px ${monoFamily()}`;
   ctx.textBaseline = "middle";
   ctx.textAlign = "left"; // uPlot leaves textAlign set by its axis labels
   const tw = ctx.measureText(text).width + 10 * r, th = 17 * r * uiScale();

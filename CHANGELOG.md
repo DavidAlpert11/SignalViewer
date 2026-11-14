@@ -16,6 +16,7 @@
 - **The plot card**: each plot's head names it (a small *PLOT 2 · ACTIVE* label over the title), says what it shows (*3 signals · two y axes*), and keeps its few actions at its end; the legend has a line of its own under it.
 - The legend reads like an instrument: each line's value at the cursor in a monospaced, bold number with its unit after it, and the change between the two cursors (Δ) beside it.
 - The state lanes of a tab (such as a flight mode) are a thin coloured band inside the top plot's card, lined up with its time axis, instead of a separate row above the plots.
+- Plots: axis numbers in the mono face, a quieter grid, the cursor a dashed amber line with a dot on every curve, and limits drawn as dashed red lines (a short tick in the signal's colour tells several apart).
 
 <!-- lane L4 -->
 - **Map: *Satellite + roads*.** A new background: the satellite photos with the roads and their names drawn over them

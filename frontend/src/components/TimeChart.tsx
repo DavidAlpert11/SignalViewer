@@ -472,9 +472,10 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         if (tv === null) continue;
         const x = Math.round(u.valToPos(tv, "x", true)) + 0.5;
         if (x < left - 1 || x > left + width + 1) continue;
+        // B4: both cursors dashed amber (the plot's lines stay solid and in front); cursor 2 a finer dash
         ctx.strokeStyle = pt.amber;
         ctx.lineWidth = dpr() * (tag === "1" ? 1.5 : 1.25);
-        ctx.setLineDash(tag === "1" ? [] : [5 * dpr(), 4 * dpr()]);
+        ctx.setLineDash(tag === "1" ? [4 * dpr(), 3 * dpr()] : [2 * dpr(), 3 * dpr()]);
         ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, top + height); ctx.stroke();
         ctx.setLineDash([]);
         // cursor 1's flag at the top, cursor 2's at the bottom: they never overlap
@@ -504,7 +505,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     const drawValues = (u: uPlot, ctx: CanvasRenderingContext2D) => {
       const c = cursorRef.current;
       const { cvals: cv, valuesOnPlot: on, signals } = valRef.current;
-      if (!on || !c.on || c.t1 === null) return;
+      if (!c.on || c.t1 === null) return;
       const { left, width, top, height } = u.bbox;
       const x = Math.round(u.valToPos(c.t1, "x", true));
       if (x < left || x > left + width) return;
@@ -516,8 +517,10 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         const v = raw * s.scale + s.offset;
         const y = u.valToPos(v, s.axis === "right" ? "y2" : "y", true);
         if (y < top || y > top + height) return;
-        ctx.beginPath(); ctx.arc(x, y, 3.5 * dpr(), 0, Math.PI * 2); ctx.fillStyle = s.color; ctx.fill();
-        flag(ctx, x + 4 * dpr(), y - 9 * dpr(), labelText(labelsOf(runsRef.current, s.sig), raw) ?? fmtNum(v, "en", 5), s.color, "#ffffff", { left, width }, 0.92);
+        // B4: a dot where cursor 1 meets every line (its value is in the legend); the value beside it on request
+        ctx.beginPath(); ctx.arc(x, y, 3.5 * dpr(), 0, Math.PI * 2); ctx.fillStyle = ink(s.color, theme); ctx.fill();
+        ctx.lineWidth = 1.5 * dpr(); ctx.strokeStyle = pt.bg; ctx.stroke();
+        if (on) flag(ctx, x + 4 * dpr(), y - 9 * dpr(), labelText(labelsOf(runsRef.current, s.sig), raw) ?? fmtNum(v, "en", 5), s.color, "#ffffff", { left, width }, 0.92);
       });
       ctx.restore();
     };
@@ -535,7 +538,8 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       overlay.style.width = c.style.width; overlay.style.height = c.style.height;
       overlay.style.left = c.offsetLeft + "px"; overlay.style.top = c.offsetTop + "px";
     };
-    /* T13: limits as dashed lines in the signal's colour (on the plotted value) */
+    /* T13: limits as dashed lines on the plotted value - B4: in the danger colour (a limit is a warning line, not
+       one more trace), with a short tick in the signal's colour at the start so several limits are told apart */
     const drawLimits = (u: uPlot) => {
       const lim = sigs.filter((s) => !s.state && s.limits && (s.limits.lo != null || s.limits.hi != null));
       if (!lim.length) return;
@@ -547,7 +551,9 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         if (v == null || !Number.isFinite(v)) return;
         const y = Math.round(u.valToPos(v, s.axis === "right" ? "y2" : "y", true)) + 0.5;
         if (y < top || y > top + height) return;
-        ctx.strokeStyle = s.color; ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + width, y); ctx.stroke();
+        ctx.strokeStyle = pt.danger; ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + width, y); ctx.stroke();
+        ctx.save(); ctx.setLineDash([]); ctx.lineWidth = 3 * d; ctx.strokeStyle = ink(s.color, theme);
+        ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + 10 * d, y); ctx.stroke(); ctx.restore();
       }));
       ctx.restore();
     };
