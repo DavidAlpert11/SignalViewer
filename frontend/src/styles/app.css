@@ -17,3 +17,10 @@
 /* D2: the file panel - the count of open signals in its head (.ph-count, A4), quick chips under the search for big
    files (the groups this tab uses, then the largest) */
 .quick-chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); padding: 0 10px 6px 14px; }
+
+/* D1 (decision 5): one top row - in Recordings it holds the area's tools (.area-tools) and the area has no bar of
+   its own (the plots get its 40 px); the plot tabs open the stage bar. Sweeps / Fleet keep their bars. */
+.app:not(:has(> .areabar)) { grid-template-rows: 44px 1fr 26px; }
+.area-tools { display: flex; align-items: center; gap: var(--sp-1); flex-shrink: 0; }
+.stage-bar > .tabs-wrap { height: 28px; flex: 0 1 auto; min-width: 120px; }
+.stage-bar .tab { height: 28px; }

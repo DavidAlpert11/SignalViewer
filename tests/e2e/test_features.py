@@ -189,7 +189,7 @@ def clear_plots(pg):
 
 def clear_everything(pg):
     """F35: Clear (top bar) > Clear everything, then confirm."""
-    pg.click(".areabar [aria-label='Clear']")
+    pg.click(".area-tools [aria-label='Clear']")
     pg.click(".menu.ctx button:has-text('Clear everything')")
     pg.click(".dialog-foot .btn.primary")
 
@@ -319,7 +319,7 @@ def test_D09_D10_live_mode_and_follow(pg):
     with open(p, "w") as f:
         f.write("Time,V\n" + "".join(f"{i * 0.1:.1f},{i}\n" for i in range(50)))
     open_files(pg, "live.csv")
-    pg.click(".areabar .btn:has-text('Live')")
+    pg.click(".area-tools .btn:has-text('Live')")
     pg.locator(".stage-bar select[aria-label='Follow']").select_option("10")
     with open(p, "a") as f:
         f.write("".join(f"{i * 0.1:.1f},{i}\n" for i in range(50, 300)))
@@ -620,7 +620,7 @@ def test_T63_clear_menu_scopes(pg):
     files = lambda: state("s.runs.filter(r => r.format !== 'derived').length")
     assert state("s.ws.tabs.length") == 2
     def pick(text):
-        pg.click(".areabar [aria-label='Clear']")
+        pg.click(".area-tools [aria-label='Clear']")
         pg.locator(".menu.ctx button", has_text=text).click()
     # the other tabs
     pick("The other tabs (1)")
@@ -645,7 +645,7 @@ def test_T63_clear_menu_scopes(pg):
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 1")
     assert files() == 1 and state("s.runs.some(r => r.format === 'derived')")
     # and the last scope closes the files too, after asking
-    pg.click(".areabar [aria-label='Clear']")
+    pg.click(".area-tools [aria-label='Clear']")
     assert "danger" in pg.locator(".menu.ctx button", has_text="Clear everything").get_attribute("class")
     pg.keyboard.press("Escape")
 
@@ -1612,7 +1612,7 @@ def test_refresh_and_live_follow_the_file(pg):
     pg.locator(".run-head").first.hover(); pg.locator(".run-head [aria-label='Reload from disk']").click()
     pg.wait_for_selector(".toast:has-text('reloaded')")
     assert stat_max() == 5.0
-    pg.click(".areabar .btn:has-text('Live')")
+    pg.click(".area-tools .btn:has-text('Live')")
     with open(p, "a", newline="") as f:
         f.write("".join(f"{5 + i * 0.01:.2f},9.0\r\n" for i in range(30)))
     pg.wait_for_function("window.__sv.state().runs[0].samples === 430", timeout=8000)
@@ -1632,7 +1632,7 @@ def test_live_keeps_the_time_at_the_newest_data(pg):
     open_files(pg, "growing.csv")
     sig(pg, "A").click()
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, t1: 1.0 } })")                 # somewhere in the middle
-    pg.click(".areabar .btn:has-text('Live')")
+    pg.click(".area-tools .btn:has-text('Live')")
     pg.wait_for_function("window.__sv.state().streaming && Math.abs(window.__sv.state().cursor.t1 - 2.99) < 1e-6", timeout=8000)
     with open(p, "a", newline="") as f:
         f.write("".join(f"{3 + i * 0.01:.2f},2.0\r\n" for i in range(100)))
@@ -2044,7 +2044,7 @@ def test_same_flight_sync_health_notes_spectrogram(pg):
     pg.locator(".dialog .btn.primary").click()
     pg.wait_for_function("(window.__sv.state().ws.notes || []).some(n => n.text === 'vibration burst' && n.t === 30)")
     # a spectrogram plot draws its image
-    pg.click(".areabar .more-tabs"); menu_item(pg, "Open a template")   # U9: the views menu   # templates: top bar / file panel, for any file
+    pg.click(".stage-bar .more-tabs"); menu_item(pg, "Open a template")   # U9: the views menu   # templates: top bar / file panel, for any file
     pg.locator(".tpl-item", has_text="ArduPilot · Vibration").click()
     pg.locator(".tpl-actions .btn.primary").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.at(-1).plots.some(p => p.mode === 'spec')")
@@ -2118,7 +2118,7 @@ def test_align_csv_and_mat_by_name_moment_and_cursors(pg):
 
 def test_template_library_collections_and_quick_look(pg):
     open_files(pg, "run_a.csv", "run_b.csv")
-    pg.click(".areabar .more-tabs"); menu_item(pg, "Open a template")   # U9: the views menu
+    pg.click(".stage-bar .more-tabs"); menu_item(pg, "Open a template")   # U9: the views menu
     pg.wait_for_selector(".tpl-lib")
     # any file: a quick look of one file
     pg.locator(".tpl-item", has_text="Quick look").click()
@@ -2145,7 +2145,7 @@ def test_template_library_collections_and_quick_look(pg):
     cmp_tab = S(pg, f"s.ws.tabs.slice({n0}).find(t => t.name.startsWith('Compare'))")
     assert all(len(p["signals"]) == 2 for p in cmp_tab["plots"])           # every shared signal from both files
     # a template cannot include one that includes it (no loops)
-    pg.click(".areabar .more-tabs"); menu_item(pg, "Open a template")   # U9: the views menu
+    pg.click(".stage-bar .more-tabs"); menu_item(pg, "Open a template")   # U9: the views menu
     pg.locator(".tpl-item", has_text="Speed set").click(); pg.locator(".tpl-actions .btn", has_text="Edit").click()
     opts = pg.locator(".tpl-editor select[aria-label='Include a template'] option").all_inner_texts()
     assert not any("All my views" in o for o in opts)
@@ -2160,7 +2160,7 @@ def test_inspector_starts_closed_and_respects_the_user(pg):
     pg.keyboard.press("Space")
     pg.wait_for_selector(".inspector")
     pg.keyboard.press("Space")
-    pg.click(".areabar [aria-label^='Inspector']")                 # the user closes it on purpose
+    pg.click(".area-tools [aria-label^='Inspector']")                 # the user closes it on purpose
     assert pg.locator(".inspector").count() == 0
     on = S(pg, "s.cursor.on")
     pg.keyboard.press("Space")

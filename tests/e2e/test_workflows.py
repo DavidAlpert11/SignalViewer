@@ -154,7 +154,7 @@ def test_live_mode(page, server):
     with open(p, "w") as f:
         f.write("Time,V\n" + "".join(f"{i * 0.1:.1f},{i}\n" for i in range(50)))
     _open(page, server["data"], ["live.csv"])
-    page.click(".areabar .btn:has-text('Live')")
+    page.click(".area-tools .btn:has-text('Live')")
     with open(p, "a") as f:
         f.write("".join(f"{i * 0.1:.1f},{i}\n" for i in range(50, 80)))
     page.wait_for_function("document.querySelector('.status').innerText.includes('80 samples')", timeout=8000)
@@ -331,7 +331,7 @@ def test_dialogs_take_the_keyboard(page, server):
         assert page.evaluate(inside)
     page.keyboard.press("Escape")
     page.wait_for_selector(".scrim", state="detached")
-    page.locator(".areabar [aria-label='Clear']").click(); page.locator(".menu.ctx button", has_text="Clear everything").click()
+    page.locator(".area-tools [aria-label='Clear']").click(); page.locator(".menu.ctx button", has_text="Clear everything").click()
     page.wait_for_function(inside)
     page.keyboard.press("Escape")
     page.wait_for_selector(".scrim", state="detached")
@@ -579,7 +579,7 @@ def test_clearer_controls(page, server):
     page.locator(".menu.ctx button", has_text="Remove from the active plot").click()
     page.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 0")
     assert "Zoom" in page.locator(".zoom-btn").inner_text()
-    page.locator(".areabar [aria-label='Clear']").click(); page.locator(".menu.ctx button", has_text="Clear everything").click()
+    page.locator(".area-tools [aria-label='Clear']").click(); page.locator(".menu.ctx button", has_text="Clear everything").click()
     ok = page.locator(".dialog .btn.primary")
     assert ok.inner_text() == "Clear everything" and "danger" in ok.get_attribute("class")
     page.keyboard.press("Escape")

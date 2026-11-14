@@ -33,6 +33,7 @@ function menuAt(e: React.MouseEvent, w = 240) {
 export default function TopBar() {
   const t = useT();
   const theme = useApp((s) => s.theme);
+  const area = useApp((s) => s.area);
   const at = menuAt;
 
   // F35 (owner, 2026-10-20): no File menu - its few entries are buttons again (opening files is
@@ -72,6 +73,8 @@ export default function TopBar() {
       <button className="search-trigger" data-tour="palette" onClick={() => useApp.setState({ paletteOpen: true, paletteMode: "all" })}>
         <Icon.Search width={14} height={14} /> <span>{t("commands")}</span><span className="kbd">Ctrl K</span>
       </button>
+      {/* D1 (decision 5): one top row - the Recordings area's own tools sit here, its plot tabs in the stage bar */}
+      {area === "recordings" && <RecordingsTools />}
       <button className="iconbtn" onClick={() => useApp.setState({ settingsOpen: true })} title={`${t("settings")} (Ctrl+,)`} aria-label={t("settings")}>
         <Icon.Settings />
       </button>
@@ -104,9 +107,15 @@ function AreaSwitcher() {
   );
 }
 
-/** The Recordings area's bar: its session, its plot tabs, templates, live, undo / redo, Clear and the
- *  Inspector. Live follows the open files (and MAVLink): it is the Recordings area's, not the app's. */
+/** D1: the Recordings area has no bar of its own any more (one top row: its tools are in TopBar, its plot
+ *  tabs in the stage bar). Kept so App's area table stays as it is. */
 export function RecordingsBar() {
+  return null;
+}
+
+/** The Recordings area's tools in the top row: its session, templates, live, undo / redo, Clear and the
+ *  Inspector. Live follows the open files (and MAVLink): it is the Recordings area's, not the app's. */
+function RecordingsTools() {
   const t = useT();
   const streaming = useApp((s) => s.streaming);
   const liveStarting = useApp((s) => s.liveStarting);
@@ -116,11 +125,56 @@ export function RecordingsBar() {
   const lang = useApp((s) => s.lang);
   const mavOn = !!mav?.running;
   const mavQuiet = mavOn && (mav!.sinceData == null || mav!.sinceData > 3);
-  const ws = useApp((s) => s.ws);
-  const plotDrag = useApp((s) => s.plotDrag);
   const past = useApp((s) => s.past.length);
   const future = useApp((s) => s.future.length);
   const inspectorOpen = useApp((s) => s.inspectorOpen);
+  const at = menuAt;
+  return (
+    <span className="area-tools" role="toolbar" aria-label={t(areaDef("recordings").label)}>
+      <button className="iconbtn" onClick={() => openSession()} title={`${t("openSession")}… (Ctrl+Shift+O)`} aria-label={t("openSession")}><Icon.Open /></button>
+      <button className="iconbtn" onClick={saveSession} title={`${t("saveSession")} (Ctrl+S)`} aria-label={t("saveSession")}><Icon.Save /></button>
+      <button className="btn tpl-menu-btn" aria-haspopup="menu" aria-label={t("tplMenu")} title={t("tplMenu")}
+        onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          openMenu({ clientX: document.documentElement.dir === "rtl" ? Math.max(8, r.right - 240) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent, templateMenuItems(t)); }}>
+        <Icon.Layout /><span className="hide-compact">{t("tplMenu")}</span> <Icon.Chevron width={12} height={12} />
+      </button>
+      <span className="sep" />
+      <span className="live-group">
+        <button className={`btn live-btn${streaming ? " on" : ""}`} aria-pressed={streaming} disabled={liveStarting} onClick={toggleLive}
+          title={streaming ? t("liveStopHint") : t("liveStartHint")}>
+          <Icon.Live /> {liveStarting ? t("liveStarting") : t("stream")}
+        </button>
+        <button className="iconbtn live-more" aria-expanded={liveMenu} aria-label={t("liveSettings")} title={t("liveSettings")}
+          onClick={() => setLiveMenu(!liveMenu)}>
+          <Icon.Chevron width={12} height={12} />
+        </button>
+        {mavOn && (
+          <button className={`btn mav-pill${mavQuiet ? " quiet" : ""}`} onClick={() => setLiveMenu(true)}
+            title={mavQuiet ? t("mavNoData", { conn: mav!.conn ?? "" }) : t("mavReceiving", { conn: mav!.conn ?? "" })}>
+            <span className="live-dot on" />MAVLink {mavQuiet ? "" : `${fmtNum(mav!.rate ?? 0, lang, 3)}/s`}
+          </button>
+        )}
+        {liveMenu && <LiveSettings onClose={() => setLiveMenu(false)} />}
+      </span>
+      <span className="sep" />
+      <button className="iconbtn" disabled={!past} onClick={useApp.getState().undo} title={`${t("undo")} (Ctrl+Z)`} aria-label={t("undo")}><Icon.Undo /></button>
+      <button className="iconbtn" disabled={!future} onClick={useApp.getState().redo} title={`${t("redo")} (Ctrl+Y)`} aria-label={t("redo")}><Icon.Redo /></button>
+      {/* T63 / F35: one Clear button, what to clear in its menu (this tab ... everything) */}
+      <button className="btn clear-btn" aria-haspopup="menu" title={t("clearMenuHint")} aria-label={t("clearMenu")}
+        onClick={(e) => openMenu(at(e, 320), clearMenuItems())}>
+        <Icon.Eraser /><span className="hide-narrow">{t("clearMenu")}</span><Icon.Chevron width={12} height={12} />
+      </button>
+      <button className="iconbtn" aria-pressed={inspectorOpen} onClick={() => setInspectorByUser(!inspectorOpen)} aria-label={t("inspector")} title={t("inspector")}><Icon.Inspector /></button>
+    </span>
+  );
+}
+
+/** D1 (decision 5): the plot tabs - about the plots, so in the stage bar (StageBar renders this): rename,
+ *  reorder, close, drop a plot on a tab, the views menu (+ ▾). */
+export function PlotTabs() {
+  const t = useT();
+  const ws = useApp((s) => s.ws);
+  const plotDrag = useApp((s) => s.plotDrag);
   const [editing, setEditing] = useState<string | null>(null);
   const at = menuAt;
   // F22: with many tabs the strip scrolls (its scrollbar is hidden): the wheel scrolls it, the active
@@ -174,10 +228,7 @@ export function RecordingsBar() {
     : more.length ? (moreN === 1 ? t("moreTabsOne", { name: nameOf(more[0]) }) : t("moreTabs", { n: moreN, name: nameOf(more[0]) })) : "";
 
   return (
-    <div className="areabar" role="toolbar" aria-label={t(areaDef("recordings").label)}>
-      <button className="iconbtn" onClick={() => openSession()} title={`${t("openSession")}… (Ctrl+Shift+O)`} aria-label={t("openSession")}><Icon.Open /></button>
-      <button className="iconbtn" onClick={saveSession} title={`${t("saveSession")} (Ctrl+S)`} aria-label={t("saveSession")}><Icon.Save /></button>
-      <nav className="tabs-wrap">
+    <nav className="tabs-wrap">
       <div className="tabs" role="tablist" ref={strip} onWheel={onStripWheel}>
         {ws.tabs.map((tab, i) => {
           const name = tab.name || `${t("tab")} ${i + 1}`;
@@ -238,39 +289,6 @@ export function RecordingsBar() {
           </button>
         </span>
       </nav>
-      <button className="btn tpl-menu-btn" aria-haspopup="menu" aria-label={t("tplMenu")}
-        onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          openMenu({ clientX: document.documentElement.dir === "rtl" ? Math.max(8, r.right - 240) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent, templateMenuItems(t)); }}>
-        <Icon.Layout /> {t("tplMenu")} <Icon.Chevron width={12} height={12} />
-      </button>
-      <div className="spacer" />
-      <span className="live-group">
-        <button className={`btn live-btn${streaming ? " on" : ""}`} aria-pressed={streaming} disabled={liveStarting} onClick={toggleLive}
-          title={streaming ? t("liveStopHint") : t("liveStartHint")}>
-          <Icon.Live /> {liveStarting ? t("liveStarting") : t("stream")}
-        </button>
-        <button className="iconbtn live-more" aria-expanded={liveMenu} aria-label={t("liveSettings")} title={t("liveSettings")}
-          onClick={() => setLiveMenu(!liveMenu)}>
-          <Icon.Chevron width={12} height={12} />
-        </button>
-        {mavOn && (
-          <button className={`btn mav-pill${mavQuiet ? " quiet" : ""}`} onClick={() => setLiveMenu(true)}
-            title={mavQuiet ? t("mavNoData", { conn: mav!.conn ?? "" }) : t("mavReceiving", { conn: mav!.conn ?? "" })}>
-            <span className="live-dot on" />MAVLink {mavQuiet ? "" : `${fmtNum(mav!.rate ?? 0, lang, 3)}/s`}
-          </button>
-        )}
-        {liveMenu && <LiveSettings onClose={() => setLiveMenu(false)} />}
-      </span>
-      <span className="sep" />
-      <button className="iconbtn" disabled={!past} onClick={useApp.getState().undo} title={`${t("undo")} (Ctrl+Z)`} aria-label={t("undo")}><Icon.Undo /></button>
-      <button className="iconbtn" disabled={!future} onClick={useApp.getState().redo} title={`${t("redo")} (Ctrl+Y)`} aria-label={t("redo")}><Icon.Redo /></button>
-      {/* T63 / F35: one Clear button, what to clear in its menu (this tab ... everything) */}
-      <button className="btn clear-btn" aria-haspopup="menu" title={t("clearMenuHint")} aria-label={t("clearMenu")}
-        onClick={(e) => openMenu(at(e, 320), clearMenuItems())}>
-        <Icon.Eraser /><span className="hide-narrow">{t("clearMenu")}</span><Icon.Chevron width={12} height={12} />
-      </button>
-      <button className="iconbtn" aria-pressed={inspectorOpen} onClick={() => setInspectorByUser(!inspectorOpen)} aria-label={t("inspector")} title={t("inspector")}><Icon.Inspector /></button>
-    </div>
   );
 }
 

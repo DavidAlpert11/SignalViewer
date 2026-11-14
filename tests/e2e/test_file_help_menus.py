@@ -23,14 +23,20 @@ def close_dialog(pg):
 
 def test_file_and_help_menus(pg):
     assert pg.locator(".topbar .menubar-btn", has_text="File").count() == 0
-    # T-areas: the top row holds what every work area shares; session and Clear are the Recordings area's bar
+    # T-areas / D1 (one top row): the top row holds what every work area shares, and the area's own tools in their
+    # group (.area-tools) - session and Clear are the Recordings area's
     for label in ("Settings", "Theme"):
         assert pg.locator(f".topbar [aria-label='{label}']").count() == 1, label
     for label in ("Open session", "Save session", "Clear", "Live mode settings"):
-        assert pg.locator(f".areabar [aria-label='{label}']").count() == 1, label
-    # Live follows the open files: it is the Recordings area's, not in the top row (owner, 2026-11-02)
-    assert pg.locator(".topbar .live-btn").count() == 0 and pg.locator(".areabar .live-btn").count() == 1
-    pg.click(".areabar [aria-label='Clear']")
+        assert pg.locator(f".area-tools [aria-label='{label}']").count() == 1, label
+    # Live follows the open files: it is the Recordings area's (owner, 2026-11-02) - in its tools, gone in another area
+    assert pg.locator(".topbar .live-btn").count() == 1 and pg.locator(".area-tools .live-btn").count() == 1
+    pg.evaluate("window.__sv.setState({ area: 'fleet' })")
+    pg.wait_for_selector(".area-tools", state="detached")
+    assert pg.locator(".topbar .live-btn").count() == 0
+    pg.evaluate("window.__sv.setState({ area: 'recordings' })")
+    pg.wait_for_selector(".area-tools")
+    pg.click(".area-tools [aria-label='Clear']")
     items = [x.strip() for x in pg.locator(".menu.ctx button").all_inner_texts()]
     for want in ("This tab's plots", "The other tabs", "All tabs", "Clear everything"):
         assert any(i.startswith(want) for i in items), items

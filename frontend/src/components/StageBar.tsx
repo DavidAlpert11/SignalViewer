@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { actions, activeTab, MAX_PLOTS, rangeKey, useApp } from "../store";
 import { useT } from "../i18n";
 import { Icon } from "../icons";
+import { PlotTabs } from "./TopBar";
 
 const QUICK: [number, number][] = [[1, 1], [2, 1], [3, 1], [1, 2], [2, 2], [3, 2], [3, 3]];
 
@@ -110,6 +111,9 @@ export default function StageBar() {
 
   return (
     <div className="stage-bar">
+      {/* D1 (decision 5): the plot tabs are about the plots - here, at the start of the stage bar */}
+      <PlotTabs />
+      <span className="sep" />
       {/* T20: one layout button: the current layout; the popover has the common ones and any size */}
       <span className="pick-wrap">
         {/* enlarged, the button says so (which plot of how many) - the mode is never invisible */}

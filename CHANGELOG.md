@@ -24,6 +24,7 @@
 - The timeline shows the run's modes (or any state signal) as colour along its track, under the overview line and the amber frame of what the plots show.
 - On demand, the legend shows the statistics of the time on screen beside each line – lowest, mean and highest – and they follow every zoom and pan (the plot's ⋯ menu › Legend).
 - The file panel counts the open signals, and for a big file offers quick filters under the search while you use it – the groups the current tab uses first – one click shows only that group.
+- One top row: the Recordings tools (open / save, templates, live, undo / redo, clear, Inspector) sit in the app's top bar, and the plot tabs moved into the bar above the plots – the plots gain 40 pixels of height.
 
 <!-- lane L4 -->
 - **Map: *Satellite + roads*.** A new background: the satellite photos with the roads and their names drawn over them
