@@ -102,7 +102,8 @@ def _fine_axes(s: studies.Study) -> List[np.ndarray]:
 def reference(s: studies.Study) -> Dict[str, Any]:
     """The full fine grid, every run computed in-process (vectorised), ranked by the same code. Cached."""
     d = s.demo or studies.Demo()
-    key = hashlib.sha1(json.dumps([studies.to_dict(s.search), [studies.to_dict(t) for t in s.tables], d.scenarios],
+    scen = (s.start_plan() or studies.Start()).scenarios
+    key = hashlib.sha1(json.dumps([studies.to_dict(s.search), [studies.to_dict(t) for t in s.tables], scen],
                                   sort_keys=True, default=str).encode("utf-8")).hexdigest()
     path = os.path.join(s.folder, d.reference)
     try:
@@ -118,7 +119,7 @@ def reference(s: studies.Study) -> Dict[str, Any]:
     frames = {}
     runs = 0
     for t in s.tables:
-        sc = d.scenarios.get(t.id, {})
+        sc = scen.get(t.id, {})
         combos = list(itertools.product(*sc.values())) or [()]
         g = np.repeat(grid, len(combos), axis=0)
         cc = np.tile(np.array(combos, dtype=float).reshape(len(combos), -1), (len(grid), 1))
@@ -145,11 +146,11 @@ def reference(s: studies.Study) -> Dict[str, Any]:
 
 def true_score(s: studies.Study, values: Dict[str, Any]) -> Optional[float]:
     """The noise-free worst-table score of one value of S (to measure the found best honestly)."""
-    d = s.demo or studies.Demo()
+    scen = (s.start_plan() or studies.Start()).scenarios
     names = [p.name for p in s.shared]
     frames = {}
     for t in s.tables:
-        sc = d.scenarios.get(t.id, {})
+        sc = scen.get(t.id, {})
         combos = list(itertools.product(*sc.values())) or [()]
         df = pd.DataFrame([{**{n: float(values[n]) for n in names}, **dict(zip(sc, c))} for c in combos])
         kw = {k: df[k].to_numpy(float) for k in ("wind", "mass", "filter_hz") if k in df.columns}

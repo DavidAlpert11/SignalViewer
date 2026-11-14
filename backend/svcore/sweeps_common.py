@@ -138,8 +138,8 @@ def guessed_roles(df: pd.DataFrame) -> Dict[str, str]:
 
 def load_tables(s: studies.Study, frames: Optional[Dict[str, pd.DataFrame]] = None) -> List[TableData]:
     """Each table of the study, read (or taken from `frames`, by table id), renamed and with its roles resolved."""
-    if len(s.tables) < 2:
-        raise StudyError("A study needs at least two tables (one per system). Add a table.")
+    if not s.tables:
+        raise StudyError("A study needs at least one table (one per system). Add a table.")
     out: List[TableData] = []
     for t in s.tables:
         files = s.table_files(t) if frames is None or t.id not in frames else []
@@ -147,9 +147,13 @@ def load_tables(s: studies.Study, frames: Optional[Dict[str, pd.DataFrame]] = No
         if df.empty:
             raise StudyError(f"Table '{t.name or t.id}' has no rows (paths: {', '.join(t.paths) or 'none'}).")
         df = df.rename(columns=t.rename)
-        roles = {**guessed_roles(df), **{c: r for c, r in t.roles.items() if c in df.columns}}
+        roles = {**guessed_roles(df), **({"run_id": "ignore"} if "run_id" in df.columns else {}),   # the loop's own id
+                 **{c: r for c, r in t.roles.items() if c in df.columns}}
         out.append(TableData(t, files, df, roles))
-    shared = [p.name for p in s.shared]
+    shared = [p.name for p in s.shared] or (list(s.search.params) if len(out) == 1 else [])
+    if not shared and len(out) == 1:       # one system (C1): what varies must be said - its scenarios are inputs too
+        raise StudyError("Say which columns are the parameters (Set up - What varies): with one table every input "
+                         "column could be a parameter or a scenario.")
     if not shared:                         # default: an input column in every table
         common = set.intersection(*[set(td.df.columns) for td in out])
         shared = [c for c in out[0].df.columns if c in common and all(td.roles.get(c) not in ("output", "ignore") for td in out)]
