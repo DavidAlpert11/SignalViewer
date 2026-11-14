@@ -59,6 +59,19 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       `isPhotoBase(shownBase)` (from `mapBase.ts`) instead of `=== "satellite"`. Both go away with M1 if L4 may then touch PlotView's map select.
   <!-- lane L5 -->
   - **L5 Analysis and new capabilities** – in progress · done: F3 F1 F2 D7 · next: D14 · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: –
+    - HAND-OVER 2026-11-14 (Claude, lane L5): stopped because of context (the lane is long; one task at a time is safer fresh).
+      Last finished task: D7 (commit 8735af5, on main). Before it F3 483ceb8, F1 e7c485c, F2 34d5e1d (backends) – all on main.
+      In progress: none; uncommitted / stashed: none.
+      Next step, exactly: D14 profiles (plan §3.6 / §7 Phase D): the built-in templates (`backend/svcore/builtin_templates.json`)
+      gain their *at a glance* numbers and chips; *pin to at a glance* and *pin a search* saved with a template (new optional
+      template fields - old templates must still open). The strip itself (OverviewStrip.tsx) is L3's: ask there for what it shows.
+      Then D3 Analysis → D4 Compare (F3's `/api/runs/parameters/compare` is ready for *two runs compared*) → D5 → D6 → D9+F4 → D10.
+      Checks: quick_check green before every push; e2e run for D7: test_checks_view (new), test_features -k log/health/checks/event,
+      test_navigation, test_event_navigation, test_release_1_21, test_findings_report, test_live_report – green. Not run: the whole e2e suite.
+      Watch out: F2's mean is a plain mean of the samples (not time-weighted) – say so wherever it is shown (coordinator's request).
+      `api.ts` has an L5 block (runStructure / windowStats / runParameters / compareParameters + their types). Open requests: under
+      L3 (strip counts from Checks), under L1 (keep the `.hrow` alias). Sandbox: SV_CHROMIUM=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome
+      for e2e and count_controls; warm the UI first (`timeout 200 python run.py --port 8777 --no-open --browser`).
     - D7 touched two files no lane owns (coordinator told): `App.tsx` (3 lines) and `components/rail.ts` (1 line), each marked `L5 D7`; `main.tsx` imports `styles/panels.css` (L5's).
   <!-- lane Final -->
   - **Final** – waits for every lane · E1 E2 E4, the full checks, E3 the version
@@ -4213,3 +4226,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-14 · L3 B5 the timeline's modes as colour. Ran: tsc, Vitest; e2e test_timeline, test_overview_strip green. Next: F2's legend (L5's endpoint is on main), then D1.
 - 2026-11-14 · L1 D11 welcome: its rules moved from index.css to `styles/welcome.css`; *where you left off* (recent files / sessions, each list a card, paths in mono) now comes before the examples; section and group titles are eyebrows; the example cards on `--panel` with `--r-card`, their icon no longer amber; *Open files* is `.btn.primary.lg` (new size in index.css, no inline style); the duplicate `.empty-state` dropped (A4 has it). RTL: the path under its name aligned right. Pictures `docs/dev/mockups/D11/after/` (before: `mockups/before/01_welcome_*`), dark / light × en / he, with and without recent items. count_controls: welcome 42 (= before), plotted 105, Settings 58, Sweeps 16. Ran: tsc, e2e `test_welcome_cards`, `test_fresh_user`, `test_first_minute`, `test_calm_screen`, `test_features -k welcome/recent/session/...` 29 passed. Next: D12.
 - 2026-11-14 · L5 D7: one *Checks* view for any file in the Log panel's place - verdict + tinted cards (limits of every tab, data quality, a log's health check), Parameters for any file (F3, compare with another file), The file (F1, values at the cursor, click to plot); `ChecksView.tsx`, `styles/panels.css`, 4 marked lines in App.tsx / rail.ts. Ran: tsc, Vitest (222), e2e test_checks_view (new), test_features -k log/health/checks/event, test_navigation, test_event_navigation, test_release_1_21, test_findings_report, test_live_report - green; pictures en-dark / he-light looked at (RTL fine); count_controls unchanged. Next: D14.
+- 2026-11-14 · L5 hand-over after D7 (context): F3 F1 F2 D7 on main; next D14. HAND-OVER block in the L5 board line.
