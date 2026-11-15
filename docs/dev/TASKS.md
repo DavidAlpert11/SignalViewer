@@ -138,6 +138,16 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       format's or a profile's own words – keep until F8.)
   <!-- lane Final -->
   - **Final** – waits for every lane · E1 E2 E4, the full checks, E3 the version
+    - 2026-11-15 · E2 user docs (helper session): **done** - GUIDE.md / GUIDE.he.md (new §10 Checks: Checks · Events ·
+      Parameters + Compare with · The file · Instruments · Hardware; at a glance + profiles; the bench example + `check` in CI;
+      statistics of the shown window (plain mean, not time-weighted); the cameras Free · From above · Around it · Behind it ·
+      Cockpit; Map background picker, My maps, Keep this area offline, Height profile, arrows; one top row; Sweeps' New study,
+      navigator, Run column), features.md (new *Checks and the file* section, map 1.28 subsection, studies), maps-and-3d.md,
+      limitations.md, fleet / investigate / common-gains / launcher / smart-sweep-demo (en + he), command-line.md (the bench
+      example with check's real output: 2 of 4 fail, exit 1 - verified), positioning in mkdocs.yml / index.md / README.
+      `mkdocs build --strict` passes (mkdocs 1.6.1, material 9.7.7). For the coordinator (frontend strings, not touched):
+      `study.ts` dmHow4Text / dmCopied still say *Sweeps → Common parameters* / *How this demo works*; C11 (L2) may change
+      the Sweeps wording again - re-read GUIDE §13 *Studies* after it lands.
   <!-- end of the lane board -->
 - **Redesign round (owner, 2026-11-14) – PLAN APPROVED (every recommendation of §8); no product code changed yet. Next: A1.**
   **Any agent continues with `docs/dev/REDESIGN_PROMPT.md`** (stage-independent: it finds the next task from this file,
