@@ -82,9 +82,9 @@ def test_position_template_only_for_a_file_with_a_position(pg):
     chip = pg.locator(".tpl-chips .chipbtn", has_text="Position on the map")
     chip.wait_for()
     chip.click()                                           # T48: one file, nothing to choose - opens at once
-    pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => p.mode === '3d' && (p.objects || []).length))")
+    pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => p.mode === 'geo' && (p.objects || []).length))")
     tab = [t for t in S(pg, "s.ws.tabs") if any(p.get("objects") for p in t["plots"])][-1]
-    assert [p["mode"] for p in tab["plots"]] == ["geo", "3d"]
+    assert [p["mode"] for p in tab["plots"]] == ["geo"]          # one map: its cameras cover the 3D views
     o = tab["plots"][0]["objects"][0]
     assert o["lat"].endswith("/latitude") and o["lon"].endswith("/longitude") and o["alt"].endswith("/altitude") and o["yaw"].endswith("/heading")
 
@@ -102,7 +102,7 @@ def test_quaternion_found_by_name(pg):
 def test_ardupilot_flight_template(pg):
     open_files(pg, "tpl_flight_a.csv")
     pg.click(".stage-bar .more-tabs"); menu_item(pg, "Open a template")   # U9: the views menu
-    pg.locator(".tpl-item", has_text="ArduPilot · Flight on the map & 3D").click()
+    pg.locator(".tpl-item", has_text="ArduPilot · Flight on the map").click()
     pg.locator(".tpl-actions .btn.primary").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => (p.objects || []).length))")
     o = _objects(pg)[-1]
@@ -111,7 +111,7 @@ def test_ardupilot_flight_template(pg):
 
 
 def test_position_template_adds_every_object_with_why(pg):
-    """N5: "Position on the map & 3D" adds all the file's objects; its message lists them and offers Why?."""
+    """N5: "Position on the map" adds all the file's objects; its message lists them and offers Why?."""
     import shutil
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     shutil.copy(os.path.join(root, "examples", "three_objects.csv"), pg.env["data"])

@@ -115,7 +115,7 @@ are told apart by them.
   says which signals were taken and by which rule, what is missing and what almost matched (`yaw_cmd`,
   a misspelt `lattitude`). Each object takes its signals from its own prefix only - a GPS's position is
   never mixed with the navigation's attitude.
-  The *Position on the map & 3D* template adds every object of the file the same way, and when a file
+  The *Position on the map* template adds every object of the file the same way, and when a file
   with objects opens, a line in the file panel offers them (*Add all*, *Choose…*, *Why?*, × to hide it).
   Truth is drawn as a line, a navigation solution dashed, a receiver as points (*Track* changes it).
 - **Lines:** *Settings → New lines* sets the width and style (solid, dashed, dotted, dash-dot) of every

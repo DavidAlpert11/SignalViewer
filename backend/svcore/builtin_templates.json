@@ -36,7 +36,7 @@
   "id": "bi-position",
   "group": "general",
   "builtin": true,
-  "name": "Position on the map & 3D",
+  "name": "Position on the map",
   "description": "@tplObjDesc",
   "slots": [
    {
@@ -1005,7 +1005,7 @@
  {
   "version": 2,
   "id": "bi-ap-flight",
-  "name": "ArduPilot · Flight on the map & 3D",
+  "name": "ArduPilot · Flight on the map",
   "description": "@tplApFlight",
   "group": "ardupilot",
   "builtin": true,
@@ -1022,44 +1022,12 @@
    {
     "name": "Flight",
     "rows": 1,
-    "cols": 2,
+    "cols": 1,
     "linkX": false,
     "plots": [
      {
       "title": "Map",
       "mode": "geo",
-      "signals": [],
-      "objects": [
-       {
-        "name": "Vehicle",
-        "kind": "aircraft",
-        "color": "#E5534B",
-        "roles": {
-         "lat": {
-          "name": "GPS.Lat|POS.Lat"
-         },
-         "lon": {
-          "name": "GPS.Lng|POS.Lng"
-         },
-         "alt": {
-          "name": "GPS.Alt|POS.Alt"
-         },
-         "yaw": {
-          "name": "ATT.Yaw"
-         },
-         "pitch": {
-          "name": "ATT.Pitch"
-         },
-         "roll": {
-          "name": "ATT.Roll"
-         }
-        }
-       }
-      ]
-     },
-     {
-      "title": "3D",
-      "mode": "3d",
       "signals": [],
       "objects": [
        {
@@ -1489,7 +1457,7 @@
  {
   "version": 2,
   "id": "bi-mav-flight",
-  "name": "MAVLink · Flight on the map & 3D",
+  "name": "MAVLink · Flight on the map",
   "description": "@tplMavFlight",
   "group": "mavlink",
   "builtin": true,
@@ -1506,44 +1474,12 @@
    {
     "name": "Flight",
     "rows": 1,
-    "cols": 2,
+    "cols": 1,
     "linkX": false,
     "plots": [
      {
       "title": "Map",
       "mode": "geo",
-      "signals": [],
-      "objects": [
-       {
-        "name": "Vehicle",
-        "kind": "aircraft",
-        "color": "#E5534B",
-        "roles": {
-         "lat": {
-          "name": "GLOBAL_POSITION_INT.lat|GPS_RAW_INT.lat"
-         },
-         "lon": {
-          "name": "GLOBAL_POSITION_INT.lon|GPS_RAW_INT.lon"
-         },
-         "alt": {
-          "name": "GLOBAL_POSITION_INT.alt|GPS_RAW_INT.alt"
-         },
-         "yaw": {
-          "name": "ATTITUDE.yaw"
-         },
-         "pitch": {
-          "name": "ATTITUDE.pitch"
-         },
-         "roll": {
-          "name": "ATTITUDE.roll"
-         }
-        }
-       }
-      ]
-     },
-     {
-      "title": "3D",
-      "mode": "3d",
       "signals": [],
       "objects": [
        {
@@ -1682,7 +1618,7 @@
  {
   "version": 2,
   "id": "bi-px4-flight",
-  "name": "PX4 · Flight on the map & 3D",
+  "name": "PX4 · Flight on the map",
   "description": "@tplPx4Flight",
   "group": "px4",
   "builtin": true,
@@ -1699,47 +1635,12 @@
    {
     "name": "Flight",
     "rows": 1,
-    "cols": 2,
+    "cols": 1,
     "linkX": false,
     "plots": [
      {
       "title": "Map",
       "mode": "geo",
-      "signals": [],
-      "objects": [
-       {
-        "name": "Vehicle",
-        "kind": "aircraft",
-        "color": "#E5534B",
-        "roles": {
-         "lat": {
-          "name": "vehicle_global_position.lat|vehicle_gps_position.lat|sensor_gps.lat"
-         },
-         "lon": {
-          "name": "vehicle_global_position.lon|vehicle_gps_position.lon|sensor_gps.lon"
-         },
-         "alt": {
-          "name": "vehicle_global_position.alt|sensor_gps.altitude_msl_m|vehicle_gps_position.alt"
-         },
-         "qw": {
-          "name": "vehicle_attitude.q[0]"
-         },
-         "qx": {
-          "name": "vehicle_attitude.q[1]"
-         },
-         "qy": {
-          "name": "vehicle_attitude.q[2]"
-         },
-         "qz": {
-          "name": "vehicle_attitude.q[3]"
-         }
-        }
-       }
-      ]
-     },
-     {
-      "title": "3D",
-      "mode": "3d",
       "signals": [],
       "objects": [
        {

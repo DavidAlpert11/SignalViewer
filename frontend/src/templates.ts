@@ -43,10 +43,10 @@ export function glanceLabel(g: GlanceItem, lang = useApp.getState().lang): strin
 }
 
 const BUILTIN_HE: Record<string, string> = {
-  "Quick look": "מבט מהיר", "Compare open files": "השוואת הקבצים הפתוחים", "Position on the map & 3D": "מיקום במפה וב־3D",
+  "Quick look": "מבט מהיר", "Compare open files": "השוואת הקבצים הפתוחים", "Position on the map": "מיקום במפה",
   "Full review": "סקירה מלאה", "Full comparison": "השוואה מלאה", "Attitude": "זוויות", "Rates (PID)": "קצבים (PID)",
   "Rates": "קצבים", "Vibration": "רעידות", "Battery & power": "סוללה והספק", "Battery": "סוללה", "Motors & RC": "מנועים ו־RC",
-  "Motors": "מנועים", "Altitude": "גובה", "Flight on the map & 3D": "הטיסה במפה וב־3D", "Flight": "טיסה",
+  "Motors": "מנועים", "Altitude": "גובה", "Flight on the map": "הטיסה במפה", "Flight": "טיסה",
   "Battery & GPS": "סוללה ו־GPS", "Radio link": "קשר רדיו", "Autopilot log vs telemetry": "לוג הטייס מול טלמטריה",
   "Attitude & altitude": "זוויות וגובה", "Battery, GPS & link": "סוללה, GPS וקשר",
   "Map": "מפה", "3D": "תלת־ממד",
@@ -206,13 +206,13 @@ export function rankTemplates(all: Template[], fitOf: Map<string, number>, prefe
   return all.filter((x) => !x.broken).sort((a, b) => score(b) - score(a));
 }
 
-/** "Position on the map & 3D" fits only when a file has latitude and longitude signals. */
+/** "Position on the map" fits only when a file has latitude and longitude signals. */
 const objectsFit = (t: Template, runs: RunInfo[]) =>
   t.generator === "objects" && dataRuns(runs).some((r) => detectObjects(r).candidates.some((c) => c.pos === "lla")) ? 1 : 0;
 
 /* --------------------------------------------------------------- generators (built-in, any file) */
 const PER_TAB = 4;
-/** "Position on the map & 3D": EVERY object of the file found by its names (N5: truth, navigation
+/** "Position on the map": EVERY object of the file found by its names (N5: truth, navigation
  *  solutions, receivers - each from its own prefix), on a map and in the 3D view. */
 function objectTabs(run: RunInfo | undefined, slot: string, lang: "en" | "he", found?: Candidate[]): TplTab[] {
   if (!run) return [];
@@ -224,9 +224,9 @@ function objectTabs(run: RunInfo | undefined, slot: string, lang: "en" | "he", f
     ...(trackOfClass(c.cls) ? { track: trackOfClass(c.cls) } : {}), ...(c.attitude === "none" ? { attitudeSource: "motion" as const } : {}),
     roles: Object.fromEntries(OBJ_ROLES.filter((k) => c.picks[k]).map((k) => [k, { name: bare(c.picks[k]!.id), slot }])) }));
   const obj = objs;
-  return [{ name: translate(lang, "tplObjTab"), rows: 1, cols: 2, linkX: false, plots: [
-    { title: translate(lang, "modeGeo"), mode: "geo", signals: [], objects: obj },
-    { title: translate(lang, "mode3d"), mode: "3d", signals: [], objects: obj }] }];
+  // one map: its cameras (From above … Cockpit) cover both views; the plot's kind menu turns it into the 3D globe
+  return [{ name: translate(lang, "tplObjTab"), rows: 1, cols: 1, linkX: false, plots: [
+    { title: translate(lang, "modeGeo"), mode: "geo", signals: [], objects: obj }] }];
 }
 
 function quickLookTabs(run: RunInfo | undefined, slot: string, lang: "en" | "he"): TplTab[] {

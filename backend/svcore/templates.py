@@ -206,7 +206,7 @@ def fit(t: dict, all_: List[dict], runs: List[dict]) -> Optional[float]:
 def _usable(run: dict, slot_id: str, e: dict, names: List[str]) -> List[str]:
     """The slot's names that would be drawn from this file: an object without its position (lat and
     lon) is left out when the template opens (resolve), so its attitude roles must not make the
-    template look fitting - "Flight on the map & 3D" was offered for a log with ATT and no GPS, and
+    template look fitting - "Flight on the map" was offered for a log with ATT and no GPS, and
     opening it said there was nothing to open."""
     dead: Set[str] = set()
     plain: Set[str] = set()

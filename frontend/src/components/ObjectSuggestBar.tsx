@@ -8,7 +8,7 @@ import { addable, addedSummary, byPosition, candidateObject, isAdded, objectColo
 /* N5: "3 objects found: phys, nav, gps · Add all · Choose… · Why?" - a slim, non-blocking suggestion in
    the file panel when an open file has objects not on any map yet. Nothing is added without a click;
    dismissing hides it for that file (this run of the app), the found list stays a click away (a map's
-   + Add object, the "Position on the map & 3D" template). */
+   + Add object, the "Position on the map" template). */
 export default function ObjectSuggestBar() {
   const t = useT();
   const runs = useDeferredValue(useApp((s) => s.runs));
