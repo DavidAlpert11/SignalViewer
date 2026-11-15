@@ -101,6 +101,18 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       may be trimmed when convenient – nothing breaks if they stay.
   <!-- lane L5 -->
   - **L5 Analysis and new capabilities** – in progress · done: F3 F1 F2 D7 D14 D3 · next: D4 · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: under L3 (strip counts from Checks; the profile's numbers and chips – D14)
+    - HAND-OVER 2026-11-15 (Claude, lane L5): stopped because of context (D4 Compare is a large panel – start it fresh).
+      Last finished task: D3 (commit 4ba6175, on main). Before it D14 76ae712. F3 F1 F2 D7 D14 D3 all on main.
+      In progress: none; uncommitted / stashed: none.
+      Next step, exactly: D4 Compare (+ Compare objects): `ComparePanel.tsx` / `CompareTable.tsx` onto the A3 / A4 classes
+      (`.panel-head`, `table.data` with `.num` mono columns, `.card` tints for pass / fail, `.chipbtn`, `.empty-state`), and
+      *two runs compared* from F3 (`api.compareParameters(a, b)` – only what differs) in the panel. Its e2e: E2E_MAP.md (compare
+      files). Pictures: `python <scratch>/shot_panel.py compare docs/dev/mockups/D4/{before,after}` – a 25-line script on
+      tools/plan_screens.py (`M.reset(app); M.page(...)`, example "flight", `setState({panel})`, `P.save`); rewrite it if gone.
+      Then D5 → D6 → D9+F4 → D10.
+      Checks: quick_check green before the D3 push (on main at 1e1d4cd; after rebasing onto f212add only tsc + test_glance ran);
+      e2e for D3 / D14 listed in the Log. Not run: the whole e2e suite.
+      Watch out: after `git pull --rebase` the Log's tail conflicts every time (lanes append at the end) – keep both sides.
     - D14 (2026-11-14): profiles in the model, the backend and the built-in templates; shown by L3. Files no lane owns, each change marked `L5 D14`: `store/model.ts` (Workspace `glance` / `searches` + their types), `store.ts` (2 lines: `profileActions`), `templates.ts` (merge on open, kept on save, `glanceLabel`), `app/prefs.py` (`_clean_profile`), `svcore/builtin_templates.json` (content). New: `store/actions/profile.ts`, `backend/tests/test_glance.py`, `src/store/profile.test.ts`.
     - D7 touched two files no lane owns (coordinator told): `App.tsx` (3 lines) and `components/rail.ts` (1 line), each marked `L5 D7`; `main.tsx` imports `styles/panels.css` (L5's).
     - `api.ts` has an L5 block (runStructure / windowStats / runParameters / compareParameters / glance + their types). Sandbox: SV_CHROMIUM=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome for e2e and count_controls; warm the UI first (`timeout 200 python run.py --port 8777 --no-open --browser`).
@@ -4293,3 +4305,5 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-14 · L3 D1 one top row (Recordings' tools in TopBar's `.area-tools`, plot tabs in the stage bar, the area bar's row dropped). Ran: tsc, Vitest; e2e 16 files, 225 tests: 224 passed + test_less_clutter's count (58 > 54, from D2's chips) - fixed in D2 (chips only while the search is in use), then test_less_clutter + test_name_tree green; count_controls 42 / 105 / 58 / 16; pictures docs/dev/mockups/L3/after-D1 (the after-D2 pictures show the chips as first made). Next: D8.
 - 2026-11-15 · L3 L4's request: the store's `geoBase` typed as `mapBase.GeoBase` (has `satroads`), the map's *Borders* switch for `isPhotoBase(shownBase)`. Also: the L3 board block tidied after a merge; F2's legend uses L5's `api.windowStats` (my duplicate removed). Ran: tsc. Next: D8.
 - 2026-11-15 · L5 D3 Analysis (Create signals): frame suggestions on `.chipbtn` (selector in test_features updated), the derived list's count, its `.empty-state`; *pin to at a glance* stays with the Inspector (L3) - the panel has no statistics. For L1: `.frame-sugs .chip-btn` rules in index.css unused now. Ran: tsc; e2e test_features -k create/formula/frame/derived (5), test_trust_badges, test_missing_choice, test_pyops (5) - green; pictures D3 before / after dark en, light he (RTL fine); no control added (count unchanged). Next: D4 Compare.
+
+- 2026-11-15 · L5 hand-over after D3 (context): F3 F1 F2 D7 D14 D3 on main; next D4. HAND-OVER block in the L5 board line.
