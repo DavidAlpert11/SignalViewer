@@ -48,6 +48,11 @@ no cloud, no telemetry, no internet needed.
 </tr>
 </table>
 
+<p align="center">
+  🎬 <a href="docs/media/demo_simulation.mp4"><b>Simulation vs. reality – 90-second demo</b></a>
+  &nbsp;·&nbsp; 🎓 <a href="docs/media/training.mp4"><b>Training: Signal Viewer in ten minutes</b></a>
+</p>
+
 ## Try it in one minute
 
 Install, start, and pick a card on the welcome screen. **Every part of the app has a demo with a known

@@ -100,7 +100,7 @@ and every analysis tool working on any data (flight, vehicle, bench, simulation)
 - An example whose data no built-in view fits now opens with *Quick look* instead of an empty plot.
 - The Checks count in *the run at a glance* opens Checks on that run (it opened on the first log).
 - The flight templates (ArduPilot, PX4, MAVLink) and *Position on the map* open one map instead of a map beside a 3D view: the map's cameras (From above, Around it, Behind it, Cockpit) cover both, and its kind menu turns it into the 3D globe.
-- A demo film for engineers: `docs/media/demo_simulation.mp4` (made by `tools/make_demo_video.py` from the app itself).
+- Two films, made from the app itself: a 90-second demo for engineers, *Simulation vs. reality* (`docs/media/demo_simulation.mp4`, `tools/make_demo_video.py`), and a training film in nine chapters, slides then the app live (`docs/media/training.mp4`, `tools/make_training_video.py`).
 - Fixed: a `.svsweep` opened with *Open ▾ → Open a saved study* now finds tables named relative to it (a study copied to another folder said *File not found*).
 
 ## 1.27.0 – 2026-11-13
