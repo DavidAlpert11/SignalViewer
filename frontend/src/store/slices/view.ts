@@ -1,5 +1,6 @@
 /* How the data is looked at: time and value windows, cursors, playback, map layer. Not undoable. */
 import type { CursorState, LogMarkers, PlayMode, PreviewLine, Range, ZoomMode, ZoomStep } from "../types";
+import type { GeoBase } from "../../mapBase";
 
 export interface ViewSlice {
   ranges: Record<string, Range>;      // key: tab id (linked) or plot id (unlinked)
@@ -31,7 +32,7 @@ export interface ViewSlice {
   windowSec: number;
   timelineOpen: boolean;           // the timeline bar shown in full (or as a thin strip)
   logMarkers: LogMarkers;          // log events drawn on time plots: none, warnings + errors, or all
-  geoBase: "auto" | "osm" | "esri" | "light" | "dark" | "satellite" | "topo" | "offline";   // map layer
+  geoBase: GeoBase;   // map layer (mapBase.ts: one list of the layers)
   geoBorders: boolean;            // country borders and names over the offline map and the satellite photos
   linkRuns: boolean;               // D-12: a signal clicked in one file is added from every file
   linkEdits: boolean;              // Q87: an edit or a new signal made on one file is made on the others

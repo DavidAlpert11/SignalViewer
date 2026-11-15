@@ -4,7 +4,7 @@ import TrustBadge, { AngleGuessBadge, AttitudeSourceBadge } from "./TrustBadge";
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { mergeKind, PLOT_ID_MIME } from "../store/actions/layout";
 import { plotHasContent, actions, onTimeAxis, tabBandLanes, fileMark, pickPath, rangeKey, showFileTags, signalName, useApp, type MenuItem, type Plot, type PlotMode, type Tab } from "../store";
-import { GEO_BASES, effectiveBase, isOnlineBase } from "../mapBase";
+import { GEO_BASES, effectiveBase, isOnlineBase, isPhotoBase, type GeoBase } from "../mapBase";
 import { fmtNum, translate, useT } from "../i18n";
 import { api } from "../api";
 import { exportRange, placesSpec, plotSpec } from "../plotSpec";
@@ -591,7 +591,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
         )}
         {(mode === "geo" || mode === "3d") && (
           <span className="xpick">
-            <select value={geoBase} onChange={(e) => useApp.setState({ geoBase: e.target.value as typeof geoBase })}
+            <select value={geoBase} onChange={(e) => useApp.setState({ geoBase: e.target.value as GeoBase })}
               aria-label={t("geoLayer")} title={t(netOff ? "geoLayerHintOff" : "geoLayerHint")}>
               <optgroup label={t("geoLocalGroup")}>
                 {GEO_BASES.filter((b) => !isOnlineBase(b)).map((b) => <option key={b} value={b}>{t(`geo_${b}` as "geo_auto")}</option>)}
@@ -605,7 +605,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             {isOnlineBase(shownBase) && (
               <span className="net-badge" role="status" title={t("netOnlineHint")}>{t("netOnline")}</span>
             )}
-            {mode === "geo" && (shownBase === "offline" || shownBase === "satellite") && (
+            {mode === "geo" && (shownBase === "offline" || isPhotoBase(shownBase)) && (
               <label className="acheck geo-borders" title={t("geoBordersHint")}>
                 <input type="checkbox" checked={geoBorders} onChange={(e) => useApp.setState({ geoBorders: e.target.checked })} />{t("geoBorders")}</label>
             )}
