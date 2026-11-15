@@ -81,6 +81,8 @@ def test_start_from_nothing_types_the_set_up(pg):
     pg.locator(".ns-nothing").click()
     pg.wait_for_selector("[data-part=setup]")
     assert set(pg.get_attribute("[data-part=setup]", "data-missing").split()) == {"params", "output", "goal", "command"}
+    assert set(pg.get_attribute(".sw-run .rc-next", "data-missing").split()) == {"params", "output", "goal", "command"}   # C8
+    assert "cannot run yet" in pg.locator(".sw-run .rc-next").inner_text()
     for name, lo, hi, step in (("a", "0", "2", "0.1"), ("b", "1", "3", "0.5")):
         pg.locator(".su-add-param").click()
         _field(pg, ".su-new-param", name)
@@ -98,6 +100,9 @@ def test_start_from_nothing_types_the_set_up(pg):
     pg.locator(".su-goal").select_option("err")
     _field(pg, ".su-command", "python sim.py {{params_file}}")
     pg.wait_for_function("document.querySelector('[data-part=setup]').dataset.missing === ''")
+    pg.wait_for_function("document.querySelector('.sw-run .rc-next').dataset.missing === ''")       # C8: the Run column says round 1 is ready
+    assert "Round 1 is ready to run" in pg.locator(".sw-run .rc-next").inner_text()
+    assert "16 sets × 2 scenarios = 32 runs" in pg.locator(".sw-run .rc-next").inner_text()
     assert _study(pg, "s.start") == {"grid": {"a": 4, "b": 4}, "scenarios": {"T1": {"wind": [0, 5]}}}
     assert _study(pg, "s.tables[0].objective") == {"expr": "err", "sense": "min"}
     assert _study(pg, "s.launcher.submit") == ["python", "sim.py", "{{params_file}}"]
@@ -125,3 +130,25 @@ def test_navigator_lists_the_rounds_and_opens_one(pg):
     assert pg.locator(".sw-nav [data-nav=round].on").get_attribute("data-round") == "1"
     pg.locator(".sw-nav [data-nav=setup]").click()
     pg.wait_for_selector("[data-part=setup]")
+
+
+def test_the_run_column_folds_and_remembers(pg):
+    """C8: the Run column beside every part of a study file (Set up, a table); folded, it stays folded after a reload."""
+    _new_study(pg)
+    pg.locator(".ns-nothing").click()
+    pg.wait_for_selector("[data-part=setup]")
+    pg.wait_for_selector(".sw-run .rc-next")
+    pg.locator(".sw-run .rc-toggle").click()
+    pg.wait_for_selector(".sw-run.folded")
+    assert pg.locator(".sw-run .rc-next").count() == 0
+    pg.wait_for_function("""() => { const x = new XMLHttpRequest(); x.open('GET', '/api/settings', false); x.send();
+        return JSON.parse(x.responseText).settings['sv3.swRunHidden'] === true; }""", polling=200)   # written to the app's settings
+    pg.reload()
+    pg.wait_for_selector(".app")
+    pg.locator(".areas .area-btn", has_text="Sweeps").click()
+    pg.wait_for_selector(".sw-welcome .sw-new-study")
+    pg.locator(".sw-welcome .sw-new-study").click()
+    pg.locator(".ns-nothing").click()
+    pg.wait_for_selector(".sw-run.folded")                                         # remembered
+    pg.locator(".sw-run .rc-toggle").click()
+    pg.wait_for_selector(".sw-run .rc-next")

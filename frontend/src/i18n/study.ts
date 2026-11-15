@@ -199,6 +199,18 @@ export const en = {
   nvRuns: "runs",
   nvRound: "Round {n}",
   nvNew: "new",
+  // --- C8: the Run column
+  rcTitle: "Run",
+  rcShow: "Show the Run column",
+  rcHide: "Fold the Run column",
+  rcReady: "Round {k} is ready to run",
+  rcMissingTitle: "Round {k} cannot run yet",
+  rcRound1: "{sets} sets × {combos} scenarios = {runs} runs",
+  rcMissing: "Missing: {list}.",
+  rcMissParams: "the parameters", rcMissRange: "a range for each parameter", rcMissOutput: "an output", rcMissGoal: "what to rank by",
+  rcMissCommand: "the command",
+  rcWrite: "Only write the files",
+  rcWriteHint: "The next runs' parameters files written to the round's folder (next/round_k) for a launcher of your own - nothing runs.",
 };
 
 export const he: typeof en = {
@@ -400,4 +412,16 @@ export const he: typeof en = {
   nvRuns: "ריצות",
   nvRound: "סבב {n}",
   nvNew: "חדש",
+  // --- C8: the Run column
+  rcTitle: "הרצה",
+  rcShow: "הצגת עמודת ההרצה",
+  rcHide: "קיפול עמודת ההרצה",
+  rcReady: "סבב {k} מוכן להרצה",
+  rcMissingTitle: "סבב {k} עוד לא יכול לרוץ",
+  rcRound1: "{sets} סטים × {combos} תרחישים = {runs} ריצות",
+  rcMissing: "חסר: {list}.",
+  rcMissParams: "הפרמטרים", rcMissRange: "טווח לכל פרמטר", rcMissOutput: "פלט", rcMissGoal: "לפי מה לדרג",
+  rcMissCommand: "הפקודה",
+  rcWrite: "רק לכתוב את הקבצים",
+  rcWriteHint: "קובצי הפרמטרים של הריצות הבאות נכתבים לתיקיית הסבב (next/round_k) עבור משגר משלכם - שום דבר לא רץ.",
 };

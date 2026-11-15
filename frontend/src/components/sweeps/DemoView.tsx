@@ -1,15 +1,14 @@
-/* W18: the smart-sweep demo - Next round / Run until converged / Reset, the live strip (the local workers
-   fill and empty), the shared-parameter space (tried values by round, feasible or not, the best, the full
-   grid's optimum as a ring), the convergence chart and the one-sentence result, computed from the numbers.
+/* W18: the smart-sweep demo - the shared-parameter space (tried values by round, feasible or not, the best, the full
+   grid's optimum as a ring), the rounds and the one-sentence result, computed from the numbers. Its Next round / Run
+   until converged / Reset, the live strip and the convergence chart are in the Run column (C8).
    The demo runs in its own work folder (svcore/demo.py); the backend runs the rounds, this view polls. */
 import { fmtInt, fmtNum, useT, type TFn } from "../../i18n";
 import { useApp } from "../../store";
 import { Icon } from "../../icons";
-import { closePanel, demoAction, openStudyFile, useStudyPanel } from "../../sweeps/studyStore";
+import { closePanel, openStudyFile, useStudyPanel } from "../../sweeps/studyStore";
 import { studyApi } from "../../sweeps/studyApi";
 import { pickPath } from "../../store";
 import type { DemoProgress } from "../../sweeps/studyTypes";
-import ConvergenceChart from "./ConvergenceChart";
 import SpaceView from "./SpaceView";
 
 /** The result in one sentence - the same numbers as `study demo` prints (svcore/demo.py sentence()). */
@@ -40,21 +39,11 @@ export default function DemoView() {
         <h2>{t("dmTitle")}</h2>
         <span className="cp-state">{p ? t("dmRound", { k: p.round }) : ""}</span>
         <span className="spacer" />
-        <button className="btn primary dm-next" disabled={running || !p || p.exhausted} onClick={() => demoAction("next")}>{t("dmNext")}</button>
-        <button className="btn outline dm-run" disabled={running || !p || p.exhausted || p.converged} onClick={() => demoAction("run")}>{t("dmRun")}</button>
-        {running ? <button className="btn outline" onClick={() => demoAction("stop")}>{t("dmStop")}</button>
-          : <button className="btn outline dm-reset" disabled={!p?.round} onClick={() => demoAction("reset")}><Icon.Reset /> {t("dmReset")}</button>}
         <button className="iconbtn" onClick={closePanel} aria-label={t("cpClose")} title={t("cpClose")}><Icon.X /></button>
       </div>
       {error && <p className="sw-error" role="alert">{error}</p>}
       {p && (
         <div className="dm-body" data-shot="demo" data-settled={running ? "0" : "1"}>
-          <div className={`dm-strip${running ? " busy" : ""}`} role="status" data-done={p.runs.done} data-round={p.round}>
-            <b>{t("dmRound", { k: p.round })}</b>
-            <span>{t("dmRuns", { d: fmtInt(p.runs.done, lang), r: fmtInt(p.runs.running, lang), f: fmtInt(p.runs.failed, lang) })}</span>
-            <span className="dm-workers" aria-hidden="true">{Array.from({ length: 8 }, (_, i) => <i key={i} className={i < Math.min(8, p.runs.running) ? "on" : ""} />)}</span>
-            {p.converged && <span className="dm-ok">{t("dmConverged")}</span>}
-          </div>
           {!p.points.length && !running && <p className="empty-note">{t("dmNothing", { n: fmtInt(startRuns, lang) })}</p>}
           <p className="dm-sentence">{demoSentence(t, p, lang)}</p>
           {p.points.length > 0 && (
@@ -68,7 +57,6 @@ export default function DemoView() {
           <div className="dm-views">
             <SpaceView axes={p.axes} points={p.tried.map((x) => ({ values: x.values, feasible: x.feasible, round: x.round }))}
               best={p.best?.values} optimum={p.optimum.values} rounds={p.round} />
-            <ConvergenceChart p={p} />
           </div>
           <HowItWorks />
         </div>

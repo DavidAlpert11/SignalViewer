@@ -34,6 +34,7 @@ import TemplatesDialog from "./TemplatesDialog";
 import StepNav from "./StepNav";
 import { RawCenter, ZoomButtons } from "./RawStep";
 import Navigator from "./Navigator";
+import RunColumn from "./RunColumn";
 import { NO_ZOOM } from "../../sweeps/zoom";
 import { RolesCenter, RolesSide } from "./RolesStep";
 import { templateSummary } from "../../sweeps/templates";
@@ -179,7 +180,8 @@ export default function SweepsScreen() {
     : common ? <StudyPanel /> : study ? <StudyView study={study} /> : <SweepsWelcome />;
   // C7: the navigator beside every part of a study (not on the welcome page or the New study choice)
   const withNav = part !== "new" && (common || !!study);
-  return <><SweepsBar />{withNav ? <div className="sw-ws"><Navigator />{middle}</div> : middle}</>;
+  // C8: and the Run column on the right while a study file is open (the loop never leaves the screen)
+  return <><SweepsBar />{withNav ? <div className="sw-ws"><Navigator />{middle}<RunColumn /></div> : middle}</>;
 }
 
 function SweepsBar() {

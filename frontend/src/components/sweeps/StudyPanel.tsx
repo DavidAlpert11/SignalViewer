@@ -11,12 +11,11 @@ import { confirmAsk } from "../Overlays";
 import { studyApi } from "../../sweeps/studyApi";
 import {
   closePanel, editStudy, isUnsaved, launcherCommand, openStudyFile, redoStudy, reqOf, saveStudyAs, sendToLauncher,
-  suggestNext, undoStudy, useStudyPanel,
+  undoStudy, useStudyPanel,
 } from "../../sweeps/studyStore";
 import type { CommonRow, Role, Study, StudyTable } from "../../sweeps/studyTypes";
 import SpaceView, { type SpacePoint } from "./SpaceView";
 import DemoView from "./DemoView";
-import LoopSection from "./LoopSection";
 
 const ROLES: Role[] = ["shared", "scenario", "local", "output", "ignore"];
 const STUDY_EXT = ".svstudy.json";
@@ -69,7 +68,6 @@ export default function StudyPanel() {
         <main className="cp-main">
           {s.error && !(/has no rows/.test(s.error) && !(s.loopProgress?.round)) && <p className="sw-error" role="alert">{s.error}</p>}
           {study && study.tables.length < 2 ? <p className="empty-note">{t("cpEmpty")}</p> : <>
-            <LoopSection />
             {/has no rows/.test(s.error) && !(s.loopProgress?.round) ? <p className="empty-note">{t("lpNothingYet")}</p> : <Results />}
           </>}
         </main>
@@ -251,13 +249,6 @@ function Results() {
   ], [r, next, tried]);
   if (!r) return <p className="empty-note">{busy ? t("swReading") : ""}</p>;
   const best = r.rows.find((x) => x.feasible) ?? null;
-  const suggest = async () => {
-    if (!path || isUnsaved()) { if (!(await saveStudyDialog(t))) { say(t("cpSaveFirst"), "error"); return; } }
-    try {
-      const n = await suggestNext();
-      say(n.exhausted ? t("cpExhausted") : t("cpNextDone", { k: n.round, c: n.counts.candidates, r: n.counts.runs, f: n.files.join(", ") }), n.exhausted ? "error" : "info");
-    } catch (e) { say((e as Error).message, "error"); }
-  };
   const send = async () => {
     if (!path || isUnsaved()) { if (!(await saveStudyDialog(t))) return; }
     try {
@@ -284,7 +275,6 @@ function Results() {
         <button className="btn outline" onClick={exportCsv}><Icon.Download /> {t("cpExport")}</button>
         <button className="btn outline" onClick={send} title={study?.launcher?.submit?.length ? undefined : t("cpNoLauncher")} disabled={!study?.launcher?.submit?.length}>
           <Icon.Send /> {t("cpSend")}</button>
-        <button className="btn primary" onClick={suggest}><Icon.Plus /> {t("cpSuggest")}</button>
       </div>
       {status && (
         <p className="cp-run-states" role="status" data-finished={status.finished ? "1" : "0"}>
