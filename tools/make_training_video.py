@@ -56,6 +56,14 @@ SLIDES = r"""
 """
 
 
+# The recording machine has no graphics card: the app would see a software renderer and draw its 3D view in its
+# light mode (no sky, no sunlight, flat far ground). The film shows what a viewer with a graphics card sees,
+# so the page is told a hardware renderer's name; the frames are still drawn (slowly) by the same software.
+HARDWARE_GL = """(() => { const f = (P) => { const g = P.getParameter; P.getParameter = function (p) {
+  if (p === 0x9246) return 'ANGLE (Hardware renderer for the recording)'; return g.call(this, p); }; };
+  f(WebGLRenderingContext.prototype); if (window.WebGL2RenderingContext) f(WebGL2RenderingContext.prototype); })();"""
+
+
 class Lesson(Film):
     """The demo film's tools, plus slides and a ring where the pointer clicks."""
 
@@ -113,33 +121,6 @@ def open_example(film, ex, ready, glide=True):
     film.pg.wait_for_function("window.__sv.state().busy === 0 && !document.querySelector('.job')", timeout=90000)
     film.pg.wait_for_timeout(1200)
     no_toasts(film.pg)
-
-
-def tiles_settled(pg, quiet_ms=1500, timeout_s=60):
-    """The map's tiles are in: at least one tile request, then none in flight for quiet_ms."""
-    import time
-    state = {"open": 0, "seen": 0, "last": time.time()}
-
-    def is_tile(r):
-        u = r.url
-        return "/tiles/" in u or "tile" in u.split("?")[0].rsplit("/", 4)[0] or "arcgisonline" in u or "openstreetmap" in u
-
-    def on_req(r):
-        if is_tile(r):
-            state["open"] += 1; state["seen"] += 1; state["last"] = time.time()
-
-    def on_done(r):
-        if is_tile(r):
-            state["open"] = max(0, state["open"] - 1); state["last"] = time.time()
-    pg.on("request", on_req); pg.on("requestfinished", on_done); pg.on("requestfailed", on_done)
-    end = time.time() + timeout_s
-    try:
-        while time.time() < end:
-            pg.wait_for_timeout(250)
-            if state["seen"] and not state["open"] and (time.time() - state["last"]) * 1000 > quiet_ms:
-                return
-    finally:
-        pg.remove_listener("request", on_req); pg.remove_listener("requestfinished", on_done); pg.remove_listener("requestfailed", on_done)
 
 
 # ----------------------------------------------------------------------------- the chapters
@@ -247,35 +228,46 @@ def ch_keys(f, app):
     f.cap("Ctrl+Z undoes any change to the workspace", "Templates: save this view, apply it to the next run", hold=3.4)
 
 
+def globe_ready(pg, timeout=300000):
+    """The 3D map has drawn every tile it needs for the view on screen (Cesium's own flag), and stays so for 3 s -
+    the flag is true for a moment before the next level of tiles is asked for."""
+    pg.wait_for_function("""() => { const g = window.__svGlobe; const ok = !!g && g.widget.scene.globe.tilesLoaded;
+      const now = performance.now(); if (!ok) { window.__readySince = null; return false; }
+      window.__readySince = window.__readySince || now; return now - window.__readySince > 3000; }""", timeout=timeout, polling=250)
+
+
 def prep_map(f, app):
-    """Behind the slide: the flight opened, the satellite map's tiles loaded - the map is there when the slide goes."""
+    """Behind the slide: the flight opened on Satellite + roads and every tile drawn - the map is there when the
+    slide goes."""
     pg = f.pg
     pg.evaluate("window.__sv.setState({ geoBase: 'satroads' })")
     pg.locator(".ex-card[data-example='flight']").first.click()
-    pg.wait_for_selector(".grid canvas, .geo canvas", timeout=90000)
     pg.wait_for_function("window.__sv.state().busy === 0", timeout=90000)
-    tiles_settled(pg)
+    globe_ready(pg)
     no_toasts(pg)
 
 
 def ch_map(f, app):
-    """From above on the loaded satellite map, played: the object moves along its track. The tilted cameras are
-    named, not shown - recorded without a graphics card, the 3D view draws their low horizon black and slow."""
+    """From above, then tilted the way a user does (Ctrl+drag): the ground's relief with the track over it. The
+    tiles of the tilted view take long to draw without a graphics card: that wait is cut, and the camera holds
+    still there (playing in it would crawl in the recording)."""
     pg = f.pg
-    f.cap("Positions in the file: the run on a map", "Here the satellite map with its roads – the offline map is the default", hold=3.2)
-    box = pg.locator(".grid .plot").first.bounding_box()
-    pg.mouse.move(box["x"] + box["width"] * 0.6, box["y"] + box["height"] * 0.5, steps=12)   # the map's bar shows on the map in use
-    pg.wait_for_timeout(600)
-    pg.evaluate("window.__sv.setState({ playSpeed: 20 })")         # a 10-minute flight: 20× so it is seen moving
-    play = pg.locator(".tl-play").first
-    f.cap("Play: the object moves along its track – every plot and the map on one time bar")
-    f.glide(play)
-    pg.wait_for_timeout(5200)
-    f.cap("Cameras named by what they do", "From above · Around it · Behind it · Cockpit – one click in the map's bar")
-    f.glide(pg.locator(".g3-cam-top").first, click=False)
-    pg.wait_for_timeout(3200)
-    f.glide(play)
-    pg.wait_for_timeout(800)
+    f.cap("Positions in the file: the run on a map", "Here the satellite map with its roads – the offline map is the default", hold=3.4)
+    box = pg.locator(".plot:has(.globe3d)").first.bounding_box()
+    cx, cy = box["x"] + box["width"] * 0.5, box["y"] + box["height"] * 0.6
+    f.cap("Tilt it – Ctrl+drag or the middle button – and the ground has its heights")
+    pg.mouse.move(cx, cy, steps=20); pg.wait_for_timeout(300)
+
+    def tilt():
+        pg.keyboard.down("Control"); pg.mouse.down()
+        pg.mouse.move(cx, cy - 160, steps=12)
+        pg.mouse.up(); pg.keyboard.up("Control")
+        pg.mouse.move(box["x"] + box["width"] - 8, box["y"] + 8)    # off the ground: no pointer readout
+        globe_ready(pg)
+    f.wait_cut(tilt, keep=1.5)                                      # the gesture's start, then the relief drawn
+    pg.wait_for_timeout(4500)
+    f.cap("Play moves the object along its track – every plot and the map on one time bar",
+          "Cameras named by what they do: From above · Around it · Behind it · Cockpit", hold=5.0)
 
 
 def ch_sweeps(f, app):
@@ -298,6 +290,7 @@ def record(b, app, tmp):
     reset(app)
     ctx = b.new_context(viewport={"width": W, "height": H}, color_scheme="dark",
                         record_video_dir=tmp, record_video_size={"width": W, "height": H})
+    ctx.add_init_script(HARDWARE_GL)
     pg = ctx.new_page()
     f = Lesson(pg)
     pg.goto(app.url)
@@ -360,7 +353,8 @@ def main() -> None:
     try:
         with sync_playwright() as p:
             exe = os.environ.get("SV_CHROMIUM")
-            b = p.chromium.launch(**({"executable_path": exe} if exe else {}), args=["--no-sandbox"])
+            b = p.chromium.launch(**({"executable_path": exe} if exe else {}),
+                                  args=["--no-sandbox", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"])
             vid, start, end, cuts = record(b, app, tmp)
             b.close()
         cut_and_encode(vid, start, end, cuts)
