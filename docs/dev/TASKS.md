@@ -81,7 +81,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       on – a click on a map plot's `.mode-btn` opens no `.menu.ctx` (items `[]`); passes at `9469906` (B1's parent). Bisected
       on `main`: 9469906 ✓, 81af77f ✗, every later commit ✗. B1 (and B6, which lists it green) should look at it.
   <!-- lane L4 -->
-  - **L4 Map** – in progress · done: M2, M3, M4, B6, M1 (but the plot head's old select – L3), M6, M5 · next: F5 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
+  - **L4 Map** – in progress · done: M2, M3, M4, B6, M1 (but the plot head's old select – L3), M6, M5, F5 · next: F6 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
     - **Request to L3** (from L4, M1 – needed for M1's *one place for the layer*): in `PlotView.tsx` remove the map
       layer `<select aria-label="Map">`, the `.net-badge` and the *Borders* checkbox (the `(mode === "geo" || mode === "3d")`
       `xpick` block; keep *+ Add an object*) and the now unused `geoBase` / `shownBase` / `geoBorders` / `GEO_BASES` imports –
@@ -4331,3 +4331,14 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
   `test_round_1112` 25/25. Pictures `docs/dev/mockups/M5/{before,after}` (dark en, light he).
 - 2026-11-15 · L1 end of lane: the union of L1's e2e files once on `main` (582c501): `test_calm_screen`, `test_settings`, `test_plot_polish`, `test_first_minute`, `test_welcome_cards`, `test_plot_menus`, `test_findings_report`, `test_live_report`, `test_fresh_user`, `test_file_help_menus`, `test_template_tabs`, `test_templates_recent_badfiles`, `test_tour`, `test_move_plots_tabs`, `test_features` – 180 passed, 1 failed: `test_live_report::test_one_map`, bisected to L3's B1 (`81af77f`; the map plot's kind menu does not open) – written under L3. Lane L1 done; requests from other lanes are still answered here.
 - 2026-11-15 · L5 D5 Investigate + What changed: the verdict card first (summary + caveat, as the mock-up), onset times in mono, one primary action; Investigate's start card, eyebrow head, empty states, `table.data` occurrences with the statistic translated. Ran: tsc; e2e test_what_changed, test_conditions, test_occurrences, test_runs_matrix (21) – green; pictures D5 before / after dark en, light he (RTL fine); no control added. Next: D6.
+- 2026-11-15 · L4 F5 the height profile: `app/heightprofile.py` + `POST /api/profile` – for any recording with
+  positions: the distance along the track (haversine), at most n points evenly along it, the object's height (its
+  altitude reference turned into height above the sea), the ground under it from the offline map's elevation (bundled
+  grids, .hgt, Terrain Tiles kept / fetched when allowed), the height above it; `step_m` and `why` when the ground is
+  coarse (> 1 km: add .hgt or keep the area's ground offline) or missing; no position → refused. `HeightProfile.tsx`: a
+  glass strip under the map (2D and 3D) of the primary object – ground filled, height in the object's colour, the cursor
+  an amber mark, the pointer reads distance / height / ground / above it, a click moves the cursor; *Profile* in the map
+  bar (`plot.showProfile`, optional, saved with the plot – undoable like *Data*); the docks move up over it. Ran:
+  `tests/test_height_profile.py` (new, 8: distance against a numpy reference, Jerusalem's ground, coarse ground, AGL →
+  MSL, decimation, radians, no position, the route), mypy; e2e `tests/e2e/test_height_profile.py` (new) green.
+  Pictures `docs/dev/mockups/F5/after`.

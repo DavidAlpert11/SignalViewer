@@ -94,3 +94,22 @@
 .keep-list td.muted { color: var(--muted); }
 .cam-ico { vertical-align: -2px; margin-inline-end: var(--sp-1); flex: none; }   /* M6: a picture on each camera button */
 .map-bar .g3-seg button { white-space: nowrap; }
+
+/* F5: the height profile - a strip along the bottom of the map; the docks move up over it */
+.hprof { position: absolute; inset-inline: var(--sp-2); bottom: var(--sp-5); z-index: 3; display: flex; flex-direction: column; gap: var(--sp-0_5);
+  padding: var(--sp-1_5) var(--sp-2); border-radius: var(--r-card); background: var(--overlay-bg); color: var(--overlay-ink);
+  border: 1px solid color-mix(in srgb, var(--overlay-ink) 14%, transparent); box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-size: var(--fs-xs); }
+.hprof-empty { color: color-mix(in srgb, var(--overlay-ink) 70%, transparent); }
+.hprof-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2); }
+.hprof-head b { font-size: var(--fs-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; }
+:lang(he) .hprof-head b, [dir="rtl"] .hprof-head b { text-transform: none; letter-spacing: 0; }
+.hprof-read { margin-inline-start: auto; }
+.hprof-why { color: var(--amber); }
+.hprof-svg { width: 100%; height: 84px; display: block; cursor: crosshair; }
+.hprof-ground { fill: color-mix(in srgb, var(--overlay-ink) 22%, transparent); stroke: color-mix(in srgb, var(--overlay-ink) 45%, transparent); stroke-width: .6; }
+.hprof-alt { fill: none; stroke-width: 2; }
+.hprof-cursor { stroke: var(--amber); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.hprof-hover { stroke: var(--overlay-ink); stroke-width: 1; opacity: .5; }
+.hprof-axis { display: flex; justify-content: space-between; color: color-mix(in srgb, var(--overlay-ink) 62%, transparent); }
+.plot-canvas.geo:has(> .hprof) .map-dock, .globe3d:has(> .hprof) .map-dock { bottom: 168px; }

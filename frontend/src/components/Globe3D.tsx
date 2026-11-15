@@ -1,6 +1,7 @@
 import { declutter, type LabelBox } from "../declutter";
 import { boundsOf, isMyMap, layerMaxZoom, myMapAttribution } from "../mapLayers";
 import MapLayers from "./MapLayers";
+import HeightProfile from "./HeightProfile";
 import { countRender } from "../perf";
 import { runsDataKey } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -1242,6 +1243,8 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
           return [Math.max(-85, d(r.south)), d(r.west), Math.min(85, d(r.north)), d(r.east)];
         }} />
       )}
+      {plot.showProfile && objects.length > 0 && (() => { const o = objects.find((x) => x.id === primaryId) ?? objects[0];
+        return <HeightProfile key={o.id} obj={o} />; })()}
       {/* B6: the corners - the data box and the track keys bottom-start (an instrument: muted labels, mono values),
           the relation box and the attitude indicator bottom-end; each dock stacks what it holds, so nothing overlaps */}
       <div className="map-dock map-dock-start">

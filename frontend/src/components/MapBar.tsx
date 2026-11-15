@@ -79,6 +79,9 @@ export default function MapBar({ plot, objects, onZoom, onFit, className, chaseH
         <button className="geo-fit" onClick={onFit} title={`${t("mapFitAll")} (0)`} aria-label={t("mapFitAll")}>
           <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" /></svg></button>
       </span>
+      {/* F5: the height profile under the map, of the primary object */}
+      <button className={`g3-toggle map-profile${plot.showProfile ? " on" : ""}`} aria-pressed={!!plot.showProfile} title={t("hpToggleHint")}
+        onClick={() => actions.updatePlot(plot.id, { showProfile: !plot.showProfile })}>{t("hpToggle")}</button>
       <RelationToggle plot={plot} objects={objects} />
       <MapStory plot={plot} objects={objects} />
       {children}

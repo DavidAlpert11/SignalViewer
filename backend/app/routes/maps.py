@@ -3,6 +3,7 @@
 import asyncio
 from typing import List, Optional
 
+import numpy as np
 from fastapi import APIRouter
 from pydantic import BaseModel
 from fastapi.responses import Response
@@ -161,6 +162,37 @@ def remove_my_map(mid: str):
     except KeyError:
         fail(404, "This map is not in My maps any more.")
     return {"maps": mymaps.listing()}
+
+
+# F5: THE HEIGHT PROFILE - an object's height and the ground under it along the distance (app/heightprofile.py)
+
+class ProfileBody(BaseModel):
+    lat: str
+    lon: str
+    alt: Optional[str] = None
+    units: str = "deg"
+    altRef: str = "msl"
+    n: int = 800
+
+
+@router.post("/api/profile")
+async def height_profile(req: ProfileBody):
+    from app.heightprofile import profile
+    from app.store import store
+    from svcore.analysis import align_to
+    try:
+        t, la = store.signal(req.lat)
+        _, lo = store.signal(req.lon)
+        alt = None
+        if req.alt:
+            ta, aa = store.signal(req.alt)
+            alt = align_to(np.asarray(t, dtype=np.float64), np.asarray(ta, dtype=np.float64), aa, "linear")
+    except KeyError as e:
+        fail(404, f"Signal not found: {e.args[0] if e.args else ''} (its file was closed?)")
+    try:
+        return await asyncio.to_thread(profile, t, la, lo, alt, max(50, min(4000, req.n)), req.units == "rad", req.altRef)
+    except ValueError as e:
+        fail(400, str(e))
 
 
 # =============================================================================

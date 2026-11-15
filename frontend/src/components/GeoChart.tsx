@@ -6,6 +6,7 @@ import { actions, activeTab, shownSpan, useApp, type MapObject, type Plot } from
 import { isPhotoBase, useMapBase } from "../mapBase";
 import { boundsOf, layerMaxZoom, myMapAttribution } from "../mapLayers";
 import MapLayers from "./MapLayers";
+import HeightProfile from "./HeightProfile";
 import { drawObjectIcon } from "./mapIcons";
 import { altAt, angleUnitOf, colorRuns, fmtDistance as fmtDistanceShort, derivedAttitude, objectAt, trackColors, trackKey, trackRequest, trackTime, type ObjTrack, type TrackColors, shownObjects } from "../mapObjects";
 import TrackKeys from "./TrackKeys";
@@ -1042,6 +1043,8 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
         <div className="geo-hint" role="note">{t("mapHint")}
           <button className="iconbtn sm" onClick={markHintSeen} aria-label={t("close")} title={t("close")}>×</button></div>
       )}
+      {plot.showProfile && objects.length > 0 && (() => { const pid = pairOf(plot).primary; const o = objects.find((x) => x.id === pid) ?? objects[0];
+        return <HeightProfile key={o.id} obj={o} />; })()}
       {/* B6: the corners as in 3D - the track keys bottom-start, the pointer's position and the relation box bottom-end */}
       <div className="map-dock map-dock-start">
         <TrackKeys objects={objects} colors={objColors} />
