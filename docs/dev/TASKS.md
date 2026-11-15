@@ -18,10 +18,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - Done 2026-11-15 (see the Log): repository cleanup, history rewritten to the owner's identity, e2e speed-up and two
   outdated tests, Align time in the palette, the camera line fades, the offline 3D page's cameras, the pictures
   retaken, the training film remade.
-- Open: a Hebrew version of the films and a narration script (offered); the owner moves the release tags onto the
-  rewritten history and deletes the branches `tmp-tag-v1.15.0`, `sv1113/continue`, `sv1114/review` (the session's
-  proxy refuses tag and branch-delete pushes); GitHub About texts (the owner pastes them); `npm run build` + the full
-  e2e suite before the tag.
+- Open: a Hebrew version of the films and a narration script (offered); GitHub About texts (the owner pastes them);
+  the full e2e suite before the tag.
 - Media made from the app itself (all in `tools/`): `make_readme_media.py` (pictures, the welcome cards'),
   `make_demo_video.py` (`docs/media/demo_simulation.mp4`), `make_training_video.py` (`docs/media/training.mp4`),
   `make_social_preview.py`, `make_bench_example.py`.
@@ -116,4 +114,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   the social preview. Dead code removed (vulture): 4 functions, 1 parameter; quick_check green.
 - 2026-11-15 · Training film remade (each demo once, real actions, the map loaded behind its slide, the 3D relief
   tilted; the recording reports a hardware renderer so the 3D view is drawn as with a graphics card).
+- 2026-11-15 · The owner moved the 28 release tags onto the rewritten history from his computer and deleted the old
+  branches (the session's proxy refuses tag and branch-delete pushes); checked here: every tag equals the rewrite, every
+  commit and tag by David Alpert, only `main` left. GitHub's API counts one contributor (its sidebar is a cache).
 
