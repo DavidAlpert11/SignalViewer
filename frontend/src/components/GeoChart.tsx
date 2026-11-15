@@ -1061,7 +1061,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
           }} />
       )}
       {view && objects.length > 0 && !hint && (camMode === "free" || camMode === "top" || camMode === "centre" || camMode === "chase") && (
-        <div className="g3-cam-hint map-cam-line" role="note">{t(`camLine_${camMode}`)}</div>
+        <div key={camMode} className="g3-cam-hint map-cam-line" role="note">{t(`camLine_${camMode}`)}</div>   /* keyed: shown again on a camera change */
       )}
       {view && hint && (
         <div className="geo-hint" role="note">{t("mapHint")}

@@ -101,6 +101,8 @@ and every analysis tool working on any data (flight, vehicle, bench, simulation)
 - The Checks count in *the run at a glance* opens Checks on that run (it opened on the first log).
 - The flight templates (ArduPilot, PX4, MAVLink) and *Position on the map* open one map instead of a map beside a 3D view: the map's cameras (From above, Around it, Behind it, Cockpit) cover both, and its kind menu turns it into the 3D globe.
 - Two films, made from the app itself: a 90-second demo for engineers, *Simulation vs. reality* (`docs/media/demo_simulation.mp4`, `tools/make_demo_video.py`), and a training film in nine chapters, slides then the app live (`docs/media/training.mp4`, `tools/make_training_video.py`).
+- The command palette has *Align time with another file…* (Ctrl+K) – for the file of the active plot; with one file open it says to open the other run first.
+- The map's camera line (what the chosen camera does) shows for a few seconds when the camera changes, then fades so it no longer covers the map; pointing at the map's bar shows it again.
 - Fixed: a `.svsweep` opened with *Open ▾ → Open a saved study* now finds tables named relative to it (a study copied to another folder said *File not found*).
 
 ## 1.27.0 – 2026-11-13

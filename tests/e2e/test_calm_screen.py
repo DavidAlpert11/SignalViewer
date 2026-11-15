@@ -60,3 +60,19 @@ def test_focus_ring_on_every_button_class(pg, theme):
         pg.keyboard.press("Shift+Tab"); pg.keyboard.press("Tab")             # a keyboard focus: :focus-visible
         style = pg.evaluate("() => { const e = document.activeElement; const s = getComputedStyle(e); return [s.outlineStyle, s.outlineWidth]; }")
         assert style[0] != "none" and style[1] != "0px", (sel, style)
+
+
+def test_align_time_from_the_palette(pg):
+    """The palette's second way into Align time (the file's right-click menu is the first): one file - it says
+    what is needed; two files - the dialog opens on the active plot's file."""
+    open_files(pg, "run_a.csv")
+    pg.keyboard.press("Control+k"); pg.fill(".palette-input", "Align time"); pg.keyboard.press("Enter")
+    pg.wait_for_selector(".toast:has-text('needs two open files')")
+    assert pg.locator(".sync-dialog").count() == 0
+    open_files(pg, "run_b.csv", clear=False)
+    sig(pg, "Speed", 1).click()                                              # run_b's Speed in the active plot
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
+    rid = S(pg, "s.ws.tabs[0].plots[0].signals[0].sig.split('/')[0]")
+    pg.keyboard.press("Control+k"); pg.fill(".palette-input", "Align time"); pg.keyboard.press("Enter")
+    pg.wait_for_selector(".sync-dialog")
+    assert S(pg, "s.syncFor") == rid

@@ -1241,7 +1241,10 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
         </MapBar>
       )}
       {cz && objects.length > 0 && !measuring && !detached && (
-        <div className="g3-cam-hint" role="note">{camTop ? t("g3CamTopHint") : t(!centred ? "g3HintFree" : plot.camera === "chase" ? "g3HintChase" : plot.camera === "cockpit" ? "g3CamCockpitHint" : plot.camera === "lookat" ? "g3HintLookAt" : "g3HintCentre")}</div>
+        (() => {   /* keyed by its text: a camera change shows it again (it fades after a few seconds - map.css) */
+          const hint = camTop ? t("g3CamTopHint") : t(!centred ? "g3HintFree" : plot.camera === "chase" ? "g3HintChase" : plot.camera === "cockpit" ? "g3CamCockpitHint" : plot.camera === "lookat" ? "g3HintLookAt" : "g3HintCentre");
+          return <div key={hint} className="g3-cam-hint" role="note">{hint}</div>;
+        })()
       )}
       {measuring && (
         <div className="g3-measure" dir={lang === "he" ? "rtl" : "ltr"} role="status">

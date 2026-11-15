@@ -122,6 +122,17 @@ export default function CommandPalette() {
           else st().toast({ kind: "info", text: t("simCmdNone") });
         },
       },
+      // Align time… (the file's right-click menu is the first place) - the file of the active plot's first line, else the newest file
+      {
+        id: "syncalign", label: t("syncMenu") + "…", group: t("compare"), run: () => {
+          const files = st().runs.filter((r) => r.format !== "derived");
+          if (files.length < 2) { st().toast({ kind: "info", text: t("syncCmdNone") }); return; }
+          const tab = activeTab(st().ws);
+          const first = tab?.plots[tab.active ?? 0]?.signals.find((x) => !x.sig.startsWith("derived/"))?.sig;
+          const runId = first ? first.slice(0, first.indexOf("/")) : files[files.length - 1].id;
+          useApp.setState({ syncFor: runId });
+        },
+      },
       // L8: Compare objects… - the active map / 3D plot of the tab (else its first with two objects); none: how to get there
       {
         id: "cmpobjects", label: t("cmpCmdOpen"), group: t("objects"), run: () => {

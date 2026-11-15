@@ -36,6 +36,12 @@
 .g3-cam-hint, .geo-hint, .g3-measure { left: auto; right: auto; bottom: auto; transform: none;
   inset-inline-start: var(--sp-2); top: calc(var(--mapbar-bottom, 48px) + var(--sp-1_5)); max-width: min(60%, 420px); text-align: start; }
 .plot:not(.active):not(:hover):not(:focus-within) .g3-cam-hint { display: none; }   /* with the bar's buttons */
+/* the camera's line says what the camera does when it changes, then gets out of the map's way; pointing at
+   the map's bar brings it back (owner, 2026-11-15: always on, it covered the map) */
+.g3-cam-hint { pointer-events: none; animation: cam-hint-out 5s ease forwards; }
+.plot:has(.map-bar:hover, .globe3d-bar:hover) .g3-cam-hint { animation: none; opacity: 1; }
+@keyframes cam-hint-out { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .g3-cam-hint { animation-timing-function: steps(1, end); } }
 
 /* the data box: an instrument */
 .globe3d-readout { gap: var(--sp-0_5); padding: var(--sp-1_5) var(--sp-2); border-radius: var(--r-card); box-shadow: var(--shadow-md);
