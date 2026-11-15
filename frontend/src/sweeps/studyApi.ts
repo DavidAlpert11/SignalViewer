@@ -23,6 +23,9 @@ export const studyApi = {
   runs: (req: StudyReq, table: string, rows: number[]) =>
     call<{ table: string; columns: string[]; rows: (number | string | null)[][] }>("/api/sweeps/common/runs", { ...req, table, rows }),
   exportCsv: (req: StudyReq, path: string) => call<{ path: string; rows: number }>("/api/sweeps/common/export", { ...req, path }),
+  /** C10: one report of the study (HTML) - its words sent in the user's language */
+  report: (req: StudyReq, path: string, labels: Record<string, string>, lang: string) =>
+    call<{ path: string; values: number }>("/api/sweeps/study/report", { ...req, path, labels, lang }),
   nextRuns: (req: StudyReq) => call<NextRunsResult>("/api/sweeps/next-runs", req),
   submit: (study_path: string, confirmed: boolean) => call<LauncherSubmitResult>("/api/sweeps/launcher/submit", { study_path, confirmed }),
   status: (study_path: string) => call<LauncherStatusResult>(`/api/sweeps/launcher/status?study_path=${encodeURIComponent(study_path)}`),

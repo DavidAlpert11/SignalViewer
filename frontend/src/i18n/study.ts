@@ -210,6 +210,13 @@ export const en = {
   rcRunThem: "Run them",
   rcRunThemHint: "The runs written for the last round, sent with the study's command (Set up › How to run).",
   nvAbout: "About this study",
+  srMenu: "Report of the study…",
+  srDone: "The study's report was written to {path}",
+  srTitle: "Study report", srSetup: "Set up: what varies", srParam: "Parameter", srStep: "step", srConstraints: "Constraints",
+  srTables: "Tables", srTable: "Table", srGoal: "Goal", srLimits: "Must hold", srOver: "Over the scenarios",
+  srAnswer: "The shared answer", srHolds: "{n} of {of} values hold in every table.", srNoAnswer: "No results yet.",
+  srFails: "fails", srNotRun: "not run", srMore: "… and {n} more values (Export CSV in Together has them all).",
+  srRounds: "Rounds", srNoRounds: "No round run yet.", srRound: "Round", srDate: "Date", srRuns: "Runs", srDoneRuns: "Done",
 };
 
 export const he: typeof en = {
@@ -422,4 +429,11 @@ export const he: typeof en = {
   rcRunThem: "להריץ אותן",
   rcRunThemHint: "הריצות שנכתבו לסבב האחרון, נשלחות עם הפקודה של המחקר (הגדרה › איך מריצים).",
   nvAbout: "על המחקר הזה",
+  srMenu: "דוח של המחקר…",
+  srDone: "הדוח של המחקר נכתב אל {path}",
+  srTitle: "דוח מחקר", srSetup: "הגדרה: מה משתנה", srParam: "פרמטר", srStep: "צעד", srConstraints: "אילוצים",
+  srTables: "טבלאות", srTable: "טבלה", srGoal: "מטרה", srLimits: "חייב להתקיים", srOver: "על פני התרחישים",
+  srAnswer: "התשובה המשותפת", srHolds: "{n} מתוך {of} ערכים עומדים בכל הטבלאות.", srNoAnswer: "עוד אין תוצאות.",
+  srFails: "נכשל", srNotRun: "לא הורץ", srMore: "… ועוד {n} ערכים (ייצוא CSV ב'ביחד' מכיל את כולם).",
+  srRounds: "סבבים", srNoRounds: "עוד לא הורץ סבב.", srRound: "סבב", srDate: "תאריך", srRuns: "הרצות", srDoneRuns: "הסתיימו",
 };

@@ -182,3 +182,26 @@ def common_export(req: ExportReq):
     path = req.path if req.path.lower().endswith(".csv") else req.path + ".csv"
     df.to_csv(path, index=False, encoding="utf-8-sig")
     return {"path": path, "rows": int(len(df))}
+
+
+class ReportReq(ExportReq):
+    labels: Dict[str, str] = {}
+    lang: str = "en"
+
+
+@router.post("/api/sweeps/study/report")
+def study_report(req: ReportReq):
+    """C10: one report of the study (an HTML page): its set-up, each table's goal, the shared answer, the rounds.
+    A study whose tables have no rows yet still gets its set-up and rounds."""
+    s = study_of(req)
+    try:
+        result: Optional[Dict[str, Any]] = sweeps_common.rank(s) if len(s.tables) else None
+    except sweeps_common.StudyError:
+        result = None
+    path = req.path if req.path.lower().endswith((".html", ".htm")) else req.path + ".html"
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(sweeps_common.report_html(s, result, req.labels, req.lang))
+    except OSError as e:
+        fail(400, f"The report could not be written to {path}: {e}. Choose a folder you can write to.")
+    return {"path": path, "values": len(result["rows"]) if result else 0}

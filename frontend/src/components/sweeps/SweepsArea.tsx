@@ -52,7 +52,7 @@ import ParallelPlot from "./ParallelPlot";
 import PlotToolbar from "./PlotToolbar";
 import SetDetail from "./SetDetail";
 import SetsTable from "./SetsTable";
-import StudyPanel, { saveStudyDialog } from "./StudyPanel";
+import StudyPanel, { saveStudyDialog, studyReportDialog } from "./StudyPanel";
 import { HowItWorks } from "./DemoView";
 import NewStudy from "./NewStudy";
 import SetupView from "./SetupView";
@@ -145,12 +145,13 @@ registerArea("sweeps", {
       { id: "sw-redo", label: t("redo"), group: g, icon: "redo" as const, keys: "Ctrl Y", run: redoStudy },
       ...open,
       { id: "sw-save-study", label: t("swSaveStudy"), group: g, icon: "save" as const, run: () => { void saveStudy(t); } },
-      ...(common ? [{ id: "sw-close-study", label: t("cpClose"), group: g, run: closePanel }] : []),
+      ...(common ? [{ id: "sw-close-study", label: t("cpClose"), group: g, run: closePanel },
+        { id: "sw-report", label: t("srMenu"), group: g, icon: "report" as const, run: () => { void studyReportDialog(t); } }] : []),
     ];
     if (!study) return both;
     return [
       ...both,
-      { id: "sw-report", label: t("swReportMenu"), group: g, icon: "report" as const, run: () => useSweeps.setState({ reportOpen: true }) },
+      ...(common ? [] : [{ id: "sw-report", label: t("swReportMenu"), group: g, icon: "report" as const, run: () => useSweeps.setState({ reportOpen: true }) }]),
       { id: "sw-templates", label: t("swTemplates"), group: g, run: () => useSweeps.setState({ templatesOpen: true }) },
       { id: "sw-start-over", label: t("swStartOver"), group: g, run: st.resetStudy },
       ...STEPS.map((s, i) => ({ id: `sw-step-${s}`, label: `${i + 1} ${stepTitle(t, s)}`, group: t("swSteps"), run: () => st.setView({ step: s }) })),
@@ -220,7 +221,9 @@ function SweepsBar() {
   const studyMenu = (e: React.MouseEvent) => {
     const st = useSweeps.getState();
     const SEP = { label: "", sep: true, run: () => {} };
-    if (!study) { openMenu(below(e), [{ label: t("swSaveStudy"), run: () => saveStudy(t) }]); return; }
+    // C10: with a study file open its report is the study's (a table's own report stays in its Results)
+    const studyReport = { label: t("srMenu"), run: () => { void studyReportDialog(t); } };
+    if (!study) { openMenu(below(e), [{ label: t("swSaveStudy"), run: () => saveStudy(t) }, SEP, studyReport]); return; }
     openMenu(below(e), [
       { label: t("swSaveStudy"), run: () => saveStudy(t) },
       { label: t("swStartOver"), run: () => st.resetStudy() },
@@ -234,7 +237,7 @@ function SweepsBar() {
       { label: t("swTemplatesMenu"), run: () => useSweeps.setState({ templatesOpen: true }) },
 
       SEP,
-      { label: t("swReportMenu"), disabled: !study.answer, run: report },
+      common ? studyReport : { label: t("swReportMenu"), disabled: !study.answer, run: report },
     ]);
   };
   /* Clear (owner, 2026-11-03: as in Recordings) - from the least to everything; each but the last is

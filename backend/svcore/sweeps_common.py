@@ -556,3 +556,77 @@ def setup_from_table(df: pd.DataFrame, roles: Optional[Dict[str, str]] = None) -
                    **{n: "ignore" for n in other + [p["name"] for p in params if p["kind"] != "number"]}}
     return {"rows": int(len(df)), "params": params, "scenarios": scenarios, "outputs": outputs, "other": other,
             "shared": [{"name": p["name"]} for p in numeric], "search": {"params": search}, "roles": study_roles}
+
+
+def report_html(s: studies.Study, result: Optional[Dict[str, Any]], labels: Dict[str, str], lang: str = "en",
+                top: int = 20) -> str:
+    """C10: one report of a study - its set-up, each table's goal, the shared answer (the best `top` values with
+    each table's verdict) and the rounds run. A self-contained page (no script, no network); `labels` are the
+    page's words in the user's language, sent by the UI (a missing one falls back to its key)."""
+    import html as _h
+
+    def L(k: str, **kw: Any) -> str:
+        text = labels.get(k, k)
+        for a, b in kw.items():
+            text = text.replace("{" + a + "}", str(b))
+        return _h.escape(text)
+
+    def e(x: Any) -> str:
+        return _h.escape("" if x is None else (f"{x:.6g}" if isinstance(x, float) else str(x)))
+
+    out = [f'<!doctype html><html lang="{e(lang)}" dir="{"rtl" if lang == "he" else "ltr"}"><head><meta charset="utf-8">',
+           f"<title>{e(s.name or L('title'))}</title><style>"
+           "body{font:14px/1.45 system-ui,sans-serif;margin:24px auto;max-width:980px;padding:0 16px;color:#1d232b;background:#fff}"
+           "h1{font-size:22px}h2{font-size:17px;margin-top:28px}table{border-collapse:collapse;margin:8px 0}"
+           "th,td{border:1px solid #d5d9e0;padding:3px 8px;text-align:start;font-variant-numeric:tabular-nums}"
+           "th{background:#f2f4f7}.pass{color:#1f7a3d}.fail{color:#b42318}.muted{color:#667085}"
+           "</style></head><body>",
+           f"<h1>{e(s.name) or L('title')}</h1>"]
+    # the set-up: what varies, the constraints on it, the start grid
+    out.append(f"<h2>{L('setup')}</h2><table><tr><th>{L('param')}</th><th>min</th><th>max</th><th>{L('step')}</th></tr>")
+    names = [p.name for p in s.shared] or list(s.search.params)
+    for n in names:
+        sp = s.search.params.get(n)
+        out.append(f"<tr><td>{e(n)}</td><td>{e(sp.min if sp else None)}</td><td>{e(sp.max if sp else None)}</td>"
+                   f"<td>{e(sp.step if sp else None)}</td></tr>")
+    out.append("</table>")
+    if s.search.constraints:
+        out.append(f"<p>{L('constraints')}: <code>{e('; '.join(s.search.constraints))}</code></p>")
+    # each table: its goal
+    out.append(f"<h2>{L('tables')}</h2><table><tr><th></th><th>{L('table')}</th><th>{L('goal')}</th><th>{L('limits')}</th>"
+               f"<th>{L('over')}</th></tr>")
+    for t in s.tables:
+        goal = f"{'min' if t.objective.sense == 'min' else 'max'} {t.objective.expr}" if t.objective.expr else ""
+        out.append(f"<tr><td>{e(t.id)}</td><td>{e(t.name or t.id)}</td><td><code>{e(goal)}</code></td>"
+                   f"<td><code>{e('; '.join(t.constraints))}</code></td><td>{e(t.aggregate)}</td></tr>")
+    out.append("</table>")
+    # the shared answer
+    out.append(f"<h2>{L('answer')}</h2>")
+    if not result or not result.get("rows"):
+        out.append(f"<p class='muted'>{L('noAnswer')}</p>")
+    else:
+        c = result["counts"]
+        out.append(f"<p>{L('holds', n=c['feasible'], of=c['values'])}</p><table><tr><th>#</th>"
+                   + "".join(f"<th>{e(k)}</th>" for k in result["shared"])
+                   + "".join(f"<th>{e(t['id'])}</th>" for t in result["tables"]) + "</tr>")
+        for r in result["rows"][:top]:
+            cells = "".join(f"<td>{e(r['values'].get(k))}</td>" for k in result["shared"])
+            for p in r["tables"]:
+                v = e(p["score"]) if p["status"] == "pass" else L("notRun") if p["status"] == "not_run" else L("fails")
+                cells += f"<td class='{e(p['status'])}'>{v}</td>"
+            out.append(f"<tr><td>{e(r['rank'] or '')}</td>{cells}</tr>")
+        out.append("</table>")
+        if len(result["rows"]) > top:
+            out.append(f"<p class='muted'>{L('more', n=len(result['rows']) - top)}</p>")
+    # the rounds
+    out.append(f"<h2>{L('rounds')}</h2>")
+    if not s.history:
+        out.append(f"<p class='muted'>{L('noRounds')}</p>")
+    else:
+        out.append(f"<table><tr><th>{L('round')}</th><th>{L('date')}</th><th>{L('runs')}</th><th>{L('done')}</th></tr>")
+        for rd in s.history:
+            done = sum(1 for p in rd.proposals if p.state == "done")
+            out.append(f"<tr><td>{rd.round}</td><td>{e(rd.date)}</td><td>{len(rd.proposals)}</td><td>{done}</td></tr>")
+        out.append("</table>")
+    out.append("</body></html>")
+    return "\n".join(out)

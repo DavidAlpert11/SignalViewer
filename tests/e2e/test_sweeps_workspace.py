@@ -168,6 +168,9 @@ def test_one_open_menu_and_each_command_once(pg):
     assert pg.locator(".cp-head button").count() == 0                           # no Undo / Redo / Save / × of its own
     assert pg.locator(".areabar [aria-label='Undo']").count() == 1
     assert "Study: " in pg.locator("footer.status").inner_text()                 # one sentence for the study
+    pg.locator(".areabar .btn", has_text="Study").first.click()                 # one report: the study's
+    assert pg.locator(".menu button", has_text="Report of the study…").count() == 1
+    pg.keyboard.press("Escape")
     pg.keyboard.press("Control+k")
     pg.wait_for_selector(".palette-input")
     ids = pg.evaluate("[...document.querySelectorAll('[role=option][data-cmd]')].map((e) => e.dataset.cmd).filter((x) => /^(sw|cp)-/.test(x))")

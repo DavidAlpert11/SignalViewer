@@ -36,6 +36,22 @@ export async function saveStudyDialog(t: TFn, as = false): Promise<boolean> {
   catch (e) { say((e as Error).message, "error"); return false; }
 }
 
+/** C10: one report of the study (an HTML page from the backend): set-up, each table's goal, the shared answer,
+ *  the rounds - in the user's language. A table's own report stays in its Results. */
+export async function studyReportDialog(t: TFn): Promise<void> {
+  const st = useStudyPanel.getState();
+  const p = await pickPath({ mode: "save", title: t("srMenu"), exts: [".html"], defaultName: (st.study?.name || "study") + "_report.html" });
+  if (!p) return;
+  const keys = ["title", "setup", "param", "step", "constraints", "tables", "table", "goal", "limits", "over", "answer", "holds",
+    "noAnswer", "fails", "notRun", "more", "rounds", "noRounds", "round", "date", "runs"] as const;
+  const labels: Record<string, string> = Object.fromEntries(keys.map((k) => [k, t(`sr${k[0].toUpperCase()}${k.slice(1)}` as never)]));
+  labels.done = t("srDoneRuns");
+  labels.holds = t("srHolds", { n: "{n}", of: "{of}" });
+  labels.more = t("srMore", { n: "{n}" });
+  try { const r = await studyApi.report(reqOf(), p, labels, useApp.getState().lang); say(t("srDone", { path: r.path })); }
+  catch (e) { say((e as Error).message, "error"); }
+}
+
 export default function StudyPanel() {
   const t = useT();
   const s = useStudyPanel();
