@@ -48,14 +48,14 @@ The demo is one case of **the loop**, which any study in Sweeps can run (the **R
 4. it ranks every value tried so far and proposes again – until the best has not changed for two rounds, nothing
    is left to try, or the round limit. *Stop* stops after the running round; the loop can be started again later.
 
-The Run column shows what the next round will run, the exact command, the runs done / running / failed, the best
-so far and the convergence; each round is listed under its table in the study's navigator (new ones marked) and
+The demo opens on **Next runs**: it shows what the next round will run, the exact command, the runs done / running / failed, the best
+so far and the convergence; each round is listed under its table in the Data step (new ones marked) and
 opens as that table.
 
 ## Make it yours
 
-In the demo, *About this study* (in the navigator) → *Copy the demo to a folder…* copies the study and `sim.py`
-into a new folder and opens it as a study, nothing run yet. There, in its **Set up** → *How to run*:
+In the demo, *About this study* (in the Data step) → *Copy the demo to a folder…* copies the study and `sim.py`
+into a new folder and opens it as a study, nothing run yet. There, in **Next runs** → *How to run*:
 
 - **The command for one run** – one argument per line, run without a shell, e.g.
   `python` · `{{study_dir}}/my_sim.py` · `{{params_file}}` (`{{study_dir}}` is the study's folder; the command runs in
@@ -65,7 +65,7 @@ into a new folder and opens it as a study, nothing run yet. There, in its **Set 
 - **Results** – where a run's result file appears;
 - each table's **parameters file** – a template with `{{column}}` placeholders.
 
-Then *Next round* or *Run until converged* in the Run column. If no run of a round gives a result, the loop stops and shows the end of the command's output.
+Then *Next round* or *Run until converged* beside it. If no run of a round gives a result, the loop stops and shows the end of the command's output.
 
 ## Your own program
 

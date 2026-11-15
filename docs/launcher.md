@@ -31,7 +31,7 @@ Everything about your launcher is in the study's `launcher` block – there is n
    `reduce` (`{"overshoot": "max(roll)"}`), JSON with `json_keys` (`{"overshoot": "out.os"}`), any file the app
    reads (`loader`), or a `converter` command that prints one CSV row. A result is found by `run_id`, else by the
    run's input values.
-5. **Run a round of 3** (set `next.batch` to 3), the Run column's *Run them*, and check that every run turns *done*.
+5. **Run a round of 3** (set `next.batch` to 3), *Run them* in the Next runs step, and check that every run turns *done*.
 
 What comes back is collected into `next/round_<k>/collected_<table>.csv`: add `next/round_*/collected_<table>.csv`
 to each table's paths and every round's results join the ranking.

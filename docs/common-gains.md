@@ -1,15 +1,15 @@
 # One parameter set for many systems
 
-*Sweeps → Open ▾ → New study… → I have results*, then add each system's table (the study's navigator).
+*Sweeps → Open ▾ → New study… → I have results*, then add each system's table (*Add table* in the Data step).
 You have run a sweep for each of several systems - three drones, say - and they
 must all fly with **the same gains**. Each table has its own scenarios (wind, mass), its own limits and its own
 goal. Signal Viewer finds the values of the shared parameters that hold in **every** table, and ranks them -
-the navigator's **Together** item, shown when the study has two tables or more (a study with one table is
-ranked on its own).
+the Results tab **All systems together**, shown when the study has two tables or more (a study with one table
+is ranked on its own).
 
 ## The question, in a study file
 
-A study (`<name>.svstudy.json`) is built in the app - its *Set up* in the navigator - and saved with *Study ▾ →
+A study (`<name>.svstudy.json`) is built in the app - *Define the problem* in the Data step - and saved with *Study ▾ →
 Save*; *Open a saved study* opens it again, and the same file is read by the command line.
 
 | A column is… | Meaning | Example |
@@ -36,7 +36,7 @@ For each value of the shared parameters that was run:
 With the same goal in every table, the values are ranked by the **worst table**; with different goals they are
 ranked on the **Pareto front** (no other value is better in every table). A rejected value says which table,
 scenario and constraint failed, and by how much. Only values that were run are chosen - to try new ones, run
-the next round from the **Run** column. *Export CSV…* in Together writes the whole ranking; *Study ▾ → Report
+the next round from the **Next runs** step (*Run from the app*). *Export CSV…* in the systems together writes the whole ranking; *Study ▾ → Report
 of the study…* writes one HTML page of it (each table's goal and limits, the shared answer with each table's
 verdict, the rounds run).
 

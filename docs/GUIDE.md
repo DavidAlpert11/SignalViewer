@@ -495,8 +495,9 @@ Four steps, left to right:
    as lines - the wheel zooms, a click on a line shows that run), export (CSV, or HTML with its
    parallel plot as you left it) or close. **Merge** makes a new table from the ticked ones - the
    rows one under the other, or side by side on key columns (join) - with a source column if you
-   want it; the tables merged stay. In a study, the navigator on the left chooses the table the next
-   steps work on (see *Studies* below).
+   want it; the tables merged stay. The tables' column on the left (only in Data; drag its edge to
+   widen it) chooses the table the next steps work on, and *Remove from the study* (×, with Undo) takes
+   one out (see *Studies* below).
 2. **Columns** – check each column's role: parameter, output, condition (what you don't choose:
    wind, payload), identifier (a run id or a recording), not used. Above the table: undo, redo,
    *Reset to guessed roles*, *Template ▾* (save to a JSON file to share, load - it says what matched)
@@ -538,19 +539,23 @@ begin:
   the scenarios, what your program writes and what is good, and the command that runs one run on this PC
   or your farm's launcher. Round 1 runs that grid; each next round is aimed by the results.
 
-The **navigator** on the left lists the study: its *Set up* (how many of its four parts are filled),
-*Together* when it has two systems (tables) or more – the values that hold for all of them – and its
-*Tables*: each table, the tables merged into it and each round the loop has run (new ones marked). One
-click opens any of them in the four steps; *About this study* explains it. The **Run** column on the right
-says what the next round will run (for round 1: sets × scenarios = runs) or what is still missing, with
-**Run them**, *Only write the files* (for a launcher of your own), the loop's *Next round*, *Run until
-converged* and *Stop*, its progress and how it converges; its arrow folds it away. *Study ▾* saves,
-undoes and closes the study, and *Report of the study…* writes one HTML page of the whole study. One
-Ctrl+Z undoes the last change anywhere in Sweeps.
+Every study goes through the same five steps: **1 Data · 2 Columns · 3 Goal · 4 Results · 5 Next runs**.
+**Data** defines the problem: on the left the study's tables – the layers of runs: each table, the tables
+merged into it and each round the loop has run (new ones marked); a click shows its data – and *Define the
+problem* (what varies, the scenarios, the outputs; how many of the three are filled). *About this study*
+explains a demo. When the study has two systems (tables) or more, **Results** has a tab *All systems
+together* – the values that hold for all of them. **Next runs** is the one place for the next parameter
+sets: the sets proposed from the results so far (export them to run outside the app) and *Run from the
+app* – what the next round will run (for round 1: sets × scenarios = runs) or what is still missing, *How
+to run* (this PC or the farm, the command), **Run them**, *Only write the files* (for a launcher of your
+own), the loop's *Next round*, *Run until converged* and *Stop*, its progress and how it converges.
+Finished rounds come back as new tables in Data. *Study ▾* saves, undoes and closes the study, and
+*Report of the study…* writes one HTML page of the whole study. One Ctrl+Z undoes the last change anywhere
+in Sweeps.
 
 The open tables are pills in the top row, beside the area names (a click shows one, its × closes it). A round
-stays marked *new* until you open it. A study table opened from the navigator *is* that table: change its
-goal in the four steps and the study's table changes too – *Together* ranks with it, and one Ctrl+Z takes
+stays marked *new* until you open it. A study table opened from Data *is* that table: change its goal in
+its Goal step and the study's table changes too – the systems together rank with it, and one Ctrl+Z takes
 both back. A single table opened with *I have results* is saved as its own `.svsweep`.
 
 ## 14. When something goes wrong
@@ -587,8 +592,8 @@ for the numbers.
 ## One parameter set for many systems, the next runs, the farm, the demo
 
 *Sweeps → Open ▾ → New study…*: a study of one or several sweep tables, saved as a `.svstudy.json`
-(section 13). The values ranked *Together*, why a value fails, the next runs and the Run column's
-*Run them* are explained in
+(section 13). The values ranked together, why a value fails, the next runs and *Run them*
+(in Next runs) are explained in
 [One parameter set for many systems](common-gains.md) and [Launcher mode](launcher.md); the welcome screen's
 *Smart sweep demo* in [The smart-sweep demo](smart-sweep-demo.md).
 
