@@ -33,24 +33,28 @@
 * A made signal's *Change the formula…* is for formulas; the other operations (derivative, filter…) are made again in *Create signals*. A changed formula moves the signal to the end of the made signals' list.
 * A coloured map track (by a state or a value) is drawn whole in 3D (not only the timeline's shown span); the value's colour scale runs from its lowest to its highest along that track.
 * Sweeps: the Pareto levels are counted up to the tenth front; sets further back share level 11. With three or more objectives a Pareto chart shows two of them at a time (the front is the sets no other beats on all of them, so a front set can look beaten in one pair).
-* The tab's band of state lanes (the flight mode once above the plots) is shown when the tab's time plots are in one column with X linked; with several columns each plot keeps its own lane.
+* The tab's band of state lanes (the flight mode, inside the top plot or - *Settings ▸ Look ▸ Mode band* - above the plots) is shown when the tab's time plots are in one column with X linked; with several columns each plot keeps its own lane.
 * The faint copy of an object under the pointer on the map / in 3D follows time plots of the same tab only; the built-in *Flight* tab (map and 3D) has no time plot - add one to see it.
 * A template keeps its default tabs; a line's dash chosen by hand (Inspector ▸ Line) is kept in the session, not in templates.
 * In a segment comparison the difference view's times are since each segment's start: a click there does not move the cursor.
 * Golden runs and Compare's tolerances are kept in the app's settings and in the tolerances file (*Save tolerances…*), not in a session or a template. The Compare panel pairs signals by name: a tolerances file's `"as"` (another name in the run) is used by `signalviewer-cli compare` and kept when the panel saves the file.
 * Formulas keep a missing value missing (a sum, mean or norm in *Create signals* also offers to skip or bridge it; a formula does not yet).
 * The data-quality summary is of a file as it was opened or read again; a file growing in live mode is not checked again as it grows. A state or event signal (a mode, a message) is checked for missing values only.
-* The list of all events (modes, log events, findings, conditions, limits) is in the Log panel of a flight log; for other files ] / [ and the command palette step through the conditions and limits.
+* The list of all events (modes, log events, findings, conditions, limits) is *Checks ▸ Events* of a flight log; for other files ] / [ and the command palette step through the conditions and limits.
 * Tacview export (.acmi): the objects only (not the plots' other signals), 10 samples a second, the whole recording; a recording whose times are not Unix clock seconds starts at 2000-01-01 00:00 UTC in Tacview; an object without its own roll (drawn from its motion) is level. The file is plain text (Tacview also reads it zipped).
 * Object guesses read names only: an object whose position signals do not share a prefix (`lat`, `lon` alone, or `gpsLat` with `navLon`) is offered through *Advanced…* rather than found; a motion attitude has no roll.
 * Local positions (NED / ENU): the origin is one point - the first valid sample of the origin signals. A PX4 origin that is reset during the flight (`ref_timestamp`) is not followed. A position in cm or mm is found but not added until it is converted to metres (ƒ); bare `x / y / z` with no frame word are not guessed (ROS `pose.position`). ArduPilot's lane quaternions (`XKQ`) are not paired with the lanes - their own roll / pitch / yaw are used.
 * Altitudes are compared as recorded: ArduPilot's POS / GPS / ORGN heights are above sea level, a position converted from ECEF is above the ellipsoid - comparing the two shows the geoid height (about 18 - 20 m in Israel) as a constant vertical error.
 * A map saved as HTML embeds the offline basemap for the tracks' area within about 15 MB (the file says which zoom levels it holds); online imagery is used only if it was on and already in the app's cache. The 3D view saves a PNG only.
 * *Compare with similar…* reads names of one file; the same signal across files is the Compare panel. *One plot at a time* is a way to look, not part of a session or a report.
-* The 3D *Chase* / *Look at* cameras and the map's smoothness depend on the graphics: on software rendering (no GPU) the 3D view uses lighter settings.
+* The 3D *Behind it* / *Look at* cameras and the map's smoothness depend on the graphics: on software rendering (no GPU) the 3D view uses lighter settings.
 * Line styles: opacity is not a line setting (a setpoint's faded look is automatic).
 * The Map's flat drawing (where 3D cannot draw, or *Always flat*) has no terrain relief, sky, shadows, cockpit camera or error surface; the error is shown by colouring the compared track instead.
 * The offline 3D page draws the ground as a flat local plane (no earth curvature) - right for a flight of tens of kilometres, increasingly off beyond ~100 km.
 * MGRS covers 80° S to 84° N; near the poles (the UPS grid) positions are shown in decimal degrees.
 * Places: KML styles, folders and time spans are not imported (the shapes and names are); a polygon's holes are left out. Lines and areas are drawn 2 m over the ground in the light mode.
+* Statistics of the shown window and the at-a-glance mean are plain means of the samples, not weighted by time: where a signal's rate changes, its faster part counts more. *The run at a glance* holds at most four numbers per run.
+* *Parameters ▸ Compare with* compares two files at a time; a parameter changed during the run is compared by its first and last value.
+* My maps take raster tiles only (PNG / JPEG / WebP MBTiles, XYZ / TMS servers); vector (pbf) MBTiles and WMS are not read. *Keep this area offline…* is offered only where the map's terms allow bulk downloads (the ground heights and your own servers), not for OpenStreetMap, Esri or OpenTopoMap.
+* The height profile's ground is as fine as the heights the app has there (the bundled grids, `.hgt` files, kept areas); where it is coarse the profile says so.
 * Story mode picks at most 12 moments; the reference object's track gives the computed ones (the other objects only through the pair).
