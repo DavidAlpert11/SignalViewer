@@ -77,6 +77,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       "Export the flight" → "Export the run"; `files.fxParamNoLog` / `fxParamNoFile` / `fxParamUnknown` / `err_logNoData`
       "flight log" → "log"; `files.errHint` "such as the flight mode" → "such as a mode". (`signals.refSignalsHint` and
       `plots.fftFiltersTitle` are examples / a format's own feature: keep.)
+    - Found by L1's end-of-lane run (2026-11-15): `tests/e2e/test_live_report.py::test_one_map` fails from B1 (`81af77f`)
+      on – a click on a map plot's `.mode-btn` opens no `.menu.ctx` (items `[]`); passes at `9469906` (B1's parent). Bisected
+      on `main`: 9469906 ✓, 81af77f ✗, every later commit ✗. B1 (and B6, which lists it green) should look at it.
   <!-- lane L4 -->
   - **L4 Map** – in progress · done: M2, M3, M4, B6, M1 (but the plot head's old select – L3), M6, M5 · next: F5 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
     - **Request to L3** (from L4, M1 – needed for M1's *one place for the layer*): in `PlotView.tsx` remove the map
@@ -4326,3 +4329,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
   places' names stay over a track there. Ran: `test_basemap` (its water colour now read from the module),
   `test_offline_switch`, `test_map_export`, `test_scene3d`; e2e `test_offline_map`, `test_map_smooth`,
   `test_round_1112` 25/25. Pictures `docs/dev/mockups/M5/{before,after}` (dark en, light he).
+- 2026-11-15 · L1 end of lane: the union of L1's e2e files once on `main` (582c501): `test_calm_screen`, `test_settings`, `test_plot_polish`, `test_first_minute`, `test_welcome_cards`, `test_plot_menus`, `test_findings_report`, `test_live_report`, `test_fresh_user`, `test_file_help_menus`, `test_template_tabs`, `test_templates_recent_badfiles`, `test_tour`, `test_move_plots_tabs`, `test_features` – 180 passed, 1 failed: `test_live_report::test_one_map`, bisected to L3's B1 (`81af77f`; the map plot's kind menu does not open) – written under L3. Lane L1 done; requests from other lanes are still answered here.
