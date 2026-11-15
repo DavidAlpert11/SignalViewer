@@ -31,7 +31,7 @@ Everything about your launcher is in the study's `launcher` block – there is n
    `reduce` (`{"overshoot": "max(roll)"}`), JSON with `json_keys` (`{"overshoot": "out.os"}`), any file the app
    reads (`loader`), or a `converter` command that prints one CSV row. A result is found by `run_id`, else by the
    run's input values.
-5. **Run a round of 3** (set `next.batch` to 3), *Send to launcher*, and check that every run turns *done*.
+5. **Run a round of 3** (set `next.batch` to 3), the Run column's *Run them*, and check that every run turns *done*.
 
 What comes back is collected into `next/round_<k>/collected_<table>.csv`: add `next/round_*/collected_<table>.csv`
 to each table's paths and every round's results join the ranking.
@@ -41,8 +41,10 @@ Optional: `status.failed_glob` (a file that marks a failed run), `status.timeout
 
 ## In the app and on the command line
 
-*Sweeps → Common parameters → Send to launcher* shows the exact command once per session, runs it, and shows each
-run as *submitted / done / failed / missing*.
+Open the study (*Sweeps → Open ▾ → Open a saved study*): the **Run** column on its right says what the next round
+will run. **Run them** shows the exact command once per session, runs it, and shows each run under it as
+*submitted / done / failed / missing*. *Only write the files* writes the round's parameter files
+(`next/round_<k>/`) and runs nothing - for a launcher you start yourself.
 
 ```bash
 python -m signalviewer.study submit drones.svstudy.json [--yes]     # shows the command; asks unless --yes
