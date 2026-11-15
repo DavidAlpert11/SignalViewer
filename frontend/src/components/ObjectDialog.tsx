@@ -3,7 +3,7 @@ import { newObjectLook } from "../mapDefaults";
 import { actions, nextColor, uid, useApp, type MapObject, type ObjectKind } from "../store";
 import { useT, type TKey } from "../i18n";
 import { iconSvg, OBJECT_KINDS } from "./mapIcons";
-import { guessRoles, hasOwnAttitude, QUAT_ROLES, ROLES, trackOfClass, type Role } from "../mapObjects";
+import { guessRoles, hasOwnAttitude, QUAT_ROLES, ROLES, suggestVectors, trackOfClass, type Role } from "../mapObjects";
 import { useEscape } from "./Overlays";
 import SignalField from "./SignalField";
 import { AXES, createFrameGroup, createSmoothGroup, frameGroupName } from "../frames";
@@ -465,6 +465,25 @@ function ObjectForm({ preset, onBack }: { preset: Candidate | null; onBack?: () 
               )}
             </div>
           )}
+          {/* F6: two signals as arrows along the track (a wind, a velocity, a force); a log's wind offered by itself */}
+          {(() => {
+            const run = runs.find((r) => r.id === mainRun);
+            const sug = run ? suggestVectors(run) : null;
+            return (
+              <div className="obj-row obj-vectors">
+                <span className="obj-vec-title" title={t("objVecHint")}>{t("objVec")}</span>
+                {(["vecN", "vecE"] as const).map((k) => (
+                  <div key={k} className="obj-role"><span>{t(k === "vecN" ? "objVecN" : "objVecE")}</span>
+                    <SignalField value={o[k] ?? null} ariaLabel={`${t("objVec")} ${t(k === "vecN" ? "objVecN" : "objVecE")}`} prefer={mainRun}
+                      placeholder={t("objNone")} noneLabel={t("objNone")} onChange={(id) => setO((c) => ({ ...c, [k]: id }))} /></div>
+                ))}
+                {sug && (o.vecN !== sug.n || o.vecE !== sug.e) && (
+                  <button className="btn sm obj-vec-suggest" onClick={() => setO((c) => ({ ...c, vecN: sug.n, vecE: sug.e }))}>
+                    {t(sug.kind === "wind" ? "objVecWind" : "objVecVel")}</button>
+                )}
+              </div>
+            );
+          })()}
           {!posOk && <p className="hint err">{t("objNeedsPosition")}</p>}
           {!smoothOk && <p className="hint err">{t("objSmoothBad")}</p>}
         </div>

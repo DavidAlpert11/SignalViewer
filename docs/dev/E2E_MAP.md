@@ -39,6 +39,8 @@
 
 `test_height_profile.py` – F5 (L4): new.
 
+`test_map_vectors.py` – F6 (L4): new.
+
 <!-- 1114 lane L5 -->
 - `tests/e2e/test_checks_view.py` – D7 + F1 + F3 screens (L5, new)
 - `tests/e2e/test_features.py::test_checks_panel_for_any_file_and_a_logs_events` – D7 (L5): renamed; a CSV now enables the panel

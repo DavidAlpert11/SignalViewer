@@ -88,7 +88,8 @@ export interface MapObject {
   alt?: string | null; yaw?: string | null; pitch?: string | null; roll?: string | null;
   qw?: string | null; qx?: string | null; qy?: string | null; qz?: string | null;   // or the attitude as a quaternion (w, x, y, z)
   angleUnit?: "auto" | "deg" | "rad";
-  altRef?: "msl" | "home" | "agl";             // the altitude signal: above sea level (default), above the take-off point, above the ground
+  altRef?: "msl" | "home" | "agl";
+  vecN?: string | null; vecE?: string | null;   // F6: two signals (north, east) drawn as arrows along the track             // the altitude signal: above sea level (default), above the take-off point, above the ground
   size?: number;                               // icon size, px (default 26)
   trail?: boolean;                             // draw its track (default true)
   /** the track's colour (owner, 2026-11-03): the object's own (default), by a state signal (the

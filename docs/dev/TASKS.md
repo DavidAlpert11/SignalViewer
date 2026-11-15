@@ -99,7 +99,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       on – a click on a map plot's `.mode-btn` opens no `.menu.ctx` (items `[]`); passes at `9469906` (B1's parent). Bisected
       on `main`: 9469906 ✓, 81af77f ✗, every later commit ✗. B1 (and B6, which lists it green) should look at it.
   <!-- lane L4 -->
-  - **L4 Map** – in progress · done: M2, M3, M4, B6, M1 (but the plot head's old select – L3), M6, M5, F5 · next: F6 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
+  - **L4 Map** – in progress · done: M2, M3, M4, B6, M1 (but the plot head's old select – L3), M6, M5, F5, F6 · next: the end of the lane · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
     - **Request to L3** (from L4, M1 – needed for M1's *one place for the layer*): in `PlotView.tsx` remove the map
       layer `<select aria-label="Map">`, the `.net-badge` and the *Borders* checkbox (the `(mode === "geo" || mode === "3d")`
       `xpick` block; keep *+ Add an object*) and the now unused `geoBase` / `shownBase` / `geoBorders` / `GEO_BASES` imports –
@@ -4363,3 +4363,12 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-15 · L3 D13 wording (L1's request): `app.dropHint` / `noFilesHint` / `tourOpenText` "logs (ArduPilot, PX4, MAVLink)", `rpLog` "The log's own check", `plots.exportFlight` "Export the run", `files.fxParam*` / `err_logNoData` "log", `errHint` "such as a mode" - en + he. Ran: tsc, i18n Vitest. Next: L5's D14 (2) pinned searches.
 - 2026-11-15 · L3 D14 (2) pinned searches (L5's request): `ws.searches` as chips before D2's quick chips (shown, like them, while the search is in use - the default screen keeps its count), a click types `q`, ✕ → `unpinSearch`; ☆ *Pin this search* in the search box while it has text → `pinSearch` + toast. Quick chips got `data-group` (test_name_tree's selector, assertions unchanged). Ran: tsc; e2e test_name_tree (5, new `test_pinned_searches_as_chips`), test_less_clutter, test_features::test_multi_select_search_collapse_and_x_on_each; test_design_tokens - green. Next: D14 (1) + D7 in OverviewStrip.
 - 2026-11-15 · L3 D14 (1) + D7 (L5's requests): OverviewStrip's head shows `ws.glance` via `api.glance` (label `glanceLabel`, value `fmtNum` + unit in mono; `sig: null` → *not in this file* with `glNotInFile`; `mean` → `glMeanNote` in the tooltip; click → its time; ⋯ / right-click → `unpinGlance`) and a Checks chip (failed = limits broken + the log's errors, to look at = signals with quality issues + its warnings, as ChecksView counts them - a local hook, ChecksView untouched) opening `panel: 'log'`. test_less_clutter: `.ov-gl-go` joins the data selector (the run's numbers are data, like `.ov-flag`); controls 53 ≤ 54, total 77 < 90. Ran: tsc; e2e test_plot_polish (new `test_the_run_at_a_glance_shows_its_numbers_and_the_checks`), test_less_clutter, test_overview_strip, test_tab_band, test_flat_line_solo - green. For L5: the Checks panel opens on its first log, not on the strip's run (LogPanel's `rid` is local) - a store hint would let the chip pick the run.
+- 2026-11-15 · L4 F6 vectors along the path: an object's two optional signals `vecN` / `vecE` (north, east – a wind, a
+  velocity, a force) drawn as arrows along its track, 40 places evenly along the distance (`heightprofile.vectors_along`,
+  `POST /api/vectors`, `mapVectors.ts` `useVectors`): on the flat map (canvas, halo, longest 34 px) and in 3D (Cesium
+  `PolylineArrow` at the object's own height). The object dialog's *Arrows along the path* row offers a file's pair by
+  itself (`mapObjects.suggestVectors`: a log's EKF wind XKF2 / NKF2 VWN, VWE first; else a velocity's north / east with
+  the same prefix). Saved with the object (optional fields), undoable. Ran: backend `test_height_profile.py` 10 (2 new),
+  Vitest `mapVectors.test.ts` (new: a log's wind, a CSV's velocity, none), e2e `test_map_vectors.py` (new: the CSV's
+  velocity offered, drawn in 2D, Undo; the same in 3D) green. Not run: a real ArduPilot log's wind in e2e (the pairing is
+  checked in Vitest on the log's signal names). The 2D start dock now sits above the scale bar. Picture `docs/dev/mockups/F6/after`.

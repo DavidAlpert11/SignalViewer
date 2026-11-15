@@ -2,6 +2,7 @@ import { countRender } from "../perf";
 import { runsDataKey } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
+import { useVectors } from "../mapVectors";
 import { actions, activeTab, shownSpan, useApp, type MapObject, type Plot } from "../store";
 import { isPhotoBase, useMapBase } from "../mapBase";
 import { boundsOf, layerMaxZoom, myMapAttribution } from "../mapLayers";
@@ -149,6 +150,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   const allObjs: MapObject[] = useMemo(() => plot.objects ?? [], [plot.objects]);
   const objects: MapObject[] = useMemo(() => shownObjects(plot), [plot.objects]);   // eslint-disable-line react-hooks/exhaustive-deps
   const [objTracks, setObjTracks] = useState<Record<string, ObjTrack>>({});
+  const vecs = useVectors(objects);
   const objTracksRef = useRef(objTracks);
   objTracksRef.current = objTracks;
   const objKey = objects.map((o) => trackKey(o, allObjs)).join("|");
@@ -679,6 +681,28 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
         ctx.fillStyle = dark ? "#e6edf3" : "#24292f"; ctx.fillText(o.name, px + sz * 0.6, py - sz * 0.45);
       }
     }
+    // F6: the objects' arrows along their tracks (north up on the map: east = +x, north = -y), longest = 34 px
+    let nVec = 0;
+    for (const o of objects) {
+      const v = vecs[o.id];
+      if (!v || !(v.max > 0)) continue;
+      const L = 34 * uiScale();
+      for (let i = 0; i < v.t.length; i++) {
+        const spd = Math.hypot(v.vn[i], v.ve[i]);
+        if (!(spd > 0)) continue;
+        const x0 = X(mx(v.lon[i])), y0 = Y(my(v.lat[i])), len = Math.max(4, (spd / v.max) * L);
+        const ux = v.ve[i] / spd, uy = -v.vn[i] / spd, x1 = x0 + ux * len, y1 = y0 + uy * len, h = Math.min(7, len * 0.4);
+        const shape = () => {
+          ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+          ctx.moveTo(x1, y1); ctx.lineTo(x1 - ux * h - uy * h * 0.6, y1 - uy * h + ux * h * 0.6);
+          ctx.moveTo(x1, y1); ctx.lineTo(x1 - ux * h + uy * h * 0.6, y1 - uy * h - ux * h * 0.6); ctx.stroke();
+        };
+        ctx.lineCap = "round"; ctx.lineWidth = 3.5; ctx.strokeStyle = dark ? "rgba(14,22,32,.85)" : "rgba(255,255,255,.9)"; shape();
+        ctx.lineWidth = 1.6; ctx.strokeStyle = o.color; shape();
+        nVec++;
+      }
+    }
+    (window as unknown as { __svMapVectors?: number }).__svMapVectors = nVec;   // for tests
     // N7: the primary (a ring) and the secondary (a dashed ring), and a line between them with the range
     // (or from the primary to every object, or none - plot.relLines)
     const pair = pairOf(plot);
@@ -740,7 +764,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
    };
    drawRef.current = draw;
    draw();
-  }, [tracks, view, size.w, size.h, plot.mapUp, plot.camera, plot.followObject, plot.primaryObject, plot.relatedObjects, plot.relLines, theme, scale, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders, pointerT, userPlacesKey, mp]);
+  }, [tracks, view, size.w, size.h, plot.mapUp, plot.camera, plot.followObject, plot.primaryObject, plot.relatedObjects, plot.relLines, theme, scale, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders, pointerT, userPlacesKey, mp, vecs]);
   // the time moves: follow the object (a new view, drawn by the effect above) or just draw again
   useEffect(() => useApp.subscribe((st, prev) => {
     if (st.cursor === prev.cursor) return;

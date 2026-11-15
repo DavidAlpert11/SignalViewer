@@ -59,6 +59,9 @@
 - **Height profile.** *Profile* in the map's bar shows, under the map, the object's height and the ground under it along
   the distance - for any recording with positions. The cursor's moment is marked; a click there moves the cursor. Where
   the ground data is coarse it says so and how to get finer ground (.hgt files, or keep the area offline).
+- **Arrows along the path.** Any two signals - north and east components such as a wind or a velocity - drawn as arrows
+  along an object's track, on the map and in 3D. The object's settings offer the file's own pair by themselves (an
+  ArduPilot log's estimated wind, a CSV's velocity).
 <!-- lane L5 -->
 - **Investigate and What changed in the new look** (D5): *What changed* opens with its answer as one tinted card – the first change and the likeliest to matter – with the caveat (*not proof of a cause*) in it; each onset row shows its time; *Stack in a new tab* is the one main action. *Investigate* starts with a card saying how to begin; the occurrences table has number columns and its statistic is translated (max / min / mean).
 - **Compare in the new look** (D4): the verdict is a tinted card (green when every file passes, red when one fails), the numbers in mono columns; and below the list, **the parameters that differ** from the baseline file for each file compared (a log's parameters, a MATLAB file's settings, a number in the file name…), a value changed during the run shown from its start to its end. Wording: the sync messages say *the same run*, not *the same flight*.

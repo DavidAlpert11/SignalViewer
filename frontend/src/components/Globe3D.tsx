@@ -1,4 +1,5 @@
 import { declutter, type LabelBox } from "../declutter";
+import { useVectors } from "../mapVectors";
 import { boundsOf, isMyMap, layerMaxZoom, myMapAttribution } from "../mapLayers";
 import MapLayers from "./MapLayers";
 import HeightProfile from "./HeightProfile";
@@ -353,6 +354,45 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
     }
     return out;
   }, [objects, tracks, allRuns, lang, theme]);
+
+  /* F6: the objects' arrows along their tracks, at the object's own height (heightAt at the arrow's moment);
+     the longest a twentieth of the arrows' extent */
+  const vecs = useVectors(objects);
+  const vecColl = useRef<import("cesium").PolylineCollection | null>(null);
+  useEffect(() => {
+    const w = widgetRef.current;
+    if (!cz || !w) return;
+    if (vecColl.current) { w.scene.primitives.remove(vecColl.current); vecColl.current = null; }
+    const coll = new cz.PolylineCollection();
+    let n = 0;
+    for (const o of objects) {
+      const v = vecs[o.id], tr = tracks[o.id];
+      if (!v || !tr || !(v.max > 0) || !tr.t.length) continue;
+      const la0 = Math.min(...v.lat), la1 = Math.max(...v.lat), lo0 = Math.min(...v.lon), lo1 = Math.max(...v.lon);
+      const cosl = Math.cos(((la0 + la1) / 2) * Math.PI / 180);
+      const span = Math.hypot((la1 - la0) * 111320, (lo1 - lo0) * 111320 * cosl);
+      const L = Math.max(30, span / 20);
+      const mat = cz.Material.fromType("PolylineArrow", { color: cz.Color.fromCssColorString(o.color) });
+      for (let i = 0; i < v.t.length; i++) {
+        const spd = Math.hypot(v.vn[i], v.ve[i]);
+        if (!(spd > 0)) continue;
+        let k = tr.t.findIndex((x) => x >= v.t[i]);
+        if (k < 0) k = tr.t.length - 1;
+        const h = heightAt(o, tr, k);
+        if (!Number.isFinite(h)) continue;
+        const len = (spd / v.max) * L;
+        const dLat = (v.vn[i] / spd) * len / 111320, dLon = (v.ve[i] / spd) * len / (111320 * cosl);
+        coll.add({ positions: [cz.Cartesian3.fromDegrees(v.lon[i], v.lat[i], h), cz.Cartesian3.fromDegrees(v.lon[i] + dLon, v.lat[i] + dLat, h)],
+          width: 8, material: mat });
+        n++;
+      }
+    }
+    if (n) vecColl.current = w.scene.primitives.add(coll);
+    (window as unknown as { __svGlobeVectors?: number }).__svGlobeVectors = n;   // for tests
+    w.scene.requestRender();
+    return () => { if (vecColl.current && !w.isDestroyed()) { w.scene.primitives.remove(vecColl.current); vecColl.current = null; } };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cz, vecs, tracks, objects]);
 
   /* models (one per object; rebuilt when the objects change) */
   useEffect(() => {

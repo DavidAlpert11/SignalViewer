@@ -195,6 +195,40 @@ async def height_profile(req: ProfileBody):
         fail(400, str(e))
 
 
+class VectorsBody(BaseModel):
+    lat: str
+    lon: str
+    vn: str
+    ve: str
+    alt: Optional[str] = None
+    units: str = "deg"
+    altRef: str = "msl"
+    n: int = 40
+
+
+@router.post("/api/vectors")
+async def vectors(req: VectorsBody):
+    """F6: two signals (north, east) as arrows along an object's track, on the track's own times."""
+    from app.heightprofile import vectors_along
+    from app.store import store
+    from svcore.analysis import align_to
+    try:
+        t, la = store.signal(req.lat)
+        _, lo = store.signal(req.lon)
+        t = np.asarray(t, dtype=np.float64)
+        def on(sid: str) -> np.ndarray:
+            ts, ys = store.signal(sid)
+            return align_to(t, np.asarray(ts, dtype=np.float64), np.asarray(ys, dtype=np.float64), "linear")
+        vn, ve = on(req.vn), on(req.ve)
+        alt = on(req.alt) if req.alt else None
+    except KeyError as e:
+        fail(404, f"Signal not found: {e.args[0] if e.args else ''} (its file was closed?)")
+    try:
+        return await asyncio.to_thread(vectors_along, t, la, lo, vn, ve, alt, max(2, min(200, req.n)), req.units == "rad", req.altRef)
+    except ValueError as e:
+        fail(400, str(e))
+
+
 # =============================================================================
 # P7: PLACES - My places (~/.signalviewer/places.json, a file a colleague can be given), import / export,
 # the coordinate parser, the ground under a point

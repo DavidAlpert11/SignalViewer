@@ -955,6 +955,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
   - [x] M6 Cameras named by what they do (Free · From above · Around it · Behind it · Cockpit 3D only), a picture each, Track up folded into Behind it; old sessions unchanged. 2026-11-15.
   - [x] M5 The offline map's look: a quiet palette from the tokens' surfaces, roads wider close up, places under the tracks (2D). 2026-11-15.
   - [x] F5 Height profile – `app/heightprofile.py`, `/api/profile`, `HeightProfile.tsx` (*Profile* in the map bar); any format with positions; says why when the ground is coarse. 2026-11-15.
+  - [x] F6 Vectors along the path – any two signals (north, east) as arrows on the track in 2D and 3D; a log's wind / a file's velocity offered by itself. 2026-11-15.
 <!-- end lane L4 -->
 - [ ] D1–D14 Every area adopts the look (pictures and a recount per area); D13 wording / icons audit; D14 profiles (templates with their at-a-glance numbers and chips). D11 (welcome) done 2026-11-14. D12 (Settings, palette, dialogs, library, Help, tour) done 2026-11-14. D13 (wording / icons audit; requests to L3 / L5 for their strings) done 2026-11-14.
 - [ ] E1–E4 Docs, pictures, a test-bench example, 1.28.0 (the owner tags).

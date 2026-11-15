@@ -273,3 +273,26 @@ export function mapCamera(p: { mode?: string; camera?: string; followObject?: st
   if (!p.followObject) return "free";
   return p.camera === "chase" ? "chase" : p.camera === "lookat" ? "lookat" : p.camera === "cockpit" ? "cockpit" : "centre";
 }
+
+
+/** F6: two signals of a file to draw as arrows along a track, offered by themselves: a log's wind (ArduPilot's EKF
+ *  XKF2 / NKF2 VWN, VWE - the first core), else a velocity's north and east components with the same prefix. */
+export function suggestVectors(run: RunInfo): { n: string; e: string; kind: "wind" | "velocity" } | null {
+  const sigs = run.signals;
+  const wind = sigs.find((s) => /^(XKF2|NKF2)(\[0\]|_0)?\.VWN$/.test(s.name));
+  if (wind) {
+    const e = sigs.find((s) => s.name === wind.name.replace(/VWN$/, "VWE"));
+    if (e) return { n: wind.id, e: e.id, kind: "wind" };
+  }
+  for (const [nRe, toE] of [[/^(.*?)(vel\.?north|vel_?n)$/i, (p: string, m: string) => p + m.replace(/north/i, (x) => (x[0] === "N" ? "East" : x[0] === "n" ? "east" : "EAST")).replace(/_?n$/i, (x) => x.replace(/n$/i, (c) => (c === "N" ? "E" : "e")))],
+                             [/^(.*?)(vn)$/i, (p: string, m: string) => p + (m === "VN" ? "VE" : m === "Vn" ? "Ve" : "ve")]] as const) {
+    for (const s of sigs) {
+      const m = s.name.match(nRe);
+      if (!m) continue;
+      const eName = toE(m[1], m[2]);
+      const e = sigs.find((x) => x.name === eName);
+      if (e) return { n: s.id, e: e.id, kind: "velocity" };
+    }
+  }
+  return null;
+}

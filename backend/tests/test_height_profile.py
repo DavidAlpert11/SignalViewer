@@ -83,3 +83,26 @@ def test_height_over_the_ground_is_turned_into_height_above_the_sea():
     msl = profile(np.arange(5.0), lat, lon, np.full(5, 100.0), alt_ref="agl")
     assert all(abs(a - (g + 100.0)) < 0.02 for a, g in zip(msl["alt"], msl["ground"]))
     assert all(abs(x - 100.0) < 0.02 for x in msl["agl"])
+
+
+def test_vectors_along_the_track():
+    """F6: n arrows evenly along the distance, each with the components at its moment."""
+    from app.heightprofile import vectors_along
+    n = 1000
+    lat = np.linspace(31.0, 31.1, n)
+    out = vectors_along(np.arange(float(n)), lat, np.full(n, 35.0), np.full(n, 3.0), np.linspace(0, 4, n), n=10)
+    assert len(out["t"]) == 10 and out["vn"] == [3.0] * 10 and out["max"] == pytest.approx(5.0)
+    assert out["t"][0] == 0 and out["t"][-1] == n - 1
+    with pytest.raises(ValueError, match="No arrows"):
+        vectors_along(np.arange(3.0), np.full(3, np.nan), np.full(3, np.nan), np.zeros(3), np.zeros(3))
+
+
+def test_vectors_route(tmp_path):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    p = tmp_path / "vel.csv"
+    p.write_text("time,lat,lon,vn,ve\n" + "\n".join(f"{i},{31.0 + i * 1e-4},35,{i % 5},1" for i in range(100)))
+    rid = c.post("/api/files/open", json={"paths": [str(p)]}).json()["opened"][0]["id"]
+    out = c.post("/api/vectors", json={"lat": f"{rid}/lat", "lon": f"{rid}/lon", "vn": f"{rid}/vn", "ve": f"{rid}/ve", "n": 20}).json()
+    assert 2 <= len(out["t"]) <= 20 and out["ve"][0] == 1.0

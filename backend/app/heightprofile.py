@@ -71,3 +71,35 @@ def profile(t: np.ndarray, lat: np.ndarray, lon: np.ndarray, alt: Optional[np.nd
     return {"t": [round(float(x), 4) for x in t], "d": [round(float(x), 1) for x in d], "alt": clean(a),
             "ground": clean(g) if has_ground else None, "agl": clean(agl), "length_m": round(float(d[-1]), 1),
             "step_m": step, "why": why}
+
+
+def vectors_along(t: np.ndarray, lat: np.ndarray, lon: np.ndarray, vn: np.ndarray, ve: np.ndarray,
+                  alt: Optional[np.ndarray] = None, n: int = 40, radians: bool = False, alt_ref: str = "msl") -> Dict:
+    """F6: any two signals (north, east components - a wind, a velocity, a force) as arrows along the track: n
+    places evenly along the distance, each with its components at that moment. {t, lat, lon, alt, vn, ve, max}."""
+    t = np.asarray(t, dtype=np.float64)
+    lat = np.asarray(lat, dtype=np.float64)
+    lon = np.asarray(lon, dtype=np.float64)
+    if radians:
+        lat, lon = np.degrees(lat), np.degrees(lon)
+    m = min(len(t), len(lat), len(lon), len(vn), len(ve))
+    t, lat, lon = t[:m], lat[:m], lon[:m]
+    vn, ve = np.asarray(vn, dtype=np.float64)[:m], np.asarray(ve, dtype=np.float64)[:m]
+    a = None if alt is None else np.asarray(alt, dtype=np.float64)[:m]
+    ok = (np.isfinite(t) & np.isfinite(lat) & np.isfinite(lon) & np.isfinite(vn) & np.isfinite(ve)
+          & (np.abs(lat) <= 90) & (np.abs(lon) <= 180) & ~((lat == 0) & (lon == 0)))
+    if ok.sum() < 2:
+        raise ValueError("No arrows to draw: the position and the two components have fewer than two valid samples together.")
+    t, lat, lon, vn, ve = t[ok], lat[ok], lon[ok], vn[ok], ve[ok]
+    a = None if a is None else a[ok]
+    d = _dist(lat, lon)
+    idx = np.unique(np.searchsorted(d, np.linspace(0, d[-1], max(2, n))).clip(0, len(d) - 1))
+    t, lat, lon, vn, ve = t[idx], lat[idx], lon[idx], vn[idx], ve[idx]
+    a = None if a is None else a[idx]
+    if a is not None and alt_ref in ("agl", "home") and basemap.available():
+        g = np.asarray(basemap.ground_at(lat, lon, fetch=False), dtype=np.float64)
+        if np.isfinite(g).any():
+            a = a + (np.nan_to_num(g, nan=float(np.nanmedian(g))) if alt_ref == "agl" else g[np.isfinite(g)][0])
+    r = lambda v, k: [round(float(x), k) for x in v]   # noqa: E731
+    return {"t": r(t, 4), "lat": r(lat, 7), "lon": r(lon, 7), "alt": None if a is None else r(a, 2), "vn": r(vn, 3), "ve": r(ve, 3),
+            "max": round(float(np.max(np.hypot(vn, ve))), 3)}

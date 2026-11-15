@@ -113,3 +113,4 @@
 .hprof-hover { stroke: var(--overlay-ink); stroke-width: 1; opacity: .5; }
 .hprof-axis { display: flex; justify-content: space-between; color: color-mix(in srgb, var(--overlay-ink) 62%, transparent); }
 .plot-canvas.geo:has(> .hprof) .map-dock, .globe3d:has(> .hprof) .map-dock { bottom: 168px; }
+.plot-canvas.geo .map-dock-start { bottom: 34px; }   /* above the flat map's scale bar */
