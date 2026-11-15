@@ -24,6 +24,7 @@ type Example = { id: ExampleId; paths: string[]; open?: "study" | "sweep" | "fle
 
 /** An example opened as a new user would: recordings with their suggested view, a study in Sweeps. */
 export function openExample(ex: Example): void {
+  useApp.setState({ startOpen: false });
   if (ex.open === "study") requestStudy(ex.paths[ex.paths.length - 1], ex.id === "smartSweepDemo");
   else if (ex.open === "sweep") requestAreaExample("sweeps", ex.paths[ex.paths.length - 1]);   // its .svsweep: the table and its question
   else if (ex.open === "fleet") requestAreaExample("fleet", ex.paths[0]);
@@ -66,6 +67,7 @@ export default function Welcome() {
   const sessions = items.filter((x) => x.kind === "session").slice(0, 4);
   const openRecent = async (x: (typeof items)[number]) => {
     if (!x.exists) return;
+    useApp.setState({ startOpen: false });
     if (x.kind === "file") openPaths([x.path]);
     else {
       try { const r = await api.loadSession(x.path); await applyState(r.state, { announce: true }); }
@@ -89,8 +91,11 @@ export default function Welcome() {
       ))}
     </div>
   );
+  const hasRuns = useApp((s) => s.runs.length > 0);
   return (
     <div className="welcome">
+      {hasRuns && <button className="btn outline welcome-back" onClick={() => useApp.setState({ startOpen: false })}>
+        <span aria-hidden="true">{"\u2190"}</span> {t("startBack")}</button>}
       <div className={`welcome-card${examples.length ? " with-examples" : ""}`}>
         <svg className="trace" viewBox="0 0 220 64" aria-hidden="true">
           <path d="M0 40 C 18 40, 22 14, 40 14 S 62 54, 80 54 S 102 22, 120 22 S 142 46, 160 46 S 190 30, 220 30"

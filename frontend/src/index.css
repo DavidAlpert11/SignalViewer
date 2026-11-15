@@ -149,7 +149,10 @@ button, input, select { font: inherit; color: inherit; }
   display: flex; align-items: center; gap: var(--sp-1); padding-inline: 8px;
   background: var(--panel); border-bottom: 1px solid var(--line); min-width: 0;
 }
-.brand { display: flex; align-items: center; gap: var(--sp-2); padding-inline: 4px 12px; font-weight: 600; color: var(--ink-strong); white-space: nowrap; }
+.brand { display: flex; align-items: center; gap: var(--sp-2); padding-inline: 4px 12px; font-weight: 600; color: var(--ink-strong); white-space: nowrap;
+  background: none; border: 0; font: inherit; font-weight: 600; cursor: pointer; border-radius: var(--r-sm, 6px); height: 30px; }
+.brand:hover { background: var(--hover, var(--panel-2)); }
+.welcome-back { align-self: flex-start; margin-bottom: var(--sp-3, 12px); }
 .brand-mark { width: 18px; height: 18px; }
 .tabs-wrap { display: flex; align-items: center; gap: var(--sp-0_5); height: 100%; min-width: 120px; flex: 0 1 auto; }
 /* F22: with many tabs the tab strip gives way (it scrolls, "All tabs" lists them), not the controls on the right */
@@ -2037,3 +2040,4 @@ input.fx-input { width: 100%; }
 .map-story-card.error { border-inline-start-color: var(--danger); } .map-story-card.warning { border-inline-start-color: var(--warn); } .map-story-card.note { border-inline-start-color: var(--focus); }
 .map-story-card b { font-size: var(--fs-m); color: var(--ink-strong); }
 .map-story-nav { display: flex; gap: var(--sp-1); align-items: center; align-self: flex-end; color: var(--muted); font-size: var(--fs-xs); }
+[dir="rtl"] .welcome-back > span { display: inline-block; transform: scaleX(-1); }

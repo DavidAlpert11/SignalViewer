@@ -104,6 +104,10 @@ export default function App() {
   const inspectorOpen = useApp((s) => s.inspectorOpen);
   const area = useApp((s) => s.area);
   const runs = useApp((s) => s.runs);
+  const startOpen = useApp((s) => s.startOpen);
+  const runIds = runs.map((r) => r.id).join("|");
+  // a file opened (from the start page, Ctrl+O, a drop): the start page gives way to it
+  useEffect(() => { if (useApp.getState().startOpen) useApp.setState({ startOpen: false }); }, [runIds]);
   const ws = useApp((s) => s.ws);
   const streaming = useApp((s) => s.streaming);
   const zoomMode = useApp((s) => s.zoomMode);
@@ -366,7 +370,7 @@ export default function App() {
           <StageBar />
           {runs.length > 0 && <OverviewStrip />}
           {runs.length > 0 && <TabBand />}
-          {!runs.length ? <div className="stage-body"><Welcome /></div> : (
+          {!runs.length || startOpen ? <div className="stage-body"><Welcome /></div> : (
             <PlotGrid />
           )}
           {runs.length > 0 && <PreviewPlots />}

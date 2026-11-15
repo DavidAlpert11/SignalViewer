@@ -79,3 +79,20 @@ def test_every_area_has_its_demo(pg):
     pg.locator(".ex-card[data-example='fleet']").click()
     pg.wait_for_function("window.__sv.state().area === 'fleet'")
     pg.wait_for_selector(".fleet-trend circle.over", timeout=60000)                 # the worn motor's flight, over the limit
+
+
+def test_the_start_page_opens_over_open_files(pg):
+    """Owner (2026-11-16): after one example was open there was no way back to the others. The brand (and Ctrl+K)
+    opens the start page over the open files; Back returns to them; an example opened from it replaces the page."""
+    pg.locator(".ex-card[data-example='car']").click()
+    pg.wait_for_function("window.__sv.state().runs.length > 0")
+    pg.wait_for_selector(".ex-card", state="detached")
+    pg.click(".topbar .brand")
+    pg.wait_for_selector(".ex-card[data-example='flight']")
+    pg.click(".welcome-back")
+    pg.wait_for_selector(".ex-card", state="detached")
+    assert pg.evaluate("window.__sv.state().runs.length") > 0          # the files stayed open
+    pg.click(".topbar .brand")
+    pg.locator(".ex-card[data-example='bench']").click()
+    pg.wait_for_selector(".ex-card", state="detached")
+    pg.wait_for_function("window.__sv.state().startOpen === false")

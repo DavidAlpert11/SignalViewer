@@ -127,3 +127,5 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   mode, 20 openings each; fixed the leaked WebGL contexts (0 alive after closing, browser memory flat at ~1.23 GB
   instead of 2.05-2.2 GB), the render-error fallback, the W9 listener and the click handler. e2e: test_map_memory (new,
   3 green); the map files - see the next line.
+- 2026-11-16 · Owner's GPU run (Windows): 0 contexts after closing, browser 240-280 MB, draw 1.4 s - the fix holds. The
+  start page over open files (brand / Ctrl+K, Back); e2e test_welcome_cards + test_first_minute green (13).

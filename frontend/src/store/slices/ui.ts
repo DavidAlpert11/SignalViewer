@@ -21,6 +21,8 @@ export interface UiSlice {
   paletteMode: "all" | "open";     // T24: Ctrl+P lists recent files and folders, favourites
   browserStart: string | null;     // T24: the folder the file dialog opens in once (quick open)
   browserOpen: boolean;
+  /** The start page (the welcome screen and its examples) shown over open files - the brand or Ctrl+K (UI only). */
+  startOpen: boolean;
   picker: PickerRequest | null;
   importPaths: string[] | null;
   toasts: Toast[];
@@ -147,6 +149,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   paletteMode: "all",
   browserStart: null,
   browserOpen: false,
+  startOpen: false,
   picker: null,
   importPaths: null,
   toasts: [],

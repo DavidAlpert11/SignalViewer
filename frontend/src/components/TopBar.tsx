@@ -69,7 +69,9 @@ export default function TopBar() {
 
   return (
     <header className="topbar">
-      <div className="brand" title={t("appName")}><BrandMark /><span className="hide-compact">{t("appName")}</span></div>
+      {/* the brand opens the start page - the examples and recent files - also with files open */}
+      <button className="brand" title={t("startPageHint")} aria-label={t("startPage")}
+        onClick={() => useApp.setState({ area: "recordings", startOpen: true })}><BrandMark /><span className="hide-compact">{t("appName")}</span></button>
       <AreaSwitcher />
       {/* C10: the Sweeps area's tables, as Recordings' tools below - one top row */}
       {area === "sweeps" && <Suspense fallback={null}><SweepsTables /></Suspense>}

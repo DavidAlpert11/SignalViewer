@@ -79,6 +79,7 @@ export default function CommandPalette() {
       { id: "fleet", label: t("fleet"), group: t("fleet"), icon: <Icon.Fleet />, run: () => useApp.setState({ area: "fleet" }) },
       { id: "analysis", label: t("analysis"), group: t("analysis"), icon: <Icon.Analysis />, run: () => useApp.setState({ panel: "analysis" }) },
       { id: "settings", label: t("settings"), group: t("hHelp"), icon: <Icon.Globe />, run: () => useApp.setState({ settingsOpen: true }), keys: "Ctrl ," },
+      { id: "startpage", label: t("startPage"), group: t("hHelp"), run: () => useApp.setState({ area: "recordings", startOpen: true }) },
       { id: "guide", label: t("menuGuide"), group: t("hHelp"), icon: <Icon.Keyboard />, run: () => useApp.setState({ guideOpen: true }), keys: "F1" },
       { id: "help", label: t("shortcuts"), group: t("hHelp"), icon: <Icon.Keyboard />, run: () => useApp.setState({ helpOpen: true }), keys: "?" },
       { id: "text1", label: `${t("hTextSize")}: 100%`, group: t("hHelp"), icon: <Icon.Globe />, run: () => useApp.setState({ uiScale: 1 }) },
