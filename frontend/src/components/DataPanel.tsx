@@ -291,9 +291,9 @@ export default function DataPanel() {
     return Array.from(new Set([...used, ...big])).slice(0, QUICK_N);
   }, [runs, onTab, nSignals]);
 
-  // shown while the search is in use (focused, or one of them chosen): the screen keeps its count of controls
+  // shown while the search is in use (focused, or text in it): the screen keeps its count of controls
   const [searchFocus, setSearchFocus] = useState(false);
-  const quickShown = quick.length > 0 && (searchFocus || quick.some((g) => q === `${g}.`));
+  const quickShown = quick.length > 0 && (searchFocus || q.trim() !== "");
 
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>({});
   // while searching every match starts open, but files and groups can still be collapsed
@@ -722,7 +722,9 @@ export default function DataPanel() {
         <label className="filter">
           <Icon.Search />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchSignals")} aria-label={t("searchSignals")}
-            onFocus={() => setSearchFocus(true)} onBlur={() => setSearchFocus(false)}
+            // leaving the search hides the chips only after the click that left it has landed - hiding them at once
+            // moved the list up under the pointer between press and release (the click was lost)
+            onFocus={() => setSearchFocus(true)} onBlur={() => window.setTimeout(() => setSearchFocus(false), 300)}
             onKeyDown={(e) => {
               if (e.key !== "Escape") return;
               if (q) { setQ(""); e.stopPropagation(); } else if (picked.length) { clearSel(); e.stopPropagation(); }

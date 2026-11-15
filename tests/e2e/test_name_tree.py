@@ -95,5 +95,5 @@ def test_quick_chips_and_the_count_for_a_big_file(pg):
     assert first.get_attribute("aria-pressed") == "true"
     first.click()
     assert pg.locator(".filter input").input_value() == ""
-    pg.evaluate("document.activeElement.blur()")                    # the search left: the chips go
+    pg.evaluate("document.activeElement.blur()")                    # the search left (empty): the chips go
     pg.wait_for_selector(".quick-chips", state="detached")

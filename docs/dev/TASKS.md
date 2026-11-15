@@ -4318,3 +4318,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
   `test_map_smooth`, `test_round_1112`, `test_object_relations`, `test_live_report` – all green but
   `test_live_report::test_one_map`, which fails on main too (the plot kind menu, L3 – noted under L3). Selectors
   updated (labels → `.g3-cam-*` classes), no assertion weakened. Pictures `docs/dev/mockups/M6/after`.
+- 2026-11-15 · L3 D2 fix: the quick chips stay while the search has text and hide only after the click that left the search has landed (hiding at once moved the list under the pointer - `test_features::test_multi_select_search_collapse_and_x_on_each` caught a lost click). Ran: test_features, test_workflows, test_templates_recent_badfiles, test_name_tree (169 passed), test_less_clutter.
