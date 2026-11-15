@@ -36,6 +36,7 @@
   --select-soft: rgba(245, 248, 251, .08);
   --select-ring: 0 0 0 1px var(--ink-strong);
   --info: #6cb6ff; --info-soft: rgba(108, 182, 255, .12);
+  --role-output: #c3a1ff;   /* a results table's output columns (Sweeps): not the cursor's amber, not a verdict */
   --ok: #4cc38a; --ok-soft: rgba(76, 195, 138, .10);
   --warn: #e3b341; --warn-soft: rgba(227, 179, 65, .10);   /* a warning is not the cursor */
   --danger: #ef6b73; --danger-soft: rgba(239, 107, 115, .10);
@@ -68,6 +69,7 @@
   --select-soft: rgba(15, 24, 34, .06);
   --select-ring: 0 0 0 1px var(--ink-strong);
   --info: #085fc7; --info-soft: rgba(9, 105, 218, .08);
+  --role-output: #7339c9;
   --ok: #1a7a43; --ok-soft: rgba(31, 138, 76, .08);
   --warn: #855d00; --warn-soft: rgba(191, 135, 0, .10);
   --danger: #b9343e; --danger-soft: rgba(198, 58, 68, .08);

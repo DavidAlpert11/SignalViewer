@@ -32,7 +32,7 @@ const lum = (c: RGBA) => {
 };
 const contrast = (a: RGBA, b: RGBA) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
 
-const TEXT = ["--ink", "--ink-strong", "--muted", "--faint", "--amber", "--info", "--ok", "--warn", "--danger", "--axis"];
+const TEXT = ["--ink", "--ink-strong", "--muted", "--faint", "--amber", "--info", "--ok", "--warn", "--danger", "--axis", "--role-output"];
 const SURFACES = ["--bg", "--panel", "--panel-2", "--raised", "--plot-bg"];
 const VERDICTS = ["--info", "--ok", "--warn", "--danger", "--amber"];
 

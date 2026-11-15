@@ -3,7 +3,7 @@
 :root {
   --sw-param: var(--ink-strong);
   --sw-hold: var(--focus);
-  --sw-output: var(--warn);   /* TODO(L1 token): a role colour for outputs (amber is the cursor's, B7) */
+  --sw-output: var(--role-output);
   --sw-ok: var(--ok);
   --sw-bad: var(--danger);
 }
