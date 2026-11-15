@@ -1,4 +1,4 @@
-/* L5 F4: live instruments for any source - a MAVLink link, *Send data from Python*, a followed file, or a
+/* F4: live instruments for any source - a MAVLink link, *Send data from Python*, a followed file, or a
    recording. Each tile is a signal's value IN FORCE at the time (the last sample received at or before it,
    never interpolated); while live the time stays at the newest data, so the tiles follow the source. The
    attitude indicator shows the object the map draws for this file (objectDetect: one rule for "is this a

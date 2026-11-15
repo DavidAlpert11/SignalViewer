@@ -7,7 +7,7 @@ import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { runLabels } from "../names";
 import { Checks, FileView, RunParams } from "./ChecksView";
-import Instruments from "./Instruments";   // L5 F4
+import Instruments from "./Instruments";   // F4
 import { copyText } from "../errorReport";
 
 /* D7 Checks - for any open file: its checks (limits, data quality, a log's health check), its parameters

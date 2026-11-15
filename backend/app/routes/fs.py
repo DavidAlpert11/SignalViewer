@@ -78,13 +78,6 @@ EXAMPLE_SETS = [
     {"id": "smartSweepDemo", "open": "study",                                         # W18: converge on your PC
      "files": ["smart_sweep_demo/sim.py", "smart_sweep_demo/demo.svstudy.json"]},
     {"id": "fleet", "open": "fleet", "files": ["fleet/X8-A_2026-09-02.bin", "fleet/X8-B_2026-09-05.bin"]},
-
-    # --- lane L1 ---
-
-    # --- lane L3 ---
-
-    # --- lane L4 ---
-
 ]
 
 

@@ -475,7 +475,7 @@ export const en = {
   objVecE: "East",
   objVecWind: "The log's wind",
   objVecVel: "The velocity",
-  // --- lane L4: M1 the map background picker, M3 keep an area offline, M4 My maps ---
+  // --- M1 the map background picker, M3 keep an area offline, M4 My maps ---
   mlButton: "Map",
   mlTitle: "Map background",
   mlOnline: "online",
@@ -1006,7 +1006,7 @@ export const he: typeof en = {
   objVecE: "מזרח",
   objVecWind: "הרוח מהלוג",
   objVecVel: "המהירות",
-  // --- lane L4: M1 the map background picker, M3 keep an area offline, M4 My maps ---
+  // --- M1 the map background picker, M3 keep an area offline, M4 My maps ---
   mlButton: "מפה",
   mlTitle: "רקע המפה",
   mlOnline: "מקוון",

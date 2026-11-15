@@ -165,7 +165,7 @@ export const en = {
   hShiftClickDo: "Place the second cursor",
   hDragSignal: "Drag a signal from the list",
   hDragSignalDo: "Add it to the plot you drop it on",
-  // --- L5 D7: one Checks view for any file (limits, data quality, a log's health) + F1 The file + F3 parameters
+  // --- D7: one Checks view for any file (limits, data quality, a log's health) + F1 The file + F3 parameters
   chkTitle: "Checks",
   railChecks: "Checks",
   chkNone: "Open a file to check it: its limits, its data quality and, for a log, its health check.",
@@ -184,7 +184,7 @@ export const en = {
   chkQualityMore: "+{n} more – all in the data-quality list",
   chkTabChecks: "Checks",
   chkTabFile: "The file",
-  // L5 F4: live instruments - the values in force at the time, for any source
+  // F4: live instruments - the values in force at the time, for any source
   insTab: "Instruments",
   insAtTime: "At {t} s – the last value received at or before the time",
   insLive: "Live – the newest data",
@@ -393,7 +393,7 @@ export const he: typeof en = {
   hShiftClickDo: "מיקום הסמן השני",
   hDragSignal: "גרירת סיגנל מהרשימה",
   hDragSignalDo: "הוספה לגרף שעליו משחררים",
-  // --- L5 D7
+  // --- D7
   chkTitle: "בדיקות",
   railChecks: "בדיקות",
   chkNone: "פתחו קובץ כדי לבדוק אותו: הגבולות שלו, איכות הנתונים, ובלוג גם בדיקת התקינות.",
@@ -412,7 +412,7 @@ export const he: typeof en = {
   chkQualityMore: "‏+{n} נוספים – כולם ברשימת איכות הנתונים",
   chkTabChecks: "בדיקות",
   chkTabFile: "הקובץ",
-  // L5 F4
+  // F4
   insTab: "מכשירים",
   insAtTime: "בזמן {t} ש׳ – הערך האחרון שהתקבל עד הזמן",
   insLive: "חי – הנתונים החדשים ביותר",

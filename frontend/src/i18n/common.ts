@@ -122,7 +122,7 @@ export const en = {
   worstRms: "RMS Δ %",
   exportData: "Export data (CSV)",
   copied: "Image copied",
-  // D12: Settings > Look - where the mode band sits (L3's B3 setting `bandInCard`)
+  // D12: Settings > Look - where the mode band sits (B3 setting `bandInCard`)
   setBandInCard: "Mode band",
   setBandInCardHint: "The states (modes, gears, phases) as a coloured band",
   setBandInCardIn: "Inside the top plot",

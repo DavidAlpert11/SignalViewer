@@ -1,4 +1,4 @@
-"""L5 F4: live instruments - the values in force at one time (the newest while live), for any source.
+"""F4: live instruments - the values in force at one time (the newest while live), for any source.
 
 An instrument shows the last value received, never an interpolation: between two samples the reading
 is the older one, and how old it is (`age`) says whether the source is still sending. The attitude

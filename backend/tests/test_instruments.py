@@ -1,4 +1,4 @@
-"""L5 F4: live instruments - the value in force at a time (never interpolated), its age, and the object's
+"""F4: live instruments - the value in force at a time (never interpolated), its age, and the object's
 attitude in degrees, heading, altitude and ground speed - for any file."""
 import numpy as np
 import pytest

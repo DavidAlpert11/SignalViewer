@@ -1,5 +1,5 @@
 """W0 contract: the study file (load / save / defaults, unknown keys kept, the schema) and the shape of the
-six /api/sweeps/* responses. The JSON fixtures in tests/fixtures/sweeps/ are the shapes the panel (L5)
+six /api/sweeps/* responses. The JSON fixtures in tests/fixtures/sweeps/ are the shapes the panel
 builds against; whatever the routes return now (a fixture, later the real engine) must have every key of
 the fixture, with the same JSON type."""
 import json
@@ -84,7 +84,7 @@ def test_study_matches_its_schema():
     ("get", "/api/sweeps/demo/progress", "demo_progress.json", None),
 ])
 def test_route_shapes(method, url, fixture, body, tmp_path):
-    if body == "launcher":                                        # a study with a launcher block and a round (L4)
+    if body == "launcher":  # a study with a launcher block and a round
         import shutil
         from svcore import loop
         src = os.path.join(ROOT, "examples", "smart_sweep_demo")

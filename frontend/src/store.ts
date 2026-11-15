@@ -9,7 +9,7 @@ import { layoutActions } from "./store/actions/layout";
 import { noteActions } from "./store/actions/notes";
 import { plotActions } from "./store/actions/plots";
 import { placeActions } from "./store/actions/places";
-import { profileActions } from "./store/actions/profile";   // L5 D14
+import { profileActions } from "./store/actions/profile";   // D14
 import { viewActions } from "./store/actions/view";
 
 export * from "./store/model";

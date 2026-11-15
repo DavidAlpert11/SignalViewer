@@ -116,7 +116,7 @@ export default function App() {
     const lr = runs.filter((r) => r.log);
     return lr.length ? lr.reduce((n, r) => n + (r.log?.errors ?? 0), 0) : null;
   }, [runs]);
-  const hasFiles = runs.some((r) => r.format !== "derived");      // L5 D7: Checks for any open file
+  const hasFiles = runs.some((r) => r.format !== "derived");      // D7: Checks for any open file
   const liveAutoStop = useApp((s) => s.liveAutoStop);
   const liveNewFiles = useApp((s) => s.liveNewFiles);
   const [dropping, setDropping] = useState(false);
@@ -179,7 +179,7 @@ export default function App() {
   // flight-log data: fetched only for files that have it, when the panel or the plot markers need it
   useEffect(() => {
     if (logErrors !== null && (panel === "log" || logMarkers !== "off")) ensureLogs();
-    if (!hasFiles && panel === "log") useApp.setState({ panel: "data" });     // L5 D7: Checks for any file
+    if (!hasFiles && panel === "log") useApp.setState({ panel: "data" });     // D7: Checks for any file
   }, [runs, panel, logMarkers, logErrors, hasFiles]);
 
 
@@ -345,7 +345,7 @@ export default function App() {
           {RAIL.map((r) => {
             const I = Icon[r.icon];
             // U9: the Log tool stays in its place, disabled while no flight log is open (it used to vanish)
-            const off = r.id === "log" && !hasFiles;     // L5 D7: Checks for any open file
+            const off = r.id === "log" && !hasFiles;     // D7: Checks for any open file
             return (
               <button key={r.id} className={`${panel === r.id ? "on" : ""}${r.id === "log" ? " rail-log" : ""}`} title={off ? t("chkNone") : t(r.key)}
                 data-tour={r.id === "compare" ? "compare" : undefined}

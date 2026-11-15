@@ -125,7 +125,7 @@ def mavlink_status():
     return rx.status() if rx is not None else {"running": False}
 
 
-# ----------------------------------------------------------------------------- L5 F4: live instruments
+# ----------------------------------------------------------------------------- F4: live instruments
 class InstrumentItem(BaseModel):
     name: str                      # a signal NAME ("a|b": a, else b), as a profile's at-a-glance numbers
 

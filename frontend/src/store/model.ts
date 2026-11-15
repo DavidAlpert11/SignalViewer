@@ -159,19 +159,19 @@ export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta
   readAs?: Record<string, "state" | "value">;
   /** P7: places of this session (travel with it and with a template); absent = none */
   places?: Place[];
-  /** L5 D14: the run-at-a-glance numbers (a profile's or pinned by the user) and the signal list's pinned
+  /** D14: the run-at-a-glance numbers (a profile's or pinned by the user) and the signal list's pinned
    *  searches - by signal NAME, so they hold in the next file; travel with a template. Absent = none. */
   glance?: GlanceItem[];
   searches?: PinnedSearch[];
-  /** L5 F4: the live instruments' tiles - signal NAMES ("a|b" alternatives), shown as the value in force at the
+  /** F4: the live instruments' tiles - signal NAMES ("a|b" alternatives), shown as the value in force at the
    *  time; travel with a template. Absent = the profile's at-a-glance names. */
   instruments?: string[];
 }
-/** L5 D14: a number of the whole run - a signal by name ("a|b" alternatives) and a statistic; `label` is the
+/** D14: a number of the whole run - a signal by name ("a|b" alternatives) and a statistic; `label` is the
  *  profile's ("@key" translated) - absent: "<stat> <name>". `mean` is the plain mean of the samples. */
 export type GlanceStat = "min" | "max" | "mean" | "first" | "final" | "range";
 export interface GlanceItem { name: string; stat: GlanceStat; label?: string }
-/** L5 D14: a search kept as a chip over the signal list (the text typed in its search box). */
+/** D14: a search kept as a chip over the signal list (the text typed in its search box). */
 export interface PinnedSearch { q: string; label?: string }
 /** P7 (1.26): a named point, line or area on every Map (the airfield, the range, the ground station), or a
  *  saved camera view. In the session (`Workspace.places`) or in My places (the app's places.json). */

@@ -1,10 +1,11 @@
 """
-1.26 README pictures of the live HTML page: a flight around Mount Tabor (truth, a navigation solution that
-drifts, a GPS) as the page a colleague receives - the plots, the 2D map and the 3D view on one time - and the
-3D view alone. Made from the code itself (signalviewer's Python API + app/report.py), shot in Chromium with
-software WebGL; no app window, no network (the offline basemap and terrain are bundled).
+The live HTML page (a replay page sent to a colleague) on a flight around Mount Tabor (truth, a navigation
+solution that drifts, a GPS): the plots, the 2D map and the 3D view on one time, its Story, and the 3D view
+alone. Made from the code itself (signalviewer's Python API + app/report.py), shot in Chromium with software
+WebGL; no app window, no network (the offline basemap and terrain are bundled). Use it to check the page's look
+after a change to `backend/app/report_assets/`; `flight_csv` is also the test flight of test_story / test_round_1112.
 
-    python tools/make_live_report_media.py            # docs/images/34_live_page.png, 35_live_3d.png, 36_map_wow.png, 37_story.png
+    python tools/make_live_report_media.py [OUT_DIR]   # live_page.png, story.png, live_3d.png, map_3d.png (default: a temp folder)
 """
 import math
 import os
@@ -15,7 +16,6 @@ import numpy as np
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "backend"))
-IMAGES = os.path.join(ROOT, "docs", "images")
 
 
 def flight_csv(path: str) -> None:
@@ -87,26 +87,26 @@ def page(path_html: str, theme: str = "dark") -> None:
         f.write(report.build_html(rec._store, req))
 
 
-def shoot(path_html: str) -> None:
+def shoot(path_html: str, out_dir: str) -> None:
     from playwright.sync_api import sync_playwright
-    os.makedirs(IMAGES, exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)
     with sync_playwright() as p:
         b = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"])
         pg = b.new_page(viewport={"width": 1600, "height": 1000}, device_scale_factor=2)
         pg.goto("file://" + path_html)
         pg.wait_for_function("window.__replay && document.querySelectorAll('iframe.mapframe').length === 2")
         pg.wait_for_timeout(4000)
-        out = os.path.join(IMAGES, "34_live_page.png")
+        out = os.path.join(out_dir, "live_page.png")
         pg.screenshot(path=out)
-        print("image", os.path.relpath(out, ROOT))
+        print("image", out)
         # P10: the Story - the flight tells itself; shot on its third moment (the card, the 3D view on its object)
         pg.click("#rp-storybtn")
         pg.wait_for_function("window.__replay.story.index >= 0", timeout=60000)
         pg.click("#rp-story-next"); pg.click("#rp-story-next")
         pg.wait_for_timeout(3000)
-        out37 = os.path.join(IMAGES, "37_story.png")
+        out37 = os.path.join(out_dir, "story.png")
         pg.screenshot(path=out37)
-        print("image", os.path.relpath(out37, ROOT))
+        print("image", out37)
         pg.keyboard.press("Escape")
         # the 3D view alone, its own page: following the truth, a bit closer
         pg2 = b.new_page(viewport={"width": 1400, "height": 800}, device_scale_factor=2)
@@ -120,18 +120,18 @@ def shoot(path_html: str) -> None:
         pg2.wait_for_timeout(1500)
         pg2.locator('#cam [data-cam="close"]').click()                 # the camera close behind the reference
         pg2.wait_for_timeout(2500)
-        out = os.path.join(IMAGES, "35_live_3d.png")
+        out = os.path.join(out_dir, "live_3d.png")
         pg2.screenshot(path=out)
-        print("image", os.path.relpath(out, ROOT))
+        print("image", out)
         # P9: the wow - late in the flight (nav has drifted), behind the truth: the sun's light, the drop lines
         # and the last 10 s, the error surface between truth and nav, the flight display and the mini-map
         pg2.evaluate("() => { const s = document.getElementById('slider'); s.value = 262; s.dispatchEvent(new Event('input')); }")
         pg2.wait_for_timeout(1500)
         pg2.evaluate("() => window.__scene.glideTo({ r: 45, ph: 1.25, free: false }, 0)")
         pg2.wait_for_timeout(2500)
-        out = os.path.join(IMAGES, "36_map_wow.png")
+        out = os.path.join(out_dir, "map_3d.png")
         pg2.screenshot(path=out)
-        print("image", os.path.relpath(out, ROOT))
+        print("image", out)
         b.close()
 
 
@@ -140,4 +140,4 @@ if __name__ == "__main__":
     d = tempfile.mkdtemp(prefix="sv-live-media-")
     html = os.path.join(d, "live_page.html")
     page(html)
-    shoot(html)
+    shoot(html, sys.argv[1] if len(sys.argv) > 1 else d)

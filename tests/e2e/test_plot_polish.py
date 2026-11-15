@@ -49,7 +49,7 @@ def test_a_flight_logs_message_part_is_dimmed_in_a_flat_list(pg):
 
 
 def test_window_statistics_in_the_legend(pg):
-    """F2 (lane L3): the legend shows, on demand, the shown window's min · mean · max - the same numbers as
+    """F2: the legend shows, on demand, the shown window's min · mean · max - the same numbers as
     numpy over the samples on screen, and they follow a zoom."""
     import csv
     import os
@@ -84,7 +84,7 @@ def test_window_statistics_in_the_legend(pg):
 
 
 def test_pin_a_statistic_to_the_run_at_a_glance(pg):
-    """D8 + D14 (lane L3): the Inspector's statistics pin a line's number to the run at a glance, by the
+    """D8 + D14: the Inspector's statistics pin a line's number to the run at a glance, by the
     signal's name (Undo-able, saved with a template); a fifth is refused with a message."""
     from test_features import menu_item
     open_files(pg, "run_a.csv")
@@ -102,7 +102,7 @@ def test_pin_a_statistic_to_the_run_at_a_glance(pg):
 
 
 def test_the_run_at_a_glance_shows_its_numbers_and_the_checks(pg):
-    """D14 (1) + D7 (lane L3): the strip's head shows the pinned numbers of the run (a missing signal is said, not
+    """D14 (1) + D7: the strip's head shows the pinned numbers of the run (a missing signal is said, not
     dropped), a click on one goes to its time; a broken limit shows as the Checks count, which opens Checks; ⋯ unpins."""
     from test_features import menu_item
     open_files(pg, "run_a.csv")

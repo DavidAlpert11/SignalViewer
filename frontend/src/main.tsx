@@ -11,7 +11,7 @@ import "./styles/app.css";
 import "./styles/plots.css";
 import "./styles/review.css";
 import "./styles/panels.css";   // L5: the side panels (D7+)
-import "./styles/map.css";       // B6 (lane L4): the map / 3D chrome, after the rest
+import "./styles/map.css";       // B6: the map / 3D chrome, after the rest
 import App from "./App";
 import { useApp } from "./store";
 import { installErrorReporting } from "./errorReport";

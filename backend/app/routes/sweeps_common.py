@@ -1,5 +1,5 @@
 """W14 / W15: one parameter set for many sweep tables, and the next runs to try - the study file's
-routes (svcore/study.py). Owned by lane L3; the shapes are the W0 contract (tests/fixtures/sweeps/,
+routes (svcore/study.py). The shapes are the W0 contract (tests/fixtures/sweeps/,
 backend/tests/test_study_contract.py)."""
 import glob
 import json

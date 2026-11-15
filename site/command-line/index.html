@@ -1,0 +1,1995 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Signal Viewer – an offline engineering data analysis and validation workbench for any time-series data: flight, vehicle and bench tests, simulation output (MATLAB / Simulink), ROS 2 and CAN - explore, check, compare and report, every computation validated. English and Hebrew.">
+      
+      
+      
+        <link rel="canonical" href="https://davidalpert11.github.io/SignalViewer/command-line/">
+      
+      
+        <link rel="prev" href="../features/">
+      
+      
+        <link rel="next" href="../api/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Command line, Python and formats - Signal Viewer – offline engineering data analysis & validation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#command-line-python-and-file-formats" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Signal Viewer – offline engineering data analysis &amp; validation" class="md-header__button md-logo" aria-label="Signal Viewer – offline engineering data analysis & validation" data-md-component="logo">
+      
+  <img src="../assets/icon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Signal Viewer – offline engineering data analysis & validation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Command line, Python and formats
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Dark"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Light"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/DavidAlpert11/SignalViewer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DavidAlpert11/SignalViewer
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../install/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Get started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../features/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Features
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../validation/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Quality
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../development/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Development
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Signal Viewer – offline engineering data analysis &amp; validation" class="md-nav__button md-logo" aria-label="Signal Viewer – offline engineering data analysis & validation" data-md-component="logo">
+      
+  <img src="../assets/icon.png" alt="logo">
+
+    </a>
+    Signal Viewer – offline engineering data analysis & validation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/DavidAlpert11/SignalViewer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DavidAlpert11/SignalViewer
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Get started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../GUIDE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../GUIDE.he/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    מדריך למשתמש
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../investigate-tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial: what went wrong
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../investigate-tutorial.he/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    מדריך: מה השתבש
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fleet-tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial: what the Fleet is for
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fleet-tutorial.he/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    מדריך: בשביל מה ה-Fleet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What works
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command line, Python and formats
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command line, Python and formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#read-and-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read and export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reports
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#disk-space-cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disk space: cache
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pass-fail-in-ci-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pass / fail in CI: check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#against-a-golden-run-compare" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Against a golden run: compare
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Against a golden run: compare">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-simulation-against-a-flight" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A simulation against a flight
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-run-envelopes-results-sweep" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A run envelope's results: sweep
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#numerical-validation-validate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Numerical validation: validate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-objects-objects-compare-objects-compare-similar-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Map objects: objects, compare-objects, compare-similar, map
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#your-own-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your own formats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#raw-binary-packets-icd-layouts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Raw binary packets (ICD layouts)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#can-bus-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CAN bus logs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#with-pip-full-or-light" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        With pip: full or light
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API: objects, comparisons, maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../maps-and-3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Offline map and 3D
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sim-vs-flight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation against flight
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gallery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../common-gains/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    One parameter set for many systems
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../common-gains.he/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    סט פרמטרים אחד לכמה מערכות
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../launcher/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Launcher mode: the study on your farm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../launcher.he/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    מצב Launcher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../smart-sweep-demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The smart-sweep demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../smart-sweep-demo.he/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    הדגמת הסריקה החכמה
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quality
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Quality
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#read-and-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read and export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reports
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#disk-space-cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disk space: cache
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pass-fail-in-ci-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pass / fail in CI: check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#against-a-golden-run-compare" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Against a golden run: compare
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Against a golden run: compare">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-simulation-against-a-flight" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A simulation against a flight
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-run-envelopes-results-sweep" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A run envelope's results: sweep
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#numerical-validation-validate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Numerical validation: validate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-objects-objects-compare-objects-compare-similar-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Map objects: objects, compare-objects, compare-similar, map
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#your-own-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your own formats
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#raw-binary-packets-icd-layouts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Raw binary packets (ICD layouts)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#can-bus-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CAN bus logs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#with-pip-full-or-light" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        With pip: full or light
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/DavidAlpert11/SignalViewer/edit/main/docs/command-line.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="command-line-python-and-file-formats">Command line, Python and file formats<a class="headerlink" href="#command-line-python-and-file-formats" title="Permanent link">&para;</a></h1>
+<p>Everything here works without the window, on a PC without a screen and in CI. <code>signalviewer-cli</code>
+is installed by <code>pip install signalviewer</code>; from the source folder it is <code>python cli.py</code>.</p>
+<h2 id="read-and-export">Read and export<a class="headerlink" href="#read-and-export" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>signalviewer-cli<span class="w"> </span>info<span class="w"> </span>flight.bin<span class="w">                       </span><span class="c1"># the signals, their samples and time span</span>
+signalviewer-cli<span class="w"> </span><span class="nb">export</span><span class="w"> </span>flight.bin<span class="w"> </span>--signals<span class="w"> </span><span class="s2">"ATT.Roll,ATT.Pitch"</span><span class="w"> </span>--out<span class="w"> </span>roll.csv<span class="w"> </span>--t0<span class="w"> </span><span class="m">10</span><span class="w"> </span>--t1<span class="w"> </span><span class="m">60</span>
+signalviewer-cli<span class="w"> </span><span class="nb">export</span><span class="w"> </span>run.csv<span class="w"> </span>--out<span class="w"> </span>run.mat<span class="w">           </span><span class="c1"># one MATLAB variable per signal + Time</span>
+</code></pre></div>
+<p>Signal names may be written without their unit and in any case (<code>ATT.Roll</code> for <em>ATT.Roll [deg]</em>)
+when that is one signal; a name that is not there gets the closest names.</p>
+<h2 id="reports">Reports<a class="headerlink" href="#reports" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>signalviewer-cli<span class="w"> </span>report<span class="w"> </span>--template<span class="w"> </span><span class="s2">"ArduPilot · Full review"</span><span class="w"> </span>--out<span class="w"> </span>reports/<span class="w"> </span>logs/*.bin<span class="w"> </span>--format<span class="w"> </span>pdf
+signalviewer-cli<span class="w"> </span>templates<span class="w">                              </span><span class="c1"># what --template can name</span>
+</code></pre></div>
+<h2 id="disk-space-cache">Disk space: <code>cache</code><a class="headerlink" href="#disk-space-cache" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>signalviewer-cli cache                      # the CSV cache and log indexes, dropped-file copies, map tiles: size and folder
+signalviewer-cli cache --clear all          # or: cache / uploads / tiles - with the app closed
+</code></pre></div>
+<p>The app keeps the cache small by itself (an old copy of a changed file is removed, entries unused
+for 30 days go, at most 5 GB: <code>SV_CACHE_MAX_GB</code>, <code>SV_CACHE_DAYS</code>); Settings shows and clears it too.
+<code>SV_LAZY_MB</code> (default 1536) is the memory big logs' values may use before the least recently used are
+read again from the file. <code>SV_OPEN_BUDGET_MB</code> (default half the computer's memory, at most 8 GB) is the memory files opened
+together may use while they are read side by side. <code>SV_MEMCACHE_MB</code> (default 1024) is the memory for results that can be
+computed again (changed and derived signals, spectra, plot summaries, statistics): beyond it the least
+recently used go, and are computed again when needed.</p>
+<h2 id="pass-fail-in-ci-check">Pass / fail in CI: <code>check</code><a class="headerlink" href="#pass-fail-in-ci-check" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>signalviewer-cli<span class="w"> </span>check<span class="w"> </span>runs/*.csv<span class="w"> </span>--checks<span class="w"> </span>checks.json<span class="w"> </span>--junit<span class="w"> </span>results.xml
+signalviewer-cli<span class="w"> </span>check<span class="w"> </span>flight.bin<span class="w"> </span>--template<span class="w"> </span><span class="s2">"My limits"</span><span class="w">   </span><span class="c1"># the limits saved on signals in the app</span>
+</code></pre></div>
+<p>A checks file (<a href="https://github.com/DavidAlpert11/SignalViewer/blob/main/examples/checks.json">example</a>):</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"checks"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Engine temperature below 88 °C"</span><span class="p">,</span><span class="w"> </span><span class="nt">"signal"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EngineTemp"</span><span class="p">,</span><span class="w"> </span><span class="nt">"hi"</span><span class="p">:</span><span class="w"> </span><span class="mi">88</span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Speed while cruising"</span><span class="p">,</span><span class="w"> </span><span class="nt">"signal"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Speed"</span><span class="p">,</span><span class="w"> </span><span class="nt">"lo"</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="nt">"hi"</span><span class="p">:</span><span class="w"> </span><span class="mi">76</span><span class="p">,</span>
+<span class="w">   </span><span class="nt">"during"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"DriveMode"</span><span class="p">,</span><span class="w"> </span><span class="nt">"value"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CRUISE"</span><span class="p">,</span><span class="w"> </span><span class="nt">"occurrence"</span><span class="p">:</span><span class="w"> </span><span class="s2">"all"</span><span class="p">}},</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">"signal"</span><span class="p">:</span><span class="w"> </span><span class="s2">"RPM"</span><span class="p">,</span><span class="w"> </span><span class="nt">"lo"</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="nt">"hi"</span><span class="p">:</span><span class="w"> </span><span class="mi">3000</span><span class="p">,</span><span class="w"> </span><span class="nt">"t0"</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="nt">"t1"</span><span class="p">:</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span><span class="w"> </span><span class="nt">"scale"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">"offset"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">}</span>
+<span class="p">]}</span>
+</code></pre></div>
+<p><code>during.occurrence</code>: 1 = the first stretch of the state, 2 = the second…, -1 = the last, left out = all.
+Each failure says how many times the signal left its limits, when first, and the worst point.
+Exit code <strong>0</strong> all passed, <strong>1</strong> a check failed, <strong>2</strong> a check could not be made (a missing file,
+signal or state value - never a silent pass). <code>--junit</code> writes results CI systems show as tests.</p>
+<p><strong>A test-bench example</strong> (<code>examples/bench</code>, also a card on the welcome screen): a pump run recorded as
+Parquet - phases as a state (<code>Phase</code>), units, a 0.2 s pressure spike, a 2 s gap and a motor temperature
+that creeps over its limit - with its <code>checks.json</code> (one check only while the state is <code>STEADY</code>):</p>
+<div class="highlight"><pre><span></span><code>signalviewer-cli<span class="w"> </span>check<span class="w"> </span>examples/bench/pump_run_07.parquet<span class="w"> </span>--checks<span class="w"> </span>examples/bench/checks.json
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>  FAIL  Motor temperature below 85 °C  - MotorTemp [°C]: 30 time(s) outside, first at 545.980 s; worst 1.277 above hi at 559.740 s
+  FAIL  Pressure below 16 bar  - Pressure [bar]: 1 time(s) outside, first at 412.000 s; worst 5 above hi at 412.000 s
+  PASS  Speed 2850 - 2950 rpm while steady
+  PASS  Vibration below 0.5 g
+2 passed, 2 failed, 0 errors, 0 skipped
+</code></pre></div>
+<p>2 of the 4 checks fail on purpose, so the exit code is 1 - the way a CI job fails. In the app the same file
+is read in <em>Checks</em>: the verdict and the data quality (the gap) as cards.</p>
+<h2 id="against-a-golden-run-compare">Against a golden run: <code>compare</code><a class="headerlink" href="#against-a-golden-run-compare" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>signalviewer-cli<span class="w"> </span>compare<span class="w"> </span>golden.csv<span class="w"> </span>new/*.csv<span class="w"> </span>--tol-pct<span class="w"> </span><span class="m">2</span>
+signalviewer-cli<span class="w"> </span>compare<span class="w"> </span>golden.bin<span class="w"> </span>today.bin<span class="w"> </span>--tolerances<span class="w"> </span>tol.json<span class="w"> </span>--junit<span class="w"> </span>compare.xml
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"default"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"abs"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="p">},</span><span class="w"> </span><span class="nt">"signals"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"Speed"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"abs"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span><span class="p">},</span><span class="w"> </span><span class="nt">"RPM"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"pct"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nt">"outside_pct"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">},</span><span class="w"> </span><span class="nt">"Gear"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"skip"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">}}}</span>
+</code></pre></div>
+<p>The app writes this file too: <em>Compare runs ▸ Tolerance and alignment ▸ Save tolerances…</em> (each signal's
+own tolerance is set under it in the panel), and opens it again with <em>Open tolerances…</em>.</p>
+<p>Every signal both runs have, with the Compare panel's numbers (RMS and largest difference,
+correlation; headings wrap at 360°), the most different first. A signal passes when every sample is
+within the larger of <code>abs</code> and <code>pct</code> of the golden value (as the Simulink Data Inspector;
+before 1.21 the smaller, which failed every zero crossing of a signal with <code>pct</code> - give <code>abs</code> too
+for a signal that crosses 0) - or, with <code>"outside_pct"</code> (<code>--allow-outside PCT</code> for every
+signal), when no more than that share of its samples is outside. <code>--tol-time SECONDS</code> (or <code>"time"</code> in the
+tolerances) lets a run be that much early or late: the golden value's band at each moment is its lowest
+and highest value within ± that time, then widened by <code>abs</code> / <code>pct</code> - as the Simulink Data Inspector. Without any tolerance the
+differences are only listed.</p>
+<p>Every sample counts (since 1.23): pass / fail, the share outside and the largest difference are judged
+on <strong>all</strong> the samples of both runs inside their overlap - the run's own samples against the golden
+curve there, and the golden samples against the run - so a 5 ms excursion in two million samples, or
+a violation between two samples of a 10 Hz golden run recorded at 1 kHz, fails. The share outside is
+counted over those samples (the union of both runs' sample times). The Compare panel judges the same
+way, so the app and the command line give the same verdict.</p>
+<h3 id="a-simulation-against-a-flight">A simulation against a flight<a class="headerlink" href="#a-simulation-against-a-flight" title="Permanent link">&para;</a></h3>
+<p>Two loggers, two clocks, two naming habits: <code>--align auto</code> lines the run up with the golden run by
+cross-correlation (<code>--align-on NAME</code> to choose the signal, <code>--align SECONDS</code> to give the shift),
+names match with or without their unit, and <code>{"as": "name in the run"}</code> in the tolerances pairs
+signals named differently. A worked example: <a href="../sim-vs-flight/">Simulation against flight</a>.</p>
+<h2 id="a-run-envelopes-results-sweep">A run envelope's results: <code>sweep</code><a class="headerlink" href="#a-run-envelopes-results-sweep" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>signalviewer-cli<span class="w"> </span>sweep<span class="w"> </span>results.csv<span class="w"> </span>--question<span class="w"> </span>question.json<span class="w">         </span><span class="c1"># how many sets hold, the best five</span>
+signalviewer-cli<span class="w"> </span>sweep<span class="w"> </span>results/<span class="w"> </span>--question<span class="w"> </span>study.svsweep<span class="w"> </span>--top<span class="w"> </span><span class="m">10</span><span class="w">   </span><span class="c1"># a folder of tables; a study saved by the app</span>
+signalviewer-cli<span class="w"> </span>sweep<span class="w"> </span>results.csv<span class="w"> </span>--question<span class="w"> </span>q.json<span class="w"> </span>--min-holding<span class="w"> </span><span class="m">3</span><span class="w"> </span>--json
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"conditions"</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">"column"</span><span class="p">:</span><span class="w"> </span><span class="s2">"roll_error_deg"</span><span class="p">,</span><span class="w"> </span><span class="nt">"op"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;="</span><span class="p">,</span><span class="w"> </span><span class="nt">"value"</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="nt">"mode"</span><span class="p">:</span><span class="w"> </span><span class="s2">"all"</span><span class="p">},</span>
+<span class="w">                </span><span class="p">{</span><span class="nt">"column"</span><span class="p">:</span><span class="w"> </span><span class="s2">"overshoot_pct"</span><span class="p">,</span><span class="w"> </span><span class="nt">"op"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;="</span><span class="p">,</span><span class="w"> </span><span class="nt">"value"</span><span class="p">:</span><span class="w"> </span><span class="mi">15</span><span class="p">,</span><span class="w"> </span><span class="nt">"mode"</span><span class="p">:</span><span class="w"> </span><span class="s2">"all"</span><span class="p">}],</span>
+<span class="w"> </span><span class="nt">"combine"</span><span class="p">:</span><span class="w"> </span><span class="s2">"and"</span><span class="p">,</span><span class="w"> </span><span class="nt">"goal"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"column"</span><span class="p">:</span><span class="w"> </span><span class="s2">"energy_wh"</span><span class="p">,</span><span class="w"> </span><span class="nt">"direction"</span><span class="p">:</span><span class="w"> </span><span class="s2">"min"</span><span class="p">}}</span>
+</code></pre></div>
+<p>The table has a row per run (CSV, Parquet or Excel, or a folder of them); the columns' roles are
+guessed as in the app's <em>Sweeps</em> area, and a study saved there (<code>.svsweep</code>) brings its own roles and
+goal. The answer is the app's: how many parameter sets meet every condition in every must-hold-across
+combination, and the best of them. On the bundled example (<code>examples/sweeps/drone_tuning.csv</code>):</p>
+<div class="highlight"><pre><span></span><code>12 of 45 parameter sets hold in all 18 combinations (0 miss a combination)
+  roll_error_deg &lt;= 5: met by 27
+  overshoot_pct &lt;= 15: met by 28
+  1. kp_roll=0.2, ki_roll=0.02, filter_hz=10, goal=47.86
+</code></pre></div>
+<p>Exit code 0 = at least <code>--min-holding</code> sets hold (default 1), 1 = fewer, 2 = the table or the
+question cannot be read - so a CI job fails when a change leaves no tuning that works everywhere.</p>
+<h2 id="numerical-validation-validate">Numerical validation: <code>validate</code><a class="headerlink" href="#numerical-validation-validate" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>signalviewer-cli<span class="w"> </span>validate<span class="w">                   </span><span class="c1"># one line per case, then "23 passed, 0 failed"</span>
+signalviewer-cli<span class="w"> </span>validate<span class="w"> </span>--json<span class="w">            </span><span class="c1"># every case with expected, measured, error, tolerance</span>
+signalviewer-cli<span class="w"> </span>validate<span class="w"> </span>--junit<span class="w"> </span>v.xml<span class="w">     </span><span class="c1"># JUnit XML, e.g. as a record that this installation computes correctly</span>
+</code></pre></div>
+<p>Spectra, filters, derivative and integral, statistics, decimation, Compare and coordinate frames,
+each against a reference that does not come from the app. Exit code 0 = every case within its
+tolerance, 1 = one is not. The cases and the conventions behind them: <a href="../validation/">Validation</a>.</p>
+<h2 id="map-objects-objects-compare-objects-compare-similar-map">Map objects: <code>objects</code>, <code>compare-objects</code>, <code>compare-similar</code>, <code>map</code><a class="headerlink" href="#map-objects-objects-compare-objects-compare-similar-map" title="Permanent link">&para;</a></h2>
+<p>The objects a file holds - found by their names with the app's rules (one table, <code>backend/svcore/object_names.json</code>)
+- and their comparison, with the same numbers as the app's <em>Compare objects…</em> dialog. The whole process with
+Python, the command line and REST, step by step: <a href="../api/">API</a>.</p>
+<div class="highlight"><pre><span></span><code>signalviewer-cli<span class="w"> </span>objects<span class="w"> </span>flight.bin<span class="w">                 </span><span class="c1"># POS: navigation (POS), LLA ... XKF1[1]: NED, origin ORGN[0] (known)</span>
+signalviewer-cli<span class="w"> </span>objects<span class="w"> </span>flight.bin<span class="w"> </span>--all<span class="w"> </span>--json<span class="w">    </span><span class="c1"># also what Add all would not add; the reasons as data</span>
+signalviewer-cli<span class="w"> </span>compare-objects<span class="w"> </span>flight.bin<span class="w"> </span>--ref<span class="w"> </span>POS<span class="w"> </span>--objects<span class="w"> </span><span class="s2">"XKF1[0],XKF1[1]"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--what<span class="w"> </span>position,velocity,attitude<span class="w"> </span>--frame<span class="w"> </span>ned<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--csv<span class="w"> </span>errors.csv<span class="w"> </span>--stats<span class="w"> </span>stats.csv<span class="w"> </span>--map<span class="w"> </span>map.png<span class="w"> </span>--map-html<span class="w"> </span>map.html<span class="w"> </span>--report<span class="w"> </span>report.html
+signalviewer-cli<span class="w"> </span>compare-objects<span class="w"> </span>flight.bin<span class="w"> </span>--ref<span class="w"> </span>POS<span class="w"> </span>--tolerance<span class="w"> </span><span class="nv">position</span><span class="o">=</span>2m,attitude<span class="o">=</span>1deg<span class="w"> </span>--junit<span class="w"> </span>r.xml<span class="w">   </span><span class="c1"># CI</span>
+signalviewer-cli<span class="w"> </span>compare-objects<span class="w"> </span>truth.csv<span class="w"> </span>flight.bin<span class="w"> </span>--ref<span class="w"> </span>truth:phys<span class="w"> </span>--objects<span class="w"> </span>POS<span class="w">   </span><span class="c1"># two files</span>
+signalviewer-cli<span class="w"> </span>compare-similar<span class="w"> </span>flight.bin<span class="w"> </span>--leaf<span class="w"> </span>Yaw<span class="w"> </span>--ref<span class="w"> </span><span class="s2">"XKF1[0]"</span><span class="w"> </span>--csv<span class="w"> </span>yaw.csv<span class="w">   </span><span class="c1"># nav1 / nav2, XKF1[0] / XKF1[1]</span>
+signalviewer-cli<span class="w"> </span>map<span class="w"> </span>flight.bin<span class="w"> </span>--out<span class="w"> </span>map.html<span class="w">      </span><span class="c1"># the offline map page (or .png / .svg)</span>
+</code></pre></div>
+<p><code>compare-objects</code>: <code>--frame</code> is <code>ned</code>, <code>enu</code>, <code>ecef</code>, <code>lla</code> (north / east / up) or <code>track</code> (along / cross / up).
+Each object's errors against the reference: the differences per component, the horizontal / vertical / 3D
+error, the velocity differences and the speed error, the roll / pitch / yaw errors (yaw wrapped to ±180°),
+and their statistics on the full data (RMS, mean, largest |error| and when, 95th percentile). Quantities that
+cannot be compared (no velocity, no attitude of its own) are left out and named. With <code>--tolerance</code>, every
+error component of a quantity must stay within it (its largest |error|): exit code 0 = all within, 1 = one
+is not, 2 = it could not be compared; <code>--junit</code> writes one test case per object and quantity.</p>
+<p>Several files: the objects of each, an object named <code>file:name</code> where two files share a name; each on its
+own recorded time (no offset), the compared object read onto the reference's samples (linear) - as the app.</p>
+<h2 id="python">Python<a class="headerlink" href="#python" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">signalviewer</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sv</span>
+<span class="n">rec</span> <span class="o">=</span> <span class="n">sv</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">"flight.bin"</span><span class="p">)</span>
+<span class="n">t</span><span class="p">,</span> <span class="n">roll</span> <span class="o">=</span> <span class="n">rec</span><span class="o">.</span><span class="n">signal</span><span class="p">(</span><span class="s2">"ATT.Roll"</span><span class="p">)</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">rec</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">([</span><span class="s2">"ATT.Roll"</span><span class="p">,</span> <span class="s2">"ATT.Pitch"</span><span class="p">],</span> <span class="n">t0</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">t1</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>     <span class="c1"># one time base</span>
+<span class="n">sv</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="p">{</span><span class="s2">"roll x2"</span><span class="p">:</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">roll</span><span class="p">},</span> <span class="n">name</span><span class="o">=</span><span class="s2">"from my notebook"</span><span class="p">)</span>         <span class="c1"># into the open app</span>
+
+<span class="n">rec</span><span class="o">.</span><span class="n">objects</span><span class="p">()</span>                                    <span class="c1"># the map objects: name, class, frame, origin, why</span>
+<span class="n">nav</span> <span class="o">=</span> <span class="n">rec</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="s2">"XKF1[0]"</span><span class="p">)</span>                      <span class="c1"># t, lat, lon, alt (NED placed on Earth), roll, pitch, yaw, vn, ve, vd</span>
+<span class="n">cmp</span> <span class="o">=</span> <span class="n">sv</span><span class="o">.</span><span class="n">compare_objects</span><span class="p">(</span><span class="n">rec</span><span class="p">,</span> <span class="n">reference</span><span class="o">=</span><span class="s2">"POS"</span><span class="p">,</span> <span class="n">objects</span><span class="o">=</span><span class="p">[</span><span class="s2">"XKF1[0]"</span><span class="p">,</span> <span class="s2">"XKF1[1]"</span><span class="p">],</span> <span class="n">what</span><span class="o">=</span><span class="p">(</span><span class="s2">"position"</span><span class="p">,</span> <span class="s2">"attitude"</span><span class="p">))</span>
+<span class="n">cmp</span><span class="o">.</span><span class="n">stats</span><span class="p">()</span>                                      <span class="c1"># object x component -&gt; rms, mean, max_abs, p95_abs, t_max_abs</span>
+<span class="n">cmp</span><span class="o">.</span><span class="n">errors</span><span class="p">();</span> <span class="n">cmp</span><span class="o">.</span><span class="n">values</span><span class="p">();</span> <span class="n">cmp</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s2">"errors.csv"</span><span class="p">);</span> <span class="n">cmp</span><span class="o">.</span><span class="n">to_mat</span><span class="p">(</span><span class="s2">"errors.mat"</span><span class="p">)</span>
+<span class="n">sv</span><span class="o">.</span><span class="n">similar</span><span class="p">(</span><span class="n">rec</span><span class="p">)</span>                                  <span class="c1"># families of similar signals</span>
+<span class="n">sv</span><span class="o">.</span><span class="n">compare_signals</span><span class="p">(</span><span class="n">rec</span><span class="p">,</span> <span class="p">[</span><span class="s2">"XKF1[1].Yaw [deg]"</span><span class="p">],</span> <span class="n">reference</span><span class="o">=</span><span class="s2">"XKF1[0].Yaw [deg]"</span><span class="p">)</span>   <span class="c1"># angles wrapped</span>
+<span class="n">sv</span><span class="o">.</span><span class="n">map_image</span><span class="p">(</span><span class="n">rec</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">"map.png"</span><span class="p">);</span> <span class="n">sv</span><span class="o">.</span><span class="n">map_html</span><span class="p">(</span><span class="n">rec</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">"map.html"</span><span class="p">)</span>
+<span class="n">sv</span><span class="o">.</span><span class="n">report</span><span class="p">(</span><span class="n">rec</span><span class="p">,</span> <span class="s2">"report.pdf"</span><span class="p">,</span> <span class="n">compare</span><span class="o">=</span><span class="n">cmp</span><span class="p">)</span>        <span class="c1"># the map, the error plots, the statistics table</span>
+</code></pre></div>
+<h2 id="your-own-formats">Your own formats<a class="headerlink" href="#your-own-formats" title="Permanent link">&para;</a></h2>
+<p><code>signalviewer-cli readers</code> shows the readers folder (<code>~/.signalviewer/readers</code>) and what is in it;
+<code>readers --example</code> writes a Python reader to start from:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@reader</span><span class="p">(</span><span class="n">extensions</span><span class="o">=</span><span class="p">[</span><span class="s2">".kv"</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">"key=value lines"</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_kv</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="o">...</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">"time"</span><span class="p">:</span> <span class="n">t</span><span class="p">,</span> <span class="s2">"signals"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"speed"</span><span class="p">:</span> <span class="n">speed</span><span class="p">,</span> <span class="s2">"mode"</span><span class="p">:</span> <span class="n">codes</span><span class="p">},</span> <span class="s2">"labels"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"mode"</span><span class="p">:</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="s2">"IDLE"</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="s2">"RUN"</span><span class="p">}}}</span>
+</code></pre></div>
+<p>Return one time for all signals, or a tuple <code>(time, values)</code> for a signal with its own time, or
+<code>None</code> for "not my file". Saving the file is enough - no restart.</p>
+<h2 id="raw-binary-packets-icd-layouts">Raw binary packets (ICD layouts)<a class="headerlink" href="#raw-binary-packets-icd-layouts" title="Permanent link">&para;</a></h2>
+<p>A <code>&lt;name&gt;.icd.json</code> in the readers folder describes packets as they come off the wire; files with
+its extensions then open as signals <code>&lt;packet&gt;.&lt;field&gt; [unit]</code>. Try it with
+<code>signalviewer-cli readers --example-icd run.tlm</code> (a layout and a recording).</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Bench telemetry"</span><span class="p">,</span><span class="w"> </span><span class="nt">"extensions"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">".tlm"</span><span class="p">],</span><span class="w"> </span><span class="nt">"byte_order"</span><span class="p">:</span><span class="w"> </span><span class="s2">"little"</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">"header"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"sync"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0xA55A"</span><span class="p">,</span><span class="w"> </span><span class="nt">"size"</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"offset"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"u8"</span><span class="p">},</span><span class="w"> </span><span class="nt">"length"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"offset"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"u8"</span><span class="p">}},</span>
+<span class="w"> </span><span class="nt">"packets"</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"NAV"</span><span class="p">,</span><span class="w"> </span><span class="nt">"size"</span><span class="p">:</span><span class="w"> </span><span class="mi">14</span><span class="p">,</span><span class="w"> </span><span class="nt">"time"</span><span class="p">:</span><span class="w"> </span><span class="s2">"t_us"</span><span class="p">,</span><span class="w"> </span><span class="nt">"time_scale"</span><span class="p">:</span><span class="w"> </span><span class="mf">1e-6</span><span class="p">,</span><span class="w"> </span><span class="nt">"fields"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">   </span><span class="p">{</span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"t_us"</span><span class="p">,</span><span class="w"> </span><span class="nt">"offset"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"u32"</span><span class="p">},</span>
+<span class="w">   </span><span class="p">{</span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"alt"</span><span class="p">,</span><span class="w"> </span><span class="nt">"offset"</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"i32"</span><span class="p">,</span><span class="w"> </span><span class="nt">"scale"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.01</span><span class="p">,</span><span class="w"> </span><span class="nt">"unit"</span><span class="p">:</span><span class="w"> </span><span class="s2">"m"</span><span class="p">},</span>
+<span class="w">   </span><span class="p">{</span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"mode"</span><span class="p">,</span><span class="w"> </span><span class="nt">"offset"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"u8"</span><span class="p">,</span><span class="w"> </span><span class="nt">"enum"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"0"</span><span class="p">:</span><span class="w"> </span><span class="s2">"IDLE"</span><span class="p">,</span><span class="w"> </span><span class="nt">"1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CLIMB"</span><span class="p">,</span><span class="w"> </span><span class="nt">"2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CRUISE"</span><span class="p">}},</span>
+<span class="w">   </span><span class="p">{</span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"armed"</span><span class="p">,</span><span class="w"> </span><span class="nt">"offset"</span><span class="p">:</span><span class="w"> </span><span class="mi">11</span><span class="p">,</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"u8"</span><span class="p">,</span><span class="w"> </span><span class="nt">"bits"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">]},</span>
+<span class="w">   </span><span class="p">{</span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"volt"</span><span class="p">,</span><span class="w"> </span><span class="nt">"offset"</span><span class="p">:</span><span class="w"> </span><span class="mi">12</span><span class="p">,</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"u16"</span><span class="p">,</span><span class="w"> </span><span class="nt">"scale"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.001</span><span class="p">,</span><span class="w"> </span><span class="nt">"unit"</span><span class="p">:</span><span class="w"> </span><span class="s2">"V"</span><span class="p">,</span><span class="w"> </span><span class="nt">"byte_order"</span><span class="p">:</span><span class="w"> </span><span class="s2">"big"</span><span class="p">}]}]}</span>
+</code></pre></div>
+<p>Types <code>u8 i8 u16 i16 u32 i32 u64 i64 f32 f64</code>; value = raw × scale + <code>offset_value</code>. Time from a
+packet's field, else from the header (<code>"time": {"offset", "type", "scale"}</code>), else the packets are
+numbered. Noise, unknown ids and a cut-off end are skipped to the next sync and counted in the load
+report. YAML layouts (<code>.icd.yaml</code>) work when PyYAML is installed.</p>
+<h2 id="can-bus-logs">CAN bus logs<a class="headerlink" href="#can-bus-logs" title="Permanent link">&para;</a></h2>
+<p>candump logs (<code>.log</code>), Vector ASC (<code>.asc</code>) and CAN frame tables (<code>.csv</code> with time, id and data
+columns) open with every <code>.dbc</code> next to the log or in the readers folder. Signals are named
+<code>&lt;Message&gt;.&lt;Signal&gt; [unit]</code>, each message at its own rate; value names become text values.
+Multiplexed signals, float signals, 29-bit ids and CAN FD payloads are decoded; frames whose id is
+in no <code>.dbc</code> are counted in the load report.</p>
+<h2 id="with-pip-full-or-light">With pip: full or light<a class="headerlink" href="#with-pip-full-or-light" title="Permanent link">&para;</a></h2>
+<p><code>pip install signalviewer</code> has everything. <code>pip install signalviewer-lite</code> is the core (CSV, MATLAB
+v5, ArduPilot .bin, CAN, binary layouts, every plot and analysis, HTML reports); its extras:
+<code>[parquet]</code> <code>[hdf5]</code> (.h5, MATLAB v7.3) <code>[mavlink]</code> (.tlog, live) <code>[px4]</code> (.ulg) <code>[ros]</code> (.mcap)
+<code>[reports]</code> (PDF, Word, images) <code>[desktop]</code> - or <code>[all]</code>. A file that needs a missing extra says which.
+Install one of the two packages, not both (they install the same <code>signalviewer</code> module).</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../features/" class="md-footer__link md-footer__link--prev" aria-label="Previous: What works">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                What works
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../api/" class="md-footer__link md-footer__link--next" aria-label="Next: API: objects, comparisons, maps">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                API: objects, comparisons, maps
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Signal Viewer · MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/DavidAlpert11/SignalViewer" target="_blank" rel="noopener" title="Source, releases and issues" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

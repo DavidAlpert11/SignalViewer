@@ -1,4 +1,4 @@
-// L5 D14: profiles - the at-a-glance numbers and pinned searches in the session (Undo), merged from templates
+// D14: profiles - the at-a-glance numbers and pinned searches in the session (Undo), merged from templates
 import { beforeEach, describe, expect, test } from "vitest";
 import { actions, useApp } from "../store";
 import { GLANCE_MAX, INSTRUMENTS_MAX, mergeProfile, profileOf } from "./actions/profile";

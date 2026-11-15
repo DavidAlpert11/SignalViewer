@@ -1,5 +1,5 @@
 """W17 / W18: hand a study's runs to the user's launcher application, and the smart-sweep demo.
-Owned by lane L4; the shapes are the W0 contract (tests/fixtures/sweeps/)."""
+The shapes are the W0 contract (tests/fixtures/sweeps/)."""
 from typing import Optional
 
 from fastapi import APIRouter

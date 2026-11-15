@@ -231,12 +231,12 @@ def _validate(t: Dict[str, Any]) -> Dict[str, Any]:
             t["defaultTabs"] = list(dict.fromkeys(names))
         else:
             t.pop("defaultTabs", None)
-    _clean_profile(t)   # L5 D14
+    _clean_profile(t)   # D14
     return t
 
 
 def _clean_profile(t: Dict[str, Any]) -> None:
-    """L5 D14: a profile's *at a glance* numbers ({name, stat, label?}, at most 4) and pinned searches ({q,
+    """D14: a profile's *at a glance* numbers ({name, stat, label?}, at most 4) and pinned searches ({q,
     label?}) - optional; what is malformed is dropped, an empty list removed (old templates have none)."""
     from svcore.windowstats import GLANCE_STATS
     g = t.get("glance")
@@ -255,7 +255,7 @@ def _clean_profile(t: Dict[str, Any]) -> None:
             t["searches"] = ok
         else:
             t.pop("searches", None)
-    ins = t.get("instruments")        # L5 F4: the live instruments' tiles - signal names, at most 8
+    ins = t.get("instruments")        # F4: the live instruments' tiles - signal names, at most 8
     if ins is not None:
         names = [str(x).strip() for x in (ins if isinstance(ins, list) else []) if isinstance(x, str) and x.strip()]
         names = list(dict.fromkeys(names))[:8]

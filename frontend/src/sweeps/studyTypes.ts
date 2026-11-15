@@ -1,5 +1,5 @@
 /* W0 contract: the study file (.svstudy.json, docs/dev/study.schema.json, svcore/study.py) and the
-   /api/sweeps/* response shapes (tests/fixtures/sweeps/*.json). Types only - the panel (lane L5) and
+   /api/sweeps/* response shapes (tests/fixtures/sweeps/*.json). Types only - the panel and
    its calls build on these. Unknown keys of a study are kept: a study is edited as a whole object and
    saved back, so fields this version does not know survive. */
 

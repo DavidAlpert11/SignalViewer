@@ -4,7 +4,7 @@ import { translate } from "./i18n";
 import { detectObjects, type Candidate } from "./objectDetect";
 import { addedSummary } from "./objectAdd";
 import { trackOfClass } from "./mapObjects";
-import { mergeProfile, profileOf } from "./store/actions/profile";   // L5 D14
+import { mergeProfile, profileOf } from "./store/actions/profile";   // D14
 
 const OBJ_ROLES: TplObjectRole[] = ["lat", "lon", "alt", "yaw", "pitch", "roll", "qw", "qx", "qy", "qz"];
 

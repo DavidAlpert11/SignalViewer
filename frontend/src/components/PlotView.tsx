@@ -384,7 +384,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       return { windowStats: w };
     }) }] : []),
   ];
-  /* F2: the statistics of the visible window (L5's /api/stats/window), asked again when the view settles */
+  /* F2: the statistics of the visible window (/api/stats/window), asked again when the view settles */
   const winOn = useApp((s) => !!s.windowStats[plot.id]) && mode === "time";
   const xView = useApp((s) => (winOn ? s.xViews[plot.id] : undefined));
   const dataVersion = useApp((s) => s.dataVersion);

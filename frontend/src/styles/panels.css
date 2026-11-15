@@ -50,7 +50,7 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 .r-preview { flex: 0 0 auto; }
 .r-htmlhint { font-size: var(--fs-m); margin: var(--sp-1_5) 0 var(--sp-2_5); }
 
-/* L5 F4 live instruments - in the Checks panel; tiles are index.css's .card + .kpi */
+/* F4 live instruments - in the Checks panel; tiles are index.css's .card + .kpi */
 .instruments { display: flex; flex-direction: column; gap: var(--sp-2); min-height: 0; flex: 1; overflow: auto;
   padding: 0 var(--sp-3) var(--sp-3); }
 .instruments .ins-when { display: flex; align-items: center; gap: var(--sp-1); }
@@ -66,7 +66,7 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 .instruments .ins-add select { width: 100%; }
 .instruments .empty-state { padding-inline: 0; }
 
-/* L5 D10 Fleet in the new look - the app's components (index.css) placed; the area's own layout stays in index.css */
+/* D10 Fleet in the new look - the app's components (index.css) placed; the area's own layout stays in index.css */
 .fleet-area .eyebrow { margin: 0; }
 .fleet-summary { border-radius: var(--r-card); }
 .fleet-tiles.kpis { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }

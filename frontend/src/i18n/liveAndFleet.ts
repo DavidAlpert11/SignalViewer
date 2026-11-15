@@ -31,7 +31,7 @@ export const en = {
   fleetFirstOver: "First past the limit: {name} on {date} ({v}).",
   fleetNoneOver: "No flight is past the limit.",
   fleetSummary: "The fleet at a glance",
-  fleetFoldersHead: "Folders",  // L5 D10: the side's section heads
+  fleetFoldersHead: "Folders",  // D10: the side's section heads
   fleetFindHead: "Find flights",
   fleetTileFlights: "flights",
   fleetTileFlight: "flight",

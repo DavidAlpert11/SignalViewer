@@ -7,14 +7,8 @@ import { getPrefValue, offlineForcedByEnv, setPref } from "./prefs";
 
 const KEYS = [
   "theme", "lang", "uiScale", "timeFormat", "liveAutoStop", "liveNewFiles", "tplTabChoice", "offlineOnly", "smoothFollow", "lineWidth", "lineStyle",
-  // --- lane L2 ---
   "clickPlacesCursor",
-  // --- lane L6 ---
-  "askBeforeClose",
-  // --- lane L8 ---
-
-  // --- lane L3 ---
-  "bandInCard",
+  "askBeforeClose", "bandInCard",
 ] as const;
 type Key = (typeof KEYS)[number];
 
@@ -30,13 +24,8 @@ const VALID: Record<Key, (v: unknown) => boolean> = {
   smoothFollow: (v) => typeof v === "boolean",
   lineWidth: (v) => typeof v === "number" && v >= 0.5 && v <= 6,
   lineStyle: (v) => v === "solid" || v === "dash" || v === "dot" || v === "dashdot",
-  // --- lane L2 ---
   clickPlacesCursor: (v) => typeof v === "boolean",
-  // --- lane L6 ---
   askBeforeClose: (v) => typeof v === "boolean",
-  // --- lane L8 ---
-
-  // --- lane L3 ---
   bandInCard: (v) => typeof v === "boolean",
 };
 

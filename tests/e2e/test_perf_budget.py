@@ -9,7 +9,7 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 from test_features import env, pg  # noqa: E402,F401
 
-# Measured in FINAL (see docs/dev/lanes/final.md): set to about 3x the CI machine's time.
+# Measured in the 1.27 final round: set to about 3x the CI machine's time.
 BUDGET_S = 30.0
 
 

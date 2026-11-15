@@ -1,17 +1,16 @@
 """
-Screenshots and short videos for the README (docs/images, docs/media), made from the app itself:
+Screenshots for the README and the docs (docs/images), made from the app itself:
 it starts Signal Viewer on the example files with an empty home folder, drives it with Playwright
-and records. Run it before a release so the pictures show the current interface.
+and takes the shots. Run it before a release so the pictures show the current interface.
 
     python tools/make_readme_media.py                 # everything
     python tools/make_readme_media.py --only 01 14    # names starting with these
     python tools/make_readme_media.py --only examples # W1 / W2: the welcome screen's card pictures
     SV_CHROMIUM=/path/to/chrome python tools/make_readme_media.py
 
-Needs: playwright (+ a Chromium), ffmpeg on PATH for the videos (MP4 + GIF).
-Not made here (kept from a real screen): 06_3d_terrain.png and the 02_flight_map_3d video - a
-headless browser draws the 3D view on software WebGL, where its camera and its playback cannot
-be recorded well. The map scenes (00_hero, 05, 28) use OpenStreetMap's tiles: run them on a computer
+Needs: playwright (+ a Chromium). The films are made by make_demo_video.py / make_training_video.py.
+Not made here (kept from a real screen): 06_3d_terrain.png - a headless browser draws the 3D view
+on software WebGL. The map scenes (00_hero, 05, 28) use OpenStreetMap's tiles: run them on a computer
 with the internet (`--only 00 05 28`, then tools/make_social_preview.py), else the map is empty.
 Every picture is in the dark theme (owner, 1.22.0).
 """
@@ -29,7 +28,7 @@ import urllib.request
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 IMAGES = os.path.join(ROOT, "docs", "images")
-MEDIA = os.path.join(ROOT, "docs", "media")
+MEDIA = os.path.join(ROOT, "docs", "media")          # the films (make_demo_video.py)
 W, H = 1600, 900
 
 
@@ -92,13 +91,10 @@ def reset(app):
             pass
 
 
-def page(browser, app, dark=True, video=None, scale=1):   # owner (1.22.0): every picture in the dark theme
+def page(browser, app, dark=True, scale=1):   # owner (1.22.0): every picture in the dark theme
     reset(app)
-    t0 = time.time()
-    ctx = browser.new_context(viewport={"width": W, "height": H}, color_scheme="dark" if dark else "light", device_scale_factor=scale,
-                              **({"record_video_dir": video, "record_video_size": {"width": W, "height": H}} if video else {}))
+    ctx = browser.new_context(viewport={"width": W, "height": H}, color_scheme="dark" if dark else "light", device_scale_factor=scale)
     pg = ctx.new_page()
-    pg._t0 = t0                                                # recording start, for trimming the video
     pg.goto(app.url)
     pg.wait_for_selector(".app")
     pg.wait_for_timeout(400)
@@ -186,36 +182,7 @@ def shot(pg, name):
     print("image", os.path.relpath(path, ROOT))
 
 
-def mark(pg) -> float:
-    """Seconds since the recording started: where a video should begin (the loading is cut)."""
-    return time.time() - pg._t0
 
-
-def finish_video(ctx, pg, name, since=None):
-    """The context's WebM -> MP4 (H.264) and a GIF (8 fps, 900 px wide, own palette). since: a
-    mark() - only what was recorded after it is kept (loading the app and the files is cut; the
-    recording's clock lags while loading, so the cut is measured from the end)."""
-    keep = (mark(pg) - since) if since is not None else None
-    vid = str(pg.video.path()) if pg.video else None          # Playwright returns a Path
-    ctx.close()
-    if not vid or not shutil.which("ffmpeg"):
-        print("video skipped (no ffmpeg):", name)
-        return
-    skip = 0.0
-    if keep:
-        dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", vid],
-                                   capture_output=True, text=True).stdout.strip() or 0)
-        skip = max(0.0, dur - keep)
-    mp4 = os.path.join(MEDIA, name + ".mp4")
-    gif = os.path.join(MEDIA, name + ".gif")
-    q = ["-hide_banner", "-loglevel", "error", "-y", *(["-ss", f"{max(0.0, skip):.2f}"] if skip > 0 else [])]
-    subprocess.run(["ffmpeg", *q, "-i", vid, "-vf", "fps=25", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "28",
-                    "-movflags", "+faststart", mp4], check=True)
-    pal = vid + ".png"
-    subprocess.run(["ffmpeg", *q, "-i", vid, "-vf", "fps=8,scale=900:-1:flags=lanczos,palettegen=stats_mode=diff", pal], check=True)
-    subprocess.run(["ffmpeg", *q, "-i", vid, "-i", pal, "-lavfi",
-                    "fps=8,scale=900:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle", gif], check=True)
-    print("video", os.path.relpath(mp4, ROOT), f"{os.path.getsize(mp4) // 1024} kB,", os.path.relpath(gif, ROOT), f"{os.path.getsize(gif) // 1024} kB")
 
 def sweeps_fresh(pg):
     """The Sweeps area with no study open (the studies are kept from the last scene)."""
@@ -485,65 +452,8 @@ def img_18_frames(b, app):
     shot(pg, "18_frames"); ctx.close()
 
 
-# ----------------------------------------------------------------------------- videos
-def vid_01_quickstart(b, app, tmp):
-    ctx, pg = page(b, app, video=tmp)
-    open_dialog(pg, app, "run_012.csv", slow=True)
-    layout(pg, 2, 2); pg.wait_for_timeout(400)
-    for k, n in ((1, "Speed"), (2, "RPM"), (3, "Throttle"), (4, "EngineTemp")):
-        select_plot(pg, k); sig(pg, n).click(); pg.wait_for_timeout(500)
-    box = pg.locator(".plot .u-over").first.bounding_box()
-    pg.mouse.move(box["x"] + box["width"] * 0.3, box["y"] + box["height"] / 2)
-    pg.mouse.down(); pg.mouse.move(box["x"] + box["width"] * 0.6, box["y"] + box["height"] / 2, steps=15); pg.mouse.up()
-    pg.wait_for_timeout(700)
-    pg.keyboard.press("Space"); pg.wait_for_timeout(300)
-    pg.mouse.click(box["x"] + box["width"] * 0.4, box["y"] + box["height"] / 2); pg.wait_for_timeout(500)
-    pg.keyboard.down("Shift"); pg.mouse.click(box["x"] + box["width"] * 0.5, box["y"] + box["height"] / 2); pg.keyboard.up("Shift")
-    pg.wait_for_timeout(1500)
-    pg.keyboard.press("r"); pg.wait_for_timeout(1200)
-    finish_video(ctx, pg, "01_quickstart")
 
 
-# 02_flight_map_3d (video) is not made here, for the same reason as 06_3d_terrain: headless, the 3D
-# view draws on software WebGL and the recorder catches only a few frames of the playback.
-
-
-def vid_03_compare_runs(b, app, tmp):
-    ctx, pg = page(b, app, video=tmp)
-    open_api(pg, app, "run_012.csv", "run_013.csv", "run_014.csv")
-    pg.click("[aria-label='Compare runs']")
-    pg.wait_for_selector(".sim-row", timeout=30000); pg.wait_for_timeout(900)
-    for k in range(3):
-        pg.locator(".sim-row").nth(k).click(); pg.wait_for_timeout(1300)
-    pg.locator(".cmp-panel .seg.wide button", has_text="A segment").click(); pg.wait_for_timeout(500)
-    pg.locator(".seg-pick label:has-text('State signal') select").select_option("Gear"); pg.wait_for_timeout(900)
-    pg.wait_for_selector(".sim-row", timeout=30000)
-    pg.locator(".sim-row", has_text="Speed").first.click(); pg.wait_for_timeout(1800)
-    pg.locator(".cmp-panel button", has_text="Table of all signals").first.click()
-    pg.wait_for_selector(".cmp-dialog"); pg.wait_for_timeout(2200)
-    finish_video(ctx, pg, "03_compare_runs")
-
-
-def vid_04_flight_log_health(b, app, tmp):
-    ctx, pg = page(b, app, video=tmp)
-    open_dialog(pg, app, "flight.bin", slow=True)
-    pg.wait_for_selector(".start-card, .findings-dock", timeout=20000); pg.wait_for_timeout(1800)
-    if not pg.locator(".start-card").count():      # U2: findings only - docked beside the timeline
-        pg.locator(".findings-btn").click(); pg.wait_for_timeout(800)
-    pg.locator(".start-card .hrow .pchange.span").first.click(); pg.wait_for_timeout(1300)
-    if pg.locator(".start-card").get_by_role("button", name="Open it").count():
-        pg.locator(".start-card").get_by_role("button", name="Open it").click(); pg.wait_for_timeout(2200)
-    pg.evaluate("window.__sv.setState({ panel: 'log' })"); pg.wait_for_timeout(1200)
-    pg.locator("[role='tab']", has_text="Events").first.click(); pg.wait_for_timeout(1200)
-    pg.locator("[role='tab']", has_text="Parameters").first.click(); pg.wait_for_timeout(1500)
-    finish_video(ctx, pg, "04_flight_log_health")
-
-
-def vid_05_live_mavlink(b, app, tmp):
-    ctx, pg = page(b, app, video=tmp)
-    stop = live_mavlink(pg, app, seconds=7)
-    stop.set(); pg.wait_for_timeout(300)
-    finish_video(ctx, pg, "05_live_mavlink")
 
 
 # ----------------------------------------------------------------------------- 1.20 (the owner's notes)
@@ -738,36 +648,7 @@ def img_30_sweeps_pareto(b, app):
     shot(pg, "30_sweeps_pareto"); ctx.close()
 
 
-def vid_06_many_signals(b, app, tmp):
-    ctx, pg = page(b, app, video=tmp)
-    since = mark(pg)
-    _many_signals(pg, app)
-    box = pg.locator(".plot-canvas").first.bounding_box()
-    for i in range(24):
-        pg.mouse.move(box["x"] + 40 + i * (box["width"] - 80) / 24, box["y"] + box["height"] * 0.5); pg.wait_for_timeout(70)
-    for k in (0, 3, 8):
-        pg.locator(".legend-side .lrow").nth(k).hover(); pg.wait_for_timeout(900)
-    pg.fill(".legend-filter", "Vibe"); pg.wait_for_timeout(1200)
-    pg.fill(".legend-filter", ""); pg.wait_for_timeout(600)
-    finish_video(ctx, pg, "06_many_signals", since)
 
-
-def vid_07_fleet(b, app, tmp):
-    ctx, pg = page(b, app, video=tmp)
-    since = mark(pg)
-    _fleet(pg); pg.wait_for_timeout(1200)
-    pg.locator(".fleet-search input[type=search]").type("X8-A", delay=120); pg.wait_for_timeout(1500)
-    pg.locator(".fleet-line").first.click(); pg.wait_for_timeout(1500)
-    pg.locator(".fleet-findings button").first.click(); pg.wait_for_timeout(2500)
-    finish_video(ctx, pg, "07_fleet", since)
-
-
-def vid_08_sweeps_pareto(b, app, tmp):
-    ctx, pg = page(b, app, video=tmp)
-    since = mark(pg)
-    _pareto(pg); pg.wait_for_timeout(800)
-    pg.locator(".sw-rankby .btn").click(); pg.wait_for_timeout(2500)
-    finish_video(ctx, pg, "08_sweeps_pareto", since)
 
 
 # ----------------------------------------------------------------------------- W2: the example cards' pictures
@@ -868,17 +749,16 @@ def img_examples(browser, app):
                 ctx.close()
 
 
-SCENES = [(n, f) for n, f in sorted(globals().items()) if n.startswith(("img_", "vid_"))]
+SCENES = [(n, f) for n, f in sorted(globals().items()) if n.startswith("img_")]
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--only", nargs="*", help="scene names (or their number) to make, e.g. 01 vid_03")
+    ap.add_argument("--only", nargs="*", help="scene names (or their number) to make, e.g. 01 14")
     a = ap.parse_args()
     from playwright.sync_api import sync_playwright
-    os.makedirs(IMAGES, exist_ok=True); os.makedirs(MEDIA, exist_ok=True)
+    os.makedirs(IMAGES, exist_ok=True)
     app = App()
-    tmp = tempfile.mkdtemp(prefix="sv-media-vid-")
     try:
         with sync_playwright() as p:
             exe = os.environ.get("SV_CHROMIUM")
@@ -888,13 +768,12 @@ def main():
                 if a.only and not any(short.startswith(o) or name.startswith(o) for o in a.only):
                     continue
                 try:
-                    fn(b, app, tmp) if name.startswith("vid_") else fn(b, app)
+                    fn(b, app)
                 except Exception as e:                          # one scene failing must not stop the others
                     print("FAILED", name, "-", str(e)[:600])
             b.close()
     finally:
         app.close()
-        shutil.rmtree(tmp, ignore_errors=True)
 
 
 if __name__ == "__main__":

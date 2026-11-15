@@ -220,7 +220,7 @@ export interface Template {
   conditions?: TplCondition[];       // the investigation's conditions: added (by name) when the template opens
   places?: import("./store").Place[];   // P7: the session's places: added (by name and position) when the template opens
   /** D14 (a profile): its run-at-a-glance numbers and its pinned searches - added when the template opens (optional) */
-  glance?: GlanceItem[]; searches?: PinnedSearch[]; instruments?: string[];   // + L5 F4
+  glance?: GlanceItem[]; searches?: PinnedSearch[]; instruments?: string[];   // + F4
   generator?: "quicklook" | "compare" | "objects";   // built-in templates whose tabs are made from the files themselves
   builtin?: boolean; saved?: number; file?: string; broken?: boolean;
 }
@@ -543,7 +543,7 @@ export const api = {
   putSettings: (changes: Record<string, unknown>) => call<{ settings: Record<string, unknown> }>("/api/settings", { changes }, "PUT"),
   putAutosave: (state: unknown) => call<{ ok: boolean }>("/api/autosave", state),
   restore: (runs: unknown[]) => call<{ restored: RunInfo[]; missing: any[] }>("/api/session/restore", { runs }),
-  // --- lane L5 --- F1 / F2 / F3 (svcore/filestruct.py, windowstats.py, runinfo.py)
+  // --- F1 / F2 / F3 (svcore/filestruct.py, windowstats.py, runinfo.py)
   runStructure: (id: string) => call<FileStructure>(`/api/runs/${encodeURIComponent(id)}/structure`),
   windowStats: (signals: string[], t0: number | null, t1: number | null) =>
     call<{ stats: Record<string, WindowStat> }>("/api/stats/window", { signals, t0, t1 }),
@@ -556,10 +556,8 @@ export const api = {
   instruments: (id: string, t: number, names: string[], object: InstrumentObject | null) =>
     call<{ t: number; items: InstrumentValue[]; object: InstrumentState | null }>(`/api/runs/${encodeURIComponent(id)}/instruments`,
       { t, items: names.map((name) => ({ name })), object }),
-  // --- end lane L5 ---
 };
 
-// --- lane L5 ---
 /** F1: one column of "The file" (a signal's samples, mean rate, unit, gaps). */
 export interface FileColumn { name: string; field: string; n: number; rate?: number; gaps?: number; unit?: string; state?: boolean; ownTime?: boolean }
 /** F1: a group - a log's message type, an MCAP topic, a MAT / HDF5 struct, a table's column prefix ("" = the rest). */
@@ -586,7 +584,6 @@ export interface InstrumentValue { name: string; sig: string | null; unit: strin
 export type InstrumentObject = Partial<Record<"roll" | "pitch" | "yaw" | "qw" | "qx" | "qy" | "qz" | "lat" | "lon" | "alt", string>> & { angleUnit?: "deg" | "rad" };
 /** F4: its attitude in degrees, heading 0-360, altitude as stored, ground speed m/s (from positions); age as above. */
 export interface InstrumentState { roll: number | null; pitch: number | null; yaw: number | null; alt: number | null; gs: number | null; age: number | null }
-// --- end lane L5 ---
 
 export type LogLevel = "info" | "warning" | "error";
 export interface LogEvent { t: number; kind: "msg" | "mode" | "event" | "error"; text: string; level: LogLevel }

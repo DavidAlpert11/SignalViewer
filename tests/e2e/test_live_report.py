@@ -117,7 +117,7 @@ def test_live_html_report_with_the_3d_view(pg):
         page.close()
 
 
-# ----------------------------------------------------------------------------- L5 F4: live instruments
+# ----------------------------------------------------------------------------- F4: live instruments
 def _ins_csv(path, t):
     """a rig with a position and an attitude (radians: the Automatic rule), a temperature and a step state"""
     cols = np.column_stack([t, 20 + t, np.full_like(t, np.radians(10)), np.zeros_like(t), np.full_like(t, -1.5708),

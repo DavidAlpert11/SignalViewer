@@ -11,5 +11,5 @@ export const RAIL: { id: PanelId; icon: keyof typeof Icon; key: "data" | "analys
   { id: "compare", icon: "Compare", key: "compare", short: "railCompare" },
   { id: "investigate", icon: "Search", key: "investigate", short: "railInvestigate" },  // investigation step 2: named conditions
   { id: "report", icon: "Report", key: "report", short: "railReport" },
-  { id: "log", icon: "Log", key: "chkTitle", short: "railChecks" },     // L5 D7: Checks for any open file (a log adds its events)
+  { id: "log", icon: "Log", key: "chkTitle", short: "railChecks" },     // D7: Checks for any open file (a log adds its events)
 ];

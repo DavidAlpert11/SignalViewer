@@ -77,7 +77,7 @@ def test_mat_struct_three_levels(pg):
 
 
 def test_quick_chips_and_the_count_for_a_big_file(pg):
-    """D2 (lane L3): the panel head counts the open signals; a big file gets quick chips under the search while it
+    """D2: the panel head counts the open signals; a big file gets quick chips under the search while it
     is in use - the groups the tab uses first - one click filters to that group, a second click shows all again."""
     from test_template_tabs import open_ardupilot_example
     open_ardupilot_example(pg)
@@ -100,7 +100,7 @@ def test_quick_chips_and_the_count_for_a_big_file(pg):
 
 
 def test_pinned_searches_as_chips(pg):
-    """D14 (2) (lane L3): *Pin this search* beside the search box keeps the text as a chip (in the session, with
+    """D14 (2): *Pin this search* beside the search box keeps the text as a chip (in the session, with
     Undo); a click on the chip types it into the search, a second click clears it; its ✕ unpins it."""
     open_files(pg, "three_objects.csv")
     box = pg.locator(".filter input")

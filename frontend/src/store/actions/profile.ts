@@ -1,4 +1,4 @@
-/* L5 D14: profiles - a template's (or the user's) run-at-a-glance numbers and pinned searches in the
+/* D14: profiles - a template's (or the user's) run-at-a-glance numbers and pinned searches in the
    session, through `commit` (Undo). The strip (OverviewStrip) shows `ws.glance`, the signal list
    `ws.searches`; a template carries both (templates.ts: templateFromTabs / applyTemplate). */
 import type { GlanceItem, GlanceStat, PinnedSearch, Workspace } from "../model";
