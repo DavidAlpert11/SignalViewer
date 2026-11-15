@@ -59,6 +59,25 @@ Each failure says how many times the signal left its limits, when first, and the
 Exit code **0** all passed, **1** a check failed, **2** a check could not be made (a missing file,
 signal or state value - never a silent pass). `--junit` writes results CI systems show as tests.
 
+**A test-bench example** (`examples/bench`, also a card on the welcome screen): a pump run recorded as
+Parquet - phases as a state (`Phase`), units, a 0.2 s pressure spike, a 2 s gap and a motor temperature
+that creeps over its limit - with its `checks.json` (one check only while the state is `STEADY`):
+
+```bash
+signalviewer-cli check examples/bench/pump_run_07.parquet --checks examples/bench/checks.json
+```
+
+```
+  FAIL  Motor temperature below 85 °C  - MotorTemp [°C]: 30 time(s) outside, first at 545.980 s; worst 1.277 above hi at 559.740 s
+  FAIL  Pressure below 16 bar  - Pressure [bar]: 1 time(s) outside, first at 412.000 s; worst 5 above hi at 412.000 s
+  PASS  Speed 2850 - 2950 rpm while steady
+  PASS  Vibration below 0.5 g
+2 passed, 2 failed, 0 errors, 0 skipped
+```
+
+2 of the 4 checks fail on purpose, so the exit code is 1 - the way a CI job fails. In the app the same file
+is read in *Checks*: the verdict and the data quality (the gap) as cards.
+
 ## Against a golden run: `compare`
 
 ```bash
