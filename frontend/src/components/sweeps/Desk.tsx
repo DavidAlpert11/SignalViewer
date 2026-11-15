@@ -394,8 +394,8 @@ function BoxPlot({ study, column, group }: { study: Study; column: string; group
   );
 }
 
-/** Correlation as a colour: blue negative, amber positive (the palette's own two). */
-const corrFill = (r: number) => (Number.isFinite(r) ? (r >= 0 ? `rgba(242,169,59,${Math.abs(r) * 0.85})` : `rgba(111,168,255,${Math.abs(r) * 0.85})`) : "transparent");
+/** Correlation as a colour: blue negative, purple positive (the palette's first two; B7: not the cursor's amber). */
+const corrFill = (r: number) => (Number.isFinite(r) ? (r >= 0 ? `rgba(199,155,242,${Math.abs(r) * 0.85})` : `rgba(111,168,255,${Math.abs(r) * 0.85})`) : "transparent");
 
 function Matrix({ study, columns, corr, group }: { study: Study; columns: string[]; corr: "pearson" | "spearman"; group?: string }) {
   const t = useT();

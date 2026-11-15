@@ -17,6 +17,7 @@
 - `tests/e2e/test_study_common.py`, `test_study_loop.py` – C9: *Run them* in the Run column (`.sw-run .rc-send`, disabled without a command), the ranking's head only *Export CSV*; the demo's explanation behind the navigator's About (`[data-nav=about]`) (L2)
 - `tests/e2e/test_sweeps_workspace.py` (`test_one_open_menu_and_each_command_once`), `test_study_common.py` – C10: one Open ▾ (four items, no submenu), the study's Undo in `.areabar`, the palette's Sweeps commands once, the status line (L2)
 - `backend/tests/test_study_report.py` (new), `tests/e2e/test_sweeps_workspace.py` – C10b: the study's report (HTML: the same counts as the panel, a column per table, RTL in Hebrew, no script) and its one menu item (L2)
+- `tests/e2e/test_sweeps_charts.py`, `test_study_demo.py`, `test_sweeps_groups.py` – B7: the Sweeps charts' colours (no assertion changed) (L2)
 - `tests/e2e/test_sweeps_flow.py`, `test_sweeps_data_columns.py` – C7: the table list, merge and export are in the navigator (`.sw-nav`); *Continue with* is a click on a table (`.sw-table-item.used`) (L2)
 
 <!-- 1114 lane L3 -->

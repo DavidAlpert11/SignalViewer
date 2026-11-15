@@ -35,10 +35,11 @@ export function rampOf(name: Cmap = "viridis"): (t: number) => string {
 }
 export const rampCssOf = (name: Cmap = "viridis") => `linear-gradient(90deg, ${(CMAPS[name] ?? STOPS).map((c) => `rgb(${c.join(",")})`).join(", ")})`;
 
-const PALETTE = ["#6fa8ff", "#f2a93b", "#c79bf2", "#4cc38a", "#ef6b73", "#5fd0d6", "#d6b45f", "#9aa8ff", "#f08fc0", "#8bd16b"];
+// B7: the amber moved from 2nd to 6th - amber is the cursor's and time's (as the plots' traces, A1)
+const PALETTE = ["#6fa8ff", "#c79bf2", "#4cc38a", "#ef6b73", "#5fd0d6", "#f2a93b", "#d6b45f", "#9aa8ff", "#f08fc0", "#8bd16b"];
 export const category = (i: number) => (Number.isFinite(i) ? PALETTE[((i % PALETTE.length) + PALETTE.length) % PALETTE.length] : "rgb(128,128,128)");
 
-export const HOLDS = "#f2a93b";
+export const HOLDS = "#2f9e68";   // B7: what holds is the ok green (readable on both themes), not the cursor's amber
 export const FAILS = "#7f8b9a";
 
 /** Columns that are yes / no (1 / 0): coloured as holds / the others, shown as two categories. */

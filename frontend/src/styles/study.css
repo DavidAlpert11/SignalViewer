@@ -40,7 +40,7 @@
 .cp-rank tbody tr:hover { background: var(--panel-2); }
 .cp-rank tr.on { outline: 2px solid var(--select); outline-offset: -2px; }
 .cp-rank tr.cp-no td:not(.cp-cell) { color: var(--muted); }
-.cp-rank tr.cp-pareto td:first-child { color: var(--amber); font-weight: 600; }
+.cp-rank tr.cp-pareto td:first-child { color: var(--select); font-weight: 600; }
 .cp-rank tr.cp-proposed td { color: var(--info); font-style: italic; }
 .cp-cell { font-variant-numeric: tabular-nums; }
 .cp-cell.fail { color: var(--danger); }
@@ -50,7 +50,7 @@
 .cp-runs h3 { margin: 0 0 var(--sp-1); font-size: var(--fs-m); }
 .cp-runs-table { margin-bottom: var(--sp-2); }
 .cp-runs-table .cp-rank-wrap { max-height: 220px; margin-top: var(--sp-1); }
-.cp-deciding td { background: var(--amber-soft); }
+.cp-deciding td { background: var(--warn-soft); }
 
 .cp-space { margin: 0; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--panel); padding: var(--sp-2); }
 .cp-space-axes { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; font-size: var(--fs-s); color: var(--muted); }
@@ -61,15 +61,15 @@
 .cp-axis-name { fill: var(--muted); font-size: 11px; }
 .cp-pt.ok { stroke-width: 1; }
 .cp-pt.no { fill: none; stroke-width: 1.2; opacity: .7; }
-.cp-cand { fill: none; stroke: var(--amber); stroke-width: 1.5; }
-.cp-best { fill: none; stroke: var(--amber); stroke-width: 2.5; }
+.cp-cand { fill: none; stroke: var(--info); stroke-width: 1.5; }
+.cp-best { fill: none; stroke: var(--select); stroke-width: 2.5; }
 .cp-opt { fill: none; stroke: var(--ink-strong); stroke-width: 1.5; stroke-dasharray: 3 3; }
 .cp-space-legend { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); font-size: var(--fs-xs); color: var(--muted); margin-top: var(--sp-1); }
 .cp-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: -1px; border: 1.5px solid var(--info); }
 .cp-dot.ok { background: var(--info); }
-.cp-dot.best { border: 2.5px solid var(--amber); }
+.cp-dot.best { border: 2.5px solid var(--select); }
 .cp-dot.opt { border: 1.5px dashed var(--ink-strong); }
-.cp-dot.cand { border-radius: 1px; transform: rotate(45deg); border-color: var(--amber); }
+.cp-dot.cand { border-radius: 1px; transform: rotate(45deg); border-color: var(--info); }
 
 .dm-body { flex: 1; overflow: auto; padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-3); }
 .dm-strip { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line);
@@ -85,8 +85,8 @@
 .dm-chart figcaption { font-size: var(--fs-s); color: var(--muted); margin-bottom: var(--sp-1); }
 .dm-opt { stroke: var(--ink-strong); stroke-width: 1.2; stroke-dasharray: 5 4; }
 .dm-full line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
-.dm-line { fill: none; stroke: var(--amber); stroke-width: 2; }
-.dm-pt { fill: var(--amber); }
+.dm-line { fill: none; stroke: var(--info); stroke-width: 2; }
+.dm-pt { fill: var(--info); }
 
 /* The loop (owner, 2026-11-13): what runs, the buttons, the live strip, the convergence and the rounds */
 .lp { border: 1px solid var(--line); border-radius: var(--r-l); background: var(--panel); padding: var(--sp-3); margin-bottom: var(--sp-3);
@@ -125,7 +125,7 @@
 .sw-ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--sp-3); text-align: start; }
 .sw-way { display: flex; flex-direction: column; gap: var(--sp-1); padding: var(--sp-4); background: var(--panel); border: 1px solid var(--line);
   border-inline-start: 4px solid var(--focus); border-radius: var(--r-l); box-shadow: var(--shadow-sm); }
-.sw-way.sw-mode-many { border-inline-start-color: var(--amber); }
+.sw-way.sw-mode-many { border-inline-start-color: var(--select); }
 .sw-way h2 { margin: 0; font-size: var(--fs-l); color: var(--ink-strong); }
 .sw-way > .hint { margin: 0; flex: 1; line-height: 1.45; }
 .sw-way .sw-welcome-actions { flex-wrap: wrap; justify-content: flex-start; margin-top: var(--sp-2); }

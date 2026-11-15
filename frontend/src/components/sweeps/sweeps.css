@@ -3,7 +3,7 @@
 :root {
   --sw-param: var(--ink-strong);
   --sw-hold: var(--focus);
-  --sw-output: var(--amber);
+  --sw-output: var(--warn);   /* TODO(L1 token): a role colour for outputs (amber is the cursor's, B7) */
   --sw-ok: var(--ok);
   --sw-bad: var(--danger);
 }
@@ -12,7 +12,7 @@
 .sw-welcome { display: grid; place-items: center; padding: 24px; overflow: auto; background: var(--bg); }
 .sw-welcome-actions { display: flex; gap: 8px; justify-content: center; margin-top: 18px; }
 .sw-error { color: var(--sw-bad); margin: 8px 0 0; }
-.sw-warn { color: var(--amber); margin: 0; }
+.sw-warn { color: var(--warn); margin: 0; }
 
 /* layout: question | plot and table | one set */
 .sw-study { position: relative; display: grid; min-height: 0; background: var(--bg); }      /* its columns: StudyView (widths dragged) */
@@ -52,7 +52,7 @@
 .sw-answer-n span { font-size: 0.923rem; font-weight: 400; color: var(--muted); }
 .sw-hide-box { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 .sw-col-name { font-weight: 500; color: var(--ink-strong); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sw-changed { color: var(--amber); }
+.sw-changed { color: var(--info); }
 
 /* the plot */
 .sw-plotbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -70,7 +70,7 @@
 .pp-axis-name { unicode-bidi: plaintext; position: absolute; top: 8px; transform: translateX(-50%); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   padding: 2px 6px; border: 1px solid transparent; border-radius: 5px; background: none; color: var(--ink); font: inherit; font-size: 0.8rem; cursor: pointer; }
 .pp-axis-name:hover { border-color: var(--line-strong); background: var(--panel); }
-.pp-axis-name.filtered { color: var(--amber); }
+.pp-axis-name.filtered { color: var(--select); }
 .pp-tip { position: absolute; z-index: 5; box-sizing: border-box; padding: 8px 10px; background: var(--raised); border: 1px solid var(--line-strong); border-radius: 8px;
   box-shadow: var(--shadow); font-size: 0.8rem; pointer-events: none; display: grid; grid-auto-flow: column;
   gap: 2px 16px; overflow: hidden; }
@@ -118,9 +118,9 @@
 /* the shape of the study (Columns) */
 .sw-shape { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
 .sw-stat { padding: 7px 9px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
-.sw-stat.warn { border-color: var(--amber); }
+.sw-stat.warn { border-color: var(--warn); }
 .sw-stat-value { font-size: 1.2rem; font-weight: 600; color: var(--ink-strong); }
-.sw-stat.warn .sw-stat-value { color: var(--amber); }
+.sw-stat.warn .sw-stat-value { color: var(--warn); }
 .sw-stat-label { color: var(--muted); font-size: 0.769rem; line-height: 1.2; }
 
 /* the welcome's sample table */
@@ -136,7 +136,7 @@
 /* the middle's tabs */
 .sw-center-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .sw-center-tabs button { height: 32px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); font: inherit; cursor: pointer; }
-.sw-center-tabs button.on { color: var(--ink-strong); border-bottom-color: var(--amber); font-weight: 600; }
+.sw-center-tabs button.on { color: var(--ink-strong); border-bottom-color: var(--select); font-weight: 600; }
 .sw-ax { fill: var(--muted); font-size: 10px; }
 .sw-ax-title { fill: var(--ink); font-size: 11px; }
 
@@ -159,8 +159,8 @@
 .sw-scatter canvas { background: var(--plot-bg); border: 1px solid var(--line); border-radius: 8px; }
 
 /* banners over the middle: the file changed, a template fits, nothing to ask yet */
-.sw-banner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--amber);
-  border-radius: 8px; background: color-mix(in srgb, var(--amber) 10%, var(--panel)); }
+.sw-banner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--warn);
+  border-radius: 8px; background: var(--warn-soft); }
 .sw-banner .btn { height: 28px; }
 .sw-templates { height: 28px; max-width: 170px; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 6px; }
 
@@ -169,7 +169,7 @@
   background: none; color: var(--ink); font: inherit; font-size: 0.846rem; cursor: pointer; white-space: nowrap; }
 .sw-colour-key:hover { border-color: var(--line-strong); }
 .pp-axis-name { touch-action: none; }
-.pp-axis-name.dragging { z-index: 3; border-color: var(--amber); background: var(--panel); cursor: grabbing; }
+.pp-axis-name.dragging { z-index: 3; border-color: var(--select); background: var(--panel); cursor: grabbing; }
 /* the plot's bar wraps onto a second line in a narrow window (scrolling sideways, its scrollbar
    covered the buttons) */
 .sw-plotbar { flex-wrap: wrap; row-gap: 6px; }
@@ -180,7 +180,7 @@
 .sw-report-body { display: flex; flex-direction: column; gap: 12px; }
 .sw-report-formats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .sw-report-format { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
-.sw-report-format.on { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 8%, transparent); }
+.sw-report-format.on { border-color: var(--select); background: var(--select-soft); }
 .sw-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.846rem; color: var(--muted); }
 .sw-field input, .sw-field textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 8px; }
 .sw-report-inc { display: flex; flex-wrap: wrap; gap: 6px 14px; }
@@ -194,11 +194,11 @@
 .sw-step-btn { display: flex; align-items: center; gap: 8px; flex: 1 1 0; min-width: 96px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px;
   background: var(--bg); color: var(--ink); font: inherit; text-align: start; cursor: pointer; }
 .sw-step-btn:hover { border-color: var(--line-strong); }
-.sw-step-btn.on { border-color: var(--amber); box-shadow: inset 0 -2px 0 var(--amber); }
+.sw-step-btn.on { border-color: var(--select); box-shadow: inset 0 -2px 0 var(--select); }
 .sw-step-n { width: 22px; height: 22px; flex: none; border-radius: 11px; display: grid; place-items: center; font-size: 0.8rem; font-weight: 600;
   background: var(--line); color: var(--ink); }
-.sw-step-btn.on .sw-step-n { background: var(--amber); color: var(--amber-ink); }
-.sw-step-btn.done .sw-step-n { background: color-mix(in srgb, var(--amber) 35%, var(--line)); }
+.sw-step-btn.on .sw-step-n { background: var(--select); color: var(--select-ink); }
+.sw-step-btn.done .sw-step-n { background: color-mix(in srgb, var(--select) 35%, var(--line)); }
 .sw-step-txt { display: flex; flex-direction: column; min-width: 0; }
 .sw-step-txt b { font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sw-step-txt span { font-size: 0.769rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -214,12 +214,12 @@
 .sw-raw { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 .sw-table th { cursor: default; }
 .sw-raw .sw-table th { cursor: pointer; }
-.sw-warn-txt { color: var(--amber); }
+.sw-warn-txt { color: var(--warn); }
 .sw-roles td.sw-radio, .sw-roles th { text-align: center; }
 .sw-roles td.sw-col-name, .sw-roles th:first-child { text-align: start; }
 .sw-goal-tabs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .sw-goal-tabs button[role="tab"] { height: 28px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 14px; background: none; color: var(--ink); font: inherit; cursor: pointer; }
-.sw-goal-tabs button[role="tab"].on { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); font-weight: 600; }
+.sw-goal-tabs button[role="tab"].on { border-color: var(--select); background: var(--select-soft); font-weight: 600; }
 .sw-goal-part { display: flex; flex-direction: column; gap: 6px; }
 .sw-goal-part h3 { margin: 0; font-size: 0.923rem; color: var(--ink-strong); }
 .sw-andor { margin: 2px auto; }
@@ -234,7 +234,7 @@
 .sw-tag-x { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 2px; font-size: 1rem; line-height: 1; }
 .sw-tag-x:hover { color: var(--danger); }
 .sw-goal-tab { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: 14px; padding-inline-end: 4px; }
-.sw-goal-tab.on { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
+.sw-goal-tab.on { border-color: var(--select); background: var(--select-soft); }
 .sw-goal-tab button[role="tab"] { height: 26px; padding: 0 4px 0 10px; border: 0; background: none; color: var(--ink); font: inherit; cursor: pointer; }
 .sw-goal-tab.on button[role="tab"] { font-weight: 600; }
 .sw-close-table { align-self: flex-start; }
@@ -293,7 +293,7 @@
 .sw-robust-name { flex: 1; min-width: 80px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sw-kind.off { opacity: .55; }
 .sw-mark-off { font-size: 11px; opacity: .75; }
-.sw-table td.sw-moved { font-weight: 600; color: var(--amber); }
+.sw-table td.sw-moved { font-weight: 600; color: var(--info); }
 
 /* the templates dialog (S07) */
 .sw-tpl { width: min(620px, 94vw); }
@@ -335,11 +335,11 @@
 
 /* a rectangle dragged on a point plot (S19) */
 .sw-scatter-box { position: relative; width: 100%; cursor: crosshair; touch-action: none; user-select: none; }
-.sw-brush { position: absolute; border: 1.5px dashed var(--amber); background: color-mix(in srgb, var(--amber) 12%, transparent); pointer-events: none; }
+.sw-brush { position: absolute; border: 1.5px dashed var(--select); background: var(--select-soft); pointer-events: none; }
 
 /* under a plot wider than the screen (S13): where the view is, and a slider that moves it */
 .pp-slider { display: flex; align-items: center; gap: 10px; margin-top: 4px; direction: ltr; }
-.pp-slider input[type="range"] { flex: 1; accent-color: var(--amber); }
+.pp-slider input[type="range"] { flex: 1; accent-color: var(--select); }
 .pp-slider-at { font-size: .78rem; color: var(--muted); white-space: nowrap; unicode-bidi: plaintext; }
 
 /* the axes taken off lately (S15) */
@@ -378,9 +378,9 @@
 .sw-group-n { font-variant-numeric: tabular-nums; color: var(--muted); }
 .sw-group-edit { flex: 1; min-width: 0; }
 /* the status stripe on the row's start edge (RTL follows) */
-.sw-sets-table tr.status-fails td.st-0 { box-shadow: inset 3px 0 0 var(--amber); }
+.sw-sets-table tr.status-fails td.st-0 { box-shadow: inset 3px 0 0 var(--warn); }
 .sw-sets-table tr.status-error td.st-0 { box-shadow: inset 3px 0 0 var(--danger); }
-[dir="rtl"] .sw-sets-table tr.status-fails td.st-0 { box-shadow: inset -3px 0 0 var(--amber); }
+[dir="rtl"] .sw-sets-table tr.status-fails td.st-0 { box-shadow: inset -3px 0 0 var(--warn); }
 [dir="rtl"] .sw-sets-table tr.status-error td.st-0 { box-shadow: inset -3px 0 0 var(--danger); }
 .sw-sets-table tr.status-virtual td { font-style: italic; color: var(--focus); }
 .sw-chips { white-space: nowrap; }
@@ -416,7 +416,7 @@
 .sw-broken-bar { height: 10px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
 .sw-broken-bar i { display: block; height: 100%; background: var(--danger); }
 .sw-broken-n { color: var(--muted); font-variant-numeric: tabular-nums; }
-.sw-compare-sets tr.differs td { color: var(--amber); font-weight: 600; }
+.sw-compare-sets tr.differs td { color: var(--info); font-weight: 600; }
 .sw-compare-sets th { text-align: start; }
 
 /* M23: three areas, the steps of the area under them */
@@ -451,7 +451,7 @@
 .sw-goals-center { overflow: auto; }
 
 /* classes made from a value (sw-mark-<kind>, sw-th-<role>...) */
-.sw-mark-edge { fill: #f2a93b; color: #f2a93b; } .sw-mark-best { fill: #6fa8ff; color: #6fa8ff; } .sw-mark-disagree { fill: #c79bf2; color: #c79bf2; }
+.sw-mark-edge { fill: var(--warn); color: var(--warn); } .sw-mark-best { fill: #6fa8ff; color: #6fa8ff; } .sw-mark-disagree { fill: #c79bf2; color: #c79bf2; }
 .sw-mark-gaps { fill: var(--ink); color: var(--ink); } .sw-mark-missing { fill: var(--muted); color: var(--muted); }
 .sw-th-id, .sw-th-recording { color: var(--muted); }
 .sw-mark-robust { fill: #4fc3a1; color: #4fc3a1; }
@@ -503,8 +503,8 @@
 .sw-menu button:hover { background: var(--panel-2); }
 .sw-shape-bar { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
 .sw-roles tr.sw-unused td { color: var(--muted); opacity: 0.6; }
-.sw-roles tr.sw-to-check td:first-child { box-shadow: inset 3px 0 0 var(--amber), inset -1px 0 0 var(--line); }
-.sw-roles tr.sw-to-check { background: color-mix(in srgb, var(--amber) 9%, transparent); }
+.sw-roles tr.sw-to-check td:first-child { box-shadow: inset 3px 0 0 var(--warn), inset -1px 0 0 var(--line); }
+.sw-roles tr.sw-to-check { background: var(--warn-soft); }
 .sw-ident-kind { margin-inline-start: 4px; font-size: 0.8rem; }
 .sw-fold { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: var(--bg); display: flex; flex-direction: column; gap: 6px; }
 .sw-fold > summary { cursor: pointer; padding: 2px 0; }
@@ -546,7 +546,7 @@
 /* the Goal step: several rows edited together, a new column, the column search */
 .sw-goal-table td.sw-pickable { cursor: pointer; user-select: none; }
 .sw-goal-table tr.sw-sel td { background: color-mix(in srgb, var(--focus) 14%, transparent); }
-.sw-new { margin-inline-start: 6px; padding: 0 5px; border-radius: 8px; font-size: 0.7rem; font-weight: 600; color: var(--bg); background: var(--amber); cursor: pointer; }
+.sw-new { margin-inline-start: 6px; padding: 0 5px; border-radius: 8px; font-size: 0.7rem; font-weight: 600; color: var(--bg); background: var(--info); cursor: pointer; }
 .sw-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 10px; border: 1px solid var(--focus); border-radius: 8px; background: var(--panel); }
 .sw-bulk label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 0.846rem; }
 .sw-bulk .sw-limit-in { width: 6em; }

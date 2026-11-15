@@ -76,6 +76,7 @@ export function ScatterPanel({ study, pair, onChange, onRemove, group, objective
     ctx.clearRect(0, 0, W, H);
     const css = getComputedStyle(c), muted = css.getPropertyValue("--muted").trim() || "#888";
     const line = css.getPropertyValue("--line").trim() || "#ccc";
+    const sel = css.getPropertyValue("--select").trim() || "#888";        // B7: the balanced choice in the selection ink, not amber
     const sx = makeScale(xc, scaleOf(study, xc.name, xc)), sy = makeScale(yc, scaleOf(study, yc.name, yc));
     const px = (val: number) => L + sx.norm(val) * (W - L - R), py = (val: number) => H - B - sy.norm(val) * (H - B - T);
     const gx = (f: number) => L + f * (W - L - R), gy = (f: number) => H - B - f * (H - B - T);
@@ -146,13 +147,13 @@ export function ScatterPanel({ study, pair, onChange, onRemove, group, objective
         if (knee.values[r] !== 1) continue;
         const X = px(xc.values[r]), Y = py(yc.values[r]);
         if (!Number.isFinite(X) || !Number.isFinite(Y)) continue;
-        ctx.fillStyle = "#f2a93b"; ctx.beginPath();
+        ctx.fillStyle = sel; ctx.beginPath();
         for (let k = 0; k < 10; k++) {
           const a = -Math.PI / 2 + (k * Math.PI) / 5, rr = k % 2 ? 4 : 10;
           (k ? ctx.lineTo : ctx.moveTo).call(ctx, X + rr * Math.cos(a), Y + rr * Math.sin(a));
         }
         ctx.closePath(); ctx.fill();
-        ctx.font = "12px 'IBM Plex Sans', sans-serif"; ctx.textAlign = "left"; ctx.fillStyle = "#f2a93b";
+        ctx.font = "12px 'IBM Plex Sans', sans-serif"; ctx.textAlign = "left"; ctx.fillStyle = sel;
         ctx.fillText(t("swKnee"), X + 12, Y - 8);
       }
     }

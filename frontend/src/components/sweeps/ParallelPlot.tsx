@@ -150,6 +150,7 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     const ink = css.getPropertyValue("--ink").trim() || "#ccc";
     const muted = css.getPropertyValue("--muted").trim() || "#888";
     const line = css.getPropertyValue("--line-strong").trim() || "#444";
+    const sel = css.getPropertyValue("--select").trim() || ink, selSoft = css.getPropertyValue("--select-soft").trim() || "rgba(128,128,128,.2)";
     const xs = p.axes.map((_, i) => axisX(i));
     const path = (r: number) => { ctx.moveTo(xs[0], ys[0][r]); for (let i = 1; i < xs.length; i++) ctx.lineTo(xs[i], ys[i][r]); };
     // the lines left out: faint, under the rest (skipped when there are very many)
@@ -199,7 +200,7 @@ export default function ParallelPlot(p: ParallelPlotProps) {
       ctx.fillText("–", x, missingY);                                    // the band of missing values
       const f = p.filters[a];
       if (hasFilter(f)) {
-        ctx.fillStyle = "rgba(242,169,59,.22)"; ctx.strokeStyle = "#f2a93b"; ctx.lineWidth = 1;
+        ctx.fillStyle = selSoft; ctx.strokeStyle = sel; ctx.lineWidth = 1;          // a filter is a selection (B7: not amber)
         const span = (y0: number, y1: number) => { ctx.fillRect(x - 6, Math.min(y0, y1), 12, Math.abs(y1 - y0) || 2); ctx.strokeRect(x - 6, Math.min(y0, y1), 12, Math.abs(y1 - y0) || 2); };
         if (f!.kind === "ranges") for (const [lo, hi] of f!.ranges) span(PAD_TOP + (1 - sc.norm(lo)) * plotH, PAD_TOP + (1 - sc.norm(hi)) * plotH);
         else for (const v of f!.values) { const ty = PAD_TOP + (1 - sc.norm(v)) * plotH; span(ty - 5, ty + 5); }
