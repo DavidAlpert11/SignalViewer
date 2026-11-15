@@ -5,7 +5,9 @@ picture where the browser has no WebGL).
     python -m pytest tests/e2e/test_live_report.py -q
 """
 import os
+import sys
 
+import numpy as np
 import pytest
 
 pw = pytest.importorskip("playwright.sync_api")
@@ -113,3 +115,87 @@ def test_live_html_report_with_the_3d_view(pg):
         assert fr.locator("#cam button").all_inner_texts()[:3] == ["Free", "Around it", "Behind it"]   # (+ Cockpit in 3D, P9; M6 names)
     finally:
         page.close()
+
+
+# ----------------------------------------------------------------------------- L5 F4: live instruments
+def _ins_csv(path, t):
+    """a rig with a position and an attitude (radians: the Automatic rule), a temperature and a step state"""
+    cols = np.column_stack([t, 20 + t, np.full_like(t, np.radians(10)), np.zeros_like(t), np.full_like(t, -1.5708),
+                            32 + t * 2 / 111195.0, np.full_like(t, 35.0), 100 + t, (t > 5).astype(int)])
+    np.savetxt(path, cols, delimiter=",", header="Time,Engine.Temp [degC],roll,pitch,yaw,lat,lon,alt,Step", comments="", fmt="%.9g")
+
+
+def _open_instruments(pg):
+    pg.locator(".rail button[aria-label='Checks']").click()
+    pg.locator("aside.log-panel .log-tabs [data-tab=instruments]").click()
+    pg.wait_for_selector("aside.log-panel .instruments")
+
+
+def _tile(pg, name):
+    return pg.locator(f"aside.log-panel .ins-tile[data-name='{name}']")
+
+
+def test_instruments_on_a_recording(pg):
+    _ins_csv(os.path.join(pg.env["data"], "rig.csv"), np.arange(0, 10, 0.5))
+    open_files(pg, "rig.csv")
+    _open_instruments(pg)
+    panel = pg.locator("aside.log-panel .instruments")
+    assert panel.locator(".empty-state").count() == 1                       # no profile: says what to do
+    # the attitude of the object the map would draw (detected), in degrees, heading 0-360
+    att = panel.locator(".ins-att")
+    att.wait_for()
+    assert abs(float(att.get_attribute("data-roll")) - 10) < 1e-3 and abs(float(att.get_attribute("data-yaw")) - 270) < 1e-2
+    panel.locator(".ins-add select").select_option("Engine.Temp [degC]")
+    panel.locator(".ins-add select").select_option("Step")
+    pg.wait_for_function("(window.__sv.state().ws.instruments || []).length === 2")
+    # the value in force at the time (never interpolated): at 3.2 s the 3.0 s sample
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, t1: 3.2 } })")
+    pg.wait_for_function("document.querySelector(\".ins-tile[data-name='Engine.Temp [degC]']\").dataset.value === '23'")
+    assert "degC" in _tile(pg, "Engine.Temp [degC]").inner_text()
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, t1: 7 } })")
+    pg.wait_for_function("document.querySelector(\".ins-tile[data-name='Step']\").dataset.value === '1'")
+    # remove = one Undo step
+    _tile(pg, "Step").hover()
+    _tile(pg, "Step").locator(".ins-x").click()
+    pg.wait_for_function("window.__sv.state().ws.instruments.length === 1")
+    pg.keyboard.press("Control+z")
+    pg.wait_for_function("window.__sv.state().ws.instruments.length === 2")
+
+
+def test_instruments_follow_a_live_file(pg):
+    src = os.path.join(pg.env["data"], "growing.csv")
+    _ins_csv(src, np.arange(0, 3, 0.5))
+    open_files(pg, "growing.csv")
+    pg.evaluate("window.__sv.state().commit((ws) => { ws.instruments = ['Oil.Temp|Engine.Temp', 'Nope']; return ws; })")
+    _open_instruments(pg)
+    assert "Not in this file" in _tile(pg, "Nope").inner_text()            # said, not hidden
+    pg.click(".live-btn")
+    pg.wait_for_function("window.__sv.state().streaming === true")
+    assert pg.locator("aside.log-panel .instruments[data-live='1']").count() == 1
+    with open(src, "a") as fh:
+        for t in (3.0, 3.5, 4.0):
+            fh.write(f"{t},{20 + t},0.1745,0,-1.5708,32,35,{100 + t},0\n")
+    # the time stays at the newest data: the tile shows the last row's value
+    pg.wait_for_function("document.querySelector(\".ins-tile[data-name='Oil.Temp|Engine.Temp']\").dataset.value === '24'", timeout=15000)
+    pg.click(".live-btn")
+    pg.wait_for_function("window.__sv.state().streaming === false")
+
+
+def test_instruments_for_data_sent_from_python(pg):
+    import time
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
+    from signalviewer import push_client
+    home = pg.env["home"]
+    for _ in range(50):                                       # run.py writes push.json after start
+        if os.path.isfile(os.path.join(home, ".signalviewer", "push.json")):
+            break
+        time.sleep(0.1)
+    t = np.linspace(0, 20, 401)
+    push_client.show(t, {"altitude": 100 + 5 * t}, name="sim run", home=home)
+    pg.wait_for_function("window.__sv.state().runs.length === 1")
+    pg.evaluate("window.__sv.state().commit((ws) => { ws.instruments = ['altitude']; return ws; })")
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: false } })")
+    _open_instruments(pg)
+    pg.wait_for_function("document.querySelector(\".ins-tile[data-name='altitude']\")?.dataset.value === '200'")   # the newest
+    push_client.show(t * 2, {"altitude": 300 + 5 * t}, name="sim run", home=home)       # sent again, longer
+    pg.wait_for_function("document.querySelector(\".ins-tile[data-name='altitude']\")?.dataset.value === '400'", timeout=15000)

@@ -3,7 +3,7 @@
 import asyncio
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -123,3 +123,121 @@ def mavlink_ports():
 def mavlink_status():
     rx = MAVLINK["rx"]
     return rx.status() if rx is not None else {"running": False}
+
+
+# ----------------------------------------------------------------------------- L5 F4: live instruments
+class InstrumentItem(BaseModel):
+    name: str                      # a signal NAME ("a|b": a, else b), as a profile's at-a-glance numbers
+
+
+class InstrumentObject(BaseModel):
+    """The object the map would draw for this run (objectDetect's picks): signal ids, all optional."""
+    roll: Optional[str] = None
+    pitch: Optional[str] = None
+    yaw: Optional[str] = None
+    qw: Optional[str] = None
+    qx: Optional[str] = None
+    qy: Optional[str] = None
+    qz: Optional[str] = None
+    lat: Optional[str] = None
+    lon: Optional[str] = None
+    alt: Optional[str] = None
+    angleUnit: Optional[str] = None    # "deg" / "rad"; else the app's Automatic rule
+
+
+class InstrumentsRequest(BaseModel):
+    t: float                       # the time shown (offsets applied): the cursor, or the newest data while live
+    items: List[InstrumentItem] = []
+    object: Optional[InstrumentObject] = None
+
+
+@router.post("/api/runs/{run_id}/instruments")
+def run_instruments(run_id: str, req: InstrumentsRequest):
+    """F4: each tile's value in force at t (the last sample at or before it, never interpolated) and how old
+    it is; the attitude (degrees), heading (0-360), altitude and ground speed of the run's object. A name the
+    file does not have comes back with sig None - the view says so instead of hiding the tile."""
+    import numpy as np
+
+    from svcore import templates as tplm
+    from svcore.instruments import ground_speed, last_sample, quat_to_euler, typical_step
+    from svcore.naming import without_unit
+    from svcore.objcompare import angle_units
+    try:
+        lr = store.get(run_id)
+    except KeyError:
+        fail(404, "File is not open.")
+    ix = tplm.index_of({"id": run_id, "signals": [{"name": n} for n in lr.run.signals]})
+
+    def at(sid: str) -> Optional[Tuple[float, float]]:
+        t, y, off = store.signal_parts(sid)
+        hit = last_sample(t, y, req.t - off)
+        return None if hit is None else (hit[0], hit[1] + off)
+
+    items = []
+    for it in req.items:
+        name = ix.match(it.name)
+        row: Dict[str, Any] = {"name": it.name, "sig": None, "unit": None, "value": None, "text": None, "at": None, "age": None,
+                               "state": False, "step": None}
+        if name is not None:
+            sid = f"{run_id}/{name}"
+            unit = name[len(without_unit(name)):].strip().strip("[]")
+            row.update(sig=sid, unit=unit or None, state=store.is_state(sid))
+            hit = at(sid)
+            if hit is not None:
+                t_raw, _y, off = store.signal_parts(sid)
+                row.update(value=hit[0], at=hit[1], age=max(0.0, req.t - hit[1]), step=typical_step(t_raw, req.t - off))
+                labels = store.labels(sid)
+                if labels:
+                    row["text"] = labels.get(int(hit[0]))
+        items.append(row)
+
+    obj: Optional[Dict[str, Any]] = None
+    o = req.object
+    if o is not None:
+        obj = {"roll": None, "pitch": None, "yaw": None, "alt": None, "gs": None, "age": None}
+        raw = {}
+        for role in ("roll", "pitch", "yaw"):
+            sid = getattr(o, role)
+            if sid:
+                try:
+                    raw[role] = (sid, *store.signal(sid))
+                except KeyError:
+                    continue
+        units = angle_units(raw)
+        newest: Optional[float] = None
+        for role, (sid, _ts, _vs) in raw.items():
+            hit = at(sid)
+            if hit is None:
+                continue
+            unit = o.angleUnit if o.angleUnit in ("deg", "rad") else units[role][0]
+            obj[role] = float(np.degrees(hit[0])) if unit == "rad" else hit[0]
+            newest = hit[1] if newest is None else max(newest, hit[1])
+        if all(getattr(o, q) for q in ("qw", "qx", "qy", "qz")) and any(obj[r] is None for r in ("roll", "pitch", "yaw")):
+            try:
+                hits = [at(getattr(o, q)) for q in ("qw", "qx", "qy", "qz")]
+            except KeyError:
+                hits = []
+            if hits and all(h is not None for h in hits):
+                e = quat_to_euler(*(h[0] for h in hits if h is not None))
+                for role, v in (e or {}).items():
+                    if obj[role] is None:
+                        obj[role] = v
+                newest = max(h[1] for h in hits if h is not None)
+        if obj["yaw"] is not None:
+            obj["yaw"] = obj["yaw"] % 360.0           # a heading, 0-360
+        if o.alt:
+            try:
+                hit = at(o.alt)
+                obj["alt"] = None if hit is None else hit[0]
+            except KeyError:
+                pass
+        if o.lat and o.lon:
+            try:
+                tl, la = store.signal(o.lat)
+                tn, ln = store.signal(o.lon)
+                if len(tl) == len(tn):            # one clock (a log's message, a CSV's rows)
+                    obj["gs"] = ground_speed(tl, la, ln, req.t)
+            except KeyError:
+                pass
+        obj["age"] = None if newest is None else max(0.0, req.t - newest)
+    return {"t": req.t, "items": items, "object": obj}

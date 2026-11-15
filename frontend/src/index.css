@@ -1007,6 +1007,7 @@ body.resizing { cursor: col-resize; user-select: none; }
 .popover .hint { margin: 0; }
 .popover label { display: flex; flex-direction: column; gap: var(--sp-1); color: var(--muted); font-size: var(--fs-m); }
 .popover select { height: 28px; }
+.popover label > select, .popover label > input { color: var(--ink); }   /* L5 D9: the value is what was chosen, not a muted hint (the label is muted) */
 .live-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--line-strong); }
 .live-dot.on { background: var(--ok); box-shadow: 0 0 0 3px rgba(63, 185, 80, .25); animation: live-pulse 1.4s ease-in-out infinite; }
 .status .live.on { color: var(--ok); }

@@ -49,3 +49,19 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 .r-summary { margin-top: var(--sp-3); }
 .r-preview { flex: 0 0 auto; }
 .r-htmlhint { font-size: var(--fs-m); margin: var(--sp-1_5) 0 var(--sp-2_5); }
+
+/* L5 F4 live instruments - in the Checks panel; tiles are index.css's .card + .kpi */
+.instruments { display: flex; flex-direction: column; gap: var(--sp-2); min-height: 0; flex: 1; overflow: auto;
+  padding: 0 var(--sp-3) var(--sp-3); }
+.instruments .ins-when { display: flex; align-items: center; gap: var(--sp-1); }
+.instruments .ins-att { display: flex; justify-content: center; direction: ltr; }   /* the canvas's text (-158) as drawn, in Hebrew too */
+.instruments .ins-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
+.instruments .ins-tile-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-1); min-width: 0; }
+.instruments .ins-tile-head { align-items: flex-start; }
+.instruments .ins-tile-head .kpi-label { overflow-wrap: anywhere; }   /* the whole name: GPS[0].Spd and GPS[0].Status differ at the end */
+.instruments .ins-x { opacity: 0; }
+.instruments .ins-tile:hover .ins-x, .instruments .ins-x:focus-visible { opacity: 1; }
+.instruments .ins-read { align-self: flex-start; }   /* "8 m/s" reads left to right in Hebrew too */
+.instruments .ins-missing { opacity: .7; }
+.instruments .ins-add select { width: 100%; }
+.instruments .empty-state { padding-inline: 0; }

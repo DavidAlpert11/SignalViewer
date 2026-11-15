@@ -163,6 +163,9 @@ export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta
    *  searches - by signal NAME, so they hold in the next file; travel with a template. Absent = none. */
   glance?: GlanceItem[];
   searches?: PinnedSearch[];
+  /** L5 F4: the live instruments' tiles - signal NAMES ("a|b" alternatives), shown as the value in force at the
+   *  time; travel with a template. Absent = the profile's at-a-glance names. */
+  instruments?: string[];
 }
 /** L5 D14: a number of the whole run - a signal by name ("a|b" alternatives) and a statistic; `label` is the
  *  profile's ("@key" translated) - absent: "<stat> <name>". `mean` is the plain mean of the samples. */

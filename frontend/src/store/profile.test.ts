@@ -1,7 +1,7 @@
 // L5 D14: profiles - the at-a-glance numbers and pinned searches in the session (Undo), merged from templates
 import { beforeEach, describe, expect, test } from "vitest";
 import { actions, useApp } from "../store";
-import { GLANCE_MAX, mergeProfile, profileOf } from "./actions/profile";
+import { GLANCE_MAX, INSTRUMENTS_MAX, mergeProfile, profileOf } from "./actions/profile";
 import { glanceLabel, templateFromTabs } from "../templates";
 import { reset, run } from "../test/fixtures";
 import { en } from "../i18n/templates";
@@ -61,5 +61,22 @@ describe("profiles", () => {
     const labels = (builtins as { glance?: { label?: string }[] }[]).flatMap((t) => t.glance ?? []).map((g) => g.label).filter(Boolean) as string[];
     expect(labels.length).toBeGreaterThan(10);
     for (const l of labels) expect(en).toHaveProperty(l.slice(1));
+  });
+
+  test("F4 instruments: the profile's names until the first change, then the session's own (Undo), kept with a template", () => {
+    const shown = ["CTUN.Alt|BARO.Alt", "GPS.Spd"];
+    expect(actions.addInstrument("Speed", shown)).toBe(true);
+    expect(ws().instruments).toEqual([...shown, "Speed"]);           // nothing shown disappears
+    expect(actions.addInstrument("Speed", ws().instruments!)).toBe(false);
+    actions.removeInstrument("GPS.Spd", ws().instruments!);
+    expect(ws().instruments).toEqual(["CTUN.Alt|BARO.Alt", "Speed"]);
+    useApp.getState().undo();
+    expect(ws().instruments).toEqual([...shown, "Speed"]);
+    expect(profileOf(ws()).instruments).toEqual([...shown, "Speed"]);
+    const w = structuredClone(ws());
+    delete w.instruments;
+    mergeProfile(w, [{ instruments: Array.from({ length: 12 }, (_x, i) => `S${i}`) }]);
+    expect(w.instruments).toHaveLength(INSTRUMENTS_MAX);
+    expect(profileOf({ ...w, instruments: [] }).instruments).toBeUndefined();   // an empty list is not saved
   });
 });

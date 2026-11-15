@@ -220,7 +220,7 @@ export interface Template {
   conditions?: TplCondition[];       // the investigation's conditions: added (by name) when the template opens
   places?: import("./store").Place[];   // P7: the session's places: added (by name and position) when the template opens
   /** D14 (a profile): its run-at-a-glance numbers and its pinned searches - added when the template opens (optional) */
-  glance?: GlanceItem[]; searches?: PinnedSearch[];
+  glance?: GlanceItem[]; searches?: PinnedSearch[]; instruments?: string[];   // + L5 F4
   generator?: "quicklook" | "compare" | "objects";   // built-in templates whose tabs are made from the files themselves
   builtin?: boolean; saved?: number; file?: string; broken?: boolean;
 }
@@ -552,6 +552,10 @@ export const api = {
   /** D14: the run-at-a-glance numbers (a profile's / pinned), by signal NAME over the whole run */
   glance: (id: string, items: GlanceItem[]) =>
     call<{ items: GlanceValue[] }>(`/api/runs/${encodeURIComponent(id)}/glance`, { items: items.map(({ name, stat }) => ({ name, stat })) }),
+  /** F4: the live instruments - each name's value in force at t (never interpolated) and the object's attitude */
+  instruments: (id: string, t: number, names: string[], object: InstrumentObject | null) =>
+    call<{ t: number; items: InstrumentValue[]; object: InstrumentState | null }>(`/api/runs/${encodeURIComponent(id)}/instruments`,
+      { t, items: names.map((name) => ({ name })), object }),
   // --- end lane L5 ---
 };
 
@@ -573,6 +577,15 @@ export interface ParamDiff { differ: { name: string; a: number | string; b: numb
 /** D14: one at-a-glance number of a run. sig null: the file has no such signal (say so, do not hide it);
  *  value null: no finite sample, or a state. In the signal's own unit; t = where it is reached (shown time). */
 export interface GlanceValue { name: string; stat: GlanceStat; sig: string | null; value: number | null; t: number | null; unit: string | null }
+/** F4: a tile's reading. sig null: the file has no such signal; value null: no sample at or before t; text: a
+ *  state's label; at: the sample's time (shown time), age = t - at (how long since the source sent it); step: the
+ *  signal's typical interval there (what "late" means for it); a state's age is how long it has held, not lateness. */
+export interface InstrumentValue { name: string; sig: string | null; unit: string | null; value: number | null; text: string | null; at: number | null; age: number | null;
+  state: boolean; step: number | null }
+/** F4: the signals of the object the map would draw (objectDetect's picks); angleUnit as the object sets it. */
+export type InstrumentObject = Partial<Record<"roll" | "pitch" | "yaw" | "qw" | "qx" | "qy" | "qz" | "lat" | "lon" | "alt", string>> & { angleUnit?: "deg" | "rad" };
+/** F4: its attitude in degrees, heading 0-360, altitude as stored, ground speed m/s (from positions); age as above. */
+export interface InstrumentState { roll: number | null; pitch: number | null; yaw: number | null; alt: number | null; gs: number | null; age: number | null }
 // --- end lane L5 ---
 
 export type LogLevel = "info" | "warning" | "error";

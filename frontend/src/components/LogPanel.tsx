@@ -7,6 +7,7 @@ import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { runLabels } from "../names";
 import { Checks, FileView, RunParams } from "./ChecksView";
+import Instruments from "./Instruments";   // L5 F4
 import { copyText } from "../errorReport";
 
 /* D7 Checks - for any open file: its checks (limits, data quality, a log's health check), its parameters
@@ -36,7 +37,7 @@ export default function LogPanel() {
   const [rid, setRid] = useState<string | null>(null);
   const run = files.find((r) => r.id === rid) ?? logRuns[0] ?? files[0];
   const info = run?.log ? logs[run.id] : undefined;
-  const [tab, setTab] = useState<"health" | "events" | "params" | "hw" | "file">("health");
+  const [tab, setTab] = useState<"health" | "events" | "params" | "hw" | "file" | "instruments">("health");
 
   useEffect(() => { ensureLogs(); }, [runs]);
 
@@ -75,10 +76,12 @@ export default function LogPanel() {
           {run.log!.errors > 0 && <span className="lvl-dot error" title={t("logErrorsN", { n: run.log!.errors })} />}</>)}
         {tabBtn("params", <>{t("logParams")}{isLog && <> <span className="cnt">{run.log!.params}</span></>}</>)}
         {tabBtn("file", t("chkTabFile"))}
+        {tabBtn("instruments", t("insTab"))}
         {isLog && !!info?.hardware?.sections.length && tabBtn("hw", t("logHardware"))}
       </div>
       {shownTab === "health" ? <Checks key={run.id} runId={run.id} isLog={isLog} runKey={runKey} />
         : shownTab === "file" ? <FileView key={run.id} runId={run.id} runKey={runKey} />
+        : shownTab === "instruments" ? <Instruments key={run.id} runId={run.id} runKey={runKey} />
         : !isLog ? <RunParams key={run.id} runId={run.id} />
         : !info ? <p className="hint" style={{ padding: "0 14px" }}>…</p>
         : shownTab === "hw" && info.hardware ? <Hardware hw={info.hardware} />

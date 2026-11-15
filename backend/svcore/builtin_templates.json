@@ -126,6 +126,15 @@
    {
     "q": "RCOU"
    }
+  ],
+  "instruments": [
+   "CTUN.Alt|BARO.Alt",
+   "GPS.Spd",
+   "BAT.Volt|BATT.Volt|CURR.Volt",
+   "BAT.CurrTot|BATT.CurrTot|CURR.CurrTot",
+   "GPS.Status",
+   "GPS.NSats",
+   "MODE.Mode"
   ]
  },
  {
@@ -1153,6 +1162,15 @@
    {
     "q": "VIBRATION"
    }
+  ],
+  "instruments": [
+   "GLOBAL_POSITION_INT.relative_alt|VFR_HUD.alt",
+   "VFR_HUD.groundspeed",
+   "SYS_STATUS.voltage_battery",
+   "BATTERY_STATUS.battery_remaining",
+   "GPS_RAW_INT.fix_type",
+   "GPS_RAW_INT.satellites_visible",
+   "HEARTBEAT.custom_mode"
   ]
  },
  {
@@ -1782,6 +1800,14 @@
    {
     "q": "sensor_combined"
    }
+  ],
+  "instruments": [
+   "vehicle_global_position.alt|sensor_gps.altitude_msl_m|vehicle_gps_position.alt",
+   "battery_status.voltage_v",
+   "battery_status.remaining",
+   "sensor_gps.fix_type|vehicle_gps_position.fix_type",
+   "sensor_gps.satellites_used|vehicle_gps_position.satellites_used",
+   "vehicle_status.nav_state"
   ]
  },
  {

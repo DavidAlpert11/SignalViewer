@@ -255,6 +255,14 @@ def _clean_profile(t: Dict[str, Any]) -> None:
             t["searches"] = ok
         else:
             t.pop("searches", None)
+    ins = t.get("instruments")        # L5 F4: the live instruments' tiles - signal names, at most 8
+    if ins is not None:
+        names = [str(x).strip() for x in (ins if isinstance(ins, list) else []) if isinstance(x, str) and x.strip()]
+        names = list(dict.fromkeys(names))[:8]
+        if names:
+            t["instruments"] = names
+        else:
+            t.pop("instruments", None)
 
 
 def _migrate_v1():
