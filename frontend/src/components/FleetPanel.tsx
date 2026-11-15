@@ -114,6 +114,7 @@ export default function FleetPanel() {
           </div>
         )}
         <div className="fleet-folders">
+          {folders.length > 0 && <p className="eyebrow">{t("fleetFoldersHead")}</p>}
           {folders.map((f) => (
             <div key={f.folder} className="fleet-folder">
               <bdi dir="ltr" title={f.folder}>{f.folder}</bdi>
@@ -129,6 +130,7 @@ export default function FleetPanel() {
 
         {folders.length > 0 && <>
           <div className="fleet-search">
+            <p className="eyebrow">{t("fleetFindHead")}</p>
             <input type="search" placeholder={t("fleetSearch")} aria-label={t("fleetSearch")} value={text} onChange={(e) => setText(e.target.value)} />
             <div className="fleet-row">
               <select aria-label={t("fleetLevel")} value={level} onChange={(e) => setLevel(e.target.value)}>
@@ -163,7 +165,7 @@ export default function FleetPanel() {
         {folders.length > 0 && <div className="fleet-main">
           {/* owner (2026-11-13): what the Fleet is for, as the questions it answers - one click each */}
           <div className="fleet-questions" role="group" aria-label={t("fleetQuestions")}>
-            <span className="muted">{t("fleetQuestions")}</span>
+            <span className="eyebrow">{t("fleetQuestions")}</span>
             <button className={`chipbtn${level === "error" && !key ? " on" : ""}`} onClick={() => { setText(""); setCode(""); setKey(""); setLevel("error"); }}>{t("fleetQErrors")}</button>
             {keys.some((k) => k.key === "vibration.max") && <button className={`chipbtn${key === "vibration.max" ? " on" : ""}`}
               onClick={() => { setText(""); setLevel(""); setCode(""); setKey("vibration.max"); setOp("above"); setLimit(limit || "30"); }}>{t("fleetQTrend")}</button>}
@@ -173,7 +175,7 @@ export default function FleetPanel() {
           </div>
           {(all ?? logs) && (all ?? logs)!.length > 0 && <FleetSummary logs={(all ?? logs)!} shown={logs ?? []} lang={lang} onPick={(p) => setOpen(p)} />}
 
-          <div className="fleet-count muted">{logs ? (logs.length === 1 ? t("fleetFoundOne") : t("fleetFound", { n: logs.length })) : t("loading")}</div>
+          <div className="fleet-count eyebrow">{logs ? (logs.length === 1 ? t("fleetFoundOne") : t("fleetFound", { n: logs.length })) : t("loading")}</div>
           <ul className="fleet-list">
             {(logs ?? []).map((l) => (
               <li key={l.path} className={`fleet-log${l.error ? " bad" : ""}`}>
@@ -193,7 +195,7 @@ export default function FleetPanel() {
                         .map(([m, s]) => `${m} ${fmtDur(s)}`).join(" · ")}</p>}
                       <ul className="fleet-findings">
                         {l.findings.filter((f) => f.level !== "ok").map((f, i) => (
-                          <li key={i} className={f.level}>
+                          <li key={i} className={`hrow ${f.level}`}>
                             <span>{findingText(t, f.code, f.level, f.vals)}</span>
                             <button className="btn sm" onClick={() => openAt(l.path, f.t)}>{t("fleetOpenAt")}</button>
                           </li>
@@ -249,8 +251,8 @@ function Trend({ points, limit, label, lang, onPick, op }: {
   const X = (v: number) => L + ((v - x0) / (x1 - x0 || 1)) * (W - L - P);
   const Y = (v: number) => H - P - ((v - y0) / (y1 - y0 || 1)) * (H - 2 * P);
   return (
-    <figure className="fleet-trend" aria-label={label}>
-      <figcaption className="muted">{label}</figcaption>
+    <figure className="fleet-trend card" aria-label={label}>
+      <figcaption className="eyebrow">{label}</figcaption>
       <div dir="ltr"><svg viewBox={`0 0 ${W} ${H}`} role="img" fontSize={8}>
         {[y0, y1].filter((v, i, a) => a.indexOf(v) === i && (limit === null || Math.abs(Y(v) - Y(limit)) > 9)).map((v) => (
           <text key={v} className="fleet-ytick" x={L - 5} y={Y(v) + 3} textAnchor="end">{fmtVal(v)}</text>))}
@@ -287,13 +289,14 @@ function FleetSummary({ logs, shown, lang, onPick }: { logs: FleetLog[]; shown: 
   const pct = (d: number) => `${(100 * (d - d0)) / (d1 - d0 || 1)}%`;
   return (
     <section className="fleet-summary" aria-label={t("fleetSummary")}>
-      <div className="fleet-tiles">
-        <span><b>{ok.length}</b>{ok.length === 1 ? t("fleetTileFlight") : t("fleetTileFlights")}</span>
-        {vehicles > 0 && <span><b>{vehicles}</b>{vehicles === 1 ? t("fleetTileVehicle") : t("fleetTileVehicles")}</span>}
-        {hours >= 1 ? <span><b>{fmtNum(hours, lang, 3)}</b>{t("fleetTileHours")}</span>
-          : <span><b>{fmtNum(Math.round(hours * 60), lang)}</b>{t("fleetTileMinutes")}</span>}
-        <span className="err"><b>{withErr}</b>{t("fleetTileErrors")}</span>
-        <span className="warn"><b>{withWarn}</b>{t("fleetTileWarnings")}</span>
+      {/* D10: the app's numbers (index.css .kpi) - the value in mono over its name */}
+      <div className="fleet-tiles kpis">
+        <Kpi v={ok.length} label={ok.length === 1 ? t("fleetTileFlight") : t("fleetTileFlights")} />
+        {vehicles > 0 && <Kpi v={vehicles} label={vehicles === 1 ? t("fleetTileVehicle") : t("fleetTileVehicles")} />}
+        {hours >= 1 ? <Kpi v={fmtNum(hours, lang, 3)} label={t("fleetTileHours")} />
+          : <Kpi v={fmtNum(Math.round(hours * 60), lang)} label={t("fleetTileMinutes")} />}
+        <Kpi v={withErr} label={t("fleetTileErrors")} cls={withErr ? "err" : ""} />
+        <Kpi v={withWarn} label={t("fleetTileWarnings")} cls={withWarn ? "warn" : ""} />
       </div>
       {ok.length > 1 && <div className="fleet-strip" dir="ltr" aria-label={t("fleetStrip")}>
         {ok.map((l) => <button key={l.path} className={`fleet-dot ${l.errors ? "err" : l.warnings ? "warn" : "ok"}${inQ.size < logs.length && !inQ.has(l.path) ? " out" : ""}`} style={{ left: pct(l.date) }}
@@ -304,6 +307,10 @@ function FleetSummary({ logs, shown, lang, onPick }: { logs: FleetLog[]; shown: 
     </section>
   );
 }
+
+const Kpi = ({ v, label, cls = "" }: { v: number | string; label: string; cls?: string }) => (
+  <div className={`kpi ${cls}`}><div className="kpi-value">{v}</div><div className="kpi-label">{label}</div></div>
+);
 
 /* the panel's search, kept for the session (not saved) across the panel being closed and opened */
 const KEPT: Record<string, unknown> = {};

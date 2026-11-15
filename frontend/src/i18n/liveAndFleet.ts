@@ -31,6 +31,8 @@ export const en = {
   fleetFirstOver: "First past the limit: {name} on {date} ({v}).",
   fleetNoneOver: "No flight is past the limit.",
   fleetSummary: "The fleet at a glance",
+  fleetFoldersHead: "Folders",  // L5 D10: the side's section heads
+  fleetFindHead: "Find flights",
   fleetTileFlights: "flights",
   fleetTileFlight: "flight",
   fleetTileMinutes: "minutes in the air",
@@ -129,6 +131,8 @@ export const he: typeof en = {
   fleetFirstOver: "הראשונה מעבר לגבול: {name} ב-{date} ({v}).",
   fleetNoneOver: "אף טיסה לא עוברת את הגבול.",
   fleetSummary: "הצי במבט אחד",
+  fleetFoldersHead: "תיקיות",
+  fleetFindHead: "חיפוש טיסות",
   fleetTileFlights: "טיסות",
   fleetTileFlight: "טיסה",
   fleetTileMinutes: "דקות באוויר",
