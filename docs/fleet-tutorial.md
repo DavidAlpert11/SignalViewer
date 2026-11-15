@@ -5,7 +5,7 @@ Five minutes with **Fleet** on ten flights made for it, with a known answer.
 One flight log answers *what happened in this flight*. The Fleet answers the questions a single log
 cannot: **is it getting worse** (a motor wearing out, a battery losing capacity), **which flight was
 the first** to cross a limit, and **which logs have a finding** - across every log in a folder, with
-the same automatic checks as the Log panel. It keeps an index on this computer; the logs stay where
+the same automatic checks as the *Checks* panel. It keeps an index on this computer; the logs stay where
 they are.
 
 ![The example fleet: the vibration trend of one copter](images/29_fleet_trend.png)
@@ -17,7 +17,7 @@ they are.
 
 ## 1. Index it
 
-1. **Fleet** in the top row (beside Recordings and Sweeps) ▸ **Try the example fleet** (or *Add a folder…* and choose `examples/fleet`).
+1. **Fleet** in the top bar (beside Recordings and Sweeps) ▸ **Try the example fleet** (or *Add a folder…* and choose `examples/fleet`).
    The ten logs are read once; *Update* later reads only new and changed files.
 2. It opens with the number **Vibration · max** above **30** (the limit the health check uses):
    the trend of every flight, the limit as a dashed line, and the list - **one flight**,
@@ -29,7 +29,7 @@ they are.
    vibration grew for five weeks before the bad flight: a bearing wearing out, visible long before
    it failed. Type `X8-B`: flat, about 17.
 4. Click the last point (or the flight in the list): its findings - *Vibration*, *Clipping*,
-   *Log warnings* - each with **Open here**, which opens the log at that moment with the Log panel.
+   *Log warnings* - each with **Open here**, which opens the log at that moment with *Checks*.
 
 ## 3. Search by finding
 
