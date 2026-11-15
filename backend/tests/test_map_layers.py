@@ -109,3 +109,17 @@ def test_export_reads_the_composed_tile_from_the_cache_only(net):
     data, src = mapimage.tile_bytes("satroads", False, 5, 3, 4)
     assert src == "satroads" and data and min(_pixel(data)) > 230 and len(calls) == n
     assert "satroads" in mapimage.ATTRIB
+
+
+def test_thumbnails_never_download(net):
+    """M1: the picker's thumbnails ask `cached=1` - an online layer's tile only when it is on the disk."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    calls, _ = net
+    c = TestClient(app)
+    assert c.get("/api/tiles/satroads/5/3/4?cached=1").status_code == 404 and calls == []
+    tiles.tile("satroads", 5, 3, 4)
+    n = len(calls)
+    r = c.get("/api/tiles/satroads/5/3/4?cached=1")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg" and len(calls) == n
+    assert c.get("/api/tiles/offline_topo/2/2/1?cached=1").status_code == 200       # the offline map is drawn here

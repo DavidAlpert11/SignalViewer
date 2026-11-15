@@ -43,13 +43,26 @@ def basemap_places():
 
 
 
+def tiles_sources() -> set:
+    from app import tiles
+    return set(tiles.SOURCES) | set(tiles.COMPOSITES)
+
+
 @router.get("/api/tiles/{src}/{z}/{x}/{y}")
-async def map_tile(src: str, z: int, x: int, y: int):
+async def map_tile(src: str, z: int, x: int, y: int, cached: int = 0):
     """A map tile (cached on disk). 404 when offline and not cached: the map then shows its own
-    country borders only."""
+    country borders only. `cached=1` (M1: the background picker's thumbnails): an online layer's tile only if
+    it is on the disk already - opening the picker never downloads anything."""
     from fastapi.responses import Response
 
     from app.tiles import tile
+    if cached and (src in tiles_sources() or src.startswith("my:")):
+        from app import mapimage
+        data = await asyncio.to_thread(mapimage._cached_online, src, z, x, y)
+        if not data:
+            return Response(status_code=404)
+        media = "image/png" if data[:4] == b"\x89PNG" else "image/jpeg"
+        return Response(content=data, media_type=media, headers={"Cache-Control": "no-store"})
     r = await asyncio.to_thread(tile, src, z, x, y)
     if r is None:
         return Response(status_code=404)

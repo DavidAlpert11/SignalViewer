@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { actions, activeTab, shownSpan, useApp, type MapObject, type Plot } from "../store";
 import { isPhotoBase, useMapBase } from "../mapBase";
+import { boundsOf, layerMaxZoom, myMapAttribution } from "../mapLayers";
+import MapLayers from "./MapLayers";
 import { drawObjectIcon } from "./mapIcons";
 import { altAt, angleUnitOf, colorRuns, fmtDistance as fmtDistanceShort, derivedAttitude, objectAt, trackColors, trackKey, trackRequest, trackTime, type ObjTrack, type TrackColors, shownObjects } from "../mapObjects";
 import TrackKeys from "./TrackKeys";
@@ -30,7 +32,6 @@ interface Track { id: string; lon: Float64Array; lat: Float64Array; t: Float64Ar
 /** cx, cy: map centre in Web-Mercator world units (0..1); z: zoom (256 * 2^z pixels across the world). */
 interface View { cx: number; cy: number; z: number }
 
-const MAXZ: Record<string, number> = { osm: 19, esri: 19, light: 16, dark: 16, satellite: 19, satroads: 19, topo: 17, offline: 14 };
 /* The offline map: tiles the app draws itself from bundled data (terrain, water, roads), so a map
    works on a machine with no internet; also what fills in for an online tile that cannot be had. */
 const OFFLINE_MAXZ = 14;
@@ -417,7 +418,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     const offSrc = offlineSrc(dark);
     const src = base === "offline" ? offSrc : base;
     {
-      const zi = Math.max(0, Math.min(MAXZ[base] ?? 19, Math.round(view.z)));
+      const zi = Math.max(0, Math.min(layerMaxZoom(base), Math.round(view.z)));
       const n = 2 ** zi, tsz = S / n;
       const tx0 = Math.floor(wx0 * n), tx1 = Math.floor(wx1 * n), ty0 = Math.max(0, Math.floor(wy0 * n)), ty1 = Math.min(n - 1, Math.floor(wy1 * n));
       ctx.imageSmoothingEnabled = true;
@@ -726,7 +727,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     ctx.strokeStyle = pt.text; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(12, H - 14); ctx.lineTo(12, H - 10); ctx.lineTo(12 + bw, H - 10); ctx.lineTo(12 + bw, H - 14); ctx.stroke();
     ctx.fillStyle = pt.text; ctx.fillText(label, 12, H - 13);
-    const att = ATTRIB[base] ?? "";
+    const att = ATTRIB[base] ?? myMapAttribution(base);
     ctx.font = `${Math.round(9.5 * uiScale())}px ${family}`;
     ctx.textAlign = "right";
     const aw = ctx.measureText(att).width;
@@ -1030,6 +1031,17 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
             <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" /></svg></button>
         </div>
         )
+      )}
+      {view && (
+        // M1: the map's background - one place, top-end (the same in 3D)
+        <MapLayers where={() => { const v = viewRef.current; return v ? { lat: latOf(v.cy), lon: lonOf(v.cx), z: v.z } : null; }}
+          areaOf={(k) => {
+            if (k === "tracks") return boundsOf([...tracks, ...Object.values(objTracksRef.current)]);
+            const v = viewRef.current;
+            if (!v || !size.w) return null;
+            const S = 256 * 2 ** v.z, hw = size.w / 2 / S, hh = size.h / 2 / S;
+            return [Math.max(-85, latOf(v.cy + hh)), Math.max(-180, lonOf(v.cx - hw)), Math.min(85, latOf(v.cy - hh)), Math.min(180, lonOf(v.cx + hw))];
+          }} />
       )}
       {view && hint && (
         <div className="geo-hint" role="note">{t("mapHint")}

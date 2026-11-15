@@ -1,4 +1,6 @@
 import { declutter, type LabelBox } from "../declutter";
+import { boundsOf, isMyMap, layerMaxZoom, myMapAttribution } from "../mapLayers";
+import MapLayers from "./MapLayers";
 import { countRender } from "../perf";
 import { runsDataKey } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -52,7 +54,6 @@ function softwareWebGL(): boolean {
   } catch { return false; }
 }
 
-const TILE_MAXZ: Record<string, number> = { osm: 19, esri: 19, light: 16, dark: 16, satellite: 19, satroads: 19, topo: 17 };
 const TRACK_POINTS = 3000;                      // drawn track: at most this many points per object
 type Track3 = ObjTrack & { alt: Float32Array | null; pitch: Float32Array | null; roll: Float32Array | null; ground: Float32Array | null };
 
@@ -295,8 +296,9 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
     w.imageryLayers.addImageryProvider(new cz.UrlTemplateImageryProvider({ url: `/api/tiles/${off}/{z}/{x}/{y}`, maximumLevel: 14, tilingScheme: merc,
       credit: "Natural Earth · Terrain Tiles (Mapzen: SRTM, GMTED2010, ETOPO1) · © OpenStreetMap contributors" }));
     const online = base;                                        // O1: "offline" unless an online layer is chosen
-    if (online !== "offline" && TILE_MAXZ[online]) {
-      w.imageryLayers.addImageryProvider(new cz.UrlTemplateImageryProvider({ url: `/api/tiles/${online}/{z}/{x}/{y}`, maximumLevel: TILE_MAXZ[online], tilingScheme: merc }));
+    if (online !== "offline") {                                // M4: My maps too ("my:<id>", their own last zoom and credit)
+      w.imageryLayers.addImageryProvider(new cz.UrlTemplateImageryProvider({ url: `/api/tiles/${encodeURIComponent(online)}/{z}/{x}/{y}`,
+        maximumLevel: layerMaxZoom(online), tilingScheme: merc, ...(isMyMap(online) ? { credit: myMapAttribution(online) } : {}) }));
     }
     w.scene.requestRender();
   }, [cz, base, theme]);
@@ -1224,6 +1226,20 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
       {close && miniTracks.length > 0 && <div className="g3-mini"><MiniMap tracks={miniTracks} camera={camNow}
         focus={dispSrc ? { lat: dispSrc.lat, lon: dispSrc.lon, hdg: dispSrc.hdg, color: dispSrc.color } : null}
         onPick={(lat, lon) => flyTo({ lat, lon, range: 1500, pitch: -40 })} /></div>}
+      {cz && (
+        // M1: the map's background - one place, top-end (the same in 2D)
+        <MapLayers where={() => {
+          const w = widgetRef.current, c = w?.camera.positionCartographic;
+          if (!cz || !c) return null;
+          return { lat: cz.Math.toDegrees(c.latitude), lon: cz.Math.toDegrees(c.longitude), z: Math.log2(4e7 / Math.max(50, c.height)) };
+        }} areaOf={(k) => {
+          if (k === "tracks") return boundsOf(Object.values(tracks));
+          const r = widgetRef.current?.camera.computeViewRectangle();
+          if (!cz || !r) return null;
+          const d = (v: number) => cz.Math.toDegrees(v);
+          return [Math.max(-85, d(r.south)), d(r.west), Math.min(85, d(r.north)), d(r.east)];
+        }} />
+      )}
       {/* B6: the corners - the data box and the track keys bottom-start (an instrument: muted labels, mono values),
           the relation box and the attitude indicator bottom-end; each dock stacks what it holds, so nothing overlaps */}
       <div className="map-dock map-dock-start">

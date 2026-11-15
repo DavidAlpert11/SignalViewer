@@ -46,3 +46,49 @@
 .globe3d-readout .mi-k { color: color-mix(in srgb, var(--overlay-ink) 62%, transparent); font-size: var(--fs-xs); }
 .globe3d-readout .num { color: var(--overlay-ink); font-size: var(--fs-s); }
 .globe3d-light { border-radius: var(--r-l); }
+
+/* M1: the map's background - a glass button top-end, its picker under it */
+.map-layers { position: absolute; top: var(--sp-2); inset-inline-end: var(--sp-2); z-index: 4; }
+.map-layers-btn { display: inline-flex; align-items: center; gap: var(--sp-1); padding: var(--sp-1) var(--sp-2); font: inherit; font-size: var(--fs-s);
+  border-radius: var(--r-card); border: 1px solid color-mix(in srgb, var(--overlay-ink) 14%, transparent); cursor: pointer;
+  background: var(--overlay-bg); color: var(--overlay-ink); box-shadow: var(--shadow-md); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.map-layers-btn:hover, .map-layers-btn.on { border-color: color-mix(in srgb, var(--overlay-ink) 40%, transparent); }
+.ml-cloud { color: var(--amber); }
+.map-layers-pop { position: absolute; top: calc(100% + var(--sp-1_5)); inset-inline-end: 0; width: min(360px, calc(100vw - 32px));
+  display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-2) var(--sp-2_5); border-radius: var(--r-card);
+  background: var(--raised); color: var(--ink); border: 1px solid var(--line-strong); box-shadow: var(--shadow-lg); font-size: var(--fs-s); }
+.ml-head { display: flex; align-items: center; gap: var(--sp-2); }
+.ml-head b { color: var(--ink-strong); font-size: var(--fs-m); margin-inline-end: auto; }
+.ml-net { padding: 0 var(--sp-1_5); border-radius: var(--r-round); font-size: var(--fs-xs); }
+.ml-net.ok { background: var(--ok-soft); color: var(--ok); }
+.ml-net.warn { background: var(--warn-soft); color: var(--warn); }
+.ml-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-1_5); max-height: 46vh; overflow-y: auto; }
+.ml-card { position: relative; }
+.ml-pick { width: 100%; display: flex; flex-direction: column; gap: var(--sp-1); padding: var(--sp-1); font: inherit; font-size: var(--fs-xs);
+  color: var(--ink); background: none; border: 1px solid var(--line); border-radius: var(--r-m); cursor: pointer; text-align: start; }
+.ml-pick:hover:not(:disabled) { border-color: var(--line-strong); background: var(--panel-2); }
+.ml-card.on .ml-pick { border-color: var(--select); box-shadow: 0 0 0 1px var(--select); }
+.ml-card.off .ml-pick { opacity: .5; cursor: not-allowed; }
+.ml-thumb { display: block; aspect-ratio: 1.6; border-radius: var(--r-s); overflow: hidden; background: var(--panel-2); }
+.ml-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ml-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ml-remove { position: absolute; top: var(--sp-1); inset-inline-end: var(--sp-1); background: var(--raised); }
+.ml-note { margin: 0; color: var(--muted); font-size: var(--fs-xs); }
+.ml-actions { display: flex; gap: var(--sp-1_5); flex-wrap: wrap; }
+.g3-mini { top: calc(var(--sp-2) + 40px); }        /* under the background button */
+
+/* M3 / M4 dialogs */
+.keep-form { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); overflow-y: auto; }
+.keep-form .hint { margin: 0; }
+.keep-form > label { display: grid; grid-template-columns: 7em 1fr; align-items: center; gap: var(--sp-2); }
+.keep-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.keep-row > span:first-child { min-width: 7em; }
+.keep-row input[type=number] { width: 4.5em; }
+.keep-row .mm-path { flex: 1; min-width: 12em; }
+.keep-est { padding: var(--sp-1_5) var(--sp-2); border-radius: var(--r-m); background: var(--panel-2); font-size: var(--fs-s); }
+.keep-est.warn { background: var(--warn-soft); color: var(--ink); }
+.keep-prog { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); font-size: var(--fs-s); }
+.keep-prog progress { flex: 1; min-width: 10em; accent-color: var(--select); }
+.keep-err { color: var(--danger); flex-basis: 100%; }
+.keep-h { margin: var(--sp-2) 0 0; font-size: var(--fs-m); color: var(--ink-strong); }
+.keep-list td.muted { color: var(--muted); }

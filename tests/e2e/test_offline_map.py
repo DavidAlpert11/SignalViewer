@@ -88,6 +88,14 @@ def test_borders_over_the_offline_map_and_the_satellite_photos(pg):
     assert on > 10000
     pg.evaluate("window.__sv.setState({ geoBase: 'osm' })")
     pg.wait_for_selector(".plot .geo-borders", state="detached")
+def _pick(pg, base):
+    """M1: choose a map background in the picker (top-end of the map)."""
+    pg.locator(".map-layers-btn").first.click()
+    pg.locator(f".ml-card[data-base='{base}'] .ml-pick").first.click()
+    pg.wait_for_function(f"window.__sv.state().geoBase === '{base}'")
+    pg.keyboard.press("Escape")
+
+
 def _wait_for_tiles(pg, asked, prefix, tries=40):
     for _ in range(tries):
         if any(prefix in u for u in asked):
@@ -106,10 +114,10 @@ def test_automatic_map_is_offline_and_online_layers_are_marked(pg):
     assert _wait_for_tiles(pg, asked, "/api/tiles/offline_topo")
     online = ("/api/tiles/osm/", "/api/tiles/esri/", "/api/tiles/light", "/api/tiles/dark", "/api/tiles/satellite/", "/api/tiles/topo/")
     assert not any(o in u for u in asked for o in online)
-    assert pg.locator(".net-badge").count() == 0
+    assert pg.locator(".map-layers-btn .ml-cloud").count() == 0
     pg.route("**/api/tiles/osm/**", lambda route: route.fulfill(status=404, body=""))   # no real download in tests
-    pg.locator(".plot select[aria-label='Map']").first.select_option("osm")
-    pg.wait_for_selector(".net-badge", timeout=5000)
+    _pick(pg, "osm")                                                    # M1: the background picker
+    pg.wait_for_selector(".map-layers-btn .ml-cloud", timeout=5000)
     assert _wait_for_tiles(pg, asked, "/api/tiles/osm/")
 
 
@@ -122,8 +130,11 @@ def test_never_use_the_network_turns_online_layers_off(pg):
     _map(pg)
     assert _wait_for_tiles(pg, asked, "/api/tiles/offline_topo")
     assert not any("/api/tiles/osm/" in u for u in asked)
-    assert pg.locator(".net-badge").count() == 0
-    assert pg.locator(".plot select[aria-label='Map'] option[value='osm']").first.is_disabled()
+    assert pg.locator(".map-layers-btn .ml-cloud").count() == 0
+    pg.locator(".map-layers-btn").first.click()
+    assert pg.locator(".ml-card[data-base=osm] .ml-pick").first.is_disabled()
+    assert "Never use the network" in pg.locator(".ml-net").first.inner_text()
+    pg.keyboard.press("Escape")
     # the setting is kept with the user's settings (Settings dialog), read by the backend too
     for _ in range(40):                                   # written shortly after the change (one request per burst)
         if pg.evaluate("fetch('/api/settings').then(r => r.json()).then(j => j.settings.offlineOnly)") is True:
@@ -135,7 +146,7 @@ def test_never_use_the_network_turns_online_layers_off(pg):
 
 def test_satellite_with_roads_is_one_layer(pg):
     """M2: *Satellite + roads* - one layer of the app (the photo with the roads composed over it in the backend),
-    marked online. (Its *Borders* switch comes with M1's picker: the plot head's switch is L3's file.)"""
+    marked online, with the photo layers' *Borders* switch in the picker (M1)."""
     pg.route("**/api/tiles/satroads/**", lambda route: route.fulfill(status=404, body=""))   # no real download in tests
     asked = []
     pg.on("request", lambda r: asked.append(r.url) if "/api/tiles/" in r.url else None)
@@ -143,5 +154,82 @@ def test_satellite_with_roads_is_one_layer(pg):
     _map(pg)
     assert _wait_for_tiles(pg, asked, "/api/tiles/satroads/")
     assert not any("/api/tiles/satellite/" in u or "/api/tiles/sat_roads/" in u for u in asked)
-    pg.wait_for_selector(".net-badge", timeout=5000)
-    assert pg.locator(".plot select[aria-label='Map'] option[value='satroads']").count() == 1
+    pg.wait_for_selector(".map-layers-btn .ml-cloud", timeout=5000)
+    pg.locator(".map-layers-btn").first.click()
+    assert pg.locator(".ml-card[data-base=satroads].on").count() == 1
+    assert pg.locator(".ml-borders input").first.is_checked()
+
+
+def test_the_background_picker_is_one_place_and_downloads_nothing(pg):
+    """M1: the picker's thumbnails: the offline map drawn by the app; an online layer only from the disk
+    (`cached=1`) - opening it asks the internet for nothing; choosing sets the app's layer."""
+    asked = []
+    pg.on("request", lambda r: asked.append(r.url) if "/api/tiles/" in r.url else None)
+    _map(pg)
+    pg.locator(".map-layers-btn").first.click()
+    pg.wait_for_selector(".map-layers-pop .ml-card[data-base=auto].on")
+    for b in ("auto", "osm", "esri", "light", "dark", "satellite", "satroads", "topo"):
+        assert pg.locator(f".ml-card[data-base={b}]").count() == 1, b
+    _wait_for_tiles(pg, asked, "cached=1")
+    online = [u for u in asked if any(f"/api/tiles/{b}/" in u for b in ("osm", "esri", "light", "dark", "satellite", "satroads", "topo"))]
+    assert online and all("cached=1" in u for u in online), online
+    pg.keyboard.press("Escape")
+    pg.wait_for_selector(".map-layers-pop", state="detached")
+
+
+def test_my_maps_an_mbtiles_file_draws_offline(pg, env):
+    """M4: Add a map… -> an MBTiles file -> a card in the picker, chosen, its tiles drawn through the app; removed again."""
+    import io
+    import os
+    import sqlite3
+
+    from PIL import Image
+    path = os.path.join(env["data"], "our_gis.mbtiles")
+    if os.path.exists(path):
+        os.remove(path)
+    con = sqlite3.connect(path)
+    con.execute("CREATE TABLE metadata (name text, value text)")
+    con.execute("CREATE TABLE tiles (zoom_level integer, tile_column integer, tile_row integer, tile_data blob)")
+    con.executemany("INSERT INTO metadata VALUES (?, ?)", [("name", "Our GIS"), ("format", "png"), ("maxzoom", "16")])
+    b = io.BytesIO(); Image.new("RGB", (256, 256), (200, 30, 30)).save(b, "PNG")
+    for z in range(0, 17):
+        con.execute("INSERT INTO tiles VALUES (?, ?, ?, ?)", (z, 0, 0, b.getvalue()))
+    con.commit(); con.close()
+    asked = []
+    pg.on("request", lambda r: asked.append(r.url) if "/api/tiles/my" in r.url else None)
+    _map(pg)
+    pg.locator(".map-layers-btn").first.click()
+    pg.locator(".ml-actions button", has_text="Add a map").click()
+    pg.locator(".mymap-dialog .mm-path").fill(path)
+    pg.locator(".mymap-dialog .mm-add").click()
+    pg.wait_for_function("window.__sv.state().geoBase.startsWith('my:')")
+    src = pg.evaluate("window.__sv.state().geoBase")
+    assert _wait_for_tiles(pg, asked, "/api/tiles/my")
+    pg.locator(".map-layers-btn").first.click()
+    card = pg.locator(f".ml-card[data-base='{src}']")
+    assert card.count() == 1 and "Our GIS" in card.inner_text()
+    assert pg.locator(".map-layers-btn .ml-cloud").count() == 0           # a file is not online
+    card.locator(".ml-remove").click()
+    pg.wait_for_function("window.__sv.state().geoBase === 'auto'")
+    pg.wait_for_selector(f".ml-card[data-base='{src}']", state="detached")
+
+
+def test_keep_this_area_offline_refuses_what_the_terms_forbid(pg):
+    """M3: the dialog estimates the area (the recordings' area by default) and refuses a layer whose servers forbid
+    bulk downloading, with the reason; the ground heights may be kept. Nothing is downloaded here."""
+    pg.route("**/api/tiles/osm/**", lambda route: route.fulfill(status=404, body=""))
+    pg.evaluate("window.__sv.setState({ geoBase: 'osm' })")
+    _map(pg)
+    pg.locator(".map-layers-btn").first.click()
+    pg.locator(".ml-actions button", has_text="Keep this area offline").click()
+    dlg = pg.locator(".keep-dialog")
+    dlg.locator("select").select_option("osm")
+    pg.wait_for_function("(document.querySelector('.keep-dialog .keep-est') || {}).textContent?.includes('forbid bulk')")
+    assert dlg.locator(".keep-start").is_disabled()
+    dlg.locator("select").select_option("terrarium")
+    pg.wait_for_function("(document.querySelector('.keep-dialog .keep-est') || {}).textContent?.includes('kept already')")
+    assert "tiles" in dlg.locator(".keep-est").first.inner_text()
+    assert int(dlg.locator(".keep-est").first.get_attribute("data-tiles")) > 0
+    assert "No area kept yet" in dlg.inner_text()
+    pg.keyboard.press("Escape")
+    pg.wait_for_selector(".keep-dialog", state="detached")

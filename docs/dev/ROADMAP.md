@@ -942,9 +942,10 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [ ] M1–M6 The map, offline first (cameras named by what they do; a background picker, Satellite + roads, keep an area offline, My maps: MBTiles / own tile server, the offline map's look).
 <!-- lane L4 -->
   - [x] M2 Satellite + roads – one composed layer (`app/tiles.py` `COMPOSITES`), in 2D, 3D, the exported picture and the offline page; Esri's terms noted (no bulk download). 2026-11-14.
-  - [ ] M3 Keep this area offline – M3a backend done 2026-11-14 (`app/tilekeep.py`, terms per source in `tiles.BULK`); M3b the dialog with M1.
-  - [ ] M4 My maps – M4a backend done 2026-11-14 (`app/mymaps.py`: raster MBTiles, a user's XYZ / TMS server, `my:<id>` layers); M4b the list and the picker with M1.
+  - [x] M3 Keep this area offline – `app/tilekeep.py` (terms per source in `tiles.BULK`), the dialog `KeepAreaDialog.tsx`. 2026-11-14.
+  - [x] M4 My maps – `app/mymaps.py` (raster MBTiles, a user's XYZ / TMS server, `my:<id>` layers), *Add a map…* and the list in the picker (not Settings: one place). 2026-11-14.
   - [x] B6 Map / 3D chrome – one glass bar top-start, the bottom docks (data box as an instrument, attitude and relation box bottom-end), `styles/map.css`. 2026-11-14.
+  - [ ] M1 Map background picker – `MapLayers.tsx` done 2026-11-14; open: the plot head's old select (PlotView, L3's file – requested).
 <!-- end lane L4 -->
 - [ ] D1–D14 Every area adopts the look (pictures and a recount per area); D13 wording / icons audit; D14 profiles (templates with their at-a-glance numbers and chips). D11 (welcome) done 2026-11-14. D12 (Settings, palette, dialogs, library, Help, tour) done 2026-11-14. D13 (wording / icons audit; requests to L3 / L5 for their strings) done 2026-11-14.
 - [ ] E1–E4 Docs, pictures, a test-bench example, 1.28.0 (the owner tags).

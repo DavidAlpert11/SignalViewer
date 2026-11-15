@@ -30,6 +30,16 @@
 - **Map and 3D: a calmer frame.** The camera bar is one glass bar in the top corner, only as wide as its buttons; the data
   box reads like an instrument (labels quiet, numbers in mono) at the bottom corner, the attitude indicator and the
   relation box at the other; nothing covers anything else any more, in 2D and 3D, English and Hebrew.
+- **Map: the background in one place.** A *Map* button in the corner of every map (2D and 3D) shows each background
+  as a picture of the place on screen: Offline (the default), the online maps marked ☁ (greyed out, with the reason,
+  when *Never use the network* is on), *Borders*, and your own maps. Opening it downloads nothing.
+- **My maps.** *Add a map…* takes a raster **MBTiles** file (works fully offline) or your organisation's tile server
+  (XYZ / TMS, e.g. on the local network) - used like any background in 2D, 3D and exports. *Never use the network*
+  blocks a server on the internet but not one on this PC or a private address.
+- **Keep this area offline…** Before going to the field, download an area's map tiles at chosen zooms (the size is
+  estimated first; progress, Stop; the kept areas listed with their size and Delete). Only where the map's terms allow
+  it: ground heights (open data) and your own servers. OpenStreetMap, Esri and OpenTopoMap forbid bulk downloads - the
+  dialog says so; places you look at are still kept as before.
 <!-- lane L5 -->
 - **Profiles** (D14): a template now also carries its *at a glance* numbers (up to four – the maximum, minimum, mean, first or last value of a signal over the whole run) and pinned searches for the signal list. The built-in ArduPilot, MAVLink and PX4 templates bring theirs (max altitude, max speed, battery used, lowest voltage…; ATT, VIBE, GPS, BAT…); a template you save keeps yours, so a test bench or a simulation gets its own. A number the file does not have is said, not hidden; the mean is the plain mean of the samples.
 - **Checks, for any file** (D7): the Log panel became *Checks* and works with every recording, not only flight logs – one verdict, then tinted cards for your limits, the data quality and (for a log) the health check; *Parameters* for any file, with *compare with* another file (only what differs); and *The file* – its groups, rates, gaps, units and the values at the cursor; click a column to plot it.

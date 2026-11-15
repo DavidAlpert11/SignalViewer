@@ -69,7 +69,6 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
     - 2026-11-14 · L2 stopped at a task boundary (context, §7): C1–C6 on main; hand-over block above.
   <!-- lane L3 -->
   - **L3 Plots and the frame** – in progress · done: B1–B5 · next: F2's legend, then D1 · tasks B1–B5, D1, D2, D8 (+ F2's legend) · requests: L1 – a Settings row for `bandInCard` (under L1)
-  - **L3 Plots and the frame** – todo · next: waits for S1 (B1) · tasks B1–B5, D1, D2, D8 (+ F2's legend when L5 has it) · requests: –
     - From L5 (D7, 2026-11-14): the *run at a glance* strip (OverviewStrip, yours) could show the Checks counts (failed / to look at) opening the Checks panel (`panel: 'log'`); the numbers come from `/api/limits` (the tab's limits), `quality[runId]` in the store and `/api/runs/{id}/health` – as `ChecksView.tsx` `Checks` computes them (I can export a helper if you want it).
     - From L5 (D14, 2026-11-14): **profiles are on `main`** – please show them (the strip and the signal list are yours):
       (1) *the run at a glance* strip: `ws.glance` (≤ 4 `{name, stat, label?}`) → `api.glance(rid, ws.glance)` → `{items: [{name, stat, sig, value, unit, t}]}`; the name via `glanceLabel(item)` (templates.ts), the value with `fmtNum` + `unit`; `sig: null` → say *not in this file* (`t("glNotInFile", {label, name})`), never drop it silently; a `mean` item's tooltip `t("glMeanNote")` (plain sample mean); a click on a number with `t` → go to that time; its ⋯ → `actions.unpinGlance(i)`. Re-ask on `rid` / `dataVersion` / `ws.glance` change.
@@ -83,10 +82,13 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       "flight log" → "log"; `files.errHint` "such as the flight mode" → "such as a mode". (`signals.refSignalsHint` and
       `plots.fftFiltersTitle` are examples / a format's own feature: keep.)
   <!-- lane L4 -->
-  - **L4 Map** – in progress · done: M2, M3a, M4a (backends), B6 · next: M1 (+ M3b / M4b) · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
-    - *Request to L3* (from L4, M2): `store/slices/view.ts` `geoBase`'s type → `GeoBase` from `mapBase.ts` (it now has
-      `"satroads"`; today the store's union lacks it, PlotView's select casts); `PlotView.tsx` the *Borders* switch for
-      `isPhotoBase(shownBase)` (from `mapBase.ts`) instead of `=== "satellite"`. Both go away with M1 if L4 may then touch PlotView's map select.
+  - **L4 Map** – in progress · done: M2, M3, M4, B6, M1 (but the plot head's old select – L3) · next: M6 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
+    - **Request to L3** (from L4, M1 – needed for M1's *one place for the layer*): in `PlotView.tsx` remove the map
+      layer `<select aria-label="Map">`, the `.net-badge` and the *Borders* checkbox (the `(mode === "geo" || mode === "3d")`
+      `xpick` block; keep *+ Add an object*) and the now unused `geoBase` / `shownBase` / `geoBorders` / `GEO_BASES` imports –
+      all three live in the map's *Map* picker now (`MapLayers.tsx`, top-end of every map, 2D and 3D; e2e
+      `test_offline_map.py` already uses only the picker). And `store/slices/view.ts`: `geoBase`'s type → `GeoBase` from
+      `mapBase.ts` (it has `"satroads"` and `` `my:${string}` `` now; `MapLayers` casts until then).
     - *Request to L1* (from L4, B6): the map chrome's new rules are in `styles/map.css` (L4, loaded last); the rules they
       supersede in `index.css` (`.map-bar.geo-bar`, `.globe3d-readout`, `.globe3d-light`, `.track-keys`'s position, `.g3-fd`,
       `.rel-panel`'s position, `.g3-cam-hint` / `.geo-hint` / `.g3-measure`'s position) and `review.css` (R3's map lines)
@@ -4266,3 +4268,17 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-14 · L1 D12 Settings, palette, dialogs, library, Help, tour: dialogs on `--shadow-lg` with `--r-xl` corners over a `--scrim` token; Settings groups as eyebrows with hairlines between rows; L3's request done – Settings > Look > *Mode band* (Inside the top plot / Above the plots, `bandInCard`, strings in `i18n/common.ts`); the palette's chosen command in the selection tint with an edge; keys (`.kbd`) in mono; the tour card on `--r-card` / `--shadow-md`. Pictures `docs/dev/mockups/D12/after/` (Settings, Help, library, palette; dark en, light he). Ran: tsc, quick_check green, e2e `test_settings`, `test_file_help_menus`, `test_template_tabs`, `test_templates_recent_badfiles`, `test_tour`, `test_calm_screen`, `test_features -k "not map/globe/3d"` 147 passed. Seen for D13: the palette shows the same reload icon for move / zoom commands. Next: D13.
 - 2026-11-14 · L5 D14 profiles: a template carries its *at a glance* numbers (`glance`, ≤ 4, min / max / mean (plain sample mean) / first / final / range of a signal by name) and pinned searches (`searches`); `POST /api/runs/{id}/glance`; the built-in ArduPilot / MAVLink / PX4 templates carry theirs; opening merges (Undo), saving keeps them; old templates unchanged. The display is L3's (asked under L3). Ran: test_glance (new, 5), test_window_stats, test_templates, test_template_matching; mypy on the changed modules; tsc; Vitest store/profile.test.ts (new, 5) + undo; e2e test_template_tabs, test_templates_recent_badfiles 14 passed. No screen changed (no pictures / recount). Next: D3.
 - 2026-11-14 · L1 D13 wording and icons: audited every i18n file's English for domain words in the chrome (plan §3.6). In L1's files: the Fleet group's hint says *recording* (welcome.ts, en + he); format names (ArduPilot / PX4 log) and the examples keep theirs. Requests written under L3 (app / plots / files strings) and L5 (compare / investigate). Icons: no vehicle glyph in the chrome (none in icons.tsx); the palette drew the reset arrow for every plot command – new neutral `Icon.Zoom` (zoom modes) and `Icon.Chart` (the Plot group). Ran: tsc, quick_check green, e2e `test_features` + `test_move_plots_tabs` + `test_welcome_cards` + `test_calm_screen` -k palette/command/move/welcome/card/calm 23 passed. Lane L1 done (A1–A4, D11–D13).
+- 2026-11-14 · L4 M1 + M3b + M4b *the map's background in one place*: `MapLayers.tsx` – a glass *Map* button top-end of
+  every map (2D and 3D) opening a picker: a thumbnail per layer at the place on screen (the offline map drawn by the
+  app; an online layer only from the disk – the tile route's new `cached=1`, so opening it downloads nothing), ☁ on the
+  online ones, disabled with the reason when *Never use the network* is on (the head says which: the setting or
+  SV_OFFLINE), the *Borders* switch, My maps (each with ×), *Keep this area offline…* (`KeepAreaDialog.tsx`: layer –
+  ground heights, the user's servers, or the layer on screen with the reason it cannot be kept –, the recordings' area or
+  the view, zooms, name, the estimate, Download / progress / Stop, the kept areas with size and Delete) and *Add a map…*
+  (`MyMapDialog.tsx`: an MBTiles file or a server address, XYZ / TMS, last zoom). `mapLayers.ts`: My maps cache,
+  `layerMaxZoom` / attribution for the 2D map and the globe, the keep API; `GeoBase` gains `` `my:${string}` ``,
+  `knownBase` restores it from a session. My maps are listed in the picker, not in Settings (one place; Settings is L1's
+  and would be a second place). Still to do by L3: remove the plot head's old select (request above) – until then the
+  layer has two places. Ran: tsc; `test_map_layers.py` 6 (thumbnails never download); e2e `test_offline_map.py` 9/9
+  (3 new: the picker downloads nothing, an MBTiles file drawn and removed, Keep refuses OpenStreetMap with the reason);
+  `test_map_objects`, `test_map_export`, `test_globe3d` green (33 with the above); quick_check green. Pictures `docs/dev/mockups/M1/after`. Not verified: an MBTiles layer in the 3D view (same tile route as 2D).
