@@ -657,7 +657,7 @@ EX_W, EX_H, EX_MAX_BYTES = 480, 270, 40_000
 # what is hidden while the picture is taken: every text of the interface, so a picture serves both languages
 EX_NO_TEXT = """.plot-head, .legend, .plot-title, .mode-bar, .plot-mode, .stage-bar, .toasts, .start-card, .tpl-strip, .plot-empty,
   .u-legend, .readout, .cursor-bar, .tl, .map-bar, .relation, .sw-shot-text, .geo-hint, .geo-readout, .globe3d-readout,
-  .g3-readout, .g3-cam-hint, .g3-seg-label, .globe3d-light { visibility: hidden !important; }"""
+  .g3-readout, .g3-cam-hint, .g3-seg-label, .globe3d-light, .map-layers, .map-cam-line { visibility: hidden !important; }"""
 
 
 def _ex_ready(pg, ex):
