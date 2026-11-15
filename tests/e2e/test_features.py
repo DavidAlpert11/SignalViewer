@@ -1031,7 +1031,7 @@ def test_frames_suggested_from_names(pg):
     open_files(pg, "frames.bin")
     pg.click("[aria-label='Create signals']")
     pg.locator(".analysis .seg.wide button", has_text="Frames").click()
-    chips = pg.locator(".frame-sugs .chip-btn")
+    chips = pg.locator(".frame-sugs .chipbtn")
     chips.first.wait_for()
     assert chips.all_inner_texts()[:2] == ["GPS[0]: LLA → NED", "IMU[0]: Body → NED"]
     assert "on" in chips.first.get_attribute("class")

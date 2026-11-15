@@ -44,6 +44,7 @@
   it: ground heights (open data) and your own servers. OpenStreetMap, Esri and OpenTopoMap forbid bulk downloads - the
   dialog says so; places you look at are still kept as before.
 <!-- lane L5 -->
+- **Create signals in the new look** (D3): the suggested frame conversions are the app's chips, the derived signals' heading shows how many there are, and an empty list says what will appear there.
 - **Profiles** (D14): a template now also carries its *at a glance* numbers (up to four – the maximum, minimum, mean, first or last value of a signal over the whole run) and pinned searches for the signal list. The built-in ArduPilot, MAVLink and PX4 templates bring theirs (max altitude, max speed, battery used, lowest voltage…; ATT, VIBE, GPS, BAT…); a template you save keeps yours, so a test bench or a simulation gets its own. A number the file does not have is said, not hidden; the mean is the plain mean of the samples.
 - **Checks, for any file** (D7): the Log panel became *Checks* and works with every recording, not only flight logs – one verdict, then tinted cards for your limits, the data quality and (for a log) the health check; *Parameters* for any file, with *compare with* another file (only what differs); and *The file* – its groups, rates, gaps, units and the values at the cursor; click a column to plot it.
 - **Statistics of what is on screen** (F2): min, mean and max of each signal over the visible window, recomputed as you pan and zoom – fast on signals of tens of millions of samples.

@@ -456,7 +456,7 @@ export default function AnalysisPanel() {
             {frameSugs.length > 0 && <div className="frame-sugs" role="group" aria-label={t("frameSuggested")}>
               <span>{t("frameSuggested")}</span>
               {frameSugs.map((g) => (
-                <button key={g.key} className={`chip-btn${sugOn(g) ? " on" : ""}`} onClick={() => applySug(g)}
+                <button key={g.key} className={`chipbtn${sugOn(g) ? " on" : ""}`} onClick={() => applySug(g)}
                   title={g.vec.map((x) => x.split("/").slice(1).join("/")).join(", ")}>
                   {g.group ? `${g.group}: ` : ""}{FRAME_SHORT[g.src]} → {FRAME_SHORT[g.dst]}</button>
               ))}
@@ -569,8 +569,8 @@ export default function AnalysisPanel() {
               </div>
             </div>
           )}
-          <h3 className="alist-head">{t("derivedSignals")}</h3>
-          {!derivedRun?.signals.length && <p className="hint">{t("noDerived")}</p>}
+          <h3 className="alist-head">{t("derivedSignals")}{!!derivedRun?.signals.length && <> <span className="ph-count">{derivedRun.signals.length}</span></>}</h3>
+          {!derivedRun?.signals.length && <div className="empty-state"><p>{t("noDerived")}</p></div>}
           {groupDerived(derivedRun?.signals ?? []).map((g) => {
             const row = (s: NonNullable<typeof derivedRun>["signals"][number], deep: boolean) => (
               <div key={s.id} className={`dsig${deep ? " deep" : ""}${s.valid === false ? " broken" : ""}`}>
