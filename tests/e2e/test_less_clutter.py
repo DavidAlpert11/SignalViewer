@@ -8,7 +8,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api")
 from test_template_tabs import open_ardupilot_example, pg  # noqa: E402,F401
-from test_features import frames, settled  # noqa: E402
+from test_features import S, frames, settled  # noqa: E402
 
 COUNT = """(dataToo) => { const vis = (e) => { const r = e.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return false;
   if (r.bottom < 0 || r.right < 0 || r.top > innerHeight || r.left > innerWidth) return false;
@@ -46,9 +46,9 @@ def test_fewer_buttons_and_clearer_words(pg):
 
 
 def test_what_does_not_apply_is_hidden(pg):
-    """26.U3: the Flight tab (map + 3D, 80 -> 71 controls): a map whose object draws the track has no
-    Lon / Lat pickers or alignment (they come back from Plot options); the 3D view's image and remove
-    are in its Plot options, not on the globe."""
+    """26.U3: the Flight tab (one map since 1.28 - its cameras cover the 3D views): a map whose object draws
+    the track has no Lon / Lat pickers or alignment (they come back from Plot options); the 3D view's image
+    and remove are in its Plot options, not on the globe."""
     open_ardupilot_example(pg)
     pg.locator(".tab", has_text="Flight").first.click()
     geo = pg.locator(".plot:has(.obj-add)").first
@@ -58,13 +58,15 @@ def test_what_does_not_apply_is_hidden(pg):
     geo.locator(".plot-more").click()
     pg.locator(".menu.ctx button", has_text="Lat / lon track").click()
     assert geo.locator(".picker-btn").count() == 2
-    # P4: the map is drawn in 3D too - both plots of the tab (the 3D view loads lazily: wait for both, not one)
-    pg.wait_for_function("document.querySelectorAll('.plot .globe3d').length >= 2", timeout=60000)
+    # P4: the map is drawn in 3D (the 3D view loads lazily: wait for it)
+    pg.wait_for_function("document.querySelectorAll('.plot .globe3d').length >= 1", timeout=60000)
     assert pg.locator(".g3-remove").count() == 0
-    # the tab's 3D plot (P4: its map is drawn in 3D too - only the 3D plot has "Remove the 3D view")
+    # the tab's one map is the Map (drawn in 3D), not a separate 3D view: nothing to "Remove the 3D view" from -
+    # the item belongs to a 3D plot's Plot options only (PlotView: mode === "3d")
+    assert S(pg, "s.ws.tabs.find((x) => x.id === s.ws.activeTab).plots.filter((p) => p.mode === '3d').length") == 0
     found = 0
     for k in range(pg.locator(".plot:has(.globe3d)").count()):
         pg.locator(".plot:has(.globe3d)").nth(k).locator(".plot-more").click()
         found += pg.locator(".menu.ctx button", has_text="Remove the 3D view").count()
         pg.keyboard.press("Escape")
-    assert found == 1
+    assert found == 0

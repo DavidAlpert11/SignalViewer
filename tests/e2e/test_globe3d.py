@@ -15,17 +15,8 @@ pytest.importorskip("playwright.sync_api")
 from test_features import env, frames  # noqa: E402,F401
 
 
-def _exe() -> dict:
-    """A Chromium installed elsewhere (SV_CHROMIUM), as the other e2e files launch it."""
-    return {"executable_path": os.environ["SV_CHROMIUM"]} if os.environ.get("SV_CHROMIUM") else {}
-
-
-GL = ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
-
-
 @pytest.fixture
-def g3(env):
-    from playwright.sync_api import sync_playwright
+def g3(env, gl_browser):
     d = env["data"]
     with open(os.path.join(d, "att_case.csv"), "w") as f:
         f.write("Time,GPS.Lat,GPS.Lng,GPS.Alt,ATT.Yaw,ATT.Pitch,ATT.Roll\n")
@@ -39,24 +30,23 @@ def g3(env):
     for f in (auto, auto.replace("autosave.json", "ui_settings.json")):   # T18: settings too - each test starts like a new user
         if os.path.exists(f):
             os.remove(f)
-    with sync_playwright() as p:
-        b = p.chromium.launch(args=GL, **_exe())
-        pg = b.new_context(viewport={"width": 1100, "height": 800}, locale="en-US").new_page()
-        external = []
-        pg.on("request", lambda r: external.append(r.url) if not r.url.startswith(env["url"]) and not r.url.startswith(("data:", "blob:")) else None)
-        pg.goto(env["url"])
-        pg.wait_for_selector(".app")
-        pg.evaluate("fetch('/api/runs').then(r => r.json()).then(runs => window.__sv.setState({ runs }))")
-        pg.wait_for_selector(".sig")
-        rid = pg.evaluate("window.__sv.state().runs[0].id")
-        pg.evaluate(f"""window.__sv.setState({{ geoBase: 'offline', ws: (() => {{ const ws = structuredClone(window.__sv.state().ws); const p = ws.tabs[0].plots[0];
-            p.mode = '3d'; p.objects = [{{ id: 'a', name: 'Test', kind: 'aircraft', color: '#ff3030', lat: '{rid}/GPS.Lat', lon: '{rid}/GPS.Lng',
-              alt: '{rid}/GPS.Alt', yaw: '{rid}/ATT.Yaw', pitch: '{rid}/ATT.Pitch', roll: '{rid}/ATT.Roll' }}]; return ws; }})() }})""")
-        pg.wait_for_function("!!window.__svGlobe", timeout=90000)
-        pg.wait_for_selector(".globe3d-readout", timeout=60000)
-        pg.wait_for_function("document.querySelector('.globe3d-readout').textContent.includes('Roll')", timeout=60000)
-        yield pg, external
-        b.close()
+    ctx = gl_browser.new_context(viewport={"width": 1100, "height": 800}, locale="en-US")
+    pg = ctx.new_page()
+    external = []
+    pg.on("request", lambda r: external.append(r.url) if not r.url.startswith(env["url"]) and not r.url.startswith(("data:", "blob:")) else None)
+    pg.goto(env["url"])
+    pg.wait_for_selector(".app")
+    pg.evaluate("fetch('/api/runs').then(r => r.json()).then(runs => window.__sv.setState({ runs }))")
+    pg.wait_for_selector(".sig")
+    rid = pg.evaluate("window.__sv.state().runs[0].id")
+    pg.evaluate(f"""window.__sv.setState({{ geoBase: 'offline', ws: (() => {{ const ws = structuredClone(window.__sv.state().ws); const p = ws.tabs[0].plots[0];
+        p.mode = '3d'; p.objects = [{{ id: 'a', name: 'Test', kind: 'aircraft', color: '#ff3030', lat: '{rid}/GPS.Lat', lon: '{rid}/GPS.Lng',
+          alt: '{rid}/GPS.Alt', yaw: '{rid}/ATT.Yaw', pitch: '{rid}/ATT.Pitch', roll: '{rid}/ATT.Roll' }}]; return ws; }})() }})""")
+    pg.wait_for_function("!!window.__svGlobe", timeout=90000)
+    pg.wait_for_selector(".globe3d-readout", timeout=60000)
+    pg.wait_for_function("document.querySelector('.globe3d-readout').textContent.includes('Roll')", timeout=60000)
+    yield pg, external
+    ctx.close()
 
 
 MODEL_AXES = """(() => { const { widget: w, Cesium: C } = window.__svGlobe; let m = null;
@@ -118,9 +108,8 @@ def test_light_settings_without_graphics_acceleration(g3):
 
 
 @pytest.fixture
-def g3multi(env):
+def g3multi(env, gl_browser):
     """Three still objects: A at 32.5, 34.5, 300 m; B 0.01 deg east at 500 m; C 0.01 deg north at 300 m."""
-    from playwright.sync_api import sync_playwright
     d = env["data"]
     for name, lat, lon, alt in (("obj_A.csv", 32.5, 34.5, 300), ("obj_B.csv", 32.5, 34.51, 500), ("obj_C.csv", 32.51, 34.5, 300)):
         with open(os.path.join(d, name), "w") as f:
@@ -133,22 +122,21 @@ def g3multi(env):
     for f in (auto, auto.replace("autosave.json", "ui_settings.json")):   # T18: settings too - each test starts like a new user
         if os.path.exists(f):
             os.remove(f)
-    with sync_playwright() as p:
-        b = p.chromium.launch(args=GL, **_exe())
-        pg = b.new_context(viewport={"width": 1200, "height": 800}, locale="en-US").new_page()
-        pg.goto(env["url"])
-        pg.wait_for_selector(".app")
-        pg.evaluate("fetch('/api/runs').then(r => r.json()).then(runs => window.__sv.setState({ runs }))")
-        pg.wait_for_selector(".sig")
-        ids = pg.evaluate("Object.fromEntries(window.__sv.state().runs.map(r => [r.name, r.id]))")
-        objs = ",".join(f"{{ id: '{k}', name: '{k}', kind: 'aircraft', color: '{c}', lat: '{ids[f'obj_{k}.csv']}/Lat', lon: '{ids[f'obj_{k}.csv']}/Lon', alt: '{ids[f'obj_{k}.csv']}/Alt' }}"
-                        for k, c in (("A", "#ff3030"), ("B", "#30a0ff"), ("C", "#30d070")))
-        pg.evaluate(f"""window.__sv.setState({{ geoBase: 'offline', ws: (() => {{ const ws = structuredClone(window.__sv.state().ws); const p = ws.tabs[0].plots[0];
-            p.mode = '3d'; p.objects = [{objs}]; return ws; }})() }})""")
-        pg.wait_for_function("!!window.__svGlobe", timeout=90000)
-        pg.wait_for_selector(".globe3d-readout", timeout=60000)
-        yield pg
-        b.close()
+    ctx = gl_browser.new_context(viewport={"width": 1200, "height": 800}, locale="en-US")
+    pg = ctx.new_page()
+    pg.goto(env["url"])
+    pg.wait_for_selector(".app")
+    pg.evaluate("fetch('/api/runs').then(r => r.json()).then(runs => window.__sv.setState({ runs }))")
+    pg.wait_for_selector(".sig")
+    ids = pg.evaluate("Object.fromEntries(window.__sv.state().runs.map(r => [r.name, r.id]))")
+    objs = ",".join(f"{{ id: '{k}', name: '{k}', kind: 'aircraft', color: '{c}', lat: '{ids[f'obj_{k}.csv']}/Lat', lon: '{ids[f'obj_{k}.csv']}/Lon', alt: '{ids[f'obj_{k}.csv']}/Alt' }}"
+                    for k, c in (("A", "#ff3030"), ("B", "#30a0ff"), ("C", "#30d070")))
+    pg.evaluate(f"""window.__sv.setState({{ geoBase: 'offline', ws: (() => {{ const ws = structuredClone(window.__sv.state().ws); const p = ws.tabs[0].plots[0];
+        p.mode = '3d'; p.objects = [{objs}]; return ws; }})() }})""")
+    pg.wait_for_function("!!window.__svGlobe", timeout=90000)
+    pg.wait_for_selector(".globe3d-readout", timeout=60000)
+    yield pg
+    ctx.close()
 
 
 def test_related_objects_distance_line_and_box(g3multi):
@@ -200,9 +188,8 @@ def test_camera_on_the_object_zooms_towards_it(g3multi):
 
 
 @pytest.fixture
-def g3move(env):
+def g3move(env, gl_browser):
     """One object moving north: latitude 32.0 + t * 1e-4 (t = 0..100 s), at 300 m."""
-    from playwright.sync_api import sync_playwright
     d = env["data"]
     with open(os.path.join(d, "obj_move.csv"), "w") as f:
         f.write("Time,Lat,Lon,Alt\n" + "".join(f"{i * 0.5},{32.0 + i * 0.5e-4:.6f},34.5,300\n" for i in range(201)))
@@ -214,21 +201,20 @@ def g3move(env):
     for f in (auto, auto.replace("autosave.json", "ui_settings.json")):   # T18: settings too - each test starts like a new user
         if os.path.exists(f):
             os.remove(f)
-    with sync_playwright() as p:
-        b = p.chromium.launch(args=GL, **_exe())
-        pg = b.new_context(viewport={"width": 1200, "height": 800}, locale="en-US").new_page()
-        pg.goto(env["url"])
-        pg.wait_for_selector(".app")
-        pg.evaluate("fetch('/api/runs').then(r => r.json()).then(runs => window.__sv.setState({ runs }))")
-        pg.wait_for_selector(".sig")
-        rid = pg.evaluate("window.__sv.state().runs[0].id")
-        pg.evaluate(f"""window.__sv.setState({{ geoBase: 'offline', cursor: {{ ...window.__sv.state().cursor, on: true, t1: 20 }},
-            ws: (() => {{ const ws = structuredClone(window.__sv.state().ws); const p = ws.tabs[0].plots[0];
-            p.mode = '3d'; p.objects = [{{ id: 'm', name: 'M', kind: 'drone', color: '#ff3030', lat: '{rid}/Lat', lon: '{rid}/Lon', alt: '{rid}/Alt' }}]; return ws; }})() }})""")
-        pg.wait_for_function("!!window.__svGlobe", timeout=90000)
-        pg.wait_for_selector(".globe3d-readout", timeout=60000)
-        yield pg
-        b.close()
+    ctx = gl_browser.new_context(viewport={"width": 1200, "height": 800}, locale="en-US")
+    pg = ctx.new_page()
+    pg.goto(env["url"])
+    pg.wait_for_selector(".app")
+    pg.evaluate("fetch('/api/runs').then(r => r.json()).then(runs => window.__sv.setState({ runs }))")
+    pg.wait_for_selector(".sig")
+    rid = pg.evaluate("window.__sv.state().runs[0].id")
+    pg.evaluate(f"""window.__sv.setState({{ geoBase: 'offline', cursor: {{ ...window.__sv.state().cursor, on: true, t1: 20 }},
+        ws: (() => {{ const ws = structuredClone(window.__sv.state().ws); const p = ws.tabs[0].plots[0];
+        p.mode = '3d'; p.objects = [{{ id: 'm', name: 'M', kind: 'drone', color: '#ff3030', lat: '{rid}/Lat', lon: '{rid}/Lon', alt: '{rid}/Alt' }}]; return ws; }})() }})""")
+    pg.wait_for_function("!!window.__svGlobe", timeout=90000)
+    pg.wait_for_selector(".globe3d-readout", timeout=60000)
+    yield pg
+    ctx.close()
 
 
 MODEL_LAT = """(() => { const { widget: w, Cesium: C } = window.__svGlobe; let m = null;

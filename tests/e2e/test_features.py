@@ -31,6 +31,35 @@ def _csv(path, header, cols, fmt="%.6g", delim=","):
     np.savetxt(path, np.column_stack(cols), delimiter=delim, header=delim.join(header), comments="", fmt=fmt)
 
 
+def _make_wide(path):
+    n, k = 3000, 300
+    tw = np.arange(n) * 0.01
+    _csv(path, ["Time"] + [f"g{i // 30}.s{i:03d}" for i in range(k)], [tw] + [np.sin(tw * (i % 7 + 1)) for i in range(k)])
+
+
+def _make_big(path):
+    import pyarrow as pa, pyarrow.csv as pacsv
+    tb = np.arange(2_500_000) / 1e4
+    pacsv.write_csv(pa.table({"Time": tb, "X": np.sin(tb), "Y": np.cos(tb)}), path)
+
+
+_SHARED = {}
+
+
+def _shared(tmp_path_factory, folder, name, make):
+    """A big read-only data file made once per test run and linked into each module's folder (every module
+    importing `env` made its own: ~2 s each)."""
+    if name not in _SHARED:
+        src = tmp_path_factory.getbasetemp() / "shared-data" / name
+        src.parent.mkdir(exist_ok=True)
+        make(src)
+        _SHARED[name] = src
+    try:
+        os.link(_SHARED[name], folder / name)
+    except OSError:
+        shutil.copy(_SHARED[name], folder / name)
+
+
 @pytest.fixture(scope="module")
 def env(tmp_path_factory):
     home = tmp_path_factory.mktemp("home")
@@ -51,18 +80,14 @@ def env(tmp_path_factory):
     open(d / "meta.csv", "w").write("Rig: 3\nOperator: QA\n" + txt)
     tf = np.arange(4000) / 1000.0
     _csv(d / "tones.csv", ["Time", "Tone50"], [tf, np.sin(2 * np.pi * 50 * tf)])
-    n, k = 3000, 300
-    tw = np.arange(n) * 0.01
-    _csv(d / "wide.csv", ["Time"] + [f"g{i // 30}.s{i:03d}" for i in range(k)], [tw] + [np.sin(tw * (i % 7 + 1)) for i in range(k)])
+    _shared(tmp_path_factory, d, "wide.csv", _make_wide)
     try:
         import scipy.io
         scipy.io.savemat(d / "m.mat", {"t": t, "v": np.sin(t), "s": {"w": np.cos(t)}})
     except ImportError:
         pass
     try:                                    # ~70 MB, to see the progress panel
-        import pyarrow as pa, pyarrow.csv as pacsv
-        tb = np.arange(2_500_000) / 1e4
-        pacsv.write_csv(pa.table({"Time": tb, "X": np.sin(tb), "Y": np.cos(tb)}), d / "big.csv")
+        _shared(tmp_path_factory, d, "big.csv", _make_big)
     except ImportError:
         pass
     port = _free_port()
@@ -80,33 +105,29 @@ def env(tmp_path_factory):
 
 
 @pytest.fixture()
-def pg(env):
-    with pw.sync_playwright() as p:
-        kw = {"args": ["--no-sandbox"]}
-        if os.environ.get("SV_CHROMIUM"):
-            kw["executable_path"] = os.environ["SV_CHROMIUM"]
-        b = p.chromium.launch(**kw)
-        ctx = b.new_context(viewport={"width": 1440, "height": 900}, locale="en-US")
-        ctx.grant_permissions(["clipboard-read", "clipboard-write"], origin=env["url"])
-        page = ctx.new_page()
-        errors = []
-        page.on("pageerror", lambda e: errors.append(str(e)))
-        auto = os.path.join(env["home"], ".signalviewer", "autosave.json")
-        for f in (auto, auto.replace("autosave.json", "ui_settings.json"), auto.replace("autosave.json", "sweep_autosave.json")):   # T18: settings too (and Sweeps' studies, S02) - each test starts like a new user
-            if os.path.exists(f):
-                os.remove(f)
-        for r in json.loads(urllib.request.urlopen(env["url"] + "/api/runs").read()):
-            if r["format"] == "derived":
-                for s in r["signals"]:
-                    urllib.request.urlopen(urllib.request.Request(env["url"] + "/api/derived/" + urllib.request.quote(s["name"], safe=""), method="DELETE"))
-            else:
-                urllib.request.urlopen(urllib.request.Request(f"{env['url']}/api/runs/{r['id']}", method="DELETE"))
-        page.goto(env["url"])
-        page.wait_for_selector(".app")
-        page.env = env
-        yield page
-        assert not errors, errors
-        b.close()
+def pg(env, browser):
+    """A fresh context on the shared Chromium (conftest.py): each test starts like a new user."""
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900}, locale="en-US")
+    ctx.grant_permissions(["clipboard-read", "clipboard-write"], origin=env["url"])
+    page = ctx.new_page()
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    auto = os.path.join(env["home"], ".signalviewer", "autosave.json")
+    for f in (auto, auto.replace("autosave.json", "ui_settings.json"), auto.replace("autosave.json", "sweep_autosave.json")):   # T18: settings too (and Sweeps' studies, S02) - each test starts like a new user
+        if os.path.exists(f):
+            os.remove(f)
+    for r in json.loads(urllib.request.urlopen(env["url"] + "/api/runs").read()):
+        if r["format"] == "derived":
+            for s in r["signals"]:
+                urllib.request.urlopen(urllib.request.Request(env["url"] + "/api/derived/" + urllib.request.quote(s["name"], safe=""), method="DELETE"))
+        else:
+            urllib.request.urlopen(urllib.request.Request(f"{env['url']}/api/runs/{r['id']}", method="DELETE"))
+    page.goto(env["url"])
+    page.wait_for_selector(".app")
+    page.env = env
+    yield page
+    ctx.close()
+    assert not errors, errors
 
 
 # ----------------------------------------------------------------- helpers

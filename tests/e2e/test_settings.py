@@ -61,6 +61,9 @@ def test_settings_kept_and_one_time_format(pg):
     req = urllib.request.Request(pg.env["url"] + "/api/open-external", data=json.dumps({"paths": [path]}).encode(),
                                  headers={"Content-Type": "application/json", "X-SV-Token": tok}, method="POST")
     urllib.request.urlopen(req).read()
+    # the session was really opened (runs > 0 held already from the restored autosave: the test could end
+    # before the page took the session, and the next test's page opened it instead)
+    pg.wait_for_selector(".toast:has-text('Session opened')", timeout=30000)
     pg.wait_for_function("window.__sv.state().runs.length > 0")
     pg.wait_for_function("window.__sv.state().theme === 'dark' && window.__sv.state().uiScale === 1.12")   # (T2) the page took the session
     assert S(pg, "[s.theme, s.uiScale]") == ["dark", 1.12]

@@ -52,29 +52,24 @@ def server(tmp_path_factory):
 
 
 @pytest.fixture()
-def page(server):
-    with pw.sync_playwright() as p:
-        kw = {"args": ["--no-sandbox"]}
-        if os.environ.get("SV_CHROMIUM"):
-            kw["executable_path"] = os.environ["SV_CHROMIUM"]
-        browser = p.chromium.launch(**kw)
-        ctx = browser.new_context(viewport={"width": 1440, "height": 900}, locale="en-US")
-        pg = ctx.new_page()
-        errors = []
-        pg.on("pageerror", lambda e: errors.append(str(e)))
-        # fresh state for every test: no autosaved workspace, no open files
-        auto = os.path.join(server["home"], ".signalviewer", "autosave.json")
-        for f in (auto, auto.replace("autosave.json", "ui_settings.json")):   # T18: settings too - each test starts like a new user
-            if os.path.exists(f):
-                os.remove(f)
-        for r in json.loads(urllib.request.urlopen(server["url"] + "/api/runs").read()):
-            if r["format"] != "derived":
-                urllib.request.urlopen(urllib.request.Request(f"{server['url']}/api/runs/{r['id']}", method="DELETE"))
-        pg.goto(server["url"])
-        pg.wait_for_selector(".app")
-        yield pg
-        assert not errors, errors
-        browser.close()
+def page(server, browser):
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900}, locale="en-US")
+    pg = ctx.new_page()
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+    # fresh state for every test: no autosaved workspace, no open files
+    auto = os.path.join(server["home"], ".signalviewer", "autosave.json")
+    for f in (auto, auto.replace("autosave.json", "ui_settings.json")):   # T18: settings too - each test starts like a new user
+        if os.path.exists(f):
+            os.remove(f)
+    for r in json.loads(urllib.request.urlopen(server["url"] + "/api/runs").read()):
+        if r["format"] != "derived":
+            urllib.request.urlopen(urllib.request.Request(f"{server['url']}/api/runs/{r['id']}", method="DELETE"))
+    pg.goto(server["url"])
+    pg.wait_for_selector(".app")
+    yield pg
+    assert not errors, errors
+    ctx.close()
 
 
 def _goto_folder(pg, folder):

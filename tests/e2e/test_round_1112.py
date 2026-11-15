@@ -14,11 +14,6 @@ pytest.importorskip("playwright.sync_api")
 from test_features import env, flat_maps, goto_folder, menu_item, open_files, pg, S, save_as  # noqa: E402,F401
 
 
-def _exe() -> dict:
-    """A Chromium installed elsewhere (SV_CHROMIUM), as the other e2e files launch it."""
-    return {"executable_path": os.environ["SV_CHROMIUM"]} if os.environ.get("SV_CHROMIUM") else {}
-
-
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -215,9 +210,6 @@ def test_settings_icon_of_a_new_object(pg):
 
 
 
-GL_ARGS = ["--no-sandbox", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
-
-
 def _post(env, path, body):
     import json
     import urllib.request
@@ -249,43 +241,40 @@ def _tabor_page(env, tmp_path, camera=None, replay=None):
     return plot, r
 
 
-def test_the_wow_in_the_3d_page(env, tmp_path):
+def test_the_wow_in_the_3d_page(env, tmp_path, gl_browser):
     """P9: the 3D page - the sun of the scene, drop lines and the last 10 s, flights, the cockpit (70°, its own
     model hidden), the flight display (off in General, on in Chase / Cockpit), the mini-map, the error surface
     between truth and nav (one vehicle: p95 near 6 m)."""
-    from playwright.sync_api import sync_playwright
     path, _r = _tabor_page(env, tmp_path)
-    with sync_playwright() as p:
-        b = p.chromium.launch(args=GL_ARGS, **_exe())
-        page = b.new_page(viewport={"width": 1300, "height": 800})
-        page.goto("file://" + path)
-        page.wait_for_function("window.__scene && window.__scene.state.gl")
-        w = lambda: page.evaluate("window.__scene.state.wow")                     # noqa: E731
-        s = w()
-        assert s["sun"]["el"] > 8 and not s["sun"]["dated"]
-        assert s["drop"] and s["recent"] and not s["display"] and not s["mini"] and not s["cockpit"]
-        assert s["errorSurface"]["shown"] and 4.5 < s["errorSurface"]["p95"] < 7.5 and s["errorSurface"]["median"] < 20
-        page.click("#fit")
-        assert page.evaluate("window.__scene.state.wow.gliding")                  # Fit flies there
-        page.locator('#cam [data-cam="close"]').click()
-        page.wait_for_timeout(1500)
-        s = w()
-        assert s["display"] and s["mini"]
-        page.locator('#cam [data-cam="cockpit"]').click()
-        page.wait_for_timeout(300)
-        s = w()
-        assert s["cockpit"] and s["fov"] == 70 and s["display"]
-        page.click("#disp")
-        page.wait_for_function("!window.__scene.state.wow.display")              # the next frame shows it (no sleep)
-        page.click("#errs")
-        page.wait_for_function("!window.__scene.state.wow.errorSurface.shown")
-        b.close()
+    ctx = gl_browser.new_context(viewport={"width": 1300, "height": 800})
+    page = ctx.new_page()
+    page.goto("file://" + path)
+    page.wait_for_function("window.__scene && window.__scene.state.gl")
+    w = lambda: page.evaluate("window.__scene.state.wow")                     # noqa: E731
+    s = w()
+    assert s["sun"]["el"] > 8 and not s["sun"]["dated"]
+    assert s["drop"] and s["recent"] and not s["display"] and not s["mini"] and not s["cockpit"]
+    assert s["errorSurface"]["shown"] and 4.5 < s["errorSurface"]["p95"] < 7.5 and s["errorSurface"]["median"] < 20
+    page.click("#fit")
+    assert page.evaluate("window.__scene.state.wow.gliding")                  # Fit flies there
+    page.locator('#cam [data-cam="close"]').click()
+    page.wait_for_timeout(1500)
+    s = w()
+    assert s["display"] and s["mini"]
+    page.locator('#cam [data-cam="cockpit"]').click()
+    page.wait_for_timeout(300)
+    s = w()
+    assert s["cockpit"] and s["fov"] == 70 and s["display"]
+    page.click("#disp")
+    page.wait_for_function("!window.__scene.state.wow.display")              # the next frame shows it (no sleep)
+    page.click("#errs")
+    page.wait_for_function("!window.__scene.state.wow.errorSurface.shown")
+    ctx.close()
 
 
-def test_story_in_the_live_page(env, tmp_path):
+def test_story_in_the_live_page(env, tmp_path, gl_browser):
     """P10: the live page's ▶ Story - a card within 30 s, ◀ ▶ move the time, the 3D frame's camera goes to the
     moment's object, Esc ends it and the reader's camera comes back; the moments are diamonds on the timeline."""
-    from playwright.sync_api import sync_playwright
     plot, _r = _tabor_page(env, tmp_path, replay=True)
     path = str(tmp_path / "tabor_live.html")
     events = [{"t": 62.0, "text": "GPS: 9 satellites", "level": "warning"}, {"t": 150.0, "text": "nav drifts north", "level": "note"},
@@ -293,35 +282,34 @@ def test_story_in_the_live_page(env, tmp_path):
     _post(env, "/api/report", {"path": path, "format": "html", "title": "Tabor", "theme": "light",
                                "tabs": [{"name": "Flight", "plots": [plot]}],
                                "replay": {"t": 0.0, "extent": [0, 299.9], "compact": True, "events": events, "storyLength": 30}})
-    with sync_playwright() as p:
-        b = p.chromium.launch(args=GL_ARGS, **_exe())
-        page = b.new_page(viewport={"width": 1300, "height": 900})
-        page.goto("file://" + path)
-        page.wait_for_function("window.__replay && window.__replay.story.count > 0")
-        count = page.evaluate("window.__replay.story.count")
-        assert 4 <= count <= 12
-        assert page.locator("#rp-marks i.story").count() == count
-        fr = next(f for f in page.frames if f != page.main_frame)                 # the 3D view's page (a sandboxed frame)
-        fr.wait_for_function("window.__scene && window.__scene.state.gl")
-        cam0 = fr.evaluate("window.__scene.state.cam")
-        assert not page.locator("#rp-story").is_visible()                       # 2026-11-13: it showed (as an empty box) before Story
-        page.click("#rp-storybtn")
-        page.wait_for_selector("#rp-story:not([hidden])", timeout=30000)
-        st = page.evaluate("window.__replay.story")
-        assert st["on"] and st["index"] >= 0
-        page.wait_for_timeout(1500)
-        inner = fr.evaluate("(() => { const s = window.__scene.state; return [s.cam, s.camObj]; })()")
-        assert inner[0] in ("centre", "close") and inner[1] in ("truth", "nav", "gps")
-        t1 = page.evaluate("window.__replay.t")
-        page.click("#rp-story-next")
-        assert page.evaluate("window.__replay.t") > t1 and page.evaluate("window.__replay.story.index") == st["index"] + 1
-        page.click("#rp-story-prev")
-        assert abs(page.evaluate("window.__replay.t") - t1) < 1e-6
-        page.keyboard.press("Escape")
-        assert not page.evaluate("window.__replay.story.on")
-        page.wait_for_timeout(300)
-        assert fr.evaluate("window.__scene.state.cam") == cam0
-        b.close()
+    ctx = gl_browser.new_context(viewport={"width": 1300, "height": 900})
+    page = ctx.new_page()
+    page.goto("file://" + path)
+    page.wait_for_function("window.__replay && window.__replay.story.count > 0")
+    count = page.evaluate("window.__replay.story.count")
+    assert 4 <= count <= 12
+    assert page.locator("#rp-marks i.story").count() == count
+    fr = next(f for f in page.frames if f != page.main_frame)                 # the 3D view's page (a sandboxed frame)
+    fr.wait_for_function("window.__scene && window.__scene.state.gl")
+    cam0 = fr.evaluate("window.__scene.state.cam")
+    assert not page.locator("#rp-story").is_visible()                       # 2026-11-13: it showed (as an empty box) before Story
+    page.click("#rp-storybtn")
+    page.wait_for_selector("#rp-story:not([hidden])", timeout=30000)
+    st = page.evaluate("window.__replay.story")
+    assert st["on"] and st["index"] >= 0
+    page.wait_for_timeout(1500)
+    inner = fr.evaluate("(() => { const s = window.__scene.state; return [s.cam, s.camObj]; })()")
+    assert inner[0] in ("centre", "close") and inner[1] in ("truth", "nav", "gps")
+    t1 = page.evaluate("window.__replay.t")
+    page.click("#rp-story-next")
+    assert page.evaluate("window.__replay.t") > t1 and page.evaluate("window.__replay.story.index") == st["index"] + 1
+    page.click("#rp-story-prev")
+    assert abs(page.evaluate("window.__replay.t") - t1) < 1e-6
+    page.keyboard.press("Escape")
+    assert not page.evaluate("window.__replay.story.on")
+    page.wait_for_timeout(300)
+    assert fr.evaluate("window.__scene.state.cam") == cam0
+    ctx.close()
 
 
 def test_story_in_the_app(pg):

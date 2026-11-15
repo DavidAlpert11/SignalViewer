@@ -27,7 +27,7 @@ def _free_port():
 
 
 @pytest.fixture()
-def pg(tmp_path):
+def pg(tmp_path, browser):
     home = tmp_path / "home"
     home.mkdir()
     port = _free_port()
@@ -41,18 +41,14 @@ def pg(tmp_path):
             break
         except Exception:
             time.sleep(0.25)
-    with pw.sync_playwright() as p:
-        kw = {"args": ["--no-sandbox"]}
-        if os.environ.get("SV_CHROMIUM"):
-            kw["executable_path"] = os.environ["SV_CHROMIUM"]
-        browser = p.chromium.launch(**kw)
-        page = browser.new_context(viewport={"width": 1440, "height": 900}, locale="en-US").new_page()
-        errors = []
-        page.on("pageerror", lambda e: errors.append(str(e)))
-        page.goto(url)
-        page.wait_for_selector(".app")
-        yield page
-        browser.close()
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900}, locale="en-US")
+    page = ctx.new_page()
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.goto(url)
+    page.wait_for_selector(".app")
+    yield page
+    ctx.close()
     proc.terminate()
     assert not errors, errors
 
