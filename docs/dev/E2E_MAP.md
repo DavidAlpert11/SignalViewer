@@ -15,6 +15,7 @@
 - `tests/e2e/test_sweeps_workspace.py` – C6 (results first: Set up filled; start from nothing: Set up typed, Undo) (L2); C7 the navigator: Set up / table clicks, a demo round opened from it; C11 adds the rest of the walkthroughs
 - `tests/e2e/test_sweeps_workspace.py`, `test_study_common.py` – C8: the Run column (round 1 ready / missing; folds and stays folded after a reload); *Suggest next runs* is the column's *Only write the files* (`.sw-run .rc-write`) (L2)
 - `tests/e2e/test_study_common.py`, `test_study_loop.py` – C9: *Run them* in the Run column (`.sw-run .rc-send`, disabled without a command), the ranking's head only *Export CSV*; the demo's explanation behind the navigator's About (`[data-nav=about]`) (L2)
+- `tests/e2e/test_sweeps_workspace.py` (`test_one_open_menu_and_each_command_once`), `test_study_common.py` – C10: one Open ▾ (four items, no submenu), the study's Undo in `.areabar`, the palette's Sweeps commands once, the status line (L2)
 - `tests/e2e/test_sweeps_flow.py`, `test_sweeps_data_columns.py` – C7: the table list, merge and export are in the navigator (`.sw-nav`); *Continue with* is a click on a table (`.sw-table-item.used`) (L2)
 
 <!-- 1114 lane L3 -->

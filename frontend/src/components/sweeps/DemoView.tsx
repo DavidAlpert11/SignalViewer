@@ -6,7 +6,7 @@
 import { fmtInt, fmtNum, useT, type TFn } from "../../i18n";
 import { useApp } from "../../store";
 import { Icon } from "../../icons";
-import { closePanel, openStudyFile, useStudyPanel } from "../../sweeps/studyStore";
+import { openStudyFile, useStudyPanel } from "../../sweeps/studyStore";
 import { studyApi } from "../../sweeps/studyApi";
 import { pickPath } from "../../store";
 import type { DemoProgress } from "../../sweeps/studyTypes";
@@ -39,8 +39,6 @@ export default function DemoView() {
       <div className="cp-head">
         <h2>{t("dmTitle")}</h2>
         <span className="cp-state">{p ? t("dmRound", { k: p.round }) : ""}</span>
-        <span className="spacer" />
-        <button className="iconbtn" onClick={closePanel} aria-label={t("cpClose")} title={t("cpClose")}><Icon.X /></button>
       </div>
       {error && <p className="sw-error" role="alert">{error}</p>}
       {p && (

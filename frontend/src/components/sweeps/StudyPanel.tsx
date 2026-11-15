@@ -10,7 +10,7 @@ import { pickPath, useApp } from "../../store";
 import { Icon } from "../../icons";
 import { studyApi } from "../../sweeps/studyApi";
 import {
-  closePanel, editStudy, isUnsaved, openStudyFile, redoStudy, reqOf, saveStudyAs, undoStudy, useStudyPanel,
+  editStudy, isUnsaved, reqOf, saveStudyAs, useStudyPanel,
 } from "../../sweeps/studyStore";
 import type { CommonRow, Role, Study, StudyTable } from "../../sweeps/studyTypes";
 import SpaceView, { type SpacePoint } from "./SpaceView";
@@ -36,11 +36,6 @@ export async function saveStudyDialog(t: TFn, as = false): Promise<boolean> {
   catch (e) { say((e as Error).message, "error"); return false; }
 }
 
-export async function openStudyDialog(t: TFn): Promise<void> {
-  const p = await pickPath({ mode: "open", title: t("cpOpen"), exts: [STUDY_EXT, ".json"] });
-  if (p) await openStudyFile(p);
-}
-
 export default function StudyPanel() {
   const t = useT();
   const s = useStudyPanel();
@@ -55,11 +50,6 @@ export default function StudyPanel() {
         <h2>{t("cpTitle")}{study?.name ? `: ${study.name}` : ""}</h2>
         <span className="cp-state">{pending.length ? t("cpPending", { n: pending.length, k: lastRound }) : lastRound ? t("cpRoundsDone", { k: lastRound }) : t("cpNoRounds")}
           {isUnsaved(s) && <> · <b>{t("cpUnsaved")}</b></>}</span>
-        <span className="spacer" />
-        <button className="iconbtn" disabled={!s.past.length} onClick={undoStudy} aria-label={t("undo")} title={`${t("undo")} (Ctrl+Z)`}><Icon.Undo /></button>
-        <button className="iconbtn" disabled={!s.future.length} onClick={redoStudy} aria-label={t("redo")} title={`${t("redo")} (Ctrl+Y)`}><Icon.Redo /></button>
-        <button className="btn outline" onClick={() => saveStudyDialog(t)}><Icon.Save /> {t("cpSave")}</button>
-        <button className="iconbtn" onClick={closePanel} aria-label={t("cpClose")} title={t("cpClose")}><Icon.X /></button>
       </div>
       <div className="cp-body">
         <aside className="cp-side">{study && <StudyEditor study={study} />}</aside>

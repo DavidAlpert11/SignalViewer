@@ -152,3 +152,26 @@ def test_the_run_column_folds_and_remembers(pg):
     pg.wait_for_selector(".sw-run.folded")                                         # remembered
     pg.locator(".sw-run .rc-toggle").click()
     pg.wait_for_selector(".sw-run .rc-next")
+
+
+def test_one_open_menu_and_each_command_once(pg):
+    """C10: one Open ▾ (New study, a table, a folder, a saved study of either kind) - no second submenu; the palette
+    lists each Sweeps command once; a study file's Save / Undo are the area bar's (the panel has none of its own)."""
+    _to_sweeps(pg)
+    pg.locator(".areabar .btn", has_text="Open").first.click()
+    items = [x.strip() for x in pg.locator(".menu button").all_inner_texts() if x.strip()]
+    assert items == ["New study…", "Open a table", "Open a folder of tables", "Open a saved study"]
+    assert pg.locator(".menu .sub, .menu [aria-haspopup]").count() == 0
+    pg.keyboard.press("Escape")
+    pg.evaluate("p => window.__svRequestStudy(p)", os.path.join(ROOT, "examples", "drones", "drones.svstudy.json"))
+    pg.wait_for_selector("[data-shot='study'][data-settled='1']", timeout=60000)
+    assert pg.locator(".cp-head button").count() == 0                           # no Undo / Redo / Save / × of its own
+    assert pg.locator(".areabar [aria-label='Undo']").count() == 1
+    assert "Study: " in pg.locator("footer.status").inner_text()                 # one sentence for the study
+    pg.keyboard.press("Control+k")
+    pg.wait_for_selector(".palette-input")
+    ids = pg.evaluate("[...document.querySelectorAll('[role=option][data-cmd]')].map((e) => e.dataset.cmd).filter((x) => /^(sw|cp)-/.test(x))")
+    assert len(ids) == len(set(ids))                                             # each command once
+    assert {"sw-new-study", "sw-open-table", "sw-open-folder", "sw-open-study", "sw-save-study", "sw-close-study"} <= set(ids)
+    assert not [x for x in ids if x.startswith("cp-")]                          # no second New / Open for a study file
+    pg.keyboard.press("Escape")

@@ -52,11 +52,11 @@ import ParallelPlot from "./ParallelPlot";
 import PlotToolbar from "./PlotToolbar";
 import SetDetail from "./SetDetail";
 import SetsTable from "./SetsTable";
-import StudyPanel, { openStudyDialog } from "./StudyPanel";
+import StudyPanel, { saveStudyDialog } from "./StudyPanel";
 import { HowItWorks } from "./DemoView";
 import NewStudy from "./NewStudy";
 import SetupView from "./SetupView";
-import { chooseNewStudy, openStudyFile, redoStudy, undoStudy, useStudyPanel } from "../../sweeps/studyStore";
+import { chooseNewStudy, closePanel, openStudyFile, redoStudy, undoStudy, useStudyPanel } from "../../sweeps/studyStore";
 import { onStudyRequest, requestStudy, takeStudy } from "../../sweeps/studyOpen";
 import { onAreaExample, takeAreaExample } from "../../areaExample";
 import { api } from "../../api";
@@ -65,7 +65,7 @@ import "./sweeps.css";
 /** the middle (plot, tables) never narrower than this when a panel is dragged wider */
 const MIN_MIDDLE = 380;
 const LEFT_MIN = 220, LEFT_MAX = 320;
-const STUDY_EXT = ".svsweep";
+const STUDY_EXT = ".svsweep", STUDY_FILE_EXT = ".svstudy.json";
 
 async function openTable(title: string) {
   const p = await pickPath({ mode: "open", title, exts: TABLE_EXTS });
@@ -75,10 +75,12 @@ async function openFolder(title: string) {
   const p = await pickPath({ mode: "folder", title });
   if (p) await useSweeps.getState().open(p);
 }
+/** C10: one *Open a saved study* for either kind - a table's `.svsweep` or a study file (`.svstudy.json`). */
 async function openStudy(title: string): Promise<string> {
-  const p = await pickPath({ mode: "open", title, exts: [STUDY_EXT] });
+  const p = await pickPath({ mode: "open", title, exts: [STUDY_EXT, STUDY_FILE_EXT, ".json"] });
   if (!p) return "";
   try {
+    if (!p.endsWith(STUDY_EXT)) { await openStudyFile(p); return ""; }
     const doc = JSON.parse((await sweepApi.loadText(p)).text) as SavedStudy;
     if (doc.kind !== "signalviewer-sweep") return "not a study";
     // a study saved with its tables needs no `path` (its first table may be a merged one)
@@ -105,6 +107,7 @@ export async function openStudyPath(p: string): Promise<void> {
 }
 
 async function saveStudy(t: TFn) {
+  if (useStudyPanel.getState().open) { await saveStudyDialog(t); return; }   // C10: one Save - the study file when open
   const st = useSweeps.getState(), study = st.studies[st.active], doc = st.saved();
   if (!study || !doc) return;
   if (!doc.path && !doc.tables?.length) { notify(t("swCannotSaveRows"), "error"); return; }
@@ -128,19 +131,25 @@ registerArea("sweeps", {
   },
   commands: () => {
     const t = tNow, st = useSweeps.getState(), study = st.studies[st.active], g = t("areaSweeps");
+    const common = useStudyPanel.getState().open;
+    // C10: each command once - New study, the three ways to open (a saved study of either kind is one)
     const open = [
+      { id: "sw-new-study", label: t("nsTitle"), group: g, icon: "open" as const, run: chooseNewStudy },
       { id: "sw-open-table", label: t("swOpenTable"), group: g, icon: "open" as const, run: () => { openTable(t("swOpenTable")); } },
       { id: "sw-open-folder", label: t("swOpenFolder"), group: g, icon: "open" as const, run: () => { openFolder(t("swOpenFolder")); } },
       { id: "sw-open-study", label: t("swOpenStudy"), group: g, icon: "open" as const, run: () => { openStudy(t("swOpenStudy")).then((m) => m && notify(m, "error")); } },
-      { id: "cp-new", label: `${t("cpTitle")}: ${t("cpNew")}`, group: g, icon: "open" as const, run: chooseNewStudy },
-      { id: "cp-open", label: `${t("cpTitle")}: ${t("cpOpen")}`, group: g, icon: "open" as const, run: () => { void openStudyDialog(tNow); } },
     ];
-    if (!study) return open;
-    return [
+    if (!study && !common) return open;
+    const both = [
       { id: "sw-undo", label: t("undo"), group: g, icon: "undo" as const, keys: "Ctrl Z", run: undoStudy },
       { id: "sw-redo", label: t("redo"), group: g, icon: "redo" as const, keys: "Ctrl Y", run: redoStudy },
       ...open,
-      { id: "sw-save-study", label: t("swSaveStudy"), group: g, icon: "save" as const, run: () => { saveStudy(t); } },
+      { id: "sw-save-study", label: t("swSaveStudy"), group: g, icon: "save" as const, run: () => { void saveStudy(t); } },
+      ...(common ? [{ id: "sw-close-study", label: t("cpClose"), group: g, run: closePanel }] : []),
+    ];
+    if (!study) return both;
+    return [
+      ...both,
       { id: "sw-report", label: t("swReportMenu"), group: g, icon: "report" as const, run: () => useSweeps.setState({ reportOpen: true }) },
       { id: "sw-templates", label: t("swTemplates"), group: g, run: () => useSweeps.setState({ templatesOpen: true }) },
       { id: "sw-start-over", label: t("swStartOver"), group: g, run: st.resetStudy },
@@ -193,26 +202,25 @@ function SweepsBar() {
   const studies = useSweeps((s) => s.studies);
   const active = useSweeps((s) => s.active);
   const study = studies[active];
+  const common = useStudyPanel((s) => s.open);
   const below = (e: React.MouseEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     return { clientX: r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent;
   };
   // the ways in: one menu (they were four buttons, two with the same icon)
+  // C10: one Open ▾ - a new study, a table, a folder, a saved study of either kind (.svsweep or .svstudy.json)
   const openMenuAt = (e: React.MouseEvent) => openMenu(below(e), [
+    { label: t("nsTitle") + "…", run: chooseNewStudy },
+    { label: "", sep: true, run: () => {} },
     { label: t("swOpenTable"), run: () => openTable(t("swOpenTable")) },
     { label: t("swOpenFolder"), run: () => openFolder(t("swOpenFolder")) },
     { label: t("swOpenStudy"), run: () => say(openStudy(t("swOpenStudy")).then((m) => { if (m) throw new Error(m); })) },
-    { label: "", sep: true, run: () => {} },
-    // W14: one parameter set for several tables - its own study file (.svstudy.json)
-    { label: t("cpOpenMenu"), run: () => {}, items: [
-      { label: t("cpNew"), run: chooseNewStudy },
-      { label: t("cpOpen"), run: () => openStudyDialog(t) },
-    ] },
   ]);
   // what is kept of the study: the study itself, a template, a report
   const studyMenu = (e: React.MouseEvent) => {
     const st = useSweeps.getState();
     const SEP = { label: "", sep: true, run: () => {} };
+    if (!study) { openMenu(below(e), [{ label: t("swSaveStudy"), run: () => saveStudy(t) }]); return; }
     openMenu(below(e), [
       { label: t("swSaveStudy"), run: () => saveStudy(t) },
       { label: t("swStartOver"), run: () => st.resetStudy() },
@@ -245,6 +253,7 @@ function SweepsBar() {
         { label: t("swStartOver"), run: () => st.resetStudy() },
         { label: "", sep: true, run: () => {} },
       ] : []),
+      ...(useStudyPanel.getState().open ? [{ label: t("cpClose"), run: closePanel }, { label: "", sep: true, run: () => {} }] : []),
       { label: t("swClearAll", { n: studies.length }), danger: true, disabled: !studies.length, run: async () => {
         if (!(await confirmAsk(t("swClearAllTitle"), t("swClearAllAsk"), t("swClearAllOk"), true))) return;
         const now = useSweeps.getState();
@@ -274,13 +283,13 @@ function SweepsBar() {
           ))}
         </div>
       </nav>
-      {study && <>
+      {(study || common) && <>
         <button className="iconbtn" disabled={!canUndo} onClick={() => useSweeps.getState().undo()} title={`${t("undo")} (Ctrl+Z)`} aria-label={t("undo")}><Icon.Undo /></button>
         <button className="iconbtn" disabled={!canRedo} onClick={() => useSweeps.getState().redo()} title={`${t("redo")} (Ctrl+Y)`} aria-label={t("redo")}><Icon.Redo /></button>
       </>}
       <button className="btn outline" onClick={openMenuAt}><Icon.Open /> {t("swOpen")} ▾</button>
-      {study && <button className="btn outline" onClick={studyMenu}>{t("swStudy")} ▾</button>}
-      {studies.length > 0 && <button className="btn outline sw-clear-btn" onClick={clearMenu} title={t("swClearHint")}><Icon.Eraser /> {t("swClear")} ▾</button>}
+      {(study || common) && <button className="btn outline" onClick={studyMenu}>{t("swStudy")} ▾</button>}
+      {(studies.length > 0 || common) && <button className="btn outline sw-clear-btn" onClick={clearMenu} title={t("swClearHint")}><Icon.Eraser /> {t("swClear")} ▾</button>}
       {study?.path && <button className="iconbtn" aria-label={t("swRefresh")} title={t("swRefresh")} onClick={() => useSweeps.getState().reload()}><Icon.Reload /></button>}
       {study?.path && <label className="acheck" title={t("swFollowHint")}><input type="checkbox" checked={study.view.follow} aria-label={t("swFollow")}
         onChange={(e) => useSweeps.getState().setView({ follow: e.target.checked })} /><span className="sw-wide">{t("swFollow")}</span></label>}
@@ -373,7 +382,6 @@ function SweepsWelcome() {
             {demoPath && <button className="btn primary sw-try-demo" onClick={() => requestStudy(demoPath, true)}>{t("swTryDemo")}</button>}
             {gainsPath && <button className="btn outline sw-try-gains" onClick={() => requestStudy(gainsPath)}>{t("swTryGains")}</button>}
             <button className="btn outline sw-new-study" onClick={chooseNewStudy}>{t("cpNew")}</button>
-            <button className="btn outline" onClick={() => { void openStudyDialog(t); }}>{t("cpOpen")}</button>
           </div>
         </div>
         </div>

@@ -38,7 +38,7 @@ def test_an_edit_is_undone_and_the_answer_follows(pg):
     box = pg.locator(".cp-table.open input[placeholder='wind = 10']")
     box.fill("mass = 5")                                                               # the heaviest payload left out
     pg.wait_for_function("document.querySelector('.cp-count').innerText.startsWith('24 of 150')")
-    pg.locator(".cp-head [aria-label='Undo']").click()
+    pg.locator(".areabar [aria-label='Undo']").click()                                  # C10: the area's one Undo
     pg.wait_for_function("document.querySelector('.cp-count').innerText.startsWith('14 of 150')")
     assert "not saved" not in pg.locator(".cp-state").inner_text()
 
