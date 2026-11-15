@@ -13,7 +13,7 @@ from test_features import frames, settled  # noqa: E402
 COUNT = """(dataToo) => { const vis = (e) => { const r = e.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return false;
   if (r.bottom < 0 || r.right < 0 || r.top > innerHeight || r.left > innerWidth) return false;
   const s = getComputedStyle(e); return s.visibility !== 'hidden' && s.display !== 'none' && +s.opacity > 0.05; };
-  const data = '.sig, .ov-phase, .band-seg, .ov-flag, .tl-event, .tl-finding';
+  const data = '.sig, .ov-phase, .band-seg, .ov-flag, .tl-event, .tl-finding, .ov-gl-go';   // D14: the run's numbers are data (a click goes to its time, as a flag's)
   return [...document.querySelectorAll('button, select')].filter(vis).filter((e) => dataToo || !e.matches(data)).length; }"""
 
 

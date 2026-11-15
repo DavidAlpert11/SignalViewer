@@ -69,3 +69,14 @@
 .chip .wstat, .lrow .wstat { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
 .chip .wstat b, .lrow .wstat b { font-family: var(--mono); font-weight: 500; color: var(--ink); direction: ltr; unicode-bidi: isolate; }
 .chip .dlt, .lrow .dlt { padding-inline-start: 4px; }        /* B2 fix: in Hebrew Δ sat flush against the value */
+
+/* D14 / D7: the run's numbers and the Checks count in the strip's head - numbers in mono, the ⋯ on hover */
+.ov-glance { display: inline-flex; gap: var(--sp-2); align-items: center; min-width: 0; overflow: hidden; }
+.ov-gl { display: inline-flex; align-items: center; gap: 2px; }
+.ov-gl-go:disabled { cursor: default; text-decoration: none; }
+.ov-gl-label { color: var(--muted); }
+.ov-gl-val { font-family: var(--mono); color: var(--ink); }
+.ov-gl-unit { color: var(--muted); }
+.ov-gl .ov-gl-more { opacity: 0; transition: opacity var(--motion-fast); }
+.ov-gl:hover .ov-gl-more, .ov-gl:focus-within .ov-gl-more { opacity: 1; }
+.ov-checks { margin-inline-start: auto; }

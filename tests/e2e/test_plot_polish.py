@@ -99,3 +99,33 @@ def test_pin_a_statistic_to_the_run_at_a_glance(pg):
     assert pg.locator(".inspector table.stats td.num").count() >= 4          # the numbers in their mono column
     pg.keyboard.press("Control+z")
     pg.wait_for_function("!(window.__sv.state().ws.glance || []).length")
+
+
+def test_the_run_at_a_glance_shows_its_numbers_and_the_checks(pg):
+    """D14 (1) + D7 (lane L3): the strip's head shows the pinned numbers of the run (a missing signal is said, not
+    dropped), a click on one goes to its time; a broken limit shows as the Checks count, which opens Checks; ⋯ unpins."""
+    from test_features import menu_item
+    open_files(pg, "run_a.csv")
+    sig(pg, "Speed").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length))")
+    pg.evaluate("""window.__sv.state().commit((w) => { w.glance = [{ name: 'Speed', stat: 'max' }, { name: 'NoSuch', stat: 'min' }]; return w; })""")
+    gls = pg.locator(".ov-head .ov-gl")
+    pg.wait_for_function("document.querySelectorAll('.ov-head .ov-gl').length === 2 && !!document.querySelector('.ov-gl-none')")
+    first = gls.nth(0).locator(".ov-gl-go")
+    pg.wait_for_function("!document.querySelector('.ov-gl-go .ov-gl-val').textContent.includes('…')")
+    assert "Max" in first.inner_text() or "max" in first.inner_text()
+    assert "NoSuch" in (gls.nth(1).locator(".ov-gl-none").get_attribute("title") or "")      # said, not dropped
+    first.click()
+    pg.wait_for_function("window.__sv.state().cursor.on && window.__sv.state().cursor.t1 !== null")
+    # a limit nothing can meet: the Checks count says 1 failed and opens the Checks panel
+    pg.evaluate("""window.__sv.state().commit((w) => { const p = w.tabs.flatMap((t) => t.plots).find((p) => p.signals.length);
+      p.signals[0].limits = { lo: null, hi: -1e12 }; return w; })""")
+    chk = pg.locator(".ov-head .ov-checks")
+    chk.wait_for()
+    pg.wait_for_function("+document.querySelector('.ov-checks').dataset.bad >= 1")
+    chk.click()
+    pg.wait_for_function("window.__sv.state().panel === 'log'")
+    gls.nth(1).hover()
+    gls.nth(1).locator(".ov-gl-more").click()
+    menu_item(pg, "Unpin")
+    pg.wait_for_function("(window.__sv.state().ws.glance || []).length === 1")

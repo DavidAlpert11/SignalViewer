@@ -1,15 +1,56 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, type RunOverview } from "../api";
+import { api, type GlanceValue, type HealthReport, type LimitResult, type RunOverview } from "../api";
 import { actions, activeTab, fileLabel, rangeKey, useApp, type StripRow, type MenuItem } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { getPrefValue, setPref } from "../prefs";
 import { openMenu } from "./Overlays";
 import { intersect, saveCondition, union } from "../conditions";
 import { inkOn, stateColor } from "../values";
+import { glanceLabel } from "../templates";
 
 const PHASE_COLORS = ["#7F77DD", "#1D9E75", "#D85A30", "#378ADD", "#BA7517", "#888780", "#D4537E", "#639922"];
 const hue = (label: string) => PHASE_COLORS[[...label].reduce((s, c) => (s * 31 + c.charCodeAt(0)) >>> 0, 7) % PHASE_COLORS.length];
 export const SEL_COLOR = "#E5534B";
+/** D7 / D14: what the Checks view would say about a run, in two numbers - failed (limits broken, the log's
+ *  errors) and to look at (signals with quality issues, the log's warnings) - as ChecksView's `Checks` counts them.
+ *  null until every part has answered. */
+function useCheckCounts(runId: string | undefined, isLog: boolean, off: boolean): { bad: number; warn: number } | null {
+  const tabs = useApp((s) => s.ws.tabs);
+  const q = useApp((s) => (runId ? s.quality[runId] : undefined));
+  const dataVersion = useApp((s) => s.dataVersion);
+  const items = useMemo(() => {
+    const seen = new Map<string, { id: string; lo: number | null; hi: number | null; scale: number; offset: number; tOffset: number }>();
+    if (runId) for (const tab of tabs) for (const p of tab.plots) for (const s of p.signals) {
+      if (!s.sig.startsWith(`${runId}/`) || !s.limits || (s.limits.lo == null && s.limits.hi == null) || seen.has(s.sig)) continue;
+      seen.set(s.sig, { id: s.sig, lo: s.limits.lo ?? null, hi: s.limits.hi ?? null, scale: s.scale, offset: s.offset, tOffset: s.tOffset ?? 0 });
+    }
+    return [...seen.values()];
+  }, [tabs, runId]);
+  const [lim, setLim] = useState<Record<string, LimitResult> | null>(null);
+  const [health, setHealth] = useState<HealthReport | null | "none">(null);
+  useEffect(() => {
+    if (!runId || off || q) return;
+    api.runQuality(runId).then((r) => useApp.setState((s) => ({ quality: { ...s.quality, [runId]: r } }))).catch(() => {});
+  }, [runId, off, q]);
+  useEffect(() => {
+    let gone = false;
+    if (!runId || off || !items.length) { setLim({}); return; }
+    api.limits(items, null, null).then((r) => { if (!gone) setLim(r.results); }).catch(() => { if (!gone) setLim({}); });
+    return () => { gone = true; };
+  }, [items, runId, off, dataVersion]);
+  useEffect(() => {
+    let gone = false;
+    if (!runId || off || !isLog) { setHealth("none"); return; }
+    setHealth(null);
+    api.runHealth(runId).then((r) => { if (!gone) setHealth(r); }).catch(() => { if (!gone) setHealth("none"); });
+    return () => { gone = true; };
+  }, [runId, off, isLog, dataVersion]);
+  if (!runId || off || lim === null || !q || health === null) return null;
+  const h = health === "none" ? null : health;
+  return { bad: Object.values(lim).filter((x) => !x.pass).length + (h?.errors ?? 0),
+    warn: q.signals.filter((x) => x.issues.length).length + (h?.warnings ?? 0) };
+}
+
 const keyOf = (r: StripRow) => (r.kind === "state" ? `s:${r.name}` : `c:${r.id}`);
 type Seg = { a: number; b: number; label: string; v?: number };
 
@@ -64,6 +105,18 @@ export default function OverviewStrip() {
   const [ov, setOv] = useState<RunOverview | null>(null);
   const conds = ws.conditions ?? [];
   const rows: StripRow[] = ws.overviewRows ?? (ov?.phaseSignal ? [{ kind: "state", name: ov.phaseSignal }] : []);
+  // D14: the profile's run-at-a-glance numbers (≤ 4), asked again when the run, its data or the list changes
+  const glance = ws.glance ?? [];
+  const glanceKey = glance.map((g) => `${g.stat}|${g.name}`).join(",");
+  const [gl, setGl] = useState<GlanceValue[] | null>(null);
+  useEffect(() => {
+    if (!rid || hidden || !glance.length) { setGl(null); return; }
+    let gone = false;
+    api.glance(rid, glance).then((r) => { if (!gone) setGl(r.items); }).catch(() => { if (!gone) setGl(null); });
+    return () => { gone = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rid, dataVersion, hidden, glanceKey]);
+  const checks = useCheckCounts(rid, !!run?.log, hidden);
   const stateNames = rows.filter((r): r is { kind: "state"; name: string } => r.kind === "state").map((r) => r.name);
 
   useEffect(() => {
@@ -237,6 +290,30 @@ export default function OverviewStrip() {
         {/* U7: the how-to line until the strip is first used; then only in the tooltip */}
         {/* ... and only when there is something to click: over a file with no flags and no state rows
             the line explained clicks on an empty band (a plain CSV's first screen) */}
+        {glance.length > 0 && (
+          <span className="ov-glance" role="group" aria-label={t("ovGlance")}>
+            {glance.map((g, i) => {
+              const v = gl?.[i], label = glanceLabel(g, lang);
+              const more = (e: React.MouseEvent) => { e.preventDefault(); openMenu(e, [{ label: t("ovGlUnpin"), run: () => actions.unpinGlance(i) }]); };
+              const tip = [label, g.stat === "mean" ? t("glMeanNote") : "", v?.t != null ? t("ovGlGo", { t: fmtNum(v.t, lang, 5) }) : ""].filter(Boolean).join("\n");
+              return <span key={`${g.stat}|${g.name}`} className="ov-gl" data-glance={g.name} onContextMenu={more}>
+                {v && v.sig === null
+                  // the file has no such signal: said, never dropped silently
+                  ? <span className="ov-gl-none muted" title={t("glNotInFile", { label, name: g.name })}>{label} –</span>
+                  : <button className="linklike ov-gl-go" title={tip} disabled={v?.t == null} onClick={() => v?.t != null && go(v.t, v.t)}>
+                      <span className="ov-gl-label">{label}</span>{" "}
+                      <span className="ov-gl-val">{v?.value != null ? fmtNum(v.value, lang, 4) : "…"}</span>
+                      {v?.unit ? <span className="ov-gl-unit"> {v.unit}</span> : null}</button>}
+                <button className="iconbtn sm ov-gl-more" aria-label={t("ovGlMore", { label })} title={t("ovGlUnpin")} onClick={more}>⋯</button>
+              </span>;
+            })}
+          </span>
+        )}
+        {checks && (checks.bad > 0 || checks.warn > 0) && (
+          <button className={`chipbtn ov-checks ${checks.bad ? "bad" : "warn"}`} data-bad={checks.bad} data-warn={checks.warn}
+            title={t("ovChecksHint")} onClick={() => useApp.setState({ panel: "log" })}>
+            {t("ovChecks", { bad: checks.bad, warn: checks.warn })}</button>
+        )}
         {!hintSeen && (clusters.length > 0 || rows.length > 0) && <span className="ov-hint muted">{t("ovPickHint")}</span>}
         <button className="iconbtn sm ov-add" aria-label={t("ovAdd")} title={t("ovAdd")} onClick={addMenu}>+</button>
         <button className="iconbtn sm ov-hide" aria-label={t("ovHide")} title={t("ovHide")} onClick={() => { setPref("overviewOff", true); setHidden(true); }}>×</button>
