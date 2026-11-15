@@ -22,6 +22,7 @@ import { altAt, angleUnitOf, bearing, colorRuns, derivedAttitude, fmtDistance, g
 import { labelsOf, stateColor } from "../values";
 import TrackKeys from "./TrackKeys";
 import { hasWebGL } from "../webgl";
+import { reportError } from "../errorReport";
 import { markNoPosition } from "../noPosition";
 import FlightDisplay from "./FlightDisplay";
 import MiniMap from "./MiniMap";
@@ -35,10 +36,12 @@ import { errorAlong, errorColor } from "../relation";
 
 type C = typeof import("cesium");
 let cesiumP: Promise<C> | null = null;
+let cesiumNow: C | null = null;                 // (loaded: the clean-up of a view needs it at once)
 const loadCesium = () => (cesiumP ??= (async () => {
   (window as unknown as { CESIUM_BASE_URL: string }).CESIUM_BASE_URL = "/cesium/";
   const m = await import("cesium");
   m.Ion.defaultAccessToken = "";
+  cesiumNow = m;
   return m;
 })());
 
@@ -56,6 +59,35 @@ function softwareWebGL(): boolean {
   } catch { return false; }
 }
 
+/* 2026-11-16 (Out of Memory, "Fragment shader failed to compile" on the owner's PC): Cesium's render failed once
+   in the full mode on this computer - every 3D view opened after it starts in the light mode (until a reload). */
+let lightOnly = false;
+
+/** Destroy a 3D view and give its graphics memory back at once. CesiumWidget.destroy frees the view's GPU
+ *  objects but not its WebGL context: Cesium keeps the terrain grid's index buffers in a static cache keyed by
+ *  context (TerrainProvider's regular-grid indices, `indexBuffers[context.id]`), which held every closed view's
+ *  context - its canvas, framebuffers, MSAA and shadow maps - until the browser dropped the oldest of 16. */
+function releaseWidget(Cz: C, w: import("cesium").CesiumWidget) {
+  const canvas = w.canvas;
+  const id = (w.scene as unknown as { context?: { id?: string } }).context?.id;
+  w.destroy();
+  if (id !== undefined) {
+    const n = TERRAIN_SIZE;                      // the size of our terrain tiles: the only grid in the cache
+    const T = Cz.TerrainProvider as unknown as Record<"getRegularGridIndices" | "getRegularGridIndicesAndEdgeIndices" |
+      "getRegularGridAndSkirtIndicesAndEdgeIndices", (w: number, h: number) => object>;
+    for (const got of [T.getRegularGridIndices(n, n), T.getRegularGridIndicesAndEdgeIndices(n, n), T.getRegularGridAndSkirtIndicesAndEdgeIndices(n, n)]) {
+      const ix = "indices" in got ? got.indices : got;
+      const bufs = (ix as unknown as { indexBuffers?: Record<string, unknown> }).indexBuffers;
+      if (bufs) delete bufs[id];
+    }
+  }
+  // the context itself: lost now, not when the garbage collector or the browser's limit gets to it
+  const gl = (canvas.getContext("webgl2") ?? canvas.getContext("webgl")) as WebGLRenderingContext | null;
+  gl?.getExtension("WEBGL_lose_context")?.loseContext();
+  canvas.width = canvas.height = 0;
+}
+
+const TERRAIN_SIZE = 65;                        // heights per terrain tile side (CustomHeightmapTerrainProvider)
 const TRACK_POINTS = 3000;                      // drawn track: at most this many points per object
 type Track3 = ObjTrack & { alt: Float32Array | null; pitch: Float32Array | null; roll: Float32Array | null; ground: Float32Array | null };
 
@@ -79,6 +111,13 @@ function heightAt(o: MapObject, tr: Track3, i: number): number {
 
 interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void; emptyText: string; onFlat?: (reason: string) => void }
 
+/** The 3D view, made again in the light mode when Cesium's render fails in the full mode (a shader the graphics
+ *  driver cannot compile, a lost context); a failure in the light mode draws the map flat (onFlat). */
+export default function Globe3D(props: Props) {
+  const [gen, setGen] = useState(0);
+  return <Globe3DView key={gen} {...props} onRenderFailed={() => { lightOnly = true; setGen((g) => g + 1); }} />;
+}
+
 /** An object's values at the time (for the data box and the relations). */
 interface ObjState { id: string; name: string; color: string; pos: import("cesium").Cartesian3; lat: number; lon: number; alt: number;
   agl: number | null; hdg: number | null; pitch: number | null; roll: number | null; gs: number | null; vs: number | null }
@@ -101,7 +140,7 @@ function ratesAt(o: MapObject, tr: Track3, t: number): { gs: number | null; vs: 
 const FLY_MS = 1200;                            // P9: every camera change flies (~1.2 s, eased)
 const reducedMotion = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
 
-export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
+function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Props & { onRenderFailed: () => void }) {
   countRender("Globe3D");
   const t = useT();
   const lang = useApp((s) => s.lang);
@@ -122,6 +161,7 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
   const [failed, setFailed] = useState<string | null>(null);
   const [lightMode, setLightMode] = useState(false);
   const widgetRef = useRef<import("cesium").CesiumWidget | null>(null);
+  const handlerRef = useRef<import("cesium").ScreenSpaceEventHandler | null>(null);
   const terrainV = useRef(0);
   // P4: the mouse's position, as the 2D map's readout had it - lat / lon (decimals by the camera's height),
   // the ground there, and distance / bearing from the reference
@@ -204,15 +244,15 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
     onLoading(true);
     loadCesium().then((Cz) => {
       if (!alive || !hostRef.current) return;
-      const light = softwareWebGL();
+      const light = lightOnly || softwareWebGL();
       setLightMode(light);
       try {
         // P5: the tiles' URL carries the terrain version - when finer heights arrive (fetched in the
         // background) the provider is made again and the browser's cache does not keep the coarse tile
         const makeTerrain = (v: number) => new Cz.CustomHeightmapTerrainProvider({
-          width: 65, height: 65, tilingScheme: new Cz.GeographicTilingScheme(),
+          width: TERRAIN_SIZE, height: TERRAIN_SIZE, tilingScheme: new Cz.GeographicTilingScheme(),
           callback: (x: number, y: number, level: number) => fetch(`/api/terrain/${level}/${x}/${y}?v=${v}`)
-            .then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => (b ? new Float32Array(b) : new Float32Array(65 * 65))),
+            .then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => (b ? new Float32Array(b) : new Float32Array(TERRAIN_SIZE * TERRAIN_SIZE))),
         });
         terrainMake.current = makeTerrain;
         const terrain = makeTerrain(terrainV.current);
@@ -224,6 +264,13 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
           // (its shader variants were rebuilt every frame while the shown part of a track changed)
           orderIndependentTranslucency: false,
           msaaSamples: light ? 1 : 4,
+          showRenderLoopErrors: false,                     // not Cesium's dead dialog: the light mode, then the flat map
+        });
+        w.scene.renderError.addEventListener((_s: unknown, err: unknown) => {
+          const msg = String((err as Error)?.message ?? err);
+          reportError(`3D view: render failed in the ${light ? "light" : "full"} mode: ${msg}`, (err as Error)?.stack, "Globe3D");
+          if (!alive) return;
+          if (light) setFailed(msg); else onRenderFailed();
         });
         if (light) w.scene.globe.maximumScreenSpaceError = 4;
         else {
@@ -251,6 +298,7 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
         S0.measurePts = w.scene.primitives.add(new Cz.PointPrimitiveCollection());
         // measuring: two clicks on the ground (a third starts again)
         const h = new Cz.ScreenSpaceEventHandler(w.scene.canvas);
+        handlerRef.current = h;
         // N7: not measuring - a click on an object makes it the primary, with Shift the secondary
         const pickAt = (e: { position: import("cesium").Cartesian2 }, second: boolean) => {
           const got = w.scene.pick(e.position) as { id?: unknown; primitive?: { id?: unknown } } | undefined;
@@ -277,10 +325,14 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
       alive = false;
       const w = widgetRef.current;
       widgetRef.current = null;
+      if (handlerRef.current && !handlerRef.current.isDestroyed()) handlerRef.current.destroy();   // its listeners on the document
+      handlerRef.current = null;
+      const g = window as unknown as { __svGlobe?: { widget: unknown } };
+      if (g.__svGlobe?.widget === w) g.__svGlobe = undefined;
       scene3.current = { models: new Map(), lines: null, parts: null, labels: null, links: null, linkLabels: null,
         events: null, eventLabels: null, measure: null, measurePts: null, ghosts: null, rings: null, drops: null, discs: null, recent: null, drawn: new Map(), fitted: false };
       mats.clear();
-      if (w && !w.isDestroyed()) w.destroy();
+      if (w && !w.isDestroyed() && cesiumNow) releaseWidget(cesiumNow, w);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -414,7 +466,7 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
     // W9: the log's event labels yield where they would overlap - an object's name first, then a mode, then the
     // events (declutter.ts), checked a few times a second after a frame, not every frame
     let lastDeclutter = 0;
-    w.scene.postRender.addEventListener(() => {
+    const offDeclutter = w.scene.postRender.addEventListener(() => {     // removed with the models (one per view)
       const now = performance.now();
       const G = scene3.current;
       if (now - lastDeclutter < 150 || !G.eventLabels || !G.eventLabels.length) return;
@@ -465,7 +517,7 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
       }
       if (alive) update();
     })();
-    return () => { alive = false; };
+    return () => { alive = false; if (!w.isDestroyed()) offDeclutter(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cz, objKey, objLook]);
 

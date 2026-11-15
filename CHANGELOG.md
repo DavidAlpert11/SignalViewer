@@ -105,6 +105,8 @@ and every analysis tool working on any data (flight, vehicle, bench, simulation)
 - The map's camera line (what the chosen camera does) shows for a few seconds when the camera changes, then fades so it no longer covers the map; pointing at the map's bar shows it again.
 - The offline 3D page (a report's or an export's 3D view) has the app's cameras in the app's order – Free · From above · Around it · Behind it · Cockpit (From above was a separate ⊤ button) – and marks the chosen ones in the app's neutral ink instead of amber.
 - Fixed: a `.svsweep` opened with *Open ▾ → Open a saved study* now finds tables named relative to it (a study copied to another folder said *File not found*).
+- Fixed: **the browser running out of memory after opening maps several times**. A closed map kept its whole 3D drawing surface (graphics memory) until 16 had piled up; now a map gives its memory back as soon as it closes, and opening and closing maps keeps the memory flat. This was also behind *"Fragment shader failed to compile"* on some graphics cards.
+- If the 3D map cannot draw on this computer (the graphics driver fails), it no longer stops with an error dialog: it draws again in its light mode, and if that fails too, as the flat map, with a note. The error goes to the app's log (Help › Copy error details).
 
 ## 1.27.0 – 2026-11-13
 
