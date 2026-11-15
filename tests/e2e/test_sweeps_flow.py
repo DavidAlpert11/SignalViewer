@@ -51,7 +51,7 @@ def _merged_example(pg):
     pg.locator(".sw-welcome .btn", has_text="two sweeps, merged").click()
     pg.wait_for_selector(".sw-steps")
     pg.wait_for_function("document.querySelectorAll('.sw-table-item').length === 3")
-    pg.wait_for_function("document.querySelector('.sw-continue select').value === '2'")
+    pg.wait_for_function("document.querySelectorAll('.sw-table-item')[2].classList.contains('used')")   # C7: the merged one in use
 
 
 def _fresh(pg):
@@ -156,7 +156,7 @@ def test_raw_results_table_and_plot(pg, tmp_path):
     pg.locator(".pp-axis-name", has_text="energy_wh").click()
     pg.wait_for_selector(".sw-plotbar .hint:has-text('energy_wh')")
     # the table to a file: the save dialog at once, HTML first on the plot's tab - the plot as it was
-    pg.locator(".sw-table-item button[aria-label^='Export as CSV or HTML']").click()
+    pg.locator(".sw-nav button[aria-label^='Export as CSV or HTML']").click()
     assert pg.locator(".savename select").input_value() == "1"
     save_as(pg, "raw_plot.html")
     pg.wait_for_selector(".toast:has-text('raw_plot.html')")
@@ -165,7 +165,7 @@ def test_raw_results_table_and_plot(pg, tmp_path):
     pg.locator(".sw-zoom .btn", has_text="Reset zoom").click()
     pg.wait_for_function("document.querySelector('.pp canvas')?.dataset.zoom === '1.00'")
     pg.locator(".sw-center-tabs button", has_text="Table").click()
-    pg.locator(".sw-table-item button[aria-label^='Export as CSV or HTML']").click()
+    pg.locator(".sw-nav button[aria-label^='Export as CSV or HTML']").click()
     assert pg.locator(".savename select").input_value() == "0"
     save_as(pg, "raw.csv")
     pg.wait_for_selector(".toast:has-text('raw.csv')")
@@ -729,7 +729,8 @@ def test_the_whole_process_in_the_report(pg):
         box.check()
     pg.locator(".sw-merge .btn", has_text="Create merged table").click()
     pg.wait_for_function("document.querySelectorAll('.sw-table-item').length === 3")
-    pg.locator(".sw-continue select").select_option("2")
+    pg.locator(".sw-table-item .sw-table-name").nth(2).click()                 # C7: a click in the navigator works on it
+    pg.wait_for_function("document.querySelectorAll('.sw-table-item')[2].classList.contains('used')")
     _step(pg, "report")
     j = pg.locator(".sw-journal").first
     pg.wait_for_function("document.querySelectorAll('.sw-iterations li').length === 2")      # two iterations

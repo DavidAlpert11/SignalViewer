@@ -214,6 +214,14 @@ export function readiness(s: Study): Readiness {
   return { counts, sets, combos, runs: sets * combos, full, fullRuns: full ? full.reduce((a, b) => a * b, 1) * combos : null, missing };
 }
 
+/** Which of Set up's four parts are filled (what varies, the scenarios, outputs and goal, how to run) - SetupView's
+ *  ✓ and the navigator's count (C7). `fromTable`: the scenarios are an open table's columns (I have results). */
+export function setupDone(s: Study, fromTable: boolean): boolean[] {
+  const r = readiness(s);
+  return [params(s).length > 0 && !r.missing.includes("range"), scenarios(s).length > 0 || fromTable,
+    !r.missing.includes("output") && !r.missing.includes("goal"), !r.missing.includes("command")];
+}
+
 // ------------------------------------------------------------------ I have results: the set-up from a table
 
 /** What /api/sweeps/setup/from-table guessed from a table (C2). */

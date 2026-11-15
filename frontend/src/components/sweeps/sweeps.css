@@ -472,7 +472,7 @@
 .sw-table-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .sw-table-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: 4px; padding: 3px 6px;
   border: 1px solid transparent; border-radius: 6px; }
-.sw-table-item.on { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 8%, transparent); }
+.sw-table-item.on { border-color: var(--select); background: var(--select-soft); }   /* a selection (A1: amber is the cursor only) */
 .sw-table-item.used .sw-table-name { font-weight: 600; }
 .sw-table-name { display: flex; align-items: center; gap: 4px; min-width: 0; border: 0; background: none; padding: 2px 0; color: var(--ink-strong); font: inherit; cursor: pointer; text-align: start; }
 .sw-table-name svg { flex: none; color: var(--muted); }

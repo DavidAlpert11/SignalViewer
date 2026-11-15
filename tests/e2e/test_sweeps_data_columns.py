@@ -27,7 +27,7 @@ def test_join_on_keys_continue_with_and_reopen(pg, tmp_path):
     _open_table(pg, tmp_path, "sim.csv")
     _add_table(pg, tmp_path, "hw.csv", 2)
     # under two ticked: what to do, no button
-    assert "Tick two tables" in pg.locator(".sw-side-step").inner_text()
+    assert "Tick two tables" in pg.locator(".sw-nav").inner_text()
     for box in pg.locator(".sw-table-item input[type=checkbox]").all():
         box.check()
     pg.locator(".sw-merge select").select_option("join")
@@ -39,9 +39,9 @@ def test_join_on_keys_continue_with_and_reopen(pg, tmp_path):
     assert "merged (2 tables)" in pg.locator(".sw-tabs-name").inner_text()     # shown in the middle at once
     # the tables merged stay as they were; the next steps still work on the first
     assert "6 runs" in pg.locator(".sw-step-btn").nth(0).inner_text()
-    pg.locator(".sw-continue select").select_option("2")
+    pg.locator(".sw-table-item .sw-table-name").nth(2).click()                 # C7: the navigator's list (was Continue with)
     pg.wait_for_function("document.querySelector('.sw-step-btn').innerText.includes('6 runs · 5 columns')")
-    pg.locator(".sw-continue .btn", has_text="Columns").click()
+    _step(pg, "roles")
     pg.wait_for_selector("input[aria-label='roll [hw.csv]: output']")
     # saved and opened again: every table, the merged one in use
     _bar_menu(pg, "Study", "Save the study")
@@ -55,7 +55,7 @@ def test_join_on_keys_continue_with_and_reopen(pg, tmp_path):
     pg.wait_for_selector(".sw-steps")
     _step(pg, "raw")
     pg.wait_for_function("document.querySelectorAll('.sw-table-item').length === 3")
-    assert pg.locator(".sw-continue select").input_value() == "2"
+    assert "used" in pg.locator(".sw-table-item").nth(2).get_attribute("class").split()
 
 
 def test_source_column_and_closing_tables(pg):
@@ -137,6 +137,7 @@ def test_template_file_saved_and_loaded_with_its_summary(pg, tmp_path):
 
 def test_a_narrow_window_folds_the_side_panel(pg):
     _fresh(pg)
+    _step(pg, "roles")                              # C7: the Data step has no side panel (its tables are in the navigator)
     pg.set_viewport_size({"width": 820, "height": 700})
     try:
         pg.wait_for_selector(".sw-left", state="detached")

@@ -32,8 +32,9 @@ export default function StepNav({ study }: { study: Study }) {
   const toggle = () => (narrow ? useSweeps.setState({ narrowOpen: hidden }) : useSweeps.getState().setLeftHidden(!hidden));
   return (
     <nav className="sw-steps" aria-label={t("swSteps")}>
-      <button className="iconbtn sw-panel-toggle" aria-pressed={!hidden} onClick={toggle}
-        title={t(hidden ? "swShowPanel" : "swHidePanel")} aria-label={t(hidden ? "swShowPanel" : "swHidePanel")}>{hidden ? "›" : "‹"}</button>
+      {/* the Data step has no side panel to fold (C7: its tables are in the navigator) */}
+      {cur !== "raw" && <button className="iconbtn sw-panel-toggle" aria-pressed={!hidden} onClick={toggle}
+        title={t(hidden ? "swShowPanel" : "swHidePanel")} aria-label={t(hidden ? "swShowPanel" : "swHidePanel")}>{hidden ? "›" : "‹"}</button>}
       {STEPS.map((s, i) => (
         <button key={s} data-step={s} className={`sw-step-btn${s === cur ? " on" : ""}${STEPS.indexOf(cur) > i ? " done" : ""}`} aria-current={s === cur ? "step" : undefined}
           onClick={() => { useSweeps.getState().setView({ step: s }); useSweeps.setState({ narrowOpen: false }); }}>

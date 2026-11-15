@@ -190,6 +190,15 @@ export const en = {
   suFarmHint: "{{params_files}} is the list of the round's parameters files, {{round_dir}} its folder; the results are waited for in results/.",
   suPartOf: "{n} of 4",
   suContinue: "To the results",
+  // --- C7: the navigator
+  nvTitle: "The study: set up and tables",
+  nvStudy: "The study",
+  nvSetupItem: "Parameters, scenarios, goal, run",
+  nvTogether: "Together",
+  nvTables: "Tables",
+  nvRuns: "runs",
+  nvRound: "Round {n}",
+  nvNew: "new",
 };
 
 export const he: typeof en = {
@@ -382,4 +391,13 @@ export const he: typeof en = {
   suFarmHint: "{{params_files}} היא רשימת קובצי הפרמטרים של הסבב, {{round_dir}} התיקייה שלו; התוצאות נמתנות ב-results/.",
   suPartOf: "{n} מתוך 4",
   suContinue: "לתוצאות",
+  // --- C7: the navigator
+  nvTitle: "המחקר: הגדרה וטבלאות",
+  nvStudy: "המחקר",
+  nvSetupItem: "פרמטרים, תרחישים, מטרה, הרצה",
+  nvTogether: "ביחד",
+  nvTables: "טבלאות",
+  nvRuns: "ריצות",
+  nvRound: "סבב {n}",
+  nvNew: "חדש",
 };

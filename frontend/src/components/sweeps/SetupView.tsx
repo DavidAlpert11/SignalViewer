@@ -6,7 +6,7 @@ import { useT } from "../../i18n";
 import { useSweeps } from "../../sweeps/state";
 import { editStudy, useStudyPanel } from "../../sweeps/studyStore";
 import { firstTable, joinCommand, outputs, params, parseValues, readiness, removeParam, removeScenario, runWhere, scenarios, setGoal,
-  setOutputs, setParam, setRun, setScenario, type ParamRow, type Scale } from "../../sweeps/setup";
+  setOutputs, setParam, setRun, setScenario, setupDone, type ParamRow, type Scale } from "../../sweeps/setup";
 
 /** A text field written when it is left; it shows the stored value again after an undo (key = the value). */
 function Field({ value, onDone, label, ph, className, num }: { value: string; onDone: (v: string) => void; label: string; ph?: string; className?: string; num?: boolean }) {
@@ -40,7 +40,7 @@ export default function SetupView() {
   const rowEdit = (p: ParamRow, patch: Partial<ParamRow>) => edit((x) => setParam(x, p.name, { ...p, ...patch }));
   const scaleOf = (p: ParamRow, v: Scale): Partial<ParamRow> => (v === "values"
     ? { scale: v, values: [p.min, p.max].filter((x): x is number => x !== null) } : { scale: v, min: p.min ?? p.values[0] ?? null, max: p.max ?? p.values[p.values.length - 1] ?? null });
-  const done = [ps.length > 0 && !r.missing.includes("range"), sc.length > 0 || fromTable, !r.missing.includes("output") && !r.missing.includes("goal"), !r.missing.includes("command")];
+  const done = setupDone(study, fromTable);
   return (
     <div className="su" data-part="setup" data-missing={r.missing.join(" ")}>
       <div className="su-head">

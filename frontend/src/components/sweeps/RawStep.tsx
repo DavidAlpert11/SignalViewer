@@ -1,8 +1,8 @@
 /* Step 1 - the data (owner, 2026-11-02). Every table read is a table of its own; merging is a step
    of its own whose result is a NEW table (the tables merged stay). The middle only shows - the table
    picked in the list, as a table (page by page, sortable) or as a parallel plot; every action is in
-   the side panel: the tables (tick to merge, show, export, close), the merge, and which table the
-   next steps work on (Continue with). */
+   the study's navigator (C7, Navigator.tsx): the tables (tick to merge, a click works on one, export,
+   close) and the merge. */
 import { useEffect, useMemo, useState } from "react";
 import { pickPath } from "../../store";
 import { useT, type TFn } from "../../i18n";
@@ -21,7 +21,6 @@ import ParallelPlot from "./ParallelPlot";
 import { NO_ZOOM, zoomAt } from "../../sweeps/zoom";
 import { notify, notifyError } from "../../sweeps/notify";
 
-const TABLE_EXTS = [".csv", ".tsv", ".txt", ".parquet", ".pq", ".xlsx", ".xls"];
 const stem = (n: string) => n.replace(/\.[^.]+$/, "");
 
 /** The roles of a table's columns: the study's for the table in use, the guess for the others. */
@@ -33,56 +32,9 @@ function rolesOf(s: Study, tb: StudyTable) {
   return new Map(tb.opened.columns.map((c) => [c.name, c.role]));
 }
 
-export function RawSide({ study }: { study: Study }) {
-  const t = useT();
-  return (
-    <div className="sw-side-step">
-      <p className="sw-step-intro">{t("swRawIntro")}</p>
-      <TablesBox study={study} />
-      <MergeBox study={study} />
-      <ContinueWith study={study} />
-    </div>
-  );
-}
-
-/** Tables in this study: tick to merge, a click shows it in the middle, download, close. */
-function TablesBox({ study }: { study: Study }) {
-  const t = useT();
-  const st = useSweeps.getState();
-  const add = async () => {
-    const p = await pickPath({ mode: "open", title: t("swAddTable"), exts: TABLE_EXTS });
-    if (p) st.addTable(p).catch(notifyError);
-  };
-  return (
-    <section className="sw-hide-box sw-tables" aria-label={t("swTables")}>
-      <b>{t("swTables")}</b>
-      <ul className="sw-table-list">
-        {study.tables.map((tb, i) => {
-          const picked = study.picked.includes(tb.id);
-          return (
-            <li key={tb.id} className={`sw-table-item${i === study.shown ? " on" : ""}${i === study.use ? " used" : ""}`}>
-              <input type="checkbox" checked={picked} aria-label={t("swTickToMerge", { n: tb.name })} title={t("swTickToMerge", { n: tb.name })}
-                onChange={() => st.setPicked(picked ? study.picked.filter((x) => x !== tb.id) : [...study.picked, tb.id])} />
-              <button className="sw-table-name" title={tb.name} onClick={() => st.setShown(i)} aria-current={i === study.shown ? "true" : undefined}>
-                {tb.merged && <Icon.Merge width={13} height={13} />}<span className="sw-ellipsis">{tb.name}</span>
-              </button>
-              <span className="hint sw-table-rows">{tb.opened.rows.toLocaleString()}</span>
-              <button className="iconbtn sm" title={t("swExportDataHint")} aria-label={`${t("swExportDataHint")}: ${tb.name}`}
-                onClick={() => exportTable(t, study, tb)}><Icon.Download width={14} height={14} /></button>
-              <button className="iconbtn sm" title={t("swCloseTableN", { n: tb.name })} aria-label={t("swCloseTableN", { n: tb.name })}
-                onClick={() => st.closeTable(i)}><Icon.X width={13} height={13} /></button>
-            </li>
-          );
-        })}
-      </ul>
-      <button className="btn outline" onClick={add}><Icon.Plus width={14} height={14} /> {t("swAddTable")}</button>
-    </section>
-  );
-}
-
 /** A table to a file: the OS-like save dialog at once, CSV or HTML with the parallel plot (the one
  *  chosen first follows the tab on screen); the plot as it was left. */
-async function exportTable(t: TFn, study: Study, tb: StudyTable) {
+export async function exportTable(t: TFn, study: Study, tb: StudyTable) {
   const st = useSweeps.getState();
   const html = st.dataTab === "plot";
   const p = await pickPath({ mode: "save", title: t("swExportDataHint"), exts: [".csv", ".html"],
@@ -106,8 +58,8 @@ const defaultAxes = (s: Study, tb: StudyTable) => {
   return tb.opened.columns.filter((c) => !c.constant && !c.empty && role.get(c.name) !== "id" && role.get(c.name) !== "ignore").map((c) => c.name).slice(0, 12);
 };
 
-/** Merge: always here; it answers the tables ticked above. Its result is a new table. */
-function MergeBox({ study }: { study: Study }) {
+/** Merge (in the navigator, C7): it answers the tables ticked there. Its result is a new table. */
+export function MergeBox({ study }: { study: Study }) {
   const t = useT();
   const parts = study.tables.filter((x) => study.picked.includes(x.id));
   const [how, setHow] = useState<"concat" | "join">("concat");
@@ -163,21 +115,6 @@ function MergeBox({ study }: { study: Study }) {
       <button className="btn primary" disabled={busy || !!pv?.error || (how === "join" && !keys.length) || (how === "concat" && addSource && !source.trim())}
         onClick={create}>{t("swCreateMerged")}</button>
     </section>
-  );
-}
-
-/** Which table the next steps work on - one table or a merged one - and on to Columns. */
-function ContinueWith({ study }: { study: Study }) {
-  const t = useT();
-  const st = useSweeps.getState();
-  return (
-    <div className="sw-step-foot sw-continue">
-      <label className="sw-continue-pick"><span>{t("swContinueWith")}</span>
-        <select value={study.use} onChange={(e) => st.useTable(Number(e.target.value))} aria-label={t("swContinueWith")}>
-          {study.tables.map((tb, i) => <option key={tb.id} value={i}>{tb.name}</option>)}
-        </select></label>
-      <button className="btn primary" onClick={() => st.setView({ step: "roles" })}>{t("swStepColumns")} →</button>
-    </div>
   );
 }
 

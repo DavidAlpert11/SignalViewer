@@ -12,7 +12,8 @@
 - D13 ran `test_features.py`, `test_move_plots_tabs.py`, `test_welcome_cards.py`, `test_calm_screen.py` -k "palette or command or move or welcome or card or calm" (no change) (L1)
 
 <!-- 1114 lane L2 -->
-- `tests/e2e/test_sweeps_workspace.py` – C6 (results first: Set up filled; start from nothing: Set up typed, Undo) (L2); C11 adds the rest of the walkthroughs
+- `tests/e2e/test_sweeps_workspace.py` – C6 (results first: Set up filled; start from nothing: Set up typed, Undo) (L2); C7 the navigator: Set up / table clicks, a demo round opened from it; C11 adds the rest of the walkthroughs
+- `tests/e2e/test_sweeps_flow.py`, `test_sweeps_data_columns.py` – C7: the table list, merge and export are in the navigator (`.sw-nav`); *Continue with* is a click on a table (`.sw-table-item.used`) (L2)
 
 <!-- 1114 lane L3 -->
 - B1 ran `test_plot_menus`, `test_plot_polish`, `test_move_plots`, `test_one_per_plot`, `test_aligned_plots`, `test_owner_notes_1_20`, `test_flat_line_solo` (no change to them) (L3)

@@ -32,7 +32,8 @@ import ReportDialog from "./ReportDialog";
 import { TABLE_EXTS } from "../../sweeps/studyFile";
 import TemplatesDialog from "./TemplatesDialog";
 import StepNav from "./StepNav";
-import { RawCenter, RawSide, ZoomButtons } from "./RawStep";
+import { RawCenter, ZoomButtons } from "./RawStep";
+import Navigator from "./Navigator";
 import { NO_ZOOM } from "../../sweeps/zoom";
 import { RolesCenter, RolesSide } from "./RolesStep";
 import { templateSummary } from "../../sweeps/templates";
@@ -176,7 +177,9 @@ export default function SweepsScreen() {
     : common && part === "setup" ? <SetupView />
     : part === "table" && study ? <StudyView study={study} />
     : common ? <StudyPanel /> : study ? <StudyView study={study} /> : <SweepsWelcome />;
-  return <><SweepsBar />{middle}</>;
+  // C7: the navigator beside every part of a study (not on the welcome page or the New study choice)
+  const withNav = part !== "new" && (common || !!study);
+  return <><SweepsBar />{withNav ? <div className="sw-ws"><Navigator />{middle}</div> : middle}</>;
 }
 
 function SweepsBar() {
@@ -392,7 +395,8 @@ function StudyView({ study }: { study: Study }) {
     const h = window.setInterval(() => useSweeps.getState().checkChanged(), 3000);
     return () => window.clearInterval(h);
   }, [study.tableId, study.path]);
-  const side = step === "raw" ? <RawSide study={study} /> : step === "roles" ? <RolesSide study={study} />
+  // the Data step has no side panel (C7): its tables are the navigator's
+  const side = step === "raw" ? null : step === "roles" ? <RolesSide study={study} />
     : step === "goals" ? <GoalsSide study={study} /> : <ResultsSide study={study} />;
   const noParams = !activeParams(study).length;
   // the side panels: widths dragged (and remembered) as in Recordings, the steps' panel can be hidden
@@ -400,7 +404,7 @@ function StudyView({ study }: { study: Study }) {
   const [leftW0, setLeftW] = usePanelWidth("swLeft", 280);
   const leftW = Math.max(LEFT_MIN, Math.min(LEFT_MAX, leftW0));
   const [detailW, setDetailW] = usePanelWidth("swDetail", 380);
-  const leftHidden = useLeftHidden();
+  const leftHidden = useLeftHidden() || !side;
   const detail = step === "results" && study.view.pinned !== null && !!study.answer;
   const box = useRef<HTMLDivElement>(null);
   const room = (other: number) => () => (box.current?.clientWidth ?? window.innerWidth) - other - MIN_MIDDLE;

@@ -57,8 +57,9 @@ def test_results_first_opens_the_results_and_fills_set_up(pg):
     pg.wait_for_function("window.__svStudy.state().study && window.__svStudy.state().guess")
     assert _study(pg, "s.tables[0].paths[0]").endswith("drone_tuning.csv")
     assert _study(pg, "Object.keys(s.search.params)") == ["kp_roll", "ki_roll", "filter_hz"]
-    pg.evaluate("window.__svSweeps.show('setup')")
+    pg.locator(".sw-nav [data-nav=setup]").click()                              # C7: the navigator
     pg.wait_for_selector("[data-part=setup]")
+    assert pg.locator(".sw-nav-done").inner_text().endswith("/4")
     assert pg.locator(".su-params tbody tr[data-param]").count() == 3
     assert [pg.locator(".su-scen tr[data-scenario]").nth(i).get_attribute("data-scenario") for i in range(3)] == \
         ["scenario_wind_mps", "scenario_payload_kg", "scenario_gusts"]
@@ -67,6 +68,10 @@ def test_results_first_opens_the_results_and_fills_set_up(pg):
     assert _study(pg, "s.launcher.submit.length") == 0                          # no command: still the table's own file
     pg.locator(".su-to-results").click()
     pg.wait_for_selector(".sw-study-wrap")
+    pg.locator(".sw-nav [data-nav=setup]").click()                              # and back with the table's own item
+    pg.wait_for_selector("[data-part=setup]")
+    pg.locator(".sw-nav [data-nav=table]", has_text="drone_tuning.csv").click()
+    pg.wait_for_selector(".sw-study-wrap .sw-steps")
 
 
 def test_start_from_nothing_types_the_set_up(pg):
@@ -99,3 +104,24 @@ def test_start_from_nothing_types_the_set_up(pg):
     pg.keyboard.press("Control+z")                                              # the one Undo: the command goes
     pg.wait_for_function("window.__svStudy.state().study.launcher.submit.length === 0")
     assert pg.get_attribute("[data-part=setup]", "data-missing") == "command"
+
+
+def test_navigator_lists_the_rounds_and_opens_one(pg):
+    """C7: the demo after a round - the navigator lists each table's Round 1 (from the study file's tables); a click on
+    one opens its results in the four steps, the round marked as the one shown; Set up is a click away."""
+    pg.locator(".ex-card[data-example='smartSweepDemo']").click()
+    pg.wait_for_selector(".dm-strip")
+    if pg.locator(".dm-reset").is_enabled():                     # a demo left by an earlier run: start again
+        pg.locator(".dm-reset").click()
+        pg.wait_for_function("document.querySelector('.dm-strip').dataset.round === '0'")
+    pg.locator(".dm-next").click()
+    pg.wait_for_function("document.querySelector('.dm-chart').dataset.points === '1' && "
+                         "document.querySelector('[data-shot=demo]').dataset.settled === '1'", timeout=120000)
+    pg.wait_for_function("document.querySelectorAll('.sw-nav [data-nav=round][data-round=\"1\"]').length >= 2", timeout=30000)
+    pg.locator(".sw-nav [data-nav=round][data-round='1']").first.click()
+    pg.wait_for_selector(".sw-study-wrap .sw-steps")
+    _idle(pg)
+    pg.wait_for_selector(".sw-nav [data-nav=round].on")
+    assert pg.locator(".sw-nav [data-nav=round].on").get_attribute("data-round") == "1"
+    pg.locator(".sw-nav [data-nav=setup]").click()
+    pg.wait_for_selector("[data-part=setup]")

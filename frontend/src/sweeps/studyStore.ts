@@ -62,14 +62,20 @@ export function startFromNothing(): void {
 /** *I have results*: the table opens (its results at once) and the study's Set up is filled from its columns. */
 export async function haveResults(path: string): Promise<void> {
   await useSweeps.getState().open(path);
+  if (await setupFromOpenTable()) useSweeps.setState({ part: "table" });
+}
+
+/** The study's Set up filled from the table on screen (I have results; the navigator's Set up for a table opened
+ *  on its own, C7). False when no table is open. */
+export async function setupFromOpenTable(): Promise<boolean> {
   const st = useSweeps.getState(), t = st.studies[st.active];
-  if (!t) return;
+  if (!t) return false;
   const roles = Object.fromEntries(t.columns.map((c) => [c.name, c.role]));
   const guess = await studyApi.fromTable(t.tableId, roles);
   const { patch } = goalToStudy(upgradeQuestion(t.question));
   const name = t.name.replace(/\.[^.]+$/, "");
   set({ ...EMPTY, open: true, study: setupFromResults(guess, t.path, name, patch), saved: "", guess });
-  useSweeps.setState({ part: "table" });
+  return true;
 }
 
 export function newStudy(): void {
