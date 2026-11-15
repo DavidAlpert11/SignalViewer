@@ -10,6 +10,7 @@
 - The health check's findings are cards tinted by their verdict (green / amber-yellow / red edge), the first of the new card look.
 - The welcome screen shows your recent files and sessions first (as two cards), then the examples by area.
 - Settings > Look > *Mode band*: the states band inside the top plot or above the plots. Settings groups, the command palette and the dialogs in the new look; keyboard keys in mono.
+- The command palette shows a zoom glass for the zoom modes and a chart for plot commands (it showed the reset arrow for all of them).
 - The second trace colour is now bluish green (orange moved further down the list), so a trace never looks like the cursor.
 <!-- lane L2 -->
 - **Sweeps: a study can start from nothing.** A study file may say its first round (`start`: how many values of each parameter's range, and each table's scenarios); the loop runs that grid first, then aims each next round. A study with one system (one table) is now ranked on its own - it used to ask for two tables.

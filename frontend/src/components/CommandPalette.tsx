@@ -162,9 +162,9 @@ export default function CommandPalette() {
         ? { id: "mav-off", label: t("mavCmdDisconnect"), group: t("files"), icon: <Icon.Live />, run: () => { mavlinkDisconnect(); } }
         : { id: "mav-on", label: t("mavCmdConnect"), group: t("files"), icon: <Icon.Live />, run: () => useApp.setState({ liveMenuOpen: true }) },
       { id: "refreshall", label: t("refreshAll"), group: t("files"), icon: <Icon.Reload />, run: () => { refreshAll(); }, keys: "F5" },
-      { id: "zoomx", label: t("zoomX"), group: t("plot"), icon: <Icon.Reset />, run: () => actions.setZoomMode("x"), keys: "Z" },
-      { id: "zoomy", label: t("zoomY"), group: t("plot"), icon: <Icon.Reset />, run: () => actions.setZoomMode("y"), keys: "Z" },
-      { id: "zoomxy", label: t("zoomXY"), group: t("plot"), icon: <Icon.Reset />, run: () => actions.setZoomMode("xy"), keys: "Z" },
+      { id: "zoomx", label: t("zoomX"), group: t("plot"), icon: <Icon.Zoom />, run: () => actions.setZoomMode("x"), keys: "Z" },
+      { id: "zoomy", label: t("zoomY"), group: t("plot"), icon: <Icon.Zoom />, run: () => actions.setZoomMode("y"), keys: "Z" },
+      { id: "zoomxy", label: t("zoomXY"), group: t("plot"), icon: <Icon.Zoom />, run: () => actions.setZoomMode("xy"), keys: "Z" },
       { id: "soloplot", label: t("soloPlot"), group: t("plot"), icon: <Icon.Layout />, run: () => useApp.setState({ soloPlot: !st().soloPlot }), keys: "M" },
     ];
     // another area: its own commands, and what is the same everywhere (areaCommands.ts)
@@ -206,7 +206,7 @@ export default function CommandPalette() {
     for (const [g, cs] of groups) add(g, cs);
   } else items.forEach((c, n) => rows.push({ cmd: c, n }));
   const groupIcon: Record<string, React.ReactNode> = {
-    [t("layout")]: <Icon.Layout />, [t("logEvents")]: <Icon.Log />, [t("plot")]: <Icon.Reset />, [t("objects")]: <Icon.Globe />,
+    [t("layout")]: <Icon.Layout />, [t("logEvents")]: <Icon.Log />, [t("plot")]: <Icon.Chart />, [t("objects")]: <Icon.Globe />,
     [t("files")]: <Icon.File />, [t("tab")]: <Icon.Layout />, [t("cursor")]: <Icon.Cursor />, [t("theme")]: <Icon.Settings />,
   };
   const iconOf = (c: Cmd) => c.icon ?? groupIcon[c.group] ?? <Icon.Chevron />;

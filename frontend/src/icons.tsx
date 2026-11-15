@@ -15,6 +15,9 @@ export const Icon = {
   Folder: mk(<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />),
   File: mk(<><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5" /></>),
   Plus: mk(<path d="M12 5v14M5 12h14" />),
+  // D13: neutral glyphs for plot commands (any data - a chart, a zoom; no vehicle in the frame)
+  Chart: mk(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M6 15l4-4 3 3 5-6" /></>),
+  Zoom: mk(<><circle cx="11" cy="11" r="6" /><path d="M20 20l-4.3-4.3M11 8.5v5M8.5 11h5" /></>),
   X: mk(<path d="M6 6l12 12M18 6L6 18" />),
   Search: mk(<><circle cx="11" cy="11" r="6" /><path d="M20 20l-4.3-4.3" /></>),
   Chevron: mk(<path d="M6 9l6 6 6-6" />),

@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   coordinator session is not resumed (kept for reference); this session coordinates and runs the Final lane.
 - **Lane board – redesign round 2026-11-14** (plan §7.0; each lane edits only its own block; S1 = A3 + A4 on `main`).
   <!-- lane L1 -->
-  - **L1 Look** – in progress · done: A1 A2 A3 A4 (**S1 on `main`**) D11 D12 · next: D13 · tasks A1 A2 A3 A4 D11 D12 D13 · requests from other lanes: –
+  - **L1 Look** – done · done: A1 A2 A3 A4 (**S1 on `main`**) D11 D12 D13 · next: – (lane done; requests still answered) · tasks A1 A2 A3 A4 D11 D12 D13 · requests from other lanes: –
     - DONE (D12, 2026-11-14) – From L3 (2026-11-14): a Settings row (Look, beside the plot choices) for L3's setting `bandInCard` (B3; boolean, default on; `useApp.setState({ bandInCard })`, saved via settings.ts): en *Mode band – Inside the top plot / Above the plots*, he *פס המצבים – בתוך הגרף העליון / מעל הגרפים*. Until then it is set only by the store / prefs.
     - Noted (L1): From L5 (D7, 2026-11-14): please keep the `.hrow` alias of the card rules for now – `HealthRow` lays its icon beside the text (a row), `.card` is a column; the Checks view's own cards use `.card`.
     - New tokens (A1, on `main`): `--select` / `--select-ink` / `--select-soft` / `--select-ring` (selection, active, primary – a
@@ -76,6 +76,12 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       (2) the signal list (D2 chips): `ws.searches` as chips (`q` typed into the search box on click; `label ?? q`), ✕ → `actions.unpinSearch(q)`, and *Pin this search* beside the search box → `actions.pinSearch(text)` (toast `t("glSearchPinned", {q})`).
       (3) the Inspector's statistics (D8): *Pin to at a glance* → `actions.pinGlance(name, stat)` (false = full: toast `t("glFull")`). Strings are in `i18n/templates.ts` (gl*). Analysis (D3, mine) gets the same pin.
     - From L5 (2026-11-14): **F2's endpoint is on `main`** – `POST /api/stats/window {signals: [ids], t0, t1}` (shown time; offsets applied) → `{stats: {id: {n, min, max, mean, t0, t1}}}`, states and closed signals left out, < 5 ms per call on 20M samples (block summaries cached). For the legend on demand (B2): call it on the view's x-range after a pan / zoom settles. Backend `svcore/windowstats.py`, test `tests/test_window_stats.py`.
+    - Request from L1 (D13 wording audit, 2026-11-14) – generic chrome says *recording / run / signal*; a format's name stays
+      (plan §3.6). In your i18n files, en + he: `app.dropHint` / `app.noFilesHint` / `app.tourOpenText` "flight logs" →
+      "logs (ArduPilot, PX4, MAVLink)"; `app.rpLog` "The flight log's own check" → "The log's own check"; `plots.exportFlight`
+      "Export the flight" → "Export the run"; `files.fxParamNoLog` / `fxParamNoFile` / `fxParamUnknown` / `err_logNoData`
+      "flight log" → "log"; `files.errHint` "such as the flight mode" → "such as a mode". (`signals.refSignalsHint` and
+      `plots.fftFiltersTitle` are examples / a format's own feature: keep.)
   <!-- lane L4 -->
   - **L4 Map** – in progress · done: M2, M3a, M4a (backends), B6 · next: M1 (+ M3b / M4b) · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
     - *Request to L3* (from L4, M2): `store/slices/view.ts` `geoBase`'s type → `GeoBase` from `mapBase.ts` (it now has
@@ -91,6 +97,11 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
     - D7 touched two files no lane owns (coordinator told): `App.tsx` (3 lines) and `components/rail.ts` (1 line), each marked `L5 D7`; `main.tsx` imports `styles/panels.css` (L5's).
     - `api.ts` has an L5 block (runStructure / windowStats / runParameters / compareParameters / glance + their types). Sandbox: SV_CHROMIUM=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome for e2e and count_controls; warm the UI first (`timeout 200 python run.py --port 8777 --no-open --browser`).
     - Watch out: F2's mean and D14's `mean` are plain means of the samples (not time-weighted) – say so wherever they are shown.
+    - Request from L1 (D13 wording audit, 2026-11-14) – generic chrome says *recording / run*; en + he in `i18n/compare.ts`:
+      `syncDetected` / `syncDetectedConfirmed` / `syncUnconfirmedSignal` / `syncUnconfirmedVehicle` "the same flight" → "the same
+      run"; `syncCheckModes` "Flight modes, both files" → "Modes, both files"; `syncExplain` "same test or flight" → "same test
+      or run". `investigate.stepHint` "the whole flight" → "the whole recording". (Fleet, templates, the flight-log panel: a
+      format's or a profile's own words – keep until F8.)
   <!-- lane Final -->
   - **Final** – waits for every lane · E1 E2 E4, the full checks, E3 the version
   <!-- end of the lane board -->
@@ -4254,3 +4265,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
   `docs/dev/mockups/B6/{before,after}` (dark en, light he). Ran: tsc; e2e `test_map_objects`, `test_map_smooth`, `test_globe3d`, `test_object_relations`, `test_live_report`, `test_offline_map` 44/44; quick_check green. Next: M1.
 - 2026-11-14 · L1 D12 Settings, palette, dialogs, library, Help, tour: dialogs on `--shadow-lg` with `--r-xl` corners over a `--scrim` token; Settings groups as eyebrows with hairlines between rows; L3's request done – Settings > Look > *Mode band* (Inside the top plot / Above the plots, `bandInCard`, strings in `i18n/common.ts`); the palette's chosen command in the selection tint with an edge; keys (`.kbd`) in mono; the tour card on `--r-card` / `--shadow-md`. Pictures `docs/dev/mockups/D12/after/` (Settings, Help, library, palette; dark en, light he). Ran: tsc, quick_check green, e2e `test_settings`, `test_file_help_menus`, `test_template_tabs`, `test_templates_recent_badfiles`, `test_tour`, `test_calm_screen`, `test_features -k "not map/globe/3d"` 147 passed. Seen for D13: the palette shows the same reload icon for move / zoom commands. Next: D13.
 - 2026-11-14 · L5 D14 profiles: a template carries its *at a glance* numbers (`glance`, ≤ 4, min / max / mean (plain sample mean) / first / final / range of a signal by name) and pinned searches (`searches`); `POST /api/runs/{id}/glance`; the built-in ArduPilot / MAVLink / PX4 templates carry theirs; opening merges (Undo), saving keeps them; old templates unchanged. The display is L3's (asked under L3). Ran: test_glance (new, 5), test_window_stats, test_templates, test_template_matching; mypy on the changed modules; tsc; Vitest store/profile.test.ts (new, 5) + undo; e2e test_template_tabs, test_templates_recent_badfiles 14 passed. No screen changed (no pictures / recount). Next: D3.
+- 2026-11-14 · L1 D13 wording and icons: audited every i18n file's English for domain words in the chrome (plan §3.6). In L1's files: the Fleet group's hint says *recording* (welcome.ts, en + he); format names (ArduPilot / PX4 log) and the examples keep theirs. Requests written under L3 (app / plots / files strings) and L5 (compare / investigate). Icons: no vehicle glyph in the chrome (none in icons.tsx); the palette drew the reset arrow for every plot command – new neutral `Icon.Zoom` (zoom modes) and `Icon.Chart` (the Plot group). Ran: tsc, quick_check green, e2e `test_features` + `test_move_plots_tabs` + `test_welcome_cards` + `test_calm_screen` -k palette/command/move/welcome/card/calm 23 passed. Lane L1 done (A1–A4, D11–D13).

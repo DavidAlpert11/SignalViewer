@@ -11,7 +11,7 @@ export const en = {
   exampleFleetDesc: "Ten flights of two copters - find the one whose vibration grows, flight after flight",
   exampleGroupRecordings: "one recording or a few: plot, map, compare, find what went wrong, report",
   exampleGroupSweeps: "the results of many runs: which settings hold, and what to run next",
-  exampleGroupFleet: "every flight of a folder: which one needs a look",
+  exampleGroupFleet: "every recording of a folder: which one needs a look",
   // W1: the pictures' alternative text (what the picture shows)
   exampleAlt_flight: "Plots of a drone flight: altitude, speed and attitude",
   exampleAlt_twoFlights: "The same mission flown twice, the two tracks compared",
@@ -57,7 +57,7 @@ export const he: typeof en = {
   exampleFleetDesc: "עשר טיסות של שני רחפנים – למצוא את זה שהרעידות שלו גדלות מטיסה לטיסה",
   exampleGroupRecordings: "הקלטה אחת או כמה: גרפים, מפה, השוואה, מה השתבש, דוח",
   exampleGroupSweeps: "התוצאות של הרבה הרצות: אילו הגדרות עומדות, ומה להריץ הלאה",
-  exampleGroupFleet: "כל הטיסות של תיקייה: איזו צריכה בדיקה",
+  exampleGroupFleet: "כל ההקלטות של תיקייה: איזו מהן צריכה בדיקה",
   exampleAlt_flight: "גרפים של טיסת רחפן: גובה, מהירות וזוויות",
   exampleAlt_twoFlights: "אותה משימה שהוטסה פעמיים, שני המסלולים בהשוואה",
   exampleAlt_car: "שלוש הרצות ניסוי של רכב על ציר זמן אחד",

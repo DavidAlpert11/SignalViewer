@@ -946,7 +946,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
   - [ ] M4 My maps – M4a backend done 2026-11-14 (`app/mymaps.py`: raster MBTiles, a user's XYZ / TMS server, `my:<id>` layers); M4b the list and the picker with M1.
   - [x] B6 Map / 3D chrome – one glass bar top-start, the bottom docks (data box as an instrument, attitude and relation box bottom-end), `styles/map.css`. 2026-11-14.
 <!-- end lane L4 -->
-- [ ] D1–D14 Every area adopts the look (pictures and a recount per area); D13 wording / icons audit; D14 profiles (templates with their at-a-glance numbers and chips). D11 (welcome) done 2026-11-14. D12 (Settings, palette, dialogs, library, Help, tour) done 2026-11-14.
+- [ ] D1–D14 Every area adopts the look (pictures and a recount per area); D13 wording / icons audit; D14 profiles (templates with their at-a-glance numbers and chips). D11 (welcome) done 2026-11-14. D12 (Settings, palette, dialogs, library, Help, tour) done 2026-11-14. D13 (wording / icons audit; requests to L3 / L5 for their strings) done 2026-11-14.
 - [ ] E1–E4 Docs, pictures, a test-bench example, 1.28.0 (the owner tags).
 - [ ] F1–F7 New capabilities the owner picks (messages, window statistics, parameters + two logs compared, live instruments, height profile, vectors along the path, pop-out; F8 the Fleet for any format – later), all format-neutral (§3.6).
 <!-- lane L5 -->
