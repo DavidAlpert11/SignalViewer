@@ -14,6 +14,12 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 from test_features import env, frames  # noqa: E402,F401
 
+
+def _exe() -> dict:
+    """A Chromium installed elsewhere (SV_CHROMIUM), as the other e2e files launch it."""
+    return {"executable_path": os.environ["SV_CHROMIUM"]} if os.environ.get("SV_CHROMIUM") else {}
+
+
 GL = ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
 
 
@@ -34,7 +40,7 @@ def g3(env):
         if os.path.exists(f):
             os.remove(f)
     with sync_playwright() as p:
-        b = p.chromium.launch(args=GL)
+        b = p.chromium.launch(args=GL, **_exe())
         pg = b.new_context(viewport={"width": 1100, "height": 800}, locale="en-US").new_page()
         external = []
         pg.on("request", lambda r: external.append(r.url) if not r.url.startswith(env["url"]) and not r.url.startswith(("data:", "blob:")) else None)
@@ -128,7 +134,7 @@ def g3multi(env):
         if os.path.exists(f):
             os.remove(f)
     with sync_playwright() as p:
-        b = p.chromium.launch(args=GL)
+        b = p.chromium.launch(args=GL, **_exe())
         pg = b.new_context(viewport={"width": 1200, "height": 800}, locale="en-US").new_page()
         pg.goto(env["url"])
         pg.wait_for_selector(".app")
@@ -209,7 +215,7 @@ def g3move(env):
         if os.path.exists(f):
             os.remove(f)
     with sync_playwright() as p:
-        b = p.chromium.launch(args=GL)
+        b = p.chromium.launch(args=GL, **_exe())
         pg = b.new_context(viewport={"width": 1200, "height": 800}, locale="en-US").new_page()
         pg.goto(env["url"])
         pg.wait_for_selector(".app")

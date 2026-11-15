@@ -168,7 +168,7 @@ def test_instruments_follow_a_live_file(pg):
     open_files(pg, "growing.csv")
     pg.evaluate("window.__sv.state().commit((ws) => { ws.instruments = ['Oil.Temp|Engine.Temp', 'Nope']; return ws; })")
     _open_instruments(pg)
-    assert "Not in this file" in _tile(pg, "Nope").inner_text()            # said, not hidden
+    pg.wait_for_function("(document.querySelector(\"aside.log-panel .ins-tile[data-name='Nope']\") || {}).innerText?.includes('Not in this file')")   # said, not hidden (once its answer is in)
     pg.click(".live-btn")
     pg.wait_for_function("window.__sv.state().streaming === true")
     assert pg.locator("aside.log-panel .instruments[data-live='1']").count() == 1

@@ -13,6 +13,12 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 from test_features import env, flat_maps, goto_folder, menu_item, open_files, pg, S, save_as  # noqa: E402,F401
 
+
+def _exe() -> dict:
+    """A Chromium installed elsewhere (SV_CHROMIUM), as the other e2e files launch it."""
+    return {"executable_path": os.environ["SV_CHROMIUM"]} if os.environ.get("SV_CHROMIUM") else {}
+
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -250,7 +256,7 @@ def test_the_wow_in_the_3d_page(env, tmp_path):
     from playwright.sync_api import sync_playwright
     path, _r = _tabor_page(env, tmp_path)
     with sync_playwright() as p:
-        b = p.chromium.launch(args=GL_ARGS)
+        b = p.chromium.launch(args=GL_ARGS, **_exe())
         page = b.new_page(viewport={"width": 1300, "height": 800})
         page.goto("file://" + path)
         page.wait_for_function("window.__scene && window.__scene.state.gl")
@@ -288,7 +294,7 @@ def test_story_in_the_live_page(env, tmp_path):
                                "tabs": [{"name": "Flight", "plots": [plot]}],
                                "replay": {"t": 0.0, "extent": [0, 299.9], "compact": True, "events": events, "storyLength": 30}})
     with sync_playwright() as p:
-        b = p.chromium.launch(args=GL_ARGS)
+        b = p.chromium.launch(args=GL_ARGS, **_exe())
         page = b.new_page(viewport={"width": 1300, "height": 900})
         page.goto("file://" + path)
         page.wait_for_function("window.__replay && window.__replay.story.count > 0")
