@@ -113,7 +113,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       `.rel-panel`'s position, `.g3-cam-hint` / `.geo-hint` / `.g3-measure`'s position) and `review.css` (R3's map lines)
       may be trimmed when convenient – nothing breaks if they stay.
   <!-- lane L5 -->
-  - **L5 Analysis and new capabilities** – in progress · done: F3 F1 F2 D7 D14 D3 · next: D4 · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: under L3 (strip counts from Checks; the profile's numbers and chips – D14)
+  - **L5 Analysis and new capabilities** – in progress · done: F3 F1 F2 D7 D14 D3 D4 · next: D5 · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: under L3 (strip counts from Checks; the profile's numbers and chips – D14)
     - HAND-OVER 2026-11-15 (Claude, lane L5): stopped because of context (D4 Compare is a large panel – start it fresh).
       Last finished task: D3 (commit 4ba6175, on main). Before it D14 76ae712. F3 F1 F2 D7 D14 D3 all on main.
       In progress: none; uncommitted / stashed: none.
@@ -130,7 +130,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
     - D7 touched two files no lane owns (coordinator told): `App.tsx` (3 lines) and `components/rail.ts` (1 line), each marked `L5 D7`; `main.tsx` imports `styles/panels.css` (L5's).
     - `api.ts` has an L5 block (runStructure / windowStats / runParameters / compareParameters / glance + their types). Sandbox: SV_CHROMIUM=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome for e2e and count_controls; warm the UI first (`timeout 200 python run.py --port 8777 --no-open --browser`).
     - Watch out: F2's mean and D14's `mean` are plain means of the samples (not time-weighted) – say so wherever they are shown.
-    - Request from L1 (D13 wording audit, 2026-11-14) – generic chrome says *recording / run*; en + he in `i18n/compare.ts`:
+    - DONE (D4, 2026-11-15) – Request from L1 (D13 wording audit, 2026-11-14) – generic chrome says *recording / run*; en + he in `i18n/compare.ts`:
       `syncDetected` / `syncDetectedConfirmed` / `syncUnconfirmedSignal` / `syncUnconfirmedVehicle` "the same flight" → "the same
       run"; `syncCheckModes` "Flight modes, both files" → "Modes, both files"; `syncExplain` "same test or flight" → "same test
       or run". `investigate.stepHint` "the whole flight" → "the whole recording". (Fleet, templates, the flight-log panel: a
@@ -4334,3 +4334,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-15 · L3 D2 fix: the quick chips stay while the search has text and hide only after the click that left the search has landed (hiding at once moved the list under the pointer - `test_features::test_multi_select_search_collapse_and_x_on_each` caught a lost click). Ran: test_features, test_workflows, test_templates_recent_badfiles, test_name_tree (169 passed), test_less_clutter.
 - 2026-11-15 · L3 D8 Inspector (eyebrow titles, mono number columns, ☆ pin a statistic to at a glance – L5's request 3), the timeline's warnings in --warn. Ran: tsc, Vitest; e2e test_plot_polish (new test), test_plot_style, test_timeline, test_range_notes, test_less_clutter, test_features, test_workflows green; count_controls 42 / 107 / 60 / 16 (same without D8: the change since D1 is other lanes'); pictures docs/dev/mockups/L3/after-D8. Next: L5's strip / pinned-search requests, L1's wording request.
 - 2026-11-15 · L3 hand-over: own tasks done and on main (B1–B5, F2's legend, D1, D2 (+ fix), D8, L4's geoBase request); open: L1's D13 wording, L5's pinned searches / at-a-glance strip / Checks counts (see the L3 HAND-OVER block). quick_check green at 124b033.
+- 2026-11-15 · L5 D4 Compare: the verdict a tinted `.card`, `table.data` with mono `.num` columns (panel, Table of all signals, Compare objects' statistics – one marked line in CompareObjectsDialog.tsx), the parameters that differ from the baseline file per file (F3, read-only, below the list); L1's D13 wording in compare.ts / investigate.ts done (test_features' sync toast now *same run*). For L1: `table.vals.cmp2` rules in index.css unused. Ran: tsc; e2e test_compare_params (new), test_compare_diff, test_compare_tolerances, test_judge_a_run, test_compare_similar, test_features -k compare/same_flight/values_on_plot/escape (13) – green; quick_check green; pictures D4 before / after dark en, light he (RTL fine). Compare is not on count_controls' screens; no control added. Next: D5.

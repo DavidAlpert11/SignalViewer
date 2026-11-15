@@ -70,6 +70,7 @@ inside your lane's block.
 <!-- lane L4 -->
 
 <!-- lane L5 -->
+- `tests/e2e/test_compare_params.py` – D4 the parameters that differ from the baseline, per file (new); test_compare_diff / test_compare_tolerances / test_judge_a_run / test_compare_similar unchanged (run); test_features: the sync toast says *same run* (L5)
 - `tests/e2e/test_study_common.py` – W14 card → panel → best value → runs; edit + undo; W15 Suggest next runs (L5)
 - `tests/e2e/test_study_demo.py` – W18 card → Next round twice → two points, run counter (L5)
 

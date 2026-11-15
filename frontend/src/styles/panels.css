@@ -14,3 +14,14 @@
 .fv-table td:first-child { overflow-wrap: anywhere; }
 .fv-col td:first-child { padding-inline-start: var(--sp-4); }
 .fv-gap { color: var(--warn); }
+
+/* D4 Compare: the selected signal's numbers per file (table.data), the parameters that differ (F3) */
+table.data.cmp2 { table-layout: fixed; }
+table.data.cmp2 tr.name-row td { padding: var(--sp-1_5) 0 0; border-bottom: 0; color: var(--ink); }
+table.data.cmp2 tr.name-row .act { float: inline-end; }
+table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line); }
+.cmp-params { margin-top: var(--sp-3); }
+.cmp-params .card-title { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; }
+.cmp-params-scroll { max-height: 220px; overflow: auto; }
+.cmp-params table.data td:first-child { overflow-wrap: anywhere; }
+.cmp-panel .sim-head h3.eyebrow { margin: 0; font: var(--eyebrow); }

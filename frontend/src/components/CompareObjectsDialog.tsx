@@ -114,7 +114,7 @@ export default function CompareObjectsDialog() {
             <div className="cmpobj-stats">
               <h3>{t("cmpStats")}</h3>
               <div className="cmpobj-stats-scroll">
-                <table>
+                <table className="data">{/* L5 D4 */}
                   <thead><tr><th>{t("cmpStObject")}</th><th>{t("cmpStComp")}</th><th className="num">RMS</th><th className="num">{t("cmpStMean")}</th><th className="num">{t("cmpStMax")}</th><th className="num">{t("cmpStP95")}</th><th className="num">{t("cmpStTmax")}</th></tr></thead>
                   <tbody>
                     {/* an object's name once, at the head of its block; the unit beside the component

@@ -1,6 +1,6 @@
 import DiffChart from "./DiffChart";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, type CompareAllRow, type CompareRow, type TolEntry, type Tolerances } from "../api";
+import { api, type CompareAllRow, type CompareRow, type ParamDiff, type TolEntry, type Tolerances } from "../api";
 import TolFields from "./TolFields";
 import { activeTab, fileLabel, fileMark, styledSignal, fitLayout, pickPath, placePlot, tabFullMessage, TRACE_COLORS, uid, useApp } from "../store";
 import { isGolden, proposeBaseline, rememberTolerances, reportVerdict, setGolden, verdicts } from "../judge";
@@ -36,6 +36,61 @@ function Spark({ values, bucket }: { values?: (number | null)[] | null; bucket: 
     <svg className={`spark ${bucket}`} viewBox="0 0 64 14" preserveAspectRatio="none" aria-hidden="true">
       <polyline points={pts} />
     </svg>
+  );
+}
+
+/** D4 (F3): what differs in each file's parameters from the baseline file - the same source as
+ *  Checks > Parameters (log parameters, a file's own settings, constant signals, file-name numbers).
+ *  Read-only: it follows the panel's files and baseline, so it adds no control. */
+function ParamDiffs({ base, others, name, color }: { base: string; others: string[]; name: (rid: string) => string; color: (rid: string) => string }) {
+  const t = useT();
+  const lang = useApp((s) => s.lang);
+  const dataVersion = useApp((s) => s.dataVersion);
+  const [diffs, setDiffs] = useState<Record<string, ParamDiff | null>>({});
+  const key = others.join(",");
+  useEffect(() => {
+    let gone = false;
+    setDiffs({});
+    others.forEach((rid) => api.compareParameters(base, rid)
+      .then((d) => { if (!gone) setDiffs((cur) => ({ ...cur, [rid]: d })); })
+      .catch(() => { if (!gone) setDiffs((cur) => ({ ...cur, [rid]: null })); }));
+    return () => { gone = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [base, key, dataVersion]);
+  const val = (v: number | string, last?: number) =>
+    (typeof v === "number" ? fmtNum(v, lang, 7) : v) + (last !== undefined ? ` → ${fmtNum(last, lang, 7)}` : "");
+  const bn = name(base);
+  return (
+    <section className="checks-sec cmp-params" aria-label={t("cmpParamsHead")}>
+      <h3 className="eyebrow">{t("cmpParamsHead")}</h3>
+      {others.map((rid) => {
+        const d = diffs[rid];
+        if (d === undefined) return <p key={rid} className="hint">…</p>;
+        if (d === null) return <p key={rid} className="hint err">{t("cmpParamsFail", { name: name(rid) })}</p>;
+        const n = d.differ.length, any = n + d.onlyA.length + d.onlyB.length > 0;
+        return (
+          <div key={rid} className={`card${n ? " info" : ""}`} data-param-diff={rid} data-differ={n}>
+            <p className="card-title"><span className="run-dot" style={{ background: color(rid) }} /> <span className="nm">{name(rid)}</span></p>
+            <p className="card-meta">
+              {!any && !d.same ? t("cmpParamsNone") : n ? t("cmpParamsDiffer", { n, base: bn }) : t("cmpParamsSame", { base: bn, n: d.same })}
+              {(d.onlyA.length > 0 || d.onlyB.length > 0) && <> · {t("cmpParamsOnly", { a: d.onlyA.length, b: d.onlyB.length, base: bn })}</>}
+            </p>
+            {n > 0 && (
+              <div className="cmp-params-scroll">
+                <table className="data"><thead><tr><th>{t("cmpParamCol")}</th><th className="num">{bn}</th><th className="num">{name(rid)}</th></tr></thead>
+                  <tbody>{d.differ.map((x) => (
+                    <tr key={x.name} data-diff={x.name}>
+                      <td>{x.name}<span className="muted"> · {t(`prmSource_${x.source}` as "prmSource_log")}</span></td>
+                      <td className="num" title={x.aLast !== undefined ? t("cmpParamsChanged") : undefined}>{val(x.a, x.aLast)}</td>
+                      <td className="num" title={x.bLast !== undefined ? t("cmpParamsChanged") : undefined}>{val(x.b, x.bLast)}</td>
+                    </tr>))}
+                  </tbody></table>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </section>
   );
 }
 
@@ -434,10 +489,10 @@ export default function ComparePanel() {
 
         {/* ---------------- 26.U4: the verdict - per file, pass / fail against the baseline ---------------- */}
         {sim && baseline !== "mean" && active.length >= 2 && (simKey === key || !tolSet) && (
-          <section className={`judge-verdict${vs ? (vs.some((v) => v.failed.length) ? " fail" : " pass") : ""}`} aria-label={t("judgeHead", { base: runName(baseline) })}>
-            <h3>{t("judgeHead", { base: runName(baseline) })}</h3>
+          <section className={`card judge-verdict${vs ? (vs.some((v) => v.failed.length) ? " fail bad" : " pass ok") : ""}`} aria-label={t("judgeHead", { base: runName(baseline) })}>
+            <h3 className="card-title">{t("judgeHead", { base: runName(baseline) })}</h3>
             {vs ? <>
-              <ul>{vs.map((v) => (
+              <ul className="card-list">{vs.map((v) => (
                 <li key={v.run} className={v.failed.length ? "fail" : "pass"}>
                   <span className={v.failed.length ? "sim-fail" : "sim-pass"} aria-hidden="true">{v.failed.length ? "✗" : "✓"}</span>
                   <span className="run-dot" style={{ background: runColor(v.run) }} />
@@ -445,18 +500,18 @@ export default function ComparePanel() {
                   <span className="jv-text">{v.failed.length ? t("judgeFailN", { n: v.failed.length, of: v.judged }) : t("judgePassAll", { of: v.judged })}</span>
                 </li>))}
               </ul>
-              <div className="arow wrap">
+              <div className="card-next">
                 {vs.some((v) => v.failed.length > 0) && <button className="btn primary" onClick={showWorst}>{t("judgeWorst")}</button>}
                 <button className="btn outline" onClick={makeReport}>{t("judgeReport")}</button>
               </div>
-            </> : <p className="hint">{t("judgeNoTol", { base: runName(baseline) })}{" "}
+            </> : <p className="card-meta">{t("judgeNoTol", { base: runName(baseline) })}{" "}
               <button className="linklike" onClick={() => setSettingsOpen(true)}>{t("judgeSetTol")}</button></p>}
           </section>
         )}
 
         {/* ---------------- similarity list ---------------- */}
         <div className="sim-head">
-          <h3>{t("similarity")}</h3>
+          <h3 className="eyebrow">{t("similarity")}</h3>
           <button className="linklike" onClick={() => setSort(sort === "worst" ? "best" : "worst")} title={t("sortToggle")}>
             {sort === "worst" ? t("leastSimilarFirst") : t("mostSimilarFirst")} ⇅</button>
         </div>
@@ -510,9 +565,9 @@ export default function ComparePanel() {
         {/* ---------------- selected signal ---------------- */}
         {signal && rows && (
           <div className="cmp-block" ref={blockRef}>
-            <h3 className="alist-head">{signal} <span className="muted">· {baseline === "mean" ? t("meanOfRuns") : runName(baseline)}</span></h3>
-            <table className="vals cmp2">
-              <thead><tr><th>{t("rmsDiff")}</th><th>{t("maxDiff")}</th><th>{t("corr")}</th>{tolSet && <th>{t("inTol")}</th>}</tr></thead>
+            <h3 className="card-title">{signal} <span className="muted">· {baseline === "mean" ? t("meanOfRuns") : runName(baseline)}</span></h3>
+            <table className="data cmp2">
+              <thead><tr><th className="num">{t("rmsDiff")}</th><th className="num">{t("maxDiff")}</th><th className="num">{t("corr")}</th>{tolSet && <th className="num">{t("inTol")}</th>}</tr></thead>
               {rows.map((r) => (
                 <tbody key={r.id}>
                   <tr className="name-row"><td colSpan={tolSet ? 4 : 3}>
@@ -521,10 +576,10 @@ export default function ComparePanel() {
                     {baseline !== "mean" && !segment && <button className="iconbtn sm act" title={t("alignInTime")} aria-label={t("alignInTime")} onClick={() => align(r.id)}><Icon.Link /></button>}
                   </td></tr>
                   <tr>
-                    <td title={r.rmsPct !== undefined ? `${fmtNum(r.rmsPct, lang, 3)} %` : ""}>{fmtNum(r.rmsDiff, lang, 3)}</td>
-                    <td>{fmtNum(r.maxAbsDiff, lang, 3)}</td>
-                    <td>{fmtNum(r.correlation, lang, 4)}</td>
-                    {tolSet && <td>{r.pass === undefined ? <span className="muted">—</span>
+                    <td className="num" title={r.rmsPct !== undefined ? `${fmtNum(r.rmsPct, lang, 3)} %` : ""}>{fmtNum(r.rmsDiff, lang, 3)}</td>
+                    <td className="num">{fmtNum(r.maxAbsDiff, lang, 3)}</td>
+                    <td className="num">{fmtNum(r.correlation, lang, 4)}</td>
+                    {tolSet && <td className="num">{r.pass === undefined ? <span className="muted">—</span>
                       : <span className={`pf ${r.pass ? "ok" : "bad"}`} title={r.outsidePct ? t("outsideShare", { pct: fmtNum(r.outsidePct, lang, 3) }) : undefined}>{fmtNum(r.withinPct, lang, 3)}%</span>}</td>}
                   </tr>
                 </tbody>
@@ -545,6 +600,11 @@ export default function ComparePanel() {
                 onChange={(e) => { const x = { ...own }; if (e.target.checked) x.skip = true; else delete x.skip; setOwn(x); }} /> {t("tolSkip")}</label>
             </div>
           </div>
+        )}
+
+        {/* D4: what differs in the files' parameters - context for the list above, so after it */}
+        {baseline !== "mean" && active.length >= 2 && (
+          <ParamDiffs base={baseline} others={active.filter((r) => r !== baseline)} name={runName} color={runColor} />
         )}
 
         {/* ---------------- settings ---------------- */}

@@ -89,7 +89,7 @@ export default function CompareTable() {
             {Object.entries(data.segment.windows).map(([rid, [a, b]]) => `${file(rid)}: ${n(a, 4)}–${n(b, 4)} s`).join(" · ")}</p>
         )}
         <div className="dialog-body cmp-scroll">
-          <table className="cmp-table">
+          <table className="data cmp-table">
             <thead><tr>
               {head("name", t("signal"))}{head("files", t("filesCol"))}
               {head("meanSpread", t("meanSpread"), t("meanSpreadHint"))}{head("stdSpread", t("stdSpread"), t("stdSpreadHint"))}
@@ -102,19 +102,19 @@ export default function CompareTable() {
                 return [
                   <tr key={x.name} className={`cmp-row${isOpen ? " open" : ""}`} onClick={() => setOpen(isOpen ? null : x.name)}>
                     <td className="nm"><Icon.Chevron className="chev" />{x.name}</td>
-                    <td>{x.runs?.length ?? "—"}</td>
+                    <td className="num">{x.runs?.length ?? "—"}</td>
                     {x.error ? <td colSpan={5} className="muted">{x.error}</td> : <>
-                      <td>{n(x.meanSpread)}</td><td>{n(x.stdSpread)}</td>
-                      <td style={heat((x.worstRmsPct ?? 0) / maxPct)} title={`${n(x.worstRmsPct, 3)} %`}>{n(x.worstRmsDiff)}</td>
-                      <td>{n(x.worstMaxAbs)}</td>
-                      <td style={heat(x.minCorrelation === null || x.minCorrelation === undefined ? 0 : (1 - x.minCorrelation) * 2)}>{n(x.minCorrelation, 4)}</td>
+                      <td className="num">{n(x.meanSpread)}</td><td className="num">{n(x.stdSpread)}</td>
+                      <td className="num" style={heat((x.worstRmsPct ?? 0) / maxPct)} title={`${n(x.worstRmsPct, 3)} %`}>{n(x.worstRmsDiff)}</td>
+                      <td className="num">{n(x.worstMaxAbs)}</td>
+                      <td className="num" style={heat(x.minCorrelation === null || x.minCorrelation === undefined ? 0 : (1 - x.minCorrelation) * 2)}>{n(x.minCorrelation, 4)}</td>
                     </>}
                     {data.tol && <td>{x.pass === null || x.pass === undefined ? "" : <span className={`pf ${x.pass ? "ok" : "bad"}`}>{x.pass ? t("pass") : t("fail")}</span>}</td>}
                     <td><button className="btn outline sm" onClick={(e) => { e.stopPropagation(); plotRow(x); }}>{t("plotIt")}</button></td>
                   </tr>,
                   isOpen && (
                     <tr key={x.name + "-d"} className="cmp-detail"><td colSpan={data.tol ? 9 : 8}>
-                      <table className="cmp-sub">
+                      <table className="data cmp-sub">
                         <thead><tr><th>{t("file")}</th><th>{t("mean")}</th><th>{t("std")}</th><th>{t("minimal")}</th><th>{t("maximal")}</th>
                           <th>{t("meanDiff")}</th><th>{t("stdDiffCol")}</th><th>{t("rmsDiff")}</th><th>{t("maxDiff")}</th><th>{t("corr")}</th>{data.tol && <th>{t("inTol")}</th>}</tr></thead>
                         <tbody>
@@ -124,9 +124,9 @@ export default function CompareTable() {
                             return (
                               <tr key={f.run} className={base ? "base" : ""}>
                                 <td className="nm">{file(f.run)}{base && <span className="tag">{t("baseTag")}</span>}</td>
-                                <td>{n(f.mean)}</td><td>{n(f.std)}</td><td>{n(f.min)}</td><td>{n(f.max)}</td>
-                                <td>{d ? n(d.meanDiff) : "—"}</td><td>{d ? n(d.stdDiff) : "—"}</td><td>{d ? n(d.rmsDiff) : "—"}</td>
-                                <td>{d ? n(d.maxAbsDiff) : "—"}</td><td>{d ? n(d.correlation, 4) : "—"}</td>
+                                <td className="num">{n(f.mean)}</td><td className="num">{n(f.std)}</td><td className="num">{n(f.min)}</td><td className="num">{n(f.max)}</td>
+                                <td className="num">{d ? n(d.meanDiff) : "—"}</td><td className="num">{d ? n(d.stdDiff) : "—"}</td><td className="num">{d ? n(d.rmsDiff) : "—"}</td>
+                                <td className="num">{d ? n(d.maxAbsDiff) : "—"}</td><td className="num">{d ? n(d.correlation, 4) : "—"}</td>
                                 {data.tol && <td>{d && d.withinPct !== undefined && d.withinPct !== null ? <span className={`pf ${d.pass ? "ok" : "bad"}`}>{n(d.withinPct, 3)}%</span> : ""}</td>}
                               </tr>
                             );
@@ -139,7 +139,7 @@ export default function CompareTable() {
               })}
             </tbody>
           </table>
-          {!rows.length && <p className="empty-note">{t("noCommonSignals")}</p>}
+          {!rows.length && <p className="empty-state">{t("noCommonSignals")}</p>}
           {rows.length > limit && <button className="btn outline more-btn" onClick={() => setLimit(limit + PAGE)}>{t("showMore", { n: rows.length - limit })}</button>}
         </div>
       </div>

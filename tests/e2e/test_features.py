@@ -2023,7 +2023,7 @@ def test_same_flight_sync_health_notes_spectrogram(pg):
     open_files(pg, "flight.bin")
     open_files(pg, "flight.tlog", clear=False)
     # offered automatically, and in the dialog: three methods that agree
-    pg.wait_for_selector(".toast >> text=same flight")
+    pg.wait_for_selector(".toast >> text=same run")
     pg.locator(".run-head", has_text="flight.tlog").first.click(button="right")
     menu_item(pg, "Align time with another file…")
     pg.wait_for_selector(".sync-row")
