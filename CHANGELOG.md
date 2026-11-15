@@ -1,9 +1,13 @@
 # Changelog
 
-## 1.28.0 – unreleased
+## 1.28.0 – 2026-11-15
 
-<!-- Redesign round 2026-11-14: each lane writes only inside its block (docs/dev/PLAN_2026-11-14.md §7.0); the Final lane merges them into sections. -->
-<!-- lane L1 -->
+**Highlights:** a redesign – a calmer look where the data speaks; Sweeps as one study whether you start from results or
+from nothing; plots that read like instruments; a map with its background in one place, offline areas and your own maps;
+and every analysis tool working on any data (flight, vehicle, bench, simulation), not only flight logs.
+
+### The look – a quiet frame, the data speaks
+
 - A calmer look: a deeper background, whiter panels in the light theme, and amber kept for the cursor and time only – the selection, the active plot and the active area now use a neutral ink ring; warnings have their own colour. Every text colour meets WCAG AA in both themes.
 - Numbers – cursor values, clocks, ticks, number columns – are drawn in IBM Plex Mono (bundled, works offline), so digits line up and read like an instrument.
 - Buttons, switches, chips, menus and messages look the same everywhere (one definition each); menus and messages float on a softer shadow.
@@ -12,7 +16,25 @@
 - Settings > Look > *Mode band*: the states band inside the top plot or above the plots. Settings groups, the command palette and the dialogs in the new look; keyboard keys in mono.
 - The command palette shows a zoom glass for the zoom modes and a chart for plot commands (it showed the reset arrow for all of them).
 - The second trace colour is now bluish green (orange moved further down the list), so a trace never looks like the cursor.
-<!-- lane L2 -->
+
+### Plots and the frame
+
+- **The plot card**: each plot's head names it (a small *PLOT 2 · ACTIVE* label over the title), says what it shows (*3 signals · two y axes*), and keeps its few actions at its end; the legend has a line of its own under it.
+- The legend reads like an instrument: each line's value at the cursor in a monospaced, bold number with its unit after it, and the change between the two cursors (Δ) beside it.
+- The state lanes of a tab (such as a flight mode) are a thin coloured band inside the top plot's card, lined up with its time axis, instead of a separate row above the plots.
+- Plots: axis numbers in the mono face, a quieter grid, the cursor a dashed amber line with a dot on every curve, and limits drawn as dashed red lines (a short tick in the signal's colour tells several apart).
+- The timeline shows the run's modes (or any state signal) as colour along its track, under the overview line and the amber frame of what the plots show.
+- On demand, the legend shows the statistics of the time on screen beside each line – lowest, mean and highest – and they follow every zoom and pan (the plot's ⋯ menu › Legend).
+- The file panel counts the open signals, and for a big file offers quick filters under the search while you use it – the groups the current tab uses first – one click shows only that group.
+- One top row: the Recordings tools (open / save, templates, live, undo / redo, clear, Inspector) sit in the app's top bar, and the plot tabs moved into the bar above the plots – the plots gain 40 pixels of height.
+- The Inspector reads more calmly: small section labels, numbers in aligned monospaced columns, and a star on each line's statistics pins that number to the run at a glance. On the timeline, warnings now have their own colour (amber is only the cursor).
+- The open hint, the tour and the messages about logs say *logs (ArduPilot, PX4, MAVLink)* / *log* instead of *flight logs*; the map's menu says *Export the run*.
+- The signal list: ☆ beside the search box pins the search as a chip under it (kept in the session and in a template, with Undo); a template's pinned searches show there too, with ✕ to unpin.
+- *The run at a glance* shows the profile's numbers (max altitude, battery used … - pinned from the Inspector or a template) in mono beside the run's name: a click goes to its time, ⋯ unpins it, a signal the file does not have is said, not hidden; and a *Checks: n failed · m to look at* chip (limits, data quality, the log's own check) opens the Checks panel.
+- Fixed: with several plots, the first click on a button in another plot's head (its kind menu …) was lost – the head no longer moves when the plot becomes active.
+
+### Sweeps – one study, whatever the starting point
+
 - **Sweeps: a study can start from nothing.** A study file may say its first round (`start`: how many values of each parameter's range, and each table's scenarios); the loop runs that grid first, then aims each next round. A study with one system (one table) is now ranked on its own - it used to ask for two tables.
 - **Sweeps: one Undo.** Ctrl+Z undoes the last change you made in Sweeps, whether it was in a table's question or in the study's set-up (Common parameters) - they used to have two separate histories, chosen by which panel was open.
 - **Sweeps: New study - I have results, or start from nothing.** *I have results* opens a table of runs with its answer at once and fills the study's set-up from its columns (parameters and their ranges, scenarios, outputs). *Start from nothing* is a set-up page: what varies (ranges, steps, how many values in the first round), the scenarios, what your program writes and what is good, and the command that runs one run on this PC or your farm's launcher.
@@ -25,22 +47,9 @@
 - **Sweeps: a report of the whole study.** With a study open, *Study ▾ → Report of the study…* writes one page (HTML, works offline): what varies, each table's goal and limits, the shared answer with each table's verdict, and the rounds run - in the app's language. A table's detailed report stays in its Results.
 - Sweeps charts use the app's colours: amber is only the cursor's and time's - what holds is green, the best and what you selected are drawn in the selection ink, warnings in the warning yellow and proposed runs in blue.
 - **Sweeps: a round opens as its table.** A round's results opened from the study's navigator read with that table's columns (parameters, scenarios, outputs) and goal from the study, so its answer is there at once.
-<!-- lane L3 -->
-- **The plot card**: each plot's head names it (a small *PLOT 2 · ACTIVE* label over the title), says what it shows (*3 signals · two y axes*), and keeps its few actions at its end; the legend has a line of its own under it.
-- The legend reads like an instrument: each line's value at the cursor in a monospaced, bold number with its unit after it, and the change between the two cursors (Δ) beside it.
-- The state lanes of a tab (such as a flight mode) are a thin coloured band inside the top plot's card, lined up with its time axis, instead of a separate row above the plots.
-- Plots: axis numbers in the mono face, a quieter grid, the cursor a dashed amber line with a dot on every curve, and limits drawn as dashed red lines (a short tick in the signal's colour tells several apart).
-- The timeline shows the run's modes (or any state signal) as colour along its track, under the overview line and the amber frame of what the plots show.
-- On demand, the legend shows the statistics of the time on screen beside each line – lowest, mean and highest – and they follow every zoom and pan (the plot's ⋯ menu › Legend).
-- The file panel counts the open signals, and for a big file offers quick filters under the search while you use it – the groups the current tab uses first – one click shows only that group.
-- One top row: the Recordings tools (open / save, templates, live, undo / redo, clear, Inspector) sit in the app's top bar, and the plot tabs moved into the bar above the plots – the plots gain 40 pixels of height.
-- The Inspector reads more calmly: small section labels, numbers in aligned monospaced columns, and a star on each line's statistics pins that number to the run at a glance. On the timeline, warnings now have their own colour (amber is only the cursor).
 
-- The open hint, the tour and the messages about logs say *logs (ArduPilot, PX4, MAVLink)* / *log* instead of *flight logs*; the map's menu says *Export the run*.
-- The signal list: ☆ beside the search box pins the search as a chip under it (kept in the session and in a template, with Undo); a template's pinned searches show there too, with ✕ to unpin.
-- *The run at a glance* shows the profile's numbers (max altitude, battery used … - pinned from the Inspector or a template) in mono beside the run's name: a click goes to its time, ⋯ unpins it, a signal the file does not have is said, not hidden; and a *Checks: n failed · m to look at* chip (limits, data quality, the log's own check) opens the Checks panel.
-- Fixed: with several plots, the first click on a button in another plot's head (its kind menu …) was lost – the head no longer moves when the plot becomes active.
-<!-- lane L4 -->
+### Map and 3D
+
 - **Map: *Satellite + roads*.** A new background: the satellite photos with the roads and their names drawn over them
   (Esri), in the 2D map, the 3D view, exported pictures and offline map pages. Online and opt-in like every online layer;
   *Never use the network* still blocks it, and what was already seen stays available offline.
@@ -70,7 +79,9 @@
 - **Arrows along the path.** Any two signals - north and east components such as a wind or a velocity - drawn as arrows
   along an object's track, on the map and in 3D. The object's settings offer the file's own pair by themselves (an
   ArduPilot log's estimated wind, a CSV's velocity).
-<!-- lane L5 -->
+
+### Any data: Checks, the file, parameters, live instruments
+
 - **Report in the new look** (D6): *Send it as a replay* is an info card (amber now belongs only to the cursor and time), the plots' heading says how many go into the report, and an empty report says so in its own panel style.
 - **Investigate and What changed in the new look** (D5): *What changed* opens with its answer as one tinted card – the first change and the likeliest to matter – with the caveat (*not proof of a cause*) in it; each onset row shows its time; *Stack in a new tab* is the one main action. *Investigate* starts with a card saying how to begin; the occurrences table has number columns and its statistic is translated (max / min / mean).
 - **Compare in the new look** (D4): the verdict is a tinted card (green when every file passes, red when one fails), the numbers in mono columns; and below the list, **the parameters that differ** from the baseline file for each file compared (a log's parameters, a MATLAB file's settings, a number in the file name…), a value changed during the run shown from its start to its end. Wording: the sync messages say *the same run*, not *the same flight*.
@@ -82,11 +93,12 @@
 - **Statistics of what is on screen** (F2): min, mean and max of each signal over the visible window, recomputed as you pan and zoom – fast on signals of tens of millions of samples.
 - **The file** (F1): the structure of any recording – a log's message types, a ROS bag's topics, a MATLAB file's structs, a table's column groups – with each one's rate, samples, units, gaps and the time base; a live link's file as it grows.
 - **The parameters of a run, for every format** (F3): a flight log's parameters, a MATLAB file's scalars, texts and struct fields, signals that hold one value, numbers in the file name – one list; and **two runs compared**, only what differs (a parameter changed during a flight counts by its start and its end). *Runs × conditions* now also shows a MATLAB file's settings and a log's parameters when they differ between the runs.
-<!-- Final -->
+
+### Examples and fixes
+
 - **A test-bench example** on the welcome screen: a pump on a bench, recorded as Parquet – phases as a state, units, a 0.2 s pressure spike, a 2 s gap and a motor temperature that creeps over its limit. Its `checks.json` runs in CI with `signalviewer-cli check examples/bench/pump_run_07.parquet --checks examples/bench/checks.json` (2 of 4 checks fail, on purpose).
 - An example whose data no built-in view fits now opens with *Quick look* instead of an empty plot.
 - The Checks count in *the run at a glance* opens Checks on that run (it opened on the first log).
-<!-- end of lanes -->
 
 ## 1.27.0 – 2026-11-13
 
