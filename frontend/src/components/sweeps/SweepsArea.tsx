@@ -83,13 +83,15 @@ async function openStudy(title: string): Promise<string> {
     if (!p.endsWith(STUDY_EXT)) { await openStudyFile(p); return ""; }
     const doc = JSON.parse((await sweepApi.loadText(p)).text) as SavedStudy;
     if (doc.kind !== "signalviewer-sweep") return "not a study";
-    // a study saved with its tables needs no `path` (its first table may be a merged one)
-    await useSweeps.getState().open(doc.path, doc);
+    // a study saved with its tables needs no `path` (its first table may be a merged one); tables named
+    // relative to the file (a copied or shipped study) are found beside it, as the welcome card does
+    const r = resolveIn(doc, p.replace(/[\\/][^\\/]*$/, ""));
+    await useSweeps.getState().open(r.path, r);
     return "";
   } catch (e) { return (e as Error).message; }
 }
 
-/** A .svsweep shipped with the examples names its tables relative to itself: made absolute here. */
+/** A .svsweep that names its tables relative to itself (shipped with the examples, copied elsewhere): made absolute. */
 function resolveIn(doc: SavedStudy, dir: string): SavedStudy {
   const abs = (p: string) => (!p || /^([a-zA-Z]:)?[\\/]/.test(p) ? p : `${dir}/${p}`);
   const fix = (r: unknown): unknown => (r && typeof r === "object"

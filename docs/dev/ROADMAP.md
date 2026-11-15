@@ -962,7 +962,11 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
   - [x] F6 Vectors along the path – any two signals (north, east) as arrows on the track in 2D and 3D; a log's wind / a file's velocity offered by itself. 2026-11-15.
 <!-- end lane L4 -->
 - [ ] D1–D14 Every area adopts the look (pictures and a recount per area); D13 wording / icons audit; D14 profiles (templates with their at-a-glance numbers and chips). D11 (welcome) done 2026-11-14. D12 (Settings, palette, dialogs, library, Help, tour) done 2026-11-14. D13 (wording / icons audit; requests to L3 / L5 for their strings) done 2026-11-14.
-- [ ] E1–E4 Docs, pictures, a test-bench example, 1.28.0 (the owner tags).
+- [x] E1–E4 Docs, pictures, a test-bench example, 1.28.0 (the owner tags). Done 2026-11-15 (coordinator): E2 guides en + he and the
+  positioning (any data), E4 `examples/bench` (Parquet + checks.json, welcome card), the lanes' requests finished (M1's last step, the
+  Checks chip's run), dead backend code removed, CHANGELOG by theme, version 1.28.0, validation page, `frontend/dist`. Full e2e 460 / 461
+  (the 3D click test then made robust: 13 / 13), quick_check, mkdocs --strict, test_perf_budget, the 1M-run measure (L2) green. E1: only the
+  new card's pictures were made - the README pictures were not retaken this round.
 - [ ] F1–F7 New capabilities the owner picks (messages, window statistics, parameters + two logs compared, live instruments, height profile, vectors along the path, pop-out; F8 the Fleet for any format – later), all format-neutral (§3.6).
 <!-- lane L5 -->
   - [x] F3 (backend) Parameters of a run for every format + two runs compared. Done 2026-11-14: `svcore/runinfo.py` (log PARM / PARAM_VALUE / PX4 · MAT scalars, texts, struct fields (`Run.file_params`, v5 and v7.3) · constant signals · file-name numbers; one source - `investigate.run_params` (Runs × conditions) reads it), `GET /api/runs/{id}/parameters`, `POST /api/runs/parameters/compare`; test_run_parameters.py. Its screens come with D7 (Log / Checks) and D4 (Compare), after S1.

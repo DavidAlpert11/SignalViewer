@@ -412,12 +412,18 @@ def test_primary_secondary_in_3d(g3multi):
     pg.wait_for_function(f"{rings}?.length === 2", timeout=20000)
     assert pg.evaluate(f"[{rings}.get(0).id, {rings}.get(1).id]") == ["ring-A", "ring-B"]
     assert "Aspect" in pg.locator(".globe3d .rel-panel .rel-body").inner_text()       # (closure: none, at the end of still tracks)
-    # click on C: its place on the screen
-    xy = pg.evaluate("""(() => { const { widget: w, Cesium: C } = window.__svGlobe;
-        const p = C.SceneTransforms.worldToWindowCoordinates(w.scene, C.Cartesian3.fromDegrees(34.5, 32.51, 300));
-        const b = w.scene.canvas.getBoundingClientRect(); return p ? [b.left + p.x, b.top + p.y] : null; })()""")
-    assert xy
-    pg.mouse.click(xy[0], xy[1])
+    # click on C: its place on the screen - asked again while the camera may still be settling (slow software GL)
+    for _ in range(5):
+        xy = pg.evaluate("""(() => { const { widget: w, Cesium: C } = window.__svGlobe;
+            const p = C.SceneTransforms.worldToWindowCoordinates(w.scene, C.Cartesian3.fromDegrees(34.5, 32.51, 300));
+            const b = w.scene.canvas.getBoundingClientRect(); return p ? [b.left + p.x, b.top + p.y] : null; })()""")
+        assert xy
+        pg.mouse.click(xy[0], xy[1])
+        try:
+            pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].primaryObject === 'C'", timeout=4000)
+            break
+        except Exception:
+            continue
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].primaryObject === 'C'", timeout=20000)
     pg.keyboard.press("x")                                     # the click gave the view the focus
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].primaryObject === 'B'", timeout=20000)
