@@ -2,18 +2,20 @@
 
 ## The network { #the-network }
 
-The map's *Automatic* layer is the **offline map** the app draws from data it ships with: nothing is
-sent. The layers under *Online – downloads map tiles* in the layer menu (streets: OpenStreetMap or
-Esri; light / dark grey and satellite: Esri; topographic: OpenTopoMap) are used only when you choose
-one; the app then requests the tiles of the area on screen from that provider - through its own
+The map's default background, *Offline*, is the **offline map** the app draws from data it ships with:
+nothing is sent. The online backgrounds - marked ☁ in the *Map* background picker in the corner of every map
+(streets: OpenStreetMap or Esri; light / dark grey, satellite and *Satellite + roads*: Esri; topographic:
+OpenTopoMap) - are used only when you choose one (opening the picker downloads nothing: its pictures come
+from the tiles already on the disk); the app then requests the tiles of the area on screen from that provider - through its own
 server, so the page itself never talks to the internet - and keeps them in `~/.signalviewer/tiles`.
 Such a request carries the tile's coordinates (roughly where you are looking) and the app's name.
 While online tiles are in use the plot shows an amber **Online map** sign.
 
 **Never use the network** (*Settings*), or `SV_OFFLINE=1` in the environment (it locks the setting on,
-for a whole installation): the online layers are off in the menu, a session that chose one shows the
-offline map, and the server refuses every download (`app/tiles.py` checks it before any request) -
-tiles already on the disk are still shown. Nothing else in the app uses the network: the 3D view's
+for a whole installation): the online maps are greyed out in the picker with the reason, a session that
+chose one shows the offline map, and the server refuses every download (`app/tiles.py` checks it before any
+request) - tiles already on the disk are still shown. A map server of your own (*My maps*) on this PC or a
+private (local-network) address is not the internet and stays allowed; one on the internet is blocked. Nothing else in the app uses the network: the 3D view's
 terrain and imagery are the bundled ones (no Cesium ion), and there is no update check or telemetry.
 
 ## Offline map data
@@ -38,7 +40,33 @@ Cyprus) and the app uses every pack in that folder - copy a pack folder there on
 
 **Country borders.** The offline map and the satellite photos get the borders and the country names
 from the app itself (Natural Earth 1:50m, simplified to about 3 km - good for seeing which country,
-not for a border's exact line): *Borders*, beside the map's layer. The street maps draw their own.
+not for a border's exact line): *Borders*, in the *Map* background picker. The street maps draw their own.
+
+## My maps and keeping an area offline (1.28)
+
+**My maps** (*Map* picker → *Add a map…*): a raster **MBTiles** file (read on this PC, fully offline) or a
+tile server of your own (XYZ, or TMS with its y axis flipped - for example a server on the local network).
+It is a background like any other, in 2D, 3D, exported pictures and offline map pages. The list lives in
+`~/.signalviewer/mymaps.json`; *Remove from My maps* forgets one (the file or server is not touched).
+
+**Keep this area offline…** (the same picker): before going to the field, download the tiles of the area on
+screen at the zooms you choose. The number of tiles and the size are estimated first; the download runs in
+the background with progress and Stop; the kept areas are listed with their size and *Delete* (a tile
+another kept area also covers stays). Only where the map's terms allow bulk downloads: the ground heights
+(open data) and your own servers. OpenStreetMap, Esri and OpenTopoMap forbid it - the dialog says so; the
+places you look at are still kept in the cache as before. The list lives in `~/.signalviewer/kept_areas.json`.
+
+## Height profile and arrows along the path (1.28)
+
+**Height profile** (*Profile* in the map's bar): under the map, the object's height and the ground under it
+along the distance flown, for any recording with positions (`/api/profile`, the ground from the same heights
+as the 3D terrain). The cursor's moment is marked; a click in the profile moves the cursor. Where the ground
+data is coarse (outside the detailed areas) the profile says so and how to get finer ground: `.hgt` files
+(*Settings → Map and objects*, the folder of your elevation files) or *Keep this area offline…*.
+
+**Arrows along the path** (an object's settings): any two signals that are north and east components - a
+wind, a velocity, a force - drawn as arrows along the object's track, on the 2D map and in 3D. The file's
+own pair is offered by itself (an ArduPilot log's estimated wind, a CSV's north / east velocity).
 
 ## 3D view
 
@@ -57,8 +85,8 @@ cannot go into one file, so the page draws the same data with three.js r159 (MIT
 draped on the bundled terrain (97 × 97 heights over the tracks' box and a margin), each track drawn as the app draws it (a fixed
 width on screen; a navigation solution dashed, a receiver as points), the app's models with heading, pitch
 and roll, heights ×1 / ×2 / ×5. The 2D map's page and the 3D page share one toolbar and one relation box
-(`report_assets/relation.js`, `mappage.css`, the words in `mapimage.PAGE_STRINGS`): the camera *General · On the
-object · Chase* on a chosen object (3D *Chase*: behind it, along its heading), + / −, *Fit*, *Trail* (whole / 60 s /
+(`report_assets/relation.js`, `mappage.css`, the words in `mapimage.PAGE_STRINGS`): the camera *Free · Around it ·
+Behind it* on a chosen object (*Behind it*: behind it, along its heading), + / −, *Fit*, *Trail* (whole / 60 s /
 20 s), *Relation* (show / hide), light / dark; an attitude indicator in 3D; the address keeps the view
 (`#t=…&cam=…&obj=…`); *Closest in* moves the time (inside a report: the report's time, `replay-seek`); the box is the app's (range, horizontal, Δalt, bearing, relative bearing, closure, closest-in,
 heading Δ) with the pair's rings and a dashed line with the distance. The objects are read as the Tacview export reads them. Where the browser
@@ -103,7 +131,7 @@ One rule: a hidden object (`MapObject.hidden`) is not drawn, not part of *Fit*, 
 list (greyed, struck through). `shownObjects(plot)` (`mapObjects.ts`) is what the drawing loops of
 `Globe3D.tsx` and `GeoChart.tsx` iterate (their track fetch, models, markers, labels, tracks, Fit); lookups
 of another object (a borrowed attitude, the pair) use the whole list. A hidden one of the pair shows
-"— hidden —" in the relation box; a camera on it goes to General. Pictures skip it; the offline pages start
+"— hidden —" in the relation box; a camera on it goes to Free. Pictures skip it; the offline pages start
 with it hidden and their legend rows are buttons (`svLegend` in `report_assets/relation.js`; click, Alt+click
 = only this one). Exports (Tacview, CSV, KML) keep every object.
 
@@ -111,8 +139,11 @@ with it hidden and their legend rows are buttons (`svLegend` in `report_assets/r
 
 One Map, and it is the 3D view; "2D" is its camera *From above*. Saved values do not change: `mode: "geo"`
 **with objects** is drawn by the 3D view (`isMapPlot`, `mapObjects.ts`) with the camera From above
-(`Plot.camera` absent on such a plot = `"top"`; `mapCamera`); `mode: "3d"` as before (absent = General, or
-On the object with a followed object); new maps are `"3d"`. General writes `camera: "free"`. A 1.25 build
+(`Plot.camera` absent on such a plot = `"top"`; `mapCamera`); `mode: "3d"` as before (absent = Free, or
+Around it with a followed object); new maps are `"3d"`. Free writes `camera: "free"`. 1.28 renamed the
+cameras on screen only - *Free* (`"free"`), *From above* (`"top"`), *Around it* (absent with a followed
+object), *Behind it* (`"chase"`), *Cockpit* (`"cockpit"`) - the saved values are unchanged, so a session opens
+with the same camera as before. A 1.25 build
 opening a session from this one draws its maps as before. `mode: "geo"` without objects - a lon / lat X-Y on
 a map - is unchanged (GeoChart).
 
@@ -129,14 +160,14 @@ the 3D page's frame for a browser without WebGL is **not done** (the page shows 
 | 2D feature | where it was (GeoChart.tsx) | where it is now |
 |---|---|---|
 | the mouse's position | `.geo-readout` (lat / lon) | `Globe3D.tsx` `.g3-readout`: lat / lon (decimals by the camera's height), ground height, distance / bearing from the reference (`scene.globe.pick`, one update a frame) - e2e `test_the_map_from_above_and_the_mouse_readout` |
-| north up / track up | `mapUp` | From above: north up; *Track up* beside it (`MapBar`) - heading of the chosen object up |
+| north up / track up | `mapUp` | From above: north up; *Behind it* keeps the chosen object's heading up (1.28: the separate *Track up* button is gone; the N turns a turned map back north) |
 | ring tooltips | `ringTip` | the 3D rings and their hover (1.26, existing) |
 | relation lines and distance | relation layer | existing in 3D (`relLines`) - `test_globe3d` related-objects test |
 | track colouring by a value | `trackColors` | existing in 3D (`objColors`) |
 | object dialog from a click | marker click | existing in 3D (a click on a model) |
 | back to the object after a drag | `followOff` | 3D: drag while following orbits around it (no button needed) - note: not identical |
 | keyboard `+ − 0`, arrows | key handler | `+ − 0` in the bar; arrows: not in 3D yet (note) |
-| offline basemap / online imagery | `geoBase` | existing in 3D (the same layer choice) |
+| offline basemap / online imagery | `geoBase` | existing in 3D (the same *Map* background picker) |
 | hover on a track point | track hover | existing in 3D (`Readout` box) |
 | the mouse's position in the offline 3D page | - | not done (the page's hover shows track points; the ground raycast is left) |
 
@@ -175,7 +206,7 @@ the setting at once, in the app and in the pages and pictures made after.
 | Setting | Choices (default first) |
 |---|---|
 | Icon of a new object, per class (truth / navigation / receiver / other) | aircraft · uav · drone · missile · ship · vehicle |
-| Camera of a new Map | General · From above · On the object · Chase |
+| Camera of a new Map | Free · From above · Around it · Behind it |
 | Map drawing | Automatic · Always flat (light) |
 | Relation box on a new Map / Names on the Map | shown · hidden |
 | Track width | 2.5 px · 1.5 · 4 |
@@ -194,8 +225,8 @@ the setting at once, in the app and in the pages and pictures made after.
 - **In space**: a drop line and a dark disc under each object; its last 10 s brighter over the whole track.
 - **Flights**: every camera change eases there over ~1.2 s (none with the system's *reduce motion*).
 - **Cockpit**: a fifth camera at the object, along its heading and pitch, rolling with it, 70°; its own model
-  (and any within 20 m) hidden. The flat drawing treats it as Chase.
-- **Flight display** (*Display* in the bar; on by default in Chase and Cockpit) and a **mini-map** while the
+  (and any within 20 m) hidden. The flat drawing treats it as Behind it.
+- **Flight display** (*Display* in the bar; on by default Behind it and in Cockpit) and a **mini-map** while the
   camera is near an object (a click flies there).
 - **The error, drawn**: when the relation box's pair is one vehicle (median distance under 20 m) a
   see-through surface between the tracks, green → amber → red at the distance's 95th percentile, with its
@@ -212,5 +243,5 @@ ground crossing 5 m for 3 s), the highest and fastest points, the steepest bank 
 200 m of a place, and for the pair the largest error (one vehicle) or the closest and farthest moments. A
 moment within 3 s of a stronger one is dropped; at most 12. The live page's player runs the time so the
 recording takes about the Settings' length (×1 to ×60), at ×1 from 3 s before a moment to 2 s after, and
-stops 4 s on it; the map frames fly to its object (On the object ~400 m; Chase for a bank, an error, a
+stops 4 s on it; the map frames fly to its object (Around it ~400 m; Behind it for a bank, an error, a
 takeoff or a landing) and give the reader's camera back at the end.
