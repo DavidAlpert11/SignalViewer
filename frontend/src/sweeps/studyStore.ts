@@ -6,7 +6,7 @@
    folder. */
 import { emptyCommon, registerSetupHistory, SETUP_KEY, useSweeps, type StudyPanelState } from "./state";
 import { studyApi } from "./studyApi";
-import { goalToStudy } from "./studyRoles";
+import { areaRoles, goalToStudy, studyToGoal } from "./studyRoles";
 import { upgradeQuestion } from "./model";
 import { newSetupStudy, setupFromResults } from "./setup";
 import type { DemoProgress, LauncherSubmitResult, NextRunsResult, Study, StudyReq } from "./studyTypes";
@@ -63,6 +63,27 @@ export function startFromNothing(): void {
 export async function haveResults(path: string): Promise<void> {
   await useSweeps.getState().open(path);
   if (await setupFromOpenTable()) useSweeps.setState({ part: "table" });
+}
+
+/** C11: a file of one of the study's tables (a round's results) opened in the four steps reads as that table - its
+ *  columns' roles (the study names them by their common name: `rename` undone) and its goal. Part of opening, not
+ *  an edit (no Undo step); the answer follows. */
+export function applyStudyTable(index: number, tableId: string): void {
+  const spec = get().study?.tables.find((x) => x.id === tableId);
+  const st = useSweeps.getState(), t = st.studies[index];
+  if (!spec || !t) return;
+  const back = Object.fromEntries(Object.entries(spec.rename ?? {}).map(([own, common]) => [common, own]));
+  const named = Object.fromEntries([
+    ...(get().study?.shared ?? []).map((x) => [x.name, "shared"] as const),
+    ...Object.entries(spec.roles ?? {}),
+  ].map(([c, r]) => [back[c] ?? c, r]));
+  const was = Object.fromEntries(t.columns.map((c) => [c.name, c.role]));
+  const roles = areaRoles(named as Parameters<typeof areaRoles>[0], was);
+  const values = Object.fromEntries(t.columns.filter((c) => c.values?.length).map((c) => [c.name, c.values!]));
+  const { question } = studyToGoal(spec, t.question, values);
+  useSweeps.setState({ studies: st.studies.map((x, i) => (i === index
+    ? { ...x, columns: x.columns.map((c) => (roles[c.name] && roles[c.name] !== c.role ? { ...c, role: roles[c.name] } : c)), question } : x)) });
+  useSweeps.getState().evaluate();
 }
 
 /** The study's Set up filled from the table on screen (I have results; the navigator's Set up for a table opened

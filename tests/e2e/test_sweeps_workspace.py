@@ -178,3 +178,51 @@ def test_one_open_menu_and_each_command_once(pg):
     assert {"sw-new-study", "sw-open-table", "sw-open-folder", "sw-open-study", "sw-save-study", "sw-close-study"} <= set(ids)
     assert not [x for x in ids if x.startswith("cp-")]                          # no second New / Open for a study file
     pg.keyboard.press("Escape")
+
+
+def test_a_study_round_reads_as_its_table_and_its_goal_undoes(pg):
+    """C11 (walkthrough 6, the table's part): the demo after a round - Drone B's Round 1 opens in the four steps with
+    the study table's roles (Kp / Ki / Kd parameters, mass / wind scenarios, outputs) and goal (minimise settling time);
+    a limit changes its answer; Ctrl+Z takes it back; the Run column never left the screen."""
+    from test_sweeps_flow import _condition, _holding, _step
+    pg.locator(".ex-card[data-example='smartSweepDemo']").click()
+    pg.wait_for_selector(".dm-strip")
+    if pg.locator(".dm-reset").is_enabled():
+        pg.locator(".dm-reset").click()
+        pg.wait_for_function("document.querySelector('.dm-strip').dataset.round === '0'")
+    pg.locator(".dm-next").click()
+    pg.wait_for_function("document.querySelector('.dm-chart').dataset.points === '1' && "
+                         "document.querySelector('[data-shot=demo]').dataset.settled === '1'", timeout=120000)
+    pg.wait_for_function("document.querySelectorAll('.sw-nav [data-nav=round][data-round=\"1\"]').length === 3", timeout=30000)
+    pg.locator(".sw-nav [data-nav=round][data-round='1']").nth(1).click()          # A, B, C: Drone B
+    pg.wait_for_selector(".sw-study-wrap .sw-steps")
+    pg.wait_for_function("window.__svSweeps.doc() && window.__svSweeps.doc().columns.some((c) => c.name === 'Kp' && c.role === 'param')")
+    _idle(pg)
+    roles = {c["name"]: c["role"] for c in pg.evaluate("window.__svSweeps.doc().columns")}
+    assert [roles[k] for k in ("Kp", "Ki", "Kd")] == ["param"] * 3
+    assert roles["mass"] == roles["wind"] == "hold" and roles["overshoot"] == "output"
+    q = pg.evaluate("window.__svSweeps.doc().question")
+    assert q["goals"][q["active"]]["optimize"][0]["column"] == "settling_time"
+    assert pg.locator(".sw-run").count() == 1                                    # the Run column beside the table
+    _step(pg, "goals")
+    before = _holding(pg)
+    _condition(pg, "energy", "<=", 0.001)                                         # nothing uses that little
+    _idle(pg)
+    assert _holding(pg) < before or before == 0
+    pg.keyboard.press("Control+z")
+    pg.wait_for_function(f"document.querySelector('.sw-answer-n') && parseInt(document.querySelector('.sw-answer-n').innerText.replace(/,/g, '')) === {before}")
+    assert pg.locator(".sw-run").count() == 1
+
+
+def test_old_files_open(pg):
+    """C11: files saved by 1.27 open - a table's .svsweep (its question) and a study file (its tables)."""
+    import shutil
+    old = os.path.join(ROOT, "tests", "fixtures", "sweeps", "v1_27")
+    work = os.path.join(pg.env["out"], "v1_27")
+    shutil.rmtree(work, ignore_errors=True)
+    shutil.copytree(os.path.join(ROOT, "examples", "drones"), work)
+    shutil.copy(os.path.join(old, "fixture.svstudy.json"), work)
+    _to_sweeps(pg)
+    pg.evaluate("p => window.__svRequestStudy(p)", os.path.join(work, "fixture.svstudy.json"))
+    pg.wait_for_function("window.__svStudy.state().study && window.__svStudy.state().study.tables.length >= 1")
+    assert pg.locator(".sw-nav").count() == 1

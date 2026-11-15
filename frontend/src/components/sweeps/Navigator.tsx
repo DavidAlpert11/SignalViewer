@@ -9,7 +9,7 @@ import { useT } from "../../i18n";
 import { Icon } from "../../icons";
 import { recipeFiles, useSweeps, type Study } from "../../sweeps/state";
 import { setupDone } from "../../sweeps/setup";
-import { setupFromOpenTable } from "../../sweeps/studyStore";
+import { applyStudyTable, setupFromOpenTable } from "../../sweeps/studyStore";
 import { studyApi, type StudyTables } from "../../sweeps/studyApi";
 import { TABLE_EXTS } from "../../sweeps/studyFile";
 import { notifyError } from "../../sweeps/notify";
@@ -123,7 +123,7 @@ function TabItem({ s, i, on, fileTable }: { s: Study; i: number; on: boolean; fi
       {on && s.tables.length > 1 && (
         <ul className="sw-table-list sw-nav-sub">{s.tables.map((tb, j) => <PartItem key={tb.id} s={s} j={j} />)}</ul>
       )}
-      {rounds.map((r) => <RoundItem key={r.round} r={r} />)}
+      {rounds.map((r) => <RoundItem key={r.round} r={r} table={fileTable?.id} />)}
     </>
   );
 }
@@ -157,17 +157,17 @@ function FileTableItem({ ft }: { ft: FileTable }) {
   const rounds = ft.rounds.filter((r) => r.round !== null);
   return (
     <>
-      <button className="sw-nav-item sw-nav-table" data-nav="file-table" title={ft.name} disabled={!first} onClick={() => first && openFile(first)}>
+      <button className="sw-nav-item sw-nav-table" data-nav="file-table" title={ft.name} disabled={!first} onClick={() => first && openFile(first, ft.id)}>
         <span className="sw-nav-dot off" aria-hidden="true" /><span className="sw-ellipsis">{ft.name}</span>
         <span className="sw-nav-n">{ft.rows.toLocaleString()}</span>
       </button>
-      {rounds.map((r) => <RoundItem key={r.round} r={r} />)}
+      {rounds.map((r) => <RoundItem key={r.round} r={r} table={ft.id} />)}
     </>
   );
 }
 
 /** A round of a table (`round_<k>` in its files' paths): a click opens its results in the four steps. */
-function RoundItem({ r }: { r: FileTable["rounds"][number] }) {
+function RoundItem({ r, table }: { r: FileTable["rounds"][number]; table?: string }) {
   const t = useT();
   const studies = useSweeps((s) => s.studies);
   const active = useSweeps((s) => s.active);
@@ -177,7 +177,7 @@ function RoundItem({ r }: { r: FileTable["rounds"][number] }) {
   const on = i >= 0 && i === active && part !== "setup" && part !== "together" && part !== "about";
   return (
     <button className={`sw-nav-item sw-nav-round${on ? " on" : ""}`} data-nav="round" data-round={r.round ?? ""} disabled={!file}
-      aria-current={on ? "true" : undefined} title={file} onClick={() => openFile(file)}>
+      aria-current={on ? "true" : undefined} title={file} onClick={() => openFile(file, table)}>
       <span className="sw-nav-tick" aria-hidden="true">└</span><span className="sw-ellipsis">{t("nvRound", { n: r.round ?? 0 })}</span>
       {r.new && <span className="pill on sw-nav-new">{t("nvNew")}</span>}
       <span className="sw-nav-n">{r.rows.toLocaleString()}</span>
@@ -185,12 +185,16 @@ function RoundItem({ r }: { r: FileTable["rounds"][number] }) {
   );
 }
 
-/** A file shown in the four steps: the open table read from it, or opened now. */
-function openFile(file: string) {
+/** A file shown in the four steps: the open table read from it, or opened now - a study table's file with that
+ *  table's roles and goal (C11). */
+function openFile(file: string, table?: string) {
   const st = useSweeps.getState();
   const i = openIndex(st.studies, file);
   if (i >= 0) { useSweeps.setState({ active: i, part: "table" }); return; }
-  void st.open(file).then(() => useSweeps.setState({ part: "table" })).catch(notifyError);
+  void st.open(file).then(() => {
+    useSweeps.setState({ part: "table" });
+    if (table) applyStudyTable(useSweeps.getState().active, table);
+  }).catch(notifyError);
 }
 
 function AddTable() {
