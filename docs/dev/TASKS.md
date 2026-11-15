@@ -77,7 +77,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       on – a click on a map plot's `.mode-btn` opens no `.menu.ctx` (items `[]`); passes at `9469906` (B1's parent). Bisected
       on `main`: 9469906 ✓, 81af77f ✗, every later commit ✗. B1 (and B6, which lists it green) should look at it.
   <!-- lane L4 -->
-  - **L4 Map** – in progress · done: M2, M3, M4, B6, M1 (but the plot head's old select – L3), M6, M5, F5, F6 · next: the end of the lane · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
+  - **L4 Map** – done · done: M2 M3 M4 B6 M1 M6 M5 F5 F6 (all on `main`) · open: M1's last step is L3's (the plot head's old layer select, request below) · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
     - **Request to L3** (from L4, M1 – needed for M1's *one place for the layer*): in `PlotView.tsx` remove the map
       layer `<select aria-label="Map">`, the `.net-badge` and the *Borders* checkbox (the `(mode === "geo" || mode === "3d")`
       `xpick` block; keep *+ Add an object*) and the now unused `geoBase` / `shownBase` / `geoBorders` / `GEO_BASES` imports –
@@ -4354,3 +4354,12 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-15 · L5 D6 Report: the replay card an info `.card` (no amber), the plots' head an eyebrow with its count, the empty report an `.empty-state`, inline sizes to panels.css. Ran: tsc; e2e test_replay, test_findings_report, test_judge_a_run, test_live_report (test_one_map fails on main without D6 too – noted under L4), test_features -k report/caption/preview – green otherwise; pictures D6 before / after dark en, light he (RTL fine); no control added. Next: D9+F4.
 - 2026-11-15 · L5 hand-over after D6 (context): D4 D5 D6 on main; next D9+F4. HAND-OVER block in the L5 board line.
 - 2026-11-15 · L3 B1 fix (test_live_report::test_one_map, found by L1): a mousedown on a not-active plot made it active and B1's eyebrow grew *Active* - the head shifted and the click's mouseup missed the kind button (no menu). *Active* now keeps its room on every plot of a several-plot tab (hidden when not active). Ran: tsc; e2e test_live_report, test_plot_polish, test_plot_menus, test_less_clutter, test_move_plots, test_aligned_plots, test_one_per_plot, test_workflows - 48 passed. L3 end of lane: union of the lane's e2e files 271 passed + this one fixed; L3 done.
+- 2026-11-15 · L4 end of the lane (REDESIGN_PROMPT §6): the union of the lane's e2e files once – `test_offline_map`,
+  `test_globe3d`, `test_map_objects`, `test_map_smooth`, `test_object_relations`, `test_live_report`, `test_map_export`,
+  `test_round_1112`, `test_height_profile`, `test_map_vectors`: 60 / 61 green; the one failure `test_live_report::test_one_map`
+  fails on `main` without L4 (L1 bisected it to B1 – L3's, noted under L3). Two fixes found by the run: F6's arrows row in
+  the object dialog no longer uses `.obj-role` (tests and code read the roles by it: `.obj-vec-field`); the relation box
+  in the bottom-end dock back to its 270 px (wider, it covered the object at the map's right edge). quick_check green.
+  Still open (not L4's files): the plot head's old map-layer select (PlotView, L3 – request in the L4 block); L1 may
+  trim the map rules `styles/map.css` supersedes. Not verified here: a real GPU / Windows; an online layer against the
+  real servers (every test stands the server in); a real ArduPilot log's wind drawn in e2e (the pairing is in Vitest).

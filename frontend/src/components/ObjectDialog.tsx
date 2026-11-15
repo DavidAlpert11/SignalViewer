@@ -473,7 +473,7 @@ function ObjectForm({ preset, onBack }: { preset: Candidate | null; onBack?: () 
               <div className="obj-row obj-vectors">
                 <span className="obj-vec-title" title={t("objVecHint")}>{t("objVec")}</span>
                 {(["vecN", "vecE"] as const).map((k) => (
-                  <div key={k} className="obj-role"><span>{t(k === "vecN" ? "objVecN" : "objVecE")}</span>
+                  <div key={k} className="obj-vec-field"><span>{t(k === "vecN" ? "objVecN" : "objVecE")}</span>
                     <SignalField value={o[k] ?? null} ariaLabel={`${t("objVec")} ${t(k === "vecN" ? "objVecN" : "objVecE")}`} prefer={mainRun}
                       placeholder={t("objNone")} noneLabel={t("objNone")} onChange={(id) => setO((c) => ({ ...c, [k]: id }))} /></div>
                 ))}

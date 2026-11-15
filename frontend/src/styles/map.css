@@ -31,7 +31,7 @@
 .map-dock .geo-readout, .plot-canvas.geo .map-dock .geo-readout, .map-dock .geo-readout.g3-readout {
   position: static; inset: auto; transform: none; max-width: 100%; }
 .map-dock .track-keys { max-width: 100%; }
-.map-dock .rel-panel { box-shadow: var(--shadow-md); border-radius: var(--r-card); }
+.map-dock .rel-panel { box-shadow: var(--shadow-md); border-radius: var(--r-card); max-width: 270px; }   /* its width before B6: wider, it covered the map's right edge */
 /* the camera's hint and the measure line sit under the bar (start-aligned), clear of the docks at the bottom */
 .g3-cam-hint, .geo-hint, .g3-measure { left: auto; right: auto; bottom: auto; transform: none;
   inset-inline-start: var(--sp-2); top: calc(var(--mapbar-bottom, 48px) + var(--sp-1_5)); max-width: min(60%, 420px); text-align: start; }
@@ -114,3 +114,7 @@
 .hprof-axis { display: flex; justify-content: space-between; color: color-mix(in srgb, var(--overlay-ink) 62%, transparent); }
 .plot-canvas.geo:has(> .hprof) .map-dock, .globe3d:has(> .hprof) .map-dock { bottom: 168px; }
 .plot-canvas.geo .map-dock-start { bottom: 34px; }   /* above the flat map's scale bar */
+/* F6: the object dialog's arrows row - laid out like a role, not one of the roles (tests and code read .obj-role) */
+.obj-vectors { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1_5) var(--sp-3); }
+.obj-vec-title { flex-basis: 100%; font-size: var(--fs-s); color: var(--muted); }
+.obj-vec-field { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-1_5); align-items: center; font-size: var(--fs-s); min-width: 220px; flex: 1; }
