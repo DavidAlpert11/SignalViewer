@@ -38,7 +38,8 @@ prints one line per round (runs, best, gap to the full-grid optimum) and the sam
 
 ## The loop – the same for your own program
 
-The demo is one case of **the loop**, which any study in *Sweeps → Common parameters* can run (*Run the loop*):
+The demo is one case of **the loop**, which any study in Sweeps can run (the **Run** column on its right:
+*Next round*, *Run until converged*, *Stop*):
 
 1. Signal Viewer proposes the next runs (the gains to try, each with its reason);
 2. it writes one parameters file per run and starts **the command** of the study – your program on this PC
@@ -47,23 +48,24 @@ The demo is one case of **the loop**, which any study in *Sweeps → Common para
 4. it ranks every value tried so far and proposes again – until the best has not changed for two rounds, nothing
    is left to try, or the round limit. *Stop* stops after the running round; the loop can be started again later.
 
-The panel shows the exact command, where the results are read from, the runs done / running / failed, the best so
-far, the convergence and every round.
+The Run column shows what the next round will run, the exact command, the runs done / running / failed, the best
+so far and the convergence; each round is listed under its table in the study's navigator (new ones marked) and
+opens as that table.
 
 ## Make it yours
 
-In the demo, *How this demo works → Copy the demo to a folder…* copies the study and `sim.py` into a new folder and
-opens it in *Common parameters*, nothing run yet. There, under **Runs**:
+In the demo, *About this study* (in the navigator) → *Copy the demo to a folder…* copies the study and `sim.py`
+into a new folder and opens it as a study, nothing run yet. There, in its **Set up** → *How to run*:
 
-- **The command** – one argument per line, run without a shell, e.g.
+- **The command for one run** – one argument per line, run without a shell, e.g.
   `python` · `{{study_dir}}/my_sim.py` · `{{params_file}}` (`{{study_dir}}` is the study's folder; the command runs in
   the round's folder);
-- **Where it runs** – *on this PC* (how many at a time) or *your launcher / farm* (once per round with a list file,
+- **Where it runs** – *This PC* (how many at the same time) or *Farm launcher* (once per round with a list file,
   or once per run);
 - **Results** – where a run's result file appears;
 - each table's **parameters file** – a template with `{{column}}` placeholders.
 
-Then *Run the loop*. If no run of a round gives a result, the loop stops and shows the end of the command's output.
+Then *Next round* or *Run until converged* in the Run column. If no run of a round gives a result, the loop stops and shows the end of the command's output.
 
 ## Your own program
 
