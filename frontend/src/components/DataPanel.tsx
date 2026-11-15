@@ -16,6 +16,7 @@ import { clearFileItem } from "../clearing";
 import { openPaths, recentToOpen, refreshRecent, reloadRun, removeRun } from "../files";
 import { fileTimeLines, shortClock } from "../fileTimes";
 import TemplateStrip from "./TemplateStrip";
+import { tx } from "../templates";
 import ObjectSuggestBar from "./ObjectSuggestBar";
 import { refreshAll } from "../live";
 import { applySyncOffset } from "../sync";
@@ -293,7 +294,10 @@ export default function DataPanel() {
 
   // shown while the search is in use (focused, or text in it): the screen keeps its count of controls
   const [searchFocus, setSearchFocus] = useState(false);
-  const quickShown = quick.length > 0 && (searchFocus || q.trim() !== "");
+  // D14: the profile's pinned searches (a template's or the user's), as chips before the quick ones
+  const pins = useApp((s) => s.ws.searches) ?? [];
+  const quickShown = (quick.length > 0 || pins.length > 0) && (searchFocus || q.trim() !== "");
+  const qPinned = pins.some((p) => p.q === q.trim());
 
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>({});
   // while searching every match starts open, but files and groups can still be collapsed
@@ -729,14 +733,26 @@ export default function DataPanel() {
               if (e.key !== "Escape") return;
               if (q) { setQ(""); e.stopPropagation(); } else if (picked.length) { clearSel(); e.stopPropagation(); }
             }} />
+          {q.trim() && !qPinned && <button className="iconbtn sm pin-search" title={t("pinSearchHint")} aria-label={t("pinSearch")}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { if (actions.pinSearch(q)) useApp.getState().toast({ kind: "info", text: t("glSearchPinned", { q: q.trim() }) }); }}><Icon.Star /></button>}
           {q && <button className="iconbtn" style={{ height: 20, minWidth: 20 }} onClick={() => setQ("")} aria-label={t("close")}><Icon.X /></button>}
         </label>
       )}
       {quickShown && (
         <div className="quick-chips" role="group" aria-label={t("quickGroups")}>
+          {pins.map((p) => {
+            const on = q === p.q, label = p.label ? tx(p.label) : p.q;
+            return <span key={`p:${p.q}`} className="pin-chip">
+              <button className={`chipbtn${on ? " on" : ""}`} aria-pressed={on} title={t("pinnedSearchHint", { q: p.q })} data-pinned={p.q}
+                onMouseDown={(e) => e.preventDefault()} onClick={() => setQ(on ? "" : p.q)}>{label}</button>
+              <button className="iconbtn sm" aria-label={t("unpinSearch", { q: label })} title={t("unpinSearch", { q: label })}
+                onMouseDown={(e) => e.preventDefault()} onClick={() => actions.unpinSearch(p.q)}><Icon.X /></button>
+            </span>;
+          })}
           {quick.map((g) => {
             const on = q === `${g}.`;
-            return <button key={g} className={`chipbtn${on ? " on" : ""}`} aria-pressed={on} title={t("quickGroupHint", { g })}
+            return <button key={g} className={`chipbtn${on ? " on" : ""}`} aria-pressed={on} title={t("quickGroupHint", { g })} data-group={g}
               onMouseDown={(e) => e.preventDefault()}            // the search keeps the focus (and the chips stay)
               onClick={() => setQ(on ? "" : `${g}.`)}>{g}</button>;
           })}

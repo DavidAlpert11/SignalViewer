@@ -83,11 +83,11 @@ def test_quick_chips_and_the_count_for_a_big_file(pg):
     open_ardupilot_example(pg)
     assert pg.locator(".quick-chips").count() == 0                  # only while the search is in use
     pg.locator(".filter input").focus()
-    pg.wait_for_selector(".quick-chips .chipbtn")
+    pg.wait_for_selector(".quick-chips .chipbtn[data-group]")
     n = S(pg, "s.runs.reduce((a, r) => a + r.signals.length, 0)")
     assert pg.locator(".side-head .ph-count").inner_text().replace(",", "") == str(n)
     used = S(pg, "[...new Set(s.ws.tabs.find((t) => t.id === s.ws.activeTab).plots.flatMap((p) => p.signals.map((x) => x.sig.split('/')[1].split('.')[0])))]")
-    first = pg.locator(".quick-chips .chipbtn").first
+    first = pg.locator(".quick-chips .chipbtn[data-group]").first     # the groups' chips (pinned searches come first)
     assert first.inner_text() in used
     g = first.inner_text()
     first.click()
@@ -97,3 +97,29 @@ def test_quick_chips_and_the_count_for_a_big_file(pg):
     assert pg.locator(".filter input").input_value() == ""
     pg.evaluate("document.activeElement.blur()")                    # the search left (empty): the chips go
     pg.wait_for_selector(".quick-chips", state="detached")
+
+
+def test_pinned_searches_as_chips(pg):
+    """D14 (2) (lane L3): *Pin this search* beside the search box keeps the text as a chip (in the session, with
+    Undo); a click on the chip types it into the search, a second click clears it; its ✕ unpins it."""
+    open_files(pg, "three_objects.csv")
+    box = pg.locator(".filter input")
+    box.fill("nav")
+    pg.locator(".filter .pin-search").click()
+    pg.wait_for_function("window.__sv.state().ws.searches?.some((x) => x.q === 'nav')")
+    assert pg.locator(".filter .pin-search").count() == 0           # pinned already: no second pin
+    box.fill("")
+    box.focus()
+    chip = pg.locator('.quick-chips .chipbtn[data-pinned="nav"]')
+    chip.wait_for()
+    assert chip.inner_text() == "nav"
+    chip.click()
+    assert box.input_value() == "nav"
+    assert chip.get_attribute("aria-pressed") == "true"
+    chip.click()
+    assert box.input_value() == ""
+    pg.locator('.quick-chips .pin-chip').filter(has=pg.locator('[data-pinned="nav"]')).locator(".iconbtn").click()
+    pg.wait_for_function("!(window.__sv.state().ws.searches ?? []).length")
+    pg.evaluate("document.activeElement.blur()")
+    pg.keyboard.press("Control+z")                                   # through commit: Undo brings it back
+    pg.wait_for_function("window.__sv.state().ws.searches?.some((x) => x.q === 'nav')")
