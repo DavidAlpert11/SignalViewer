@@ -13,6 +13,10 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+## Current state
+
+- **NEXT (2026-11-15): polish before the owner tags 1.28.0 – films, pictures, small fixes. A new session starts with
+  `docs/dev/AGENT_PROMPT_2026-11-15.md`** (the state, the open items, the sandbox quirks).
 - **RECOVERY 2026-11-14 22:30 (coordinator session, owner-approved):** every lane stopped at ~19:30 on the account's shared
   5-hour limit, each with work not yet committed (L1 A3, L2 C4, L4 M4, L5 F2 finished). `main` at `0847e4d` checked green
   (quick_check: tsc, Vitest 218, pytest 1305, mypy). Lanes are resumed **two or three at a time** (the limit is shared: more
