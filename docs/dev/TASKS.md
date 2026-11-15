@@ -116,8 +116,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       supersede in `index.css` (`.map-bar.geo-bar`, `.globe3d-readout`, `.globe3d-light`, `.track-keys`'s position, `.g3-fd`,
       `.rel-panel`'s position, `.g3-cam-hint` / `.geo-hint` / `.g3-measure`'s position) and `review.css` (R3's map lines)
       may be trimmed when convenient – nothing breaks if they stay.
+    - *Note to L4* (from L5, D6, 2026-11-15): `tests/e2e/test_live_report.py::test_one_map` fails on `main` (7e084ad) without any L5 change – `assert (False)` in the map / 3D mode checks (`.mode-btn` "Map", the kinds menu). Looks like the map's mode menu (M1 / B6); please check.
   <!-- lane L5 -->
-  - **L5 Analysis and new capabilities** – in progress · done: F3 F1 F2 D7 D14 D3 D4 D5 · next: D6 · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: under L3 (strip counts from Checks; the profile's numbers and chips – D14)
+  - **L5 Analysis and new capabilities** – in progress · done: F3 F1 F2 D7 D14 D3 D4 D5 D6 · next: D9+F4 · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: under L3 (strip counts from Checks; the profile's numbers and chips – D14)
     - HAND-OVER 2026-11-15 (Claude, lane L5): stopped because of context (D4 Compare is a large panel – start it fresh).
       Last finished task: D3 (commit 4ba6175, on main). Before it D14 76ae712. F3 F1 F2 D7 D14 D3 all on main.
       In progress: none; uncommitted / stashed: none.
@@ -4372,3 +4373,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
   Vitest `mapVectors.test.ts` (new: a log's wind, a CSV's velocity, none), e2e `test_map_vectors.py` (new: the CSV's
   velocity offered, drawn in 2D, Undo; the same in 3D) green. Not run: a real ArduPilot log's wind in e2e (the pairing is
   checked in Vitest on the log's signal names). The 2D start dock now sits above the scale bar. Picture `docs/dev/mockups/F6/after`.
+- 2026-11-15 · L5 D6 Report: the replay card an info `.card` (no amber), the plots' head an eyebrow with its count, the empty report an `.empty-state`, inline sizes to panels.css. Ran: tsc; e2e test_replay, test_findings_report, test_judge_a_run, test_live_report (test_one_map fails on main without D6 too – noted under L4), test_features -k report/caption/preview – green otherwise; pictures D6 before / after dark en, light he (RTL fine); no control added. Next: D9+F4.

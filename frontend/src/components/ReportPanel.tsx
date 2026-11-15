@@ -86,9 +86,9 @@ export default function ReportPanel() {
       <div className="side-head"><h2>{t("report")}</h2></div>
       <div className="tree analysis">
         {/* R1: the tab as a page to send - first, since it is the quickest thing to make here */}
-        <section className="replay-card" aria-labelledby="replay-h">
-          <h3 id="replay-h"><Icon.Send aria-hidden="true" />{t("replayTitle")}</h3>
-          <p>{t("replayText")}</p>
+        <section className="card info replay-card" aria-labelledby="replay-h">
+          <h3 id="replay-h" className="card-title"><Icon.Send aria-hidden="true" />{t("replayTitle")}</h3>
+          <p className="card-meta">{t("replayText")}</p>
           <button className="btn primary replay-make" disabled={!!busy} onClick={() => makeReplay()}>{t("replayMake")}</button>
         </section>
         <label className="afield"><span>{t("reportTitle")}</span>
@@ -121,7 +121,8 @@ export default function ReportPanel() {
           </label>
         )}
         {withInvestigation && <p className="hint">{t("rIncludeHint")}</p>}
-        <h3 className="alist-head">{t("reportPlots")}</h3>
+        <h3 className="eyebrow rplots-head">{t("reportPlots")}
+          <span className="ph-count">{tabs.reduce((n, tab) => n + pagePlots(tab).filter((x) => x.include && !x.p.excludeFromReport).length, 0)}</span></h3>
         {tabs.map((tab) => pagePlots(tab).filter((x) => x.include || x.why !== "pageWhyEmpty").map(({ p, pi: idx, include, why }) => {
           if (!include) return (   // 1.26: listed with the reason it cannot be in a report, not left out without a word
             <div key={p.id} className="rplot off" title={t(why!)}>
@@ -144,17 +145,17 @@ export default function ReportPanel() {
             </div>
           );
         }))}
-        {tabs.every((tab) => pagePlots(tab).every((x) => !x.include)) && <p className="hint">{t("reportEmpty")}</p>}
+        {tabs.every((tab) => pagePlots(tab).every((x) => !x.include)) && <p className="empty-state">{t("reportEmpty")}</p>}
 
-        <label className="afield" style={{ marginTop: 12 }}><span>{t("summary")}</span>
+        <label className="afield r-summary"><span>{t("summary")}</span>
           <textarea key={"s" + meta.summary} rows={3} defaultValue={meta.summary} onBlur={(e) => e.target.value !== meta.summary && setMeta({ summary: e.target.value })} /></label>
         {!(meta.summary ?? "").trim() && <p className="hint r-noconclusion">{t("rpNoConclusionHint")}</p>}
 
         <div className="arow">
-          <button className="btn outline" style={{ flex: "0 0 auto" }} disabled={!!busy} onClick={preview}>{busy === "preview" ? t("loading") : t("reportPreview")}</button>
+          <button className="btn outline r-preview" disabled={!!busy} onClick={preview}>{busy === "preview" ? t("loading") : t("reportPreview")}</button>
           <button className="btn primary" disabled={!!busy} onClick={() => make("html")}>{busy === "html" ? t("loading") : t("makeHtml")}</button>
         </div>
-        <p className="hint" style={{ fontSize: "var(--fs-m)", margin: "6px 0 10px" }}>{t("htmlHint")}</p>
+        <p className="hint r-htmlhint">{t("htmlHint")}</p>
         <div className="arow">
           <button className="btn outline" disabled={!!busy} onClick={() => make("pdf")}>{busy === "pdf" ? t("loading") : "PDF"}</button>
           <button className="btn outline" disabled={!!busy} onClick={() => make("docx")}>{busy === "docx" ? t("loading") : "Word"}</button>

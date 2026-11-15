@@ -38,3 +38,14 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 .inv-start .btn { align-self: flex-start; margin-top: var(--sp-1); }
 .cond-head h3.eyebrow { font: var(--eyebrow); }
 .investigate .empty-state { padding-inline: 0; }
+
+/* D6 Report: the shareable page as an info card (amber is only the cursor's and time's), the plots' head with its count */
+.side .replay-card { border-color: var(--line); border-inline-start-color: var(--info); margin: 2px 0 var(--sp-3); }
+.side .replay-card h3 { margin: 0; font-size: var(--fs-base); }
+.side .replay-card h3 svg { color: var(--info); }
+.side .replay-card p { margin: 0 0 var(--sp-1); }
+.rplots-head { display: flex; align-items: baseline; gap: var(--sp-1_5); margin: var(--sp-3) 0 var(--sp-1); }
+.side .tree > .empty-state { padding-inline: 0; }
+.r-summary { margin-top: var(--sp-3); }
+.r-preview { flex: 0 0 auto; }
+.r-htmlhint { font-size: var(--fs-m); margin: var(--sp-1_5) 0 var(--sp-2_5); }

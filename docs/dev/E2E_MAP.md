@@ -80,6 +80,7 @@ inside your lane's block.
 <!-- lane L4 -->
 
 <!-- lane L5 -->
+- `tests/e2e/test_replay.py`, `test_findings_report.py`, `test_judge_a_run.py`, `test_live_report.py`, `test_features.py -k report/caption/preview` – D6 the Report panel (selectors unchanged; run them) (L5)
 - `tests/e2e/test_what_changed.py`, `test_conditions.py`, `test_occurrences.py`, `test_runs_matrix.py` – D5 the verdict card, the onset times, `table.data` (selectors unchanged; run them) (L5)
 - `tests/e2e/test_compare_params.py` – D4 the parameters that differ from the baseline, per file (new); test_compare_diff / test_compare_tolerances / test_judge_a_run / test_compare_similar unchanged (run); test_features: the sync toast says *same run* (L5)
 - `tests/e2e/test_study_common.py` – W14 card → panel → best value → runs; edit + undo; W15 Suggest next runs (L5)
