@@ -49,7 +49,11 @@ def test_suggest_next_runs_writes_a_round(pg):
     shutil.copytree(os.path.join(ROOT, "examples", "drones"), work)
     pg.evaluate("p => window.__svRequestStudy(p)", os.path.join(work, "drones.svstudy.json"))
     pg.wait_for_selector("[data-shot='study'][data-settled='1']", timeout=60000)
-    pg.locator(".sw-run .rc-write").click()                                            # C8: in the Run column
+    pg.locator(".sw-step-btn[data-flow=next]").click()                                 # §7a: running is Next runs
+    pg.locator(".sw-run .rc-write").click()
+    run_them = pg.locator(".sw-run .rc-send")
+    assert run_them.count() == 1 and run_them.is_disabled()                            # drones.svstudy.json has no command
+    pg.locator(".sw-step-btn[data-flow=results]").click()                              # the round proposed, on the ranking
     pg.wait_for_selector(".cp-rank tr.cp-proposed")
     n = pg.locator(".cp-rank tr.cp-proposed").count()
     assert n == 20                                                                     # the batch: candidate values
@@ -59,7 +63,5 @@ def test_suggest_next_runs_writes_a_round(pg):
     pg.wait_for_function("document.querySelector('.cp-state').innerText.includes('pending runs from round 1')")
     assert os.path.isfile(os.path.join(work, "next", "round_1", "A.csv"))
     assert pg.locator(".cp-space .cp-cand").count() > 0                                # on the space, another marker
-    # C9: one place to write and to run a round - the Run column; the ranking keeps only its CSV export
+    # C9: one place to write and to run a round - Next runs; the ranking keeps only its CSV export
     assert pg.locator(".cp-results-head button").count() == 1
-    run_them = pg.locator(".sw-run .rc-send")
-    assert run_them.count() == 1 and run_them.is_disabled()                            # drones.svstudy.json has no command

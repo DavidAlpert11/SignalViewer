@@ -26,7 +26,8 @@ const FORMATS: [string, TKey][] = [[".csv", "swFmtCsv"], [".tsv", "swFmtTsv"], [
 /** What the suggestions answered: the question and the parameters explored. */
 const keyOf = (s: Study, focus: string[] | null) => JSON.stringify([wireQuestion(s), focus]);
 
-export default function NextRunsView({ study }: { study: Study }) {
+/** `extra`: what follows the proposal in the side column (the Next runs step's *Run from the app*, §7a). */
+export default function NextRunsView({ study, extra }: { study: Study; extra?: React.ReactNode }) {
   const t = useT();
   const next = study.view.next ?? {};
   const setNext = (p: Partial<NextRuns>) => useSweeps.getState().setView({ next: { ...(useSweeps.getState().studies[useSweeps.getState().active]?.view.next ?? {}), ...p } });
@@ -95,6 +96,9 @@ export default function NextRunsView({ study }: { study: Study }) {
   return (
     <div className="sw-next">
       <div className="sw-next-side">
+        <section className="sw-propose" aria-label={t("nxPropose")}>
+        <h3 className="sw-run-title">{t("nxPropose")}</h3>
+        <p className="hint">{t("nxProposeHint")}</p>
         <RerunList study={study} />
         <h3>{t("swSuggestedRuns")}</h3>
         <div className="sw-field">{t("swExplore")}
@@ -132,6 +136,8 @@ export default function NextRunsView({ study }: { study: Study }) {
         <span className="hint">{t(split === "equal" ? "swBudgetShare" : split === "proportional" ? "swSplitPropHint" : "swSplitManualHint", { n: sharesSum, b: budget })}</span>
 
         <button className="btn primary" disabled={busy || !kinds.length} onClick={run}>{t("swSuggest")}</button>
+        </section>
+        {extra}
       </div>
       <div className="sw-next-main">
         {stale && <div className="sw-banner" role="status">{t("swNextStale")}<button className="btn primary" onClick={run}>{t("swSuggest")}</button></div>}

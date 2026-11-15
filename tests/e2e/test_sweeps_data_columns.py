@@ -70,7 +70,7 @@ def test_source_column_and_closing_tables(pg):
     pg.locator(".sw-center-tabs button", has_text="Table").click()
     pg.wait_for_selector(".sw-raw th:has-text('version')")
     # closing the table in use: the next steps go on with another
-    pg.locator(".sw-table-item").nth(0).locator("button[aria-label^='Close']").click()
+    pg.locator(".sw-table-item").nth(0).locator("button[aria-label^='Remove']").click()
     pg.wait_for_function("document.querySelectorAll('.sw-table-item').length === 2")
     assert pg.locator(".sw-pills .sw-tbl-pill").count() >= 1
 
@@ -209,7 +209,7 @@ def test_show_holds_and_the_rerun_list_in_next_runs(pg):
     pg.wait_for_selector(".toast:has-text('Added to Next runs')")
     pg.locator(".toast button", has_text="Open Next runs").click()
     pg.wait_for_selector(".sw-rerun li")
-    assert "Next runs (1)" in pg.locator(".sw-center-tabs button[data-tab='next']").inner_text()
+    assert "1 to run again" in pg.locator(".sw-step-btn[data-flow=next]").inner_text()
     pg.locator(".sw-rerun li button[aria-label^='Remove']").click()
     pg.wait_for_selector(".sw-rerun .hint:has-text('No set yet')")
 
@@ -244,7 +244,7 @@ def test_split_by_a_condition_and_the_best_set_per_value(pg):
     pg.wait_for_selector(".toast:has-text('Added to Next runs')")
     pg.locator(".sw-split-table tbody tr").first.click()
     pg.wait_for_function("document.querySelector('.sw-split-bar .sw-pill.on').innerText === 'All together'")
-    pg.locator(".sw-center-tabs button[data-tab='next']").click()
+    pg.locator(".sw-step-btn[data-flow=next]").click()
     pg.wait_for_selector(".sw-rerun li:has-text('for scenario_payload_kg = ')")
     # the export: its parameters with the combinations of that value only
     pg.locator(".sw-rerun .btn", has_text="Export re-run list").click()

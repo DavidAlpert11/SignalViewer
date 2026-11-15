@@ -1,9 +1,10 @@
 /* C6: the study's Set up (plan §4.3, mock-up sweeps-start.html) - what varies, the scenarios, the outputs and
-   the goal, how to run. Each field is the study file's own block (sweeps/setup.ts), edited through editStudy:
+   the goal: the problem defined in the Data step (PLAN 2026-11-16 §7a; how to run is RunHow below, in Next runs). Each field is the study file's own block (sweeps/setup.ts), edited through editStudy:
    one Undo with the tables. A field is written when it is left (Enter or blur), not on every key. */
 import { useState, type ReactNode } from "react";
 import { useT } from "../../i18n";
 import { useSweeps } from "../../sweeps/state";
+import { goFlow } from "../../sweeps/goFlow";
 import { editStudy, useStudyPanel } from "../../sweeps/studyStore";
 import { firstTable, joinCommand, outputs, params, parseValues, readiness, removeParam, removeScenario, runWhere, scenarios, setGoal,
   setOutputs, setParam, setRun, setScenario, setupDone, type ParamRow, type Scale } from "../../sweeps/setup";
@@ -34,7 +35,6 @@ export default function SetupView() {
   const tables = useSweeps((x) => x.studies.length);
   if (!study) return null;
   const ps = params(study), sc = scenarios(study), outs = outputs(study), tb = firstTable(study), r = readiness(study);
-  const where = runWhere(study);
   const fromTable = !!guess && !sc.length;              // I have results: the scenarios are the table's columns
   const edit = (f: Parameters<typeof editStudy>[0]) => editStudy(f);
   const rowEdit = (p: ParamRow, patch: Partial<ParamRow>) => edit((x) => setParam(x, p.name, { ...p, ...patch }));
@@ -44,9 +44,9 @@ export default function SetupView() {
   return (
     <div className="su" data-part="setup" data-missing={r.missing.join(" ")}>
       <div className="su-head">
-        <span className="eyebrow">{t("suTitle")} · {t("suPartOf", { n: done.filter(Boolean).length })}</span>
+        <span className="eyebrow">{t("suTitle")} · {t("suPartOf", { n: done.slice(0, 3).filter(Boolean).length })}</span>
         <Field value={study.name ?? ""} label={t("suName")} ph={t("suNamePh")} className="su-name" onDone={(v) => edit((x) => ({ ...x, name: v }))} />
-        {tables > 0 && <button className="btn outline su-to-results" onClick={() => useSweeps.setState({ part: "table" })}>{t("suContinue")}</button>}
+        {tables > 0 && <button className="btn outline su-to-results" onClick={() => goFlow("results")}>{t("suContinue")}</button>}
       </div>
 
       <Section no={1} title={t("suVaries")} count={String(ps.length)} done={done[0]}>
@@ -126,19 +126,31 @@ export default function SetupView() {
         </div>}
       </Section>
 
-      <Section no={4} title={t("suHowRun")} done={done[3]}>
-        <div className="su-body">
-          <div className="seg su-where">{(["pc", "farm"] as const).map((w) => <button key={w} className={where === w ? "on" : ""} aria-pressed={where === w}
-            onClick={() => edit((x) => setRun(x, { where: w }))}>{t(w === "pc" ? "suThisPc" : "suFarm")}</button>)}</div>
-          <label className="su-wide">{t(where === "pc" ? "suCommand" : "suCommandFarm")}
-            <Field num value={joinCommand(study.launcher?.submit ?? [])} label={t("suCommand")} className="su-command" ph="python sim.py {{params_file}}"
-              onDone={(v) => edit((x) => setRun(x, { command: v }))} /></label>
-          {where === "pc" && <label className="su-row">{t("suWorkers")}
-            <Field num value={String(study.launcher?.local_workers ?? 2)} label={t("suWorkers")} className="su-workers"
-              onDone={(v) => edit((x) => setRun(x, { where: "pc", workers: Math.max(1, Math.round(n(v) ?? 2)) }))} /></label>}
-          <p className="card-meta">{t(where === "pc" ? "suRunHint" : "suFarmHint")}</p>
-        </div>
-      </Section>
     </div>
+  );
+}
+
+/** How to run (the study's launcher): this PC or a farm, the command, the workers - the Next runs step's (§7a). */
+export function RunHow() {
+  const t = useT();
+  const study = useStudyPanel((x) => x.study);
+  if (!study) return null;
+  const where = runWhere(study);
+  const edit = (f: Parameters<typeof editStudy>[0]) => editStudy(f);
+  return (
+    <section className="card su-sec su-how" data-done={setupDone(study, false)[3] ? "1" : "0"}>
+      <div className="panel-head"><h2>{t("suHowRun")}</h2></div>
+      <div className="su-body">
+        <div className="seg su-where">{(["pc", "farm"] as const).map((w) => <button key={w} className={where === w ? "on" : ""} aria-pressed={where === w}
+          onClick={() => edit((x) => setRun(x, { where: w }))}>{t(w === "pc" ? "suThisPc" : "suFarm")}</button>)}</div>
+        <label className="su-wide">{t(where === "pc" ? "suCommand" : "suCommandFarm")}
+          <Field num value={joinCommand(study.launcher?.submit ?? [])} label={t("suCommand")} className="su-command" ph="python sim.py {{params_file}}"
+            onDone={(v) => edit((x) => setRun(x, { command: v }))} /></label>
+        {where === "pc" && <label className="su-row">{t("suWorkers")}
+          <Field num value={String(study.launcher?.local_workers ?? 2)} label={t("suWorkers")} className="su-workers"
+            onDone={(v) => edit((x) => setRun(x, { where: "pc", workers: Math.max(1, Math.round(n(v) ?? 2)) }))} /></label>}
+        <p className="card-meta">{t(where === "pc" ? "suRunHint" : "suFarmHint")}</p>
+      </div>
+    </section>
   );
 }

@@ -2,13 +2,15 @@
    first, outputs last - and the question asked of it.
 
    This file is layout only. The pieces, each its own file:
-     StepNav                        the four steps (2026-11-01 redesign): data, columns, goal,
-                                    results - each with its side panel and its middle (RawStep,
-                                    RolesStep, GoalsStep, ResultsSide + ResultsCenter below)
-     CenterTabs                     the results' views:
+     FlowNav                        the five steps of every study (PLAN 2026-11-16 §7a): data, columns,
+                                    goal, results, next runs - for a table and a study file alike
+     Navigator + SetupView          Data: the tables (layers of runs) and the problem's definition
+     RawStep, RolesStep, GoalsStep  a table's steps, each with its side panel and its middle
+     ResultsSide + CenterTabs       the results' views:
        PlotToolbar + ParallelPlot + SetsTable   the parameter sets / all runs as lines (+ AxisMenu)
-       Desk         charts made from the columns   NextRunsView what to run next
-       ReportStep   the report
+       Desk         charts made from the columns   ReportStep   the report
+       StudyPanel   the systems together (a study file of several)
+     NextStep                       Next runs: the proposal (NextRunsView) and running it (RunPanel)
      SetDetail                      one set on the right: why it fails, its runs, its recordings
    State: sweeps/state.ts. Styles: ./sweeps.css (its own file, to restyle the area alone). */
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -18,8 +20,9 @@ import { pickPath, useApp } from "../../store";
 import { translate, useT, type TFn } from "../../i18n";
 import { registerArea } from "../../areaCommands";
 import Toasts from "../Toasts";
-import { normCenter, normStep, STEPS } from "../../sweeps/model";
-import { stepTitle } from "./StepNav";
+import { normCenter, normStep } from "../../sweeps/model";
+import { FLOW } from "../../sweeps/flow";
+import FlowNav, { flowTitle, goFlow, useFlowStep } from "./FlowNav";
 import { useLeftHidden } from "../../sweeps/narrow";
 import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
@@ -31,10 +34,9 @@ import { keptMask } from "../../sweeps/filters";
 import ReportDialog from "./ReportDialog";
 import { TABLE_EXTS, fileKind } from "../../sweeps/studyFile";
 import TemplatesDialog from "./TemplatesDialog";
-import StepNav from "./StepNav";
 import { RawCenter, ZoomButtons } from "./RawStep";
 import Navigator from "./Navigator";
-import RunColumn from "./RunColumn";
+import NextStep from "./NextStep";
 import { NO_ZOOM } from "../../sweeps/zoom";
 import { RolesCenter, RolesSide } from "./RolesStep";
 import { templateSummary } from "../../sweeps/templates";
@@ -44,10 +46,9 @@ import { ReportCenter, ReportSide, exportPlot } from "./ReportStep";
 import { confirmAsk, openMenu, prompt } from "../Overlays";
 import type { SavedStudy } from "../../sweeps/state";
 import AxisMenu from "./AxisMenu";
-import CenterTabs from "./CenterTabs";
+import CenterTabs, { TogetherTabs } from "./CenterTabs";
 import SplitBar from "./SplitBar";
 import Desk from "./Desk";
-import NextRunsView from "./NextRunsView";
 import ParallelPlot from "./ParallelPlot";
 import PlotToolbar from "./PlotToolbar";
 import SetDetail from "./SetDetail";
@@ -160,7 +161,7 @@ registerArea("sweeps", {
       ...(common ? [] : [{ id: "sw-report", label: t("swReportMenu"), group: g, icon: "report" as const, run: () => useSweeps.setState({ reportOpen: true }) }]),
       { id: "sw-templates", label: t("swTemplates"), group: g, run: () => useSweeps.setState({ templatesOpen: true }) },
       { id: "sw-start-over", label: t("swStartOver"), group: g, run: st.resetStudy },
-      ...STEPS.map((s, i) => ({ id: `sw-step-${s}`, label: `${i + 1} ${stepTitle(t, s)}`, group: t("swSteps"), run: () => st.setView({ step: s }) })),
+      ...FLOW.map((s, i) => ({ id: `sw-step-${s}`, label: `${i + 1} ${flowTitle(t, s)}`, group: t("swSteps"), run: () => goFlow(s) })),
     ];
   },
 });
@@ -178,7 +179,8 @@ export default function SweepsScreen() {
   }, []);
   // W14 / W18: a study asked for from outside the area (the welcome screen's cards)
   useEffect(() => {
-    const take = () => { const r = takeStudy(); if (r) void openStudyFile(r.path, r.demo); };
+    // the demo opens on Next runs - its Next round and the chart converging (§7a)
+    const take = () => { const r = takeStudy(); if (r) { if (r.demo) useSweeps.setState({ part: "run" }); void openStudyFile(r.path, r.demo); } };
     take();
     return onStudyRequest(take);
   }, []);
@@ -189,18 +191,46 @@ export default function SweepsScreen() {
     return onAreaExample(take);
   }, []);
   const common = useStudyPanel((s) => s.open);
-  const demo = useStudyPanel((s) => s.demo);
   const part = useSweeps((s) => s.part);
-  // C6: what the middle shows - the New study choice, the study's Set up, a table, or the study of several systems
-  const middle = part === "new" ? <NewStudy />
-    : common && part === "setup" ? <SetupView />
-    : common && demo && part === "about" ? <div className="cp-panel dm-panel dm-about"><HowItWorks /></div>
-    : part === "table" && study ? <StudyView study={study} />
-    : common ? <StudyPanel /> : study ? <StudyView study={study} /> : <SweepsWelcome />;
-  // C7: the navigator beside every part of a study (not on the welcome page or the New study choice)
-  const withNav = part !== "new" && (common || !!study);
-  // C8: and the Run column on the right while a study file is open (the loop never leaves the screen)
-  return <><SweepsBar />{withNav ? <div className="sw-ws"><Navigator />{middle}<RunColumn /></div> : middle}</>;
+  if (part === "new") return <><SweepsBar /><NewStudy /></>;
+  if (!common && !study) return <><SweepsBar /><SweepsWelcome /></>;
+  return <><SweepsBar /><StudyFlow /></>;
+}
+
+/** A study open (a table, a study file, or both): the five steps and the step shown (PLAN 2026-11-16 §7a). */
+function StudyFlow() {
+  const t = useT();
+  const study = useStudy();
+  const step = useFlowStep();
+  const part = useSweeps((s) => s.part);
+  const common = useStudyPanel((s) => s.open);
+  const demo = useStudyPanel((s) => s.demo);
+  const [navW, setNavW] = usePanelWidth("swNav", 260);
+  const box = useRef<HTMLDivElement>(null);
+  const empty = <p className="empty-note sw-flow-empty">{t("flNeedsTableHint")}</p>;
+  let body: React.ReactNode;
+  if (step === "data") {
+    // the problem: its tables (layers of runs) on the start side, the table's data or the definition in the middle
+    const middle = common && demo && part === "about" ? <div className="cp-panel dm-panel dm-about"><HowItWorks /></div>
+      : (common && part === "setup") || !study ? <SetupView /> : <StudyView study={study} />;
+    body = (
+      <div className="sw-ws" ref={box} style={{ gridTemplateColumns: `${navW}px minmax(0, 1fr)` }}>
+        <Navigator />
+        <PanelResizer label={t("resizePanel")} style={{ insetInlineStart: navW - 3 }} width={navW} setWidth={setNavW} grow={+1} def={260}
+          max={() => Math.min(480, (box.current?.clientWidth ?? window.innerWidth) - MIN_MIDDLE)} />
+        {middle}
+      </div>
+    );
+  } else if (step === "next") body = <NextStep />;
+  else if (step === "results" && (part === "together" || !study)) body = common ? <div className="sw-together"><TogetherTabs /><StudyPanel /></div> : empty;
+  else body = study ? <StudyView study={study} /> : empty;
+  return (
+    <div className="sw-study-wrap sw-flow" data-flow={step}>
+      <div className="notices sw-notices"><Toasts /></div>
+      <FlowNav />
+      {body}
+    </div>
+  );
 }
 
 function SweepsBar() {
@@ -420,9 +450,6 @@ function StudyView({ study }: { study: Study }) {
   const room = (other: number) => () => (box.current?.clientWidth ?? window.innerWidth) - other - MIN_MIDDLE;
   const cols = [leftHidden ? "" : `${leftW}px`, "minmax(0, 1fr)", detail ? `${detailW}px` : ""].filter(Boolean).join(" ");
   return (
-    <div className="sw-study-wrap">
-      <div className="notices sw-notices"><Toasts /></div>
-      <StepNav study={study} />
       <div className="sw-study" ref={box} style={{ gridTemplateColumns: cols }}>
         {!leftHidden && <aside className="side sw-left" aria-label={t("swSteps")}><div className="sw-left-body">{side}</div></aside>}
         {!leftHidden && <PanelResizer label={t("resizePanel")} style={{ insetInlineStart: leftW - 3 }} width={leftW} setWidth={setLeftW}
@@ -451,7 +478,6 @@ function StudyView({ study }: { study: Study }) {
         </main>
         {detail && <SetDetail study={study} set={study.view.pinned!} />}
       </div>
-    </div>
   );
 }
 
@@ -510,7 +536,6 @@ function ResultsCenter({ study }: { study: Study }) {
       {study.question.split && study.columns.some((c) => c.name === study.question.split && c.role === "hold") && <SplitBar study={study} />}
       <CenterTabs study={study} studies={useSweeps.getState().studies.length} />
       {study.answer && v.center === "charts" && <Desk study={study} />}
-      {study.answer && v.center === "next" && <NextRunsView study={study} />}
       {v.center === "report" && <div className="sw-report-tab"><ReportCenter study={study} /><ReportSide study={study} /></div>}
       {v.center === "lines" && v.mode === "runs" && study.answer && !study.answer.runs && (
         // owner, 2026-11-03: "All runs" once showed the sets (the runs were still on their way) - now it says so

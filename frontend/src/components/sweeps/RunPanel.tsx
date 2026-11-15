@@ -1,51 +1,52 @@
-/* C8: the Run column (plan §4.3 / §4.6 A, mock-up sweeps.html) - the right column of a study, beside every part
-   of it: the next round (what it will run, or what is still missing - Set up says it), the loop's controls (Next
-   round / Until converged / Stop / Start over; for a study of your own also *Only write the files* and *Run them*
-   with the launcher - C9: the one place a round is written or run), its progress
-   and convergence. Collapsible; the choice is remembered. The demo's controls are here too (its explanation, the
-   space and the rounds stay in its page). */
+/* PLAN 2026-11-16 §7a: running the next sets from the app - in the Next runs step, beside the proposal of the
+   next sets (it was the Run column on the right of every part, C8). What the next round will run (or what is still
+   missing - the problem definition in Data says it), how to run (the command, this PC or a farm), the loop's
+   controls (Next round / Until converged / Stop / Start over; *Only write the files* and *Run them* with the
+   launcher - C9: the one place a round is written or run) and its progress. The demo's controls are here too.
+   A table opened alone gets its study file here, with *Run from the app*. */
 import { useState } from "react";
 import { fmtInt, useT, type TFn } from "../../i18n";
 import { useApp } from "../../store";
 import { Icon } from "../../icons";
-import { getPrefValue, setPref } from "../../prefs";
 import { useSweeps } from "../../sweeps/state";
 import { readiness, type Missing } from "../../sweeps/setup";
-import { demoAction, isUnsaved, launcherCommand, sendToLauncher, suggestNext } from "../../sweeps/studyStore";
+import { demoAction, isUnsaved, launcherCommand, sendToLauncher, setupFromOpenTable, suggestNext } from "../../sweeps/studyStore";
 import { confirmAsk } from "../Overlays";
 import { notify, notifyError } from "../../sweeps/notify";
 import { saveStudyDialog } from "./StudyPanel";
 import ConvergenceChart from "./ConvergenceChart";
 import LoopSection from "./LoopSection";
+import { RunHow } from "./SetupView";
 
-const PREF = "sv3.swRunHidden";
 let confirmedThisSession = false;                // W17: the launcher command is shown once per session
 const MISSING: Record<Missing, string> = { params: "rcMissParams", range: "rcMissRange", output: "rcMissOutput", goal: "rcMissGoal", command: "rcMissCommand" };
 export const missingText = (t: TFn, m: Missing[]) => m.map((x) => t(MISSING[x] as never)).join(", ");
 
-export default function RunColumn() {
+export default function RunPanel() {
   const t = useT();
   const common = useSweeps((s) => s.common);
-  const [hidden, setHidden] = useState(() => getPrefValue<boolean>(PREF) === true);
-  if (!common.open || !common.study) return null;
-  const fold = (h: boolean) => { setPref(PREF, h); setHidden(h); };
-  if (hidden) {
-    return (
-      <aside className="sw-run folded" aria-label={t("rcTitle")}>
-        <button className="iconbtn rc-toggle" aria-expanded="false" onClick={() => fold(false)} title={t("rcShow")} aria-label={t("rcShow")}>‹</button>
-      </aside>
-    );
-  }
+  const table = useSweeps((s) => s.studies[s.active]);
   return (
-    <aside className="side sw-run" aria-label={t("rcTitle")}>
-      <div className="panel-head rc-head">
-        <span className="eyebrow">{t("rcTitle")}</span>
-        <button className="iconbtn sm rc-toggle ph-actions" aria-expanded="true" onClick={() => fold(true)} title={t("rcHide")} aria-label={t("rcHide")}>›</button>
-      </div>
-      <div className="rc-body">
-        {common.demo ? <DemoControls /> : <><NextRound /><LoopSection /></>}
-      </div>
-    </aside>
+    <section className="sw-run" aria-label={t("rcTitle")}>
+      <h3 className="sw-run-title">{t("rcTitle")}</h3>
+      {common.open && common.study ? (common.demo ? <DemoControls /> : <><NextRound /><RunHow /><LoopSection /></>)
+        : table ? <RunOffer /> : null}
+    </section>
+  );
+}
+
+/** A table opened alone: to run its next sets from the app it needs a study file - made from the table (its
+ *  columns' roles and goal), the problem definition then says what is still missing. */
+function RunOffer() {
+  const t = useT();
+  const make = async () => {
+    try { if (await setupFromOpenTable()) useSweeps.setState({ part: "run" }); } catch (e) { notifyError(e); }
+  };
+  return (
+    <div className="card rc-offer">
+      <p className="card-meta">{t("rcOfferHint")}</p>
+      <div className="card-next"><button className="btn outline sm rc-make" onClick={() => { void make(); }}>{t("rcOffer")}</button></div>
+    </div>
   );
 }
 
@@ -89,7 +90,7 @@ function NextRound() {
       {k === 1 && r.runs > 0 && <span className="card-meta">{t("rcRound1", { sets: fmtInt(r.sets, lang), combos: fmtInt(r.combos, lang), runs: fmtInt(r.runs, lang) })}</span>}
       {r.missing.length > 0 && <span className="card-meta">{t("rcMissing", { list: missingText(t, r.missing) })}</span>}
       <div className="card-next">
-        {r.missing.length > 0 && <button className="btn outline sm rc-setup" onClick={() => useSweeps.setState({ part: "setup" })}>{t("suTitle")}</button>}
+        {r.missing.some((m) => m !== "command") && <button className="btn outline sm rc-setup" onClick={() => useSweeps.setState({ part: "setup" })}>{t("rcDefine")}</button>}
         {/* W15: the next runs written to the round's folder, for a launcher of your own - nothing runs */}
         <button className="btn outline sm rc-write" disabled={busy || !study.tables.length} onClick={() => { void write(); }}
           title={t("rcWriteHint")}>{t("rcWrite")}</button>

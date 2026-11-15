@@ -12,7 +12,7 @@ export default function SweepsStatus() {
   const res = useStudyPanel((x) => x.result);
   const part = useSweeps((x) => x.part);
   const demo = useStudyPanel((x) => x.demo);
-  const shown = part === "setup" ? t("suTitle") : part === "about" ? t("nvAbout") : part === "together" || part === "" ? (demo ? t("dmTitle") : t("nvTogether"))
+  const shown = part === "setup" ? t("suTitle") : part === "about" ? t("nvAbout") : part === "run" ? t("swCenterNext") : part === "together" || part === "" ? (demo ? t("dmTitle") : t("nvTogether"))
     : part === "table" && s ? s.name : "";
   return (
     <footer className="status" role="status">

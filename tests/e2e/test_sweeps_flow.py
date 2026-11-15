@@ -76,7 +76,10 @@ def _step(pg, name):
 
 
 def _tab(pg, name):
-    """A results tab: sets, runs, charts, next, report."""
+    """A results tab: sets, runs, charts, report - or the Next runs step (PLAN 2026-11-16 §7a: a step of its own)."""
+    if name == "next":
+        pg.locator(".sw-step-btn[data-flow=next]").click()
+        return
     pg.locator(f".sw-center-tabs button[data-tab='{name}']").click()
 
 
@@ -396,7 +399,8 @@ def test_follow_the_file_and_templates(pg, tmp_path):
 
 def test_take_out_a_merged_table_delete_a_goal_and_column_groups(pg):
     _merged_example(pg)
-    pg.locator(".sw-table-item").nth(2).locator("button[aria-label^='Close']").click()   # the merged table out again
+    pg.locator(".sw-table-item").nth(2).locator("button[aria-label^='Remove']").click()   # the merged table out again
+    pg.locator(".dialog .btn.primary").click()                                   # it cannot be read again: asked first
     pg.wait_for_function("document.querySelectorAll('.sw-table-item').length === 2")
     pg.wait_for_function("document.querySelector('.sw-step-btn').innerText.includes('810 runs')")   # back on the first table
     pg.locator(".sw-table-item .sw-table-name").first.click()
@@ -967,12 +971,12 @@ def test_the_best_set_while_editing_a_goal(pg):
 
 
 def test_four_steps_five_tabs_and_the_goal_as_one_table(pg):
-    """2026-11-01 redesign: data, columns, goal, results; the goal is one table - a limit on a column is
-    a filter on it (an output in every scenario, a parameter too), emptied it is gone; what to optimize
-    beside it; the results: parameter sets, all runs, charts, next runs, report; undo beside Keep."""
+    """2026-11-01 redesign: data, columns, goal, results (and Next runs, PLAN 2026-11-16 §7a: a step of its own); the
+    goal is one table - a limit on a column is a filter on it (an output in every scenario, a parameter too), emptied
+    it is gone; what to optimize beside it; the results: parameter sets, all runs, charts, report; undo beside Keep."""
     _fresh(pg)
     assert pg.locator(".sw-step-btn").all_inner_texts()[0].startswith("1\nData")
-    assert pg.locator(".sw-step-btn").count() == 4 and pg.locator(".sw-area-btn").count() == 0
+    assert pg.locator(".sw-step-btn").count() == 5 and pg.locator(".sw-area-btn").count() == 0
     _step(pg, "goals")
     assert _holding(pg) == 45
     _condition(pg, "kp_roll", "<=", 0.2)                          # a parameter: 3 of its 5 values
@@ -991,7 +995,7 @@ def test_four_steps_five_tabs_and_the_goal_as_one_table(pg):
     _step(pg, "results")
     tabs = pg.locator(".sw-center-tabs button").all_inner_texts()
     # the two kinds of lines say how many they draw (owner, 2026-11-03: the tabs looked the same)
-    assert tabs == ["Parameter sets · 45", "All runs · 810", "Charts", "Next runs", "Report"]
+    assert tabs == ["Parameter sets · 45", "All runs · 810", "Charts", "Report"]
     assert pg.locator(".sw-plotbar .sw-undo").is_enabled()
     pg.locator(".sw-plotbar .sw-undo").click()                   # the last change undone (the optimize choice with it)
     pg.wait_for_function("!document.querySelector('.sw-best')")

@@ -160,8 +160,8 @@
 .su-note { padding: var(--sp-1) var(--sp-3) 0; }
 
 /* C7: the study's navigator (mock-up sweeps.html) - the left column beside every part of a study */
-.sw-ws { display: grid; grid-template-columns: 232px minmax(0, 1fr) auto; min-height: 0; background: var(--bg); }
-.sw-ws > :not(.sw-nav):not(.sw-run) { min-width: 0; min-height: 0; }
+.sw-ws { position: relative; display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 0; background: var(--bg); }   /* the Data step (§7a) */
+.sw-ws > :not(.sw-nav) { min-width: 0; min-height: 0; }
 .sw-nav { display: flex; flex-direction: column; min-height: 0; border-inline-end: 1px solid var(--line); background: var(--panel); }
 .sw-nav-head { padding: var(--sp-3); }
 .sw-nav-name { min-width: 0; }
@@ -188,18 +188,32 @@
 .sw-nav-row { display: flex; align-items: center; gap: var(--sp-0_5); min-width: 0; }
 .sw-nav-add { align-self: flex-start; margin-top: var(--sp-1); }
 .sw-nav .sw-merge, .sw-nav .sw-hide-box { margin: var(--sp-2) var(--sp-1) 0; }
-@media (max-width: 899px) { .sw-ws { grid-template-columns: minmax(0, 1fr) auto; } .sw-nav { display: none; } }
+@media (max-width: 899px) { .sw-ws { grid-template-columns: minmax(0, 1fr) !important; } .sw-nav, .sw-ws > .resizer { display: none; } }
+/* a table's remove: at full contrast, red on hover (owner, 2026-11-16: "the delete button is not easy to find") */
+.sw-rm { color: var(--ink); }
+.sw-rm:hover, .sw-rm:focus-visible { color: var(--danger); background: var(--danger-soft); }
 
-/* C8: the Run column - the round, the loop's controls, its progress (mock-up sweeps.html, right) */
-.sw-run { width: 300px; display: flex; flex-direction: column; min-height: 0; border-inline-start: 1px solid var(--line); background: var(--panel); }
-.sw-run.folded { width: auto; padding: var(--sp-2) var(--sp-1); align-items: center; }
-[dir="rtl"] .rc-toggle { transform: scaleX(-1); }
-.rc-head { padding: var(--sp-2) var(--sp-3); }
-.rc-body { flex: 1; min-height: 0; overflow: auto; padding: 0 var(--sp-3) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-3); }
-.rc-next { padding: var(--sp-3); gap: var(--sp-1); }
-.rc-next .card-next { display: flex; flex-wrap: wrap; gap: var(--sp-1_5); margin-top: var(--sp-1); }
+/* PLAN 2026-11-16 §7a: one way through a study - the steps above every part, the Next runs step */
+.sw-flow > .sw-ws, .sw-flow > .sw-study, .sw-flow > .sw-nextstep, .sw-flow > .sw-together, .sw-flow > .sw-flow-empty { flex: 1; min-height: 0; }
+.sw-flow .sw-step-btn:disabled { opacity: .55; cursor: default; }
+.sw-together { display: flex; flex-direction: column; min-height: 0; }
+.sw-together-tabs { padding: var(--sp-2) var(--sp-3) 0; background: var(--bg); }
+.sw-together > .cp-panel { flex: 1; min-height: 0; }
+.sw-nextstep { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; background: var(--bg); }
+.sw-nextstep > .sw-center { overflow: hidden; }
+.sw-nextstep .sw-next { grid-template-columns: var(--sw-next-side, 330px) minmax(0, 1fr); flex: 1; min-height: 0; }
+.sw-nextstep .sw-next-side, .sw-nextstep .sw-next-main { min-height: 0; overflow: auto; padding-inline-end: var(--sp-1); }
+.sw-run-title { margin: 0; font-size: var(--fs-m); }
+.sw-propose { display: flex; flex-direction: column; gap: 10px; }
+.sw-run { display: flex; flex-direction: column; gap: var(--sp-3); }
+.sw-propose + .sw-run { border-top: 1px solid var(--line); padding-top: var(--sp-3); margin-top: var(--sp-2); }
+.rc-next, .rc-offer { padding: var(--sp-3); gap: var(--sp-1); }
+.rc-next .card-next, .rc-offer .card-next { display: flex; flex-wrap: wrap; gap: var(--sp-1_5); margin-top: var(--sp-1); }
 .rc-buttons { display: flex; flex-wrap: wrap; gap: var(--sp-1_5); }
-.sw-run .lp { display: flex; flex-direction: column; gap: var(--sp-2); }
+.sw-run .lp { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: 0; }
+.sw-run .lp-head { flex-wrap: wrap; }
 .sw-run .lp-head h3 { font-size: var(--fs-m); }
 .sw-run .lp-views { grid-template-columns: minmax(0, 1fr); }
 .sw-run .dm-strip { gap: var(--sp-2); }
+.sw-run .su-how { margin: 0; }
+.nx-round1 { padding: var(--sp-3); gap: var(--sp-1); max-width: 640px; }

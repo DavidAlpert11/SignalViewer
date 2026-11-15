@@ -30,6 +30,12 @@ def _to_sweeps(pg):
         pg.wait_for_function(f"document.querySelectorAll('.sw-pills .sw-tbl-pill').length === {n - 1}")
 
 
+def _flow(pg, step):
+    """One of the five steps (PLAN 2026-11-16 §7a): data, columns, goal, results, next."""
+    pg.locator(f".sw-step-btn[data-flow={step}]").click()
+    pg.wait_for_selector(f".sw-flow[data-flow={step}]")
+
+
 def _new_study(pg):
     _to_sweeps(pg)
     pg.evaluate("window.__svSweeps.show('')")
@@ -57,9 +63,10 @@ def test_results_first_opens_the_results_and_fills_set_up(pg):
     pg.wait_for_function("window.__svStudy.state().study && window.__svStudy.state().guess")
     assert _study(pg, "s.tables[0].paths[0]").endswith("drone_tuning.csv")
     assert _study(pg, "Object.keys(s.search.params)") == ["kp_roll", "ki_roll", "filter_hz"]
-    pg.locator(".sw-nav [data-nav=setup]").click()                              # C7: the navigator
+    _flow(pg, "data")                                                           # the navigator: in Data only (§7a)
+    pg.locator(".sw-nav [data-nav=setup]").click()
     pg.wait_for_selector("[data-part=setup]")
-    assert pg.locator(".sw-nav-done").inner_text().endswith("/4")
+    assert pg.locator(".sw-nav-done").inner_text().endswith("/3")
     assert pg.locator(".su-params tbody tr[data-param]").count() == 3
     assert [pg.locator(".su-scen tr[data-scenario]").nth(i).get_attribute("data-scenario") for i in range(3)] == \
         ["scenario_wind_mps", "scenario_payload_kg", "scenario_gusts"]
@@ -67,11 +74,12 @@ def test_results_first_opens_the_results_and_fills_set_up(pg):
     assert 0 < lo < hi                                                          # the range seen in the table
     assert _study(pg, "s.launcher.submit.length") == 0                          # no command: still the table's own file
     pg.locator(".su-to-results").click()
-    pg.wait_for_selector(".sw-study-wrap")
+    pg.wait_for_selector(".sw-flow[data-flow=results]")
+    _flow(pg, "data")
     pg.locator(".sw-nav [data-nav=setup]").click()                              # and back with the table's own item
     pg.wait_for_selector("[data-part=setup]")
     pg.locator(".sw-nav [data-nav=table]", has_text="drone_tuning.csv").click()
-    pg.wait_for_selector(".sw-study-wrap .sw-steps")
+    pg.wait_for_selector(".sw-flow[data-flow=data] .sw-raw")                     # its data
 
 
 def test_start_from_nothing_types_the_set_up(pg):
@@ -81,8 +89,11 @@ def test_start_from_nothing_types_the_set_up(pg):
     pg.locator(".ns-nothing").click()
     pg.wait_for_selector("[data-part=setup]")
     assert set(pg.get_attribute("[data-part=setup]", "data-missing").split()) == {"params", "output", "goal", "command"}
-    assert set(pg.get_attribute(".sw-run .rc-next", "data-missing").split()) == {"params", "output", "goal", "command"}   # C8
+    _flow(pg, "next")                                                           # §7a: running is the Next runs step's
+    assert set(pg.get_attribute(".sw-run .rc-next", "data-missing").split()) == {"params", "output", "goal", "command"}
     assert "cannot run yet" in pg.locator(".sw-run .rc-next").inner_text()
+    pg.locator(".rc-setup").click()                                              # Define the problem: back in Data
+    pg.wait_for_selector("[data-part=setup]")
     for name, lo, hi, step in (("a", "0", "2", "0.1"), ("b", "1", "3", "0.5")):
         pg.locator(".su-add-param").click()
         _field(pg, ".su-new-param", name)
@@ -98,9 +109,11 @@ def test_start_from_nothing_types_the_set_up(pg):
     _field(pg, "tr[data-scenario=wind] input >> nth=1", "0, 5")
     _field(pg, ".su-outputs", "err")
     pg.locator(".su-goal").select_option("err")
+    pg.wait_for_function("document.querySelector('[data-part=setup]').dataset.missing === 'command'")
+    assert pg.locator(".sw-flow[data-flow=data] .su-command").count() == 0       # how to run: in Next runs
+    _flow(pg, "next")
     _field(pg, ".su-command", "python sim.py {{params_file}}")
-    pg.wait_for_function("document.querySelector('[data-part=setup]').dataset.missing === ''")
-    pg.wait_for_function("document.querySelector('.sw-run .rc-next').dataset.missing === ''")       # C8: the Run column says round 1 is ready
+    pg.wait_for_function("document.querySelector('.sw-run .rc-next').dataset.missing === ''")       # round 1 is ready
     assert "Round 1 is ready to run" in pg.locator(".sw-run .rc-next").inner_text()
     assert "16 sets × 2 scenarios = 32 runs" in pg.locator(".sw-run .rc-next").inner_text()
     assert _study(pg, "s.start") == {"grid": {"a": 4, "b": 4}, "scenarios": {"T1": {"wind": [0, 5]}}}
@@ -108,7 +121,7 @@ def test_start_from_nothing_types_the_set_up(pg):
     assert _study(pg, "s.launcher.submit") == ["python", "sim.py", "{{params_file}}"]
     pg.keyboard.press("Control+z")                                              # the one Undo: the command goes
     pg.wait_for_function("window.__svStudy.state().study.launcher.submit.length === 0")
-    assert pg.get_attribute("[data-part=setup]", "data-missing") == "command"
+    assert pg.get_attribute(".sw-run .rc-next", "data-missing") == "command"
 
 
 def test_navigator_lists_the_rounds_and_opens_one(pg):
@@ -122,9 +135,10 @@ def test_navigator_lists_the_rounds_and_opens_one(pg):
     pg.locator(".dm-next").click()
     pg.wait_for_function("document.querySelector('.dm-chart').dataset.points === '1' && "
                          "document.querySelector('[data-shot=demo]').dataset.settled === '1'", timeout=120000)
+    _flow(pg, "data")                                                           # the demo opens on Next runs; its tables in Data
     pg.wait_for_function("document.querySelectorAll('.sw-nav [data-nav=round][data-round=\"1\"]').length >= 2", timeout=30000)
     pg.locator(".sw-nav [data-nav=round][data-round='1']").first.click()
-    pg.wait_for_selector(".sw-study-wrap .sw-steps")
+    pg.wait_for_selector(".sw-flow[data-flow=data] .sw-raw")
     _idle(pg)
     pg.wait_for_selector(".sw-nav [data-nav=round].on")
     assert pg.locator(".sw-nav [data-nav=round].on").get_attribute("data-round") == "1"
@@ -132,26 +146,25 @@ def test_navigator_lists_the_rounds_and_opens_one(pg):
     pg.wait_for_selector("[data-part=setup]")
 
 
-def test_the_run_column_folds_and_remembers(pg):
-    """C8: the Run column beside every part of a study file (Set up, a table); folded, it stays folded after a reload."""
+def test_one_flow_the_tables_in_data_running_in_next_runs(pg):
+    """PLAN 2026-11-16 §7a: one stepper for every study - the tables (and the problem) only in Data, its column
+    resizable; Columns / Goal / Results wait for a table; running only in Next runs (no Run column beside the rest)."""
     _new_study(pg)
     pg.locator(".ns-nothing").click()
     pg.wait_for_selector("[data-part=setup]")
+    assert pg.locator(".sw-flow[data-flow=data] .sw-nav").count() == 1
+    assert pg.locator(".sw-run").count() == 0
+    for s in ("columns", "goal", "results"):                                    # nothing to show without a table
+        assert pg.locator(f".sw-step-btn[data-flow={s}]").is_disabled()
+    w = pg.evaluate("document.querySelector('.sw-nav').getBoundingClientRect().width")
+    pg.locator(".sw-ws > .resizer").focus()
+    pg.keyboard.press("Shift+ArrowRight")                                        # the tables' column: wider
+    pg.wait_for_function(f"document.querySelector('.sw-nav').getBoundingClientRect().width > {w + 30}")
+    _flow(pg, "next")
     pg.wait_for_selector(".sw-run .rc-next")
-    pg.locator(".sw-run .rc-toggle").click()
-    pg.wait_for_selector(".sw-run.folded")
-    assert pg.locator(".sw-run .rc-next").count() == 0
-    pg.wait_for_function("""() => { const x = new XMLHttpRequest(); x.open('GET', '/api/settings', false); x.send();
-        return JSON.parse(x.responseText).settings['sv3.swRunHidden'] === true; }""", polling=200)   # written to the app's settings
-    pg.reload()
-    pg.wait_for_selector(".app")
-    pg.locator(".areas .area-btn", has_text="Sweeps").click()
-    pg.wait_for_selector(".sw-welcome .sw-new-study")
-    pg.locator(".sw-welcome .sw-new-study").click()
-    pg.locator(".ns-nothing").click()
-    pg.wait_for_selector(".sw-run.folded")                                         # remembered
-    pg.locator(".sw-run .rc-toggle").click()
-    pg.wait_for_selector(".sw-run .rc-next")
+    assert pg.locator(".sw-nav").count() == 0
+    assert pg.locator(".sw-run .su-command").count() == 1                         # how to run, beside the round
+    pg.wait_for_selector(".nx-round1")
 
 
 def test_one_open_menu_and_each_command_once(pg):
@@ -193,9 +206,10 @@ def test_a_study_round_reads_as_its_table_and_its_goal_undoes(pg):
     pg.locator(".dm-next").click()
     pg.wait_for_function("document.querySelector('.dm-chart').dataset.points === '1' && "
                          "document.querySelector('[data-shot=demo]').dataset.settled === '1'", timeout=120000)
+    _flow(pg, "data")
     pg.wait_for_function("document.querySelectorAll('.sw-nav [data-nav=round][data-round=\"1\"]').length === 3", timeout=30000)
     pg.locator(".sw-nav [data-nav=round][data-round='1']").nth(1).click()          # A, B, C: Drone B
-    pg.wait_for_selector(".sw-study-wrap .sw-steps")
+    pg.wait_for_selector(".sw-flow[data-flow=data] .sw-raw")
     pg.wait_for_function("window.__svSweeps.doc() && window.__svSweeps.doc().columns.some((c) => c.name === 'Kp' && c.role === 'param')")
     _idle(pg)
     roles = {c["name"]: c["role"] for c in pg.evaluate("window.__svSweeps.doc().columns")}
@@ -203,7 +217,6 @@ def test_a_study_round_reads_as_its_table_and_its_goal_undoes(pg):
     assert roles["mass"] == roles["wind"] == "hold" and roles["overshoot"] == "output"
     q = pg.evaluate("window.__svSweeps.doc().question")
     assert q["goals"][q["active"]]["optimize"][0]["column"] == "settling_time"
-    assert pg.locator(".sw-run").count() == 1                                    # the Run column beside the table
     _step(pg, "goals")
     before = _holding(pg)
     _condition(pg, "energy", "<=", 0.001)                                         # nothing uses that little
@@ -211,7 +224,8 @@ def test_a_study_round_reads_as_its_table_and_its_goal_undoes(pg):
     assert _holding(pg) < before or before == 0
     pg.keyboard.press("Control+z")
     pg.wait_for_function(f"document.querySelector('.sw-answer-n') && parseInt(document.querySelector('.sw-answer-n').innerText.replace(/,/g, '')) === {before}")
-    assert pg.locator(".sw-run").count() == 1
+    _flow(pg, "next")                                                           # the demo's loop, beside this table's proposal
+    pg.wait_for_selector(".sw-run .dm-next")
 
 
 def test_old_files_open(pg):
@@ -225,7 +239,7 @@ def test_old_files_open(pg):
     _to_sweeps(pg)
     pg.evaluate("p => window.__svRequestStudy(p)", os.path.join(work, "fixture.svstudy.json"))
     pg.wait_for_function("window.__svStudy.state().study && window.__svStudy.state().study.tables.length >= 1")
-    assert pg.locator(".sw-nav").count() == 1
+    assert pg.locator(".sw-steps").count() == 1
 
 
 def test_results_first_next_runs_saved_and_reopened(pg):
@@ -246,7 +260,7 @@ def test_results_first_next_runs_saved_and_reopened(pg):
     assert _holding(pg) == 12
     assert "12 of 45" in pg.locator(".sw-answer").inner_text()
     _tab(pg, "next")
-    pg.wait_for_function("window.__svSweeps.doc().view.center === 'next'")
+    pg.wait_for_function("window.__svSweeps.doc().view.center === 'next'")       # kept with the table: it opens there again
     side = pg.locator(".sw-next-side")
     for k in side.locator(".sw-kind").all():                                     # only Near the best
         box = k.locator("input")
@@ -275,7 +289,9 @@ def test_results_first_next_runs_saved_and_reopened(pg):
     pg.click(".dialog-foot .btn.primary")
     pg.wait_for_selector(".sw-study-wrap .sw-steps")
     _idle(pg)
-    assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == step        # the same place
+    pg.wait_for_selector(".sw-flow[data-flow=next]")                             # the same place: Next runs
+    assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == step
+    _step(pg, "results")
     assert _holding(pg) == 12
 
 
@@ -316,15 +332,17 @@ def test_runs_first_round_one_then_round_two(pg):
     _field(pg, "tr[data-scenario=wind] input >> nth=1", "0, 5")
     _field(pg, ".su-outputs", "err")
     pg.locator(".su-goal").select_option("err")
+    _flow(pg, "next")
     _field(pg, ".su-command", f"{sys.executable} {{{{study_dir}}}}/sim.py {{{{params_file}}}}")
     pg.wait_for_function("document.querySelector('.sw-run .rc-next').dataset.missing === ''")
     pg.locator(".sw-run .lp-next").click()                                       # unsaved: Save as first
     save_as(pg, "runs_first.svstudy.json", work)
-    pg.wait_for_function("document.querySelector('.sw-nav [data-nav=round][data-round=\"1\"]')", timeout=120000)
-    assert _study(pg, "s.tables[0].objective") == {"expr": "err", "sense": "min"}
     pg.wait_for_selector(".sw-run .lp[data-round='1']:not([data-state=running]) .lp-next:enabled", timeout=120000)   # round 1 finished
+    assert _study(pg, "s.tables[0].objective") == {"expr": "err", "sense": "min"}
+    _flow(pg, "data")                                                           # the round: a new table in Data
+    pg.wait_for_function("document.querySelector('.sw-nav [data-nav=round][data-round=\"1\"]')", timeout=120000)
     pg.locator(".sw-nav [data-nav=round][data-round='1']").first.click()
-    pg.wait_for_selector(".sw-study-wrap .sw-steps")
+    pg.wait_for_selector(".sw-flow[data-flow=data] .sw-raw")
     pg.wait_for_function("window.__svSweeps.doc() && window.__svSweeps.doc().columns.some((c) => c.name === 'a' && c.role === 'param')")
     _idle(pg)
     roles = {c["name"]: c["role"] for c in pg.evaluate("window.__svSweeps.doc().columns")}
@@ -332,7 +350,10 @@ def test_runs_first_round_one_then_round_two(pg):
     q = pg.evaluate("window.__svSweeps.doc().question")
     assert q["goals"][q["active"]]["optimize"][0]["column"] == "err"            # the goal from Set up
     pg.wait_for_selector(".sw-nav [data-nav=round][data-round='1'].on")         # the round shown
+    _flow(pg, "next")
     pg.locator(".sw-run .lp-next").click()
+    pg.wait_for_selector(".sw-run .lp[data-round='2']:not([data-state=running]) .lp-next:enabled", timeout=120000)
+    _flow(pg, "data")
     pg.wait_for_selector(".sw-nav [data-nav=round][data-round='2'] .sw-nav-new", timeout=120000)
     assert pg.locator(".sw-nav [data-nav=round][data-round='1'] .sw-nav-new").count() == 0   # opened: seen
 
@@ -349,6 +370,7 @@ def test_a_table_goal_edited_in_the_area_reaches_the_study(pg):
     before = _study(pg, "s.tables.find((t) => t.id === 'B').constraints")
     feasible = pg.evaluate("window.__svStudy.state().result.counts.feasible")
     assert feasible > 0
+    _flow(pg, "data")
     pg.wait_for_selector(".sw-nav [data-nav=file-table]:has-text('Drone B')")
     pg.locator(".sw-nav [data-nav=file-table]", has_text="Drone B").click()
     pg.wait_for_function("window.__svSweeps.doc() && window.__svSweeps.doc().columns.some((c) => c.name === 'energy' && c.role === 'output')")
@@ -363,4 +385,6 @@ def test_a_table_goal_edited_in_the_area_reaches_the_study(pg):
     pg.keyboard.press("Control+z")                                                 # one step: the table and the study
     pg.wait_for_function(f"JSON.stringify(window.__svStudy.state().study.tables.find((t) => t.id === 'B').constraints) === {json.dumps(json.dumps(before, separators=(',', ':')))}")
     pg.wait_for_function(f"window.__svStudy.state().result && !window.__svStudy.state().busy && window.__svStudy.state().result.counts.feasible === {feasible}")
-    assert pg.locator(".sw-run").count() == 1
+    _flow(pg, "results")                                                         # the systems together: a tab of Results
+    pg.locator(".sw-center-tabs [data-tab=together]").click()
+    pg.wait_for_selector("[data-shot='study']")

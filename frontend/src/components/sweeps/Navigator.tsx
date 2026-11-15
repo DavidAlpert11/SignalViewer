@@ -1,18 +1,19 @@
-/* C7: the study's navigator (plan §4.3 / §4.6 A, mock-up sweeps.html) - the left column of the area: the study's
-   name; Set up (its four parts, ✓ each); Together (with two systems or more); Tables - every table open in the area
-   (a click opens it in the four steps), a table's merged parts, and the study file's tables with their rounds
-   (from /api/sweeps/study/tables, polled with the loop: a round's file opens like any table, *new* marked); Add
-   table and Merge. It replaced the Data step's table list (one list of tables). */
+/* C7: the study's navigator (plan §4.3 / §4.6 A, mock-up sweeps.html) - the Data step's left column (PLAN 2026-11-16
+   §7a: only there - the problem and its layers of runs): the study's name; the problem (what varies, the scenarios,
+   the outputs - ✓ each); Tables - every table open in the area (a click shows its data), a table's merged parts,
+   and the study file's tables with their rounds (from /api/sweeps/study/tables, polled with the loop: a round's
+   file opens like any table, *new* marked); Add table, Merge, and *Remove from the study* (with Undo). */
 import { useEffect, useMemo, useState } from "react";
-import { pickPath } from "../../store";
+import { pickPath, useApp } from "../../store";
 import { useT } from "../../i18n";
 import { Icon } from "../../icons";
-import { recipeFiles, useSweeps, type Study } from "../../sweeps/state";
+import { recipeFiles, savedOf, useSweeps, type Study } from "../../sweeps/state";
 import { setupDone } from "../../sweeps/setup";
 import { applyStudyTable, markSeen, setupFromOpenTable } from "../../sweeps/studyStore";
 import { studyApi, type StudyTables } from "../../sweeps/studyApi";
 import { TABLE_EXTS } from "../../sweeps/studyFile";
 import { notifyError } from "../../sweeps/notify";
+import { confirmAsk } from "../Overlays";
 import { MergeBox, exportTable } from "./RawStep";
 
 const baseName = (p: string) => p.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? p;
@@ -34,9 +35,8 @@ export default function Navigator() {
     common.loopProgress?.runs.done ?? common.demoProgress?.runs.done ?? 0, common.seenAt);
   const name = common.open ? (common.study?.name || stem(baseName(common.path)) || t("nsTitle")) : study ? stem(study.name) : "";
   const done = common.open && common.study ? setupDone(common.study, !!common.guess) : null;
-  const systems = common.study?.tables.length ?? 0;
-  const tableOn = part !== "setup" && part !== "together" && part !== "about";
-  const show = (p: "setup" | "together" | "about") => useSweeps.setState({ part: p });
+  const tableOn = part !== "setup" && part !== "about";
+  const show = (p: "setup" | "about") => useSweeps.setState({ part: p });
   const openSetup = async () => {
     if (common.open) { show("setup"); return; }
     try { if (await setupFromOpenTable()) show("setup"); } catch (e) { notifyError(e); }
@@ -58,7 +58,7 @@ export default function Navigator() {
       <div className="sw-nav-tree">
         {(common.open || study) && <>
           <div className="sw-nav-sec"><span className="eyebrow">{t("suTitle")}</span>
-            {done && <span className={`sw-nav-done${done.every(Boolean) ? " ok" : ""}`}>✓ {done.filter(Boolean).length}/4</span>}</div>
+            {done && <span className={`sw-nav-done${done.slice(0, 3).every(Boolean) ? " ok" : ""}`}>✓ {done.slice(0, 3).filter(Boolean).length}/3</span>}</div>
           <button className={`sw-nav-item${part === "setup" ? " on" : ""}`} data-nav="setup" aria-current={part === "setup" ? "true" : undefined}
             onClick={() => { void openSetup(); }}>
             <Icon.Settings width={14} height={14} /><span className="sw-ellipsis">{t("nvSetupItem")}</span>
@@ -70,21 +70,13 @@ export default function Navigator() {
             <span aria-hidden="true">ⓘ</span><span className="sw-ellipsis">{t("nvAbout")}</span>
           </button>
         )}
-        {common.open && systems >= 2 && <>
-          <div className="sw-nav-sec"><span className="eyebrow">{t("nvTogether")}</span></div>
-          <button className={`sw-nav-item${part === "together" ? " on" : ""}`} data-nav="together" aria-current={part === "together" ? "true" : undefined}
-            onClick={() => show("together")}>
-            <span aria-hidden="true">★</span><span className="sw-ellipsis">{t("cpTitle")}</span>
-            <span className="sw-nav-n">{(common.study?.shared ?? []).map((x) => x.name).slice(0, 3).join(" ")}</span>
-          </button>
-        </>}
         <section className="sw-tables" aria-label={t("nvTables")}>
           <div className="sw-nav-sec"><span className="eyebrow">{t("nvTables")}</span><span className="eyebrow sw-nav-n">{t("nvRuns")}</span></div>
           {studies.map((s, i) => (
             <TabItem key={s.tableId} s={s} i={i} on={tableOn && i === active} fileTable={byTab.get(i)} />
           ))}
           {alone.map((ft) => <FileTableItem key={ft.id} ft={ft} />)}
-          {study && <AddTable />}
+          <AddTable first={!study} />
         </section>
         {study && study.tables.length > 1 && <MergeBox study={study} />}
       </div>
@@ -113,12 +105,14 @@ function TabItem({ s, i, on, fileTable }: { s: Study; i: number; on: boolean; fi
     <>
       <div className="sw-nav-row">
         <button className={`sw-nav-item sw-nav-table${on ? " on" : ""}`} data-nav="table" aria-current={on ? "true" : undefined} title={s.name}
-          onClick={() => useSweeps.setState({ active: i, part: "table" })}>
+          onClick={() => showData(i)}>
           <span className="sw-nav-dot" aria-hidden="true" /><span className="sw-ellipsis">{s.name}</span>
           <span className="sw-nav-n">{s.rows.toLocaleString()}</span>
         </button>
         {one && <button className="iconbtn sm" title={t("swExportDataHint")} aria-label={`${t("swExportDataHint")}: ${one.name}`}
           onClick={() => { void exportTable(t, s, one); }}><Icon.Download width={14} height={14} /></button>}
+        <button className="iconbtn sm sw-rm" data-remove="table" title={t("nvRemoveN", { n: s.name })} aria-label={t("nvRemoveN", { n: s.name })}
+          onClick={() => removeTable(i, t)}><Icon.X width={13} height={13} /></button>
       </div>
       {on && s.tables.length > 1 && (
         <ul className="sw-table-list sw-nav-sub">{s.tables.map((tb, j) => <PartItem key={tb.id} s={s} j={j} />)}</ul>
@@ -139,14 +133,14 @@ function PartItem({ s, j }: { s: Study; j: number }) {
       <input type="checkbox" checked={picked} aria-label={t("swTickToMerge", { n: tb.name })} title={t("swTickToMerge", { n: tb.name })}
         onChange={() => st.setPicked(picked ? s.picked.filter((x) => x !== tb.id) : [...s.picked, tb.id])} />
       <button className="sw-table-name" title={tb.name} aria-current={j === s.use ? "true" : undefined}
-        onClick={() => { st.useTable(j); st.setShown(j); useSweeps.setState({ part: "table" }); }}>
+        onClick={() => { st.useTable(j); st.setShown(j); useSweeps.setState({ part: "table" }); st.setView({ step: "raw" }); }}>
         {tb.merged && <Icon.Merge width={13} height={13} />}<span className="sw-ellipsis">{tb.name}</span>
       </button>
       <span className="sw-nav-n sw-table-rows">{tb.opened.rows.toLocaleString()}</span>
       <button className="iconbtn sm" title={t("swExportDataHint")} aria-label={`${t("swExportDataHint")}: ${tb.name}`}
         onClick={() => { void exportTable(t, s, tb); }}><Icon.Download width={14} height={14} /></button>
-      <button className="iconbtn sm" title={t("swCloseTableN", { n: tb.name })} aria-label={t("swCloseTableN", { n: tb.name })}
-        onClick={() => st.closeTable(j)}><Icon.X width={13} height={13} /></button>
+      <button className="iconbtn sm sw-rm" data-remove="part" title={t("nvRemoveN", { n: tb.name })} aria-label={t("nvRemoveN", { n: tb.name })}
+        onClick={() => { void removePart(j, t); }}><Icon.X width={13} height={13} /></button>
     </li>
   );
 }
@@ -190,18 +184,49 @@ function RoundItem({ r, table }: { r: FileTable["rounds"][number]; table?: strin
 function openFile(file: string, table?: string) {
   const st = useSweeps.getState();
   const i = openIndex(st.studies, file);
-  if (i >= 0) { useSweeps.setState({ active: i, part: "table" }); return; }
+  if (i >= 0) { showData(i); return; }
   void st.open(file).then(() => {
-    useSweeps.setState({ part: "table" });
+    showData(useSweeps.getState().active);
     if (table) applyStudyTable(useSweeps.getState().active, table);
   }).catch(notifyError);
 }
 
-function AddTable() {
+/** A table shown in the Data step (the navigator lives there, §7a). */
+function showData(i: number) {
+  useSweeps.setState({ active: i, part: "table" });
+  useSweeps.getState().setView({ step: "raw" });
+}
+
+/** An open table out of the study; the notice's Undo opens it again when it was read from files. */
+function removeTable(i: number, t: ReturnType<typeof useT>) {
+  const st = useSweeps.getState(), s = st.studies[i];
+  if (!s) return;
+  const doc = s.path || s.tables.some((tb) => recipeFiles(tb.recipe).length) ? savedOf(s) : null;
+  st.close(i);
+  useApp.getState().toast({ kind: "info", text: t("nvRemoved", { n: s.name }),
+    action: doc ? { label: t("undo"), run: () => { void useSweeps.getState().open(doc.path, doc).catch(notifyError); } } : undefined });
+}
+
+/** One table of an open table out of it: read from a file, the notice's Undo adds it again; a merged one is
+ *  asked about first (it cannot be read again). */
+async function removePart(j: number, t: ReturnType<typeof useT>) {
+  const st = useSweeps.getState(), s = st.studies[st.active], tb = s?.tables[j];
+  if (!tb) return;
+  const files = recipeFiles(tb.recipe);
+  if (tb.merged && !(await confirmAsk(t("nvRemoveN", { n: tb.name }), t("nvRemoveMergedAsk"), t("nvRemove"), true))) return;
+  st.closeTable(j);
+  useApp.getState().toast({ kind: "info", text: t("nvRemoved", { n: tb.name }),
+    action: !tb.merged && files.length === 1 ? { label: t("undo"), run: () => { void useSweeps.getState().addTable(files[0]).catch(notifyError); } } : undefined });
+}
+
+/** Another table of runs into the open one (a layer); with none open yet, the study's first table. */
+function AddTable({ first }: { first: boolean }) {
   const t = useT();
   const add = async () => {
     const p = await pickPath({ mode: "open", title: t("swAddTable"), exts: TABLE_EXTS });
-    if (p) useSweeps.getState().addTable(p).catch(notifyError);
+    if (!p) return;
+    const st = useSweeps.getState();
+    (first ? st.open(p).then(() => showData(useSweeps.getState().active)) : st.addTable(p)).catch(notifyError);
   };
   return <button className="btn ghost sm sw-nav-add" onClick={() => { void add(); }}><Icon.Plus width={14} height={14} /> {t("swAddTable")}</button>;
 }

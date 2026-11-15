@@ -14,8 +14,9 @@ DEMO = os.path.join(ROOT, "examples", "smart_sweep_demo", "demo.svstudy.json")
 
 def test_the_demo_explains_itself(pg):
     pg.locator(".ex-card[data-example='smartSweepDemo']").click()
-    pg.wait_for_selector(".dm-strip")
-    pg.locator(".sw-nav [data-nav=about]").click()                               # C9: the study's About page
+    pg.wait_for_selector(".dm-strip")                                            # it opens on Next runs (§7a)
+    pg.locator(".sw-step-btn[data-flow=data]").click()
+    pg.locator(".sw-nav [data-nav=about]").click()                               # C9: the study's About page, in Data
     how = pg.locator(".dm-how")
     how.wait_for()
     io = how.locator(".dm-io").all_inner_texts()
@@ -29,14 +30,16 @@ def test_a_copy_of_the_demo_runs_the_loop(pg):
     r = pg.evaluate("async ([s, f]) => (await (await fetch('/api/sweeps/demo/copy', {method: 'POST', headers: {'Content-Type': 'application/json'}, "
                     "body: JSON.stringify({study_path: s, folder: f})})).json())", [DEMO, folder])
     pg.evaluate("p => window.__svRequestStudy(p)", r["path"])
+    pg.locator(".cp-main", has_text="Nothing has run yet").wait_for()               # after the table is read (it raced "Reading the table...")
+    pg.locator(".sw-step-btn[data-flow=next]").click()                           # §7a: the loop is Next runs
     lp = pg.locator(".lp")
     lp.wait_for()
     assert "demo-sim" in lp.locator(".lp-what code").first.inner_text()            # the exact command shown
-    pg.locator(".cp-main", has_text="Nothing has run yet").wait_for()               # after the table is read (it raced "Reading the table...")
     lp.locator(".lp-next").click()
     pg.wait_for_function("document.querySelector('.lp')?.dataset.points === '1' && document.querySelector('.lp').dataset.state !== 'running'",
                          timeout=180000)
+    assert pg.locator(".lp-rounds tbody tr").count() == 1
+    pg.locator(".sw-step-btn[data-flow=results]").click()
     pg.wait_for_selector("[data-shot='study'][data-settled='1']", timeout=60000)
     assert pg.locator(".cp-rank tbody tr[data-rank='1']").count() == 1           # the round's results ranked
-    assert pg.locator(".lp-rounds tbody tr").count() == 1
     assert os.path.isdir(os.path.join(folder, "results", "A"))                    # read from where the program wrote them

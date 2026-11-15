@@ -42,9 +42,10 @@ export interface StudyPanelState {
 export const emptyCommon = (): StudyPanelState => ({ open: false, demo: false, path: "", study: null, saved: "", past: [], future: [], result: null,
   next: null, submit: null, status: null, demoProgress: null, loopProgress: null, pinned: null, busy: false, error: "", guess: null, seenAt: null });
 
-/** What the middle of the area shows (C6; UI only, not undone): the *New study* choice, the study's Set up, a
- *  table in its four steps, Together (the study of several systems); "" = as before (the table, or the panel). */
-export type Part = "" | "new" | "setup" | "table" | "together" | "about";   // about: a demo study's explanation (C9)
+/** What the middle of the area shows (C6; UI only, not undone): the *New study* choice, the study's problem
+ *  definition, a table in its steps, Together (the study of several systems), the Next runs step (run - PLAN
+ *  2026-11-16 §7a, flow.ts); "" = as before (the table, or the panel). */
+export type Part = "" | "new" | "setup" | "table" | "together" | "about" | "run";   // about: a demo study's explanation (C9)
 
 /** One Undo for the whole area (C4): which part each step was made in, oldest first - `"setup"` (the study
  *  file) or `"t:" + tableId` (a table's question, roles, view). Undo takes the newest and undoes it there. */
