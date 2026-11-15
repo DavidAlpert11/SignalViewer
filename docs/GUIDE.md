@@ -543,7 +543,7 @@ The **navigator** on the left lists the study: its *Set up* (how many of its fou
 *Tables*: each table, the tables merged into it and each round the loop has run (new ones marked). One
 click opens any of them in the four steps; *About this study* explains it. The **Run** column on the right
 says what the next round will run (for round 1: sets × scenarios = runs) or what is still missing, with
-**Run them**, *Only write the files* (for a launcher of your own), the loop's *Next round*, *Until
+**Run them**, *Only write the files* (for a launcher of your own), the loop's *Next round*, *Run until
 converged* and *Stop*, its progress and how it converges; its arrow folds it away. *Study ▾* saves,
 undoes and closes the study, and *Report of the study…* writes one HTML page of the whole study. One
 Ctrl+Z undoes the last change anywhere in Sweeps.
