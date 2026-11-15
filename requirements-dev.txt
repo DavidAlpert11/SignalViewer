@@ -2,6 +2,7 @@ pytest>=7
 httpx
 httpx2; python_version >= '3.10'
 playwright>=1.40      # end-to-end tests: python -m playwright install chromium
+pytest-xdist>=3      # the whole e2e suite in parallel: pytest tests/e2e -n 4 --dist loadfile (~30 min -> a fraction)
 pypdf>=4              # tests only: read report PDFs back (a plot missing from the PDF once passed unnoticed)
 pyinstaller>=6
 mypy>=1.10            # type check of the backend (T36): see [tool.mypy] in pyproject.toml
