@@ -311,7 +311,7 @@ export default function OverviewStrip() {
         )}
         {checks && (checks.bad > 0 || checks.warn > 0) && (
           <button className={`chipbtn ov-checks ${checks.bad ? "bad" : "warn"}`} data-bad={checks.bad} data-warn={checks.warn}
-            title={t("ovChecksHint")} onClick={() => useApp.setState({ panel: "log" })}>
+            title={t("ovChecksHint")} onClick={() => useApp.setState({ panel: "log", checksRun: rid ?? null })}>
             {t("ovChecks", { bad: checks.bad, warn: checks.warn })}</button>
         )}
         {!hintSeen && (clusters.length > 0 || rows.length > 0) && <span className="ov-hint muted">{t("ovPickHint")}</span>}

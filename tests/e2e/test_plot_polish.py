@@ -125,6 +125,9 @@ def test_the_run_at_a_glance_shows_its_numbers_and_the_checks(pg):
     pg.wait_for_function("+document.querySelector('.ov-checks').dataset.bad >= 1")
     chk.click()
     pg.wait_for_function("window.__sv.state().panel === 'log'")
+    # ... on the strip's own run (it opened on the first log before), the request consumed
+    pg.wait_for_function("""(() => { const s = window.__sv.state(); const sel = document.querySelector('.log-panel select, .side select');
+      return s.checksRun === null && (!sel || sel.value === s.runs.find((r) => r.name.startsWith('run_a')).id); })()""")
     gls.nth(1).hover()
     gls.nth(1).locator(".ov-gl-more").click()
     menu_item(pg, "Unpin")

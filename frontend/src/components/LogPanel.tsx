@@ -35,6 +35,8 @@ export default function LogPanel() {
   const logRuns = files.filter((r) => r.log);
   const names = runLabels(runs);
   const [rid, setRid] = useState<string | null>(null);
+  const asked = useApp((s) => s.checksRun);          // the strip's Checks chip: open on its run, not the first log
+  useEffect(() => { if (asked) { setRid(asked); useApp.setState({ checksRun: null }); } }, [asked]);
   const run = files.find((r) => r.id === rid) ?? logRuns[0] ?? files[0];
   const info = run?.log ? logs[run.id] : undefined;
   const [tab, setTab] = useState<"health" | "events" | "params" | "hw" | "file" | "instruments">("health");
