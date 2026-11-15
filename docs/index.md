@@ -10,8 +10,10 @@ hide:
 
 # Signal Viewer
 
-<p class="sv-tagline"><b>Find what went wrong. Prove what is right. Send the answer.</b> Flight logs, test runs, simulations
-and parameter sweeps – offline, on your own machine, with every computation validated.</p>
+<p class="sv-tagline"><b>Find what went wrong. Prove what is right. Send the answer.</b> An offline engineering data
+analysis and validation workbench for any time-series data – flight, vehicle and bench tests, simulation output,
+ROS 2 and CAN recordings, parameter sweeps – on your own machine, with every computation validated. Flight logs
+(ArduPilot, PX4) are one kind of data it reads, and its example data, not its limit.</p>
 
 [:material-download: Download for Windows](https://github.com/DavidAlpert11/SignalViewer/releases/latest){ .md-button .md-button--primary }
 [:material-rocket-launch: Get started](install.md){ .md-button }
@@ -27,7 +29,7 @@ and parameter sweeps – offline, on your own machine, with every computation va
 
 Every part of the app has a demo with a known answer on the welcome screen – a flight, a flight log's
 health check, a simulation against its flight, a fault to find, a parameter sweep, the loop that picks the
-next runs, and a fleet of flights. One click each; nothing to prepare.
+next runs, a fleet of flights, and a pump on a test bench with its pass / fail checks. One click each; nothing to prepare.
 
 ![The welcome screen: the examples grouped by area - Recordings, Sweeps and Fleet - each with a picture of what it opens](images/38_welcome_cards.png){ .sv-shot }
 
@@ -135,7 +137,7 @@ against logs from real vehicles, field by field, with their projects' own reader
     ```
 
 Nothing needs the internet at run time – not the map, not the 3D terrain. No account, no telemetry;
-nothing is sent unless you choose an online map layer ([what that sends](maps-and-3d.md#the-network)).
+nothing is sent unless you choose an online map background ([what that sends](maps-and-3d.md#the-network)).
 [More about installing](install.md).
 
 <p class="sv-small">Source, releases and issues on <a href="https://github.com/DavidAlpert11/SignalViewer">GitHub</a> · MIT License · English and Hebrew.</p>

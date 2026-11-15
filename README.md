@@ -6,7 +6,8 @@
 
 <p align="center">
   <b>Find what went wrong. Prove what is right. Send the answer.</b><br>
-  Offline analysis of flight logs, test runs, simulations and parameter sweeps – on your own machine.
+  An offline engineering data analysis &amp; validation workbench for any time-series data –<br>
+  flight, vehicle and bench tests, simulation output, ROS 2 and CAN, parameter sweeps – on your own machine.
 </p>
 
 <p align="center">
@@ -50,6 +51,7 @@ answer** – nothing to prepare, nothing leaves your PC.
 | **One gain set, three drones** | One set of gains that holds for three different drones – and why the others fail |
 | **Smart sweep demo** | The next runs chosen for you, round after round, until it converges – about 64× fewer runs than the full grid |
 | **A fleet of flights** | Ten flights of two copters – the one whose vibration grows, flight after flight |
+| **A pump on a test bench** | A bench run in Parquet – phases, units, a pressure spike, a gap and a temperature that creeps over its limit; its `checks.json` also runs in CI |
 
 ## What it does for you
 
