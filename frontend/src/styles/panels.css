@@ -25,3 +25,16 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 .cmp-params-scroll { max-height: 220px; overflow: auto; }
 .cmp-params table.data td:first-child { overflow-wrap: anywhere; }
 .cmp-panel .sim-head h3.eyebrow { margin: 0; font: var(--eyebrow); }
+
+/* D5 What changed: the verdict card first (the sentence, the caveat folded in it), the onset rows with their time */
+.wc-verdict { margin: var(--sp-2) 0; }
+.wc-verdict .wc-sum { margin: 0; font-size: var(--fs-m); line-height: 1.4; }
+.wc-verdict .wc-how { margin: 0; }
+.wc-onsets .wc-ohead { margin: 0 0 var(--sp-1); }
+.wc-onsets .wc-orow { grid-template-columns: minmax(0, 40%) minmax(0, 1fr) 52px; }
+.wc-ot { color: var(--ink); text-align: end; font-size: var(--fs-s); direction: ltr; }
+/* D5 Investigate: how to start as an info card, the conditions' head an eyebrow */
+.inv-start { margin: 0 0 var(--sp-3); }
+.inv-start .btn { align-self: flex-start; margin-top: var(--sp-1); }
+.cond-head h3.eyebrow { font: var(--eyebrow); }
+.investigate .empty-state { padding-inline: 0; }

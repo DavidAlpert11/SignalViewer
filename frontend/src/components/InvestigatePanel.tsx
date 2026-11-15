@@ -52,9 +52,9 @@ export default function InvestigatePanel() {
         {whatChanged && <WhatChanged key={`${whatChanged.a}|${whatChanged.b}`} />}
         {/* how to start: what went wrong at a moment is the first question - two cursors around it */}
         {!whatChanged && files.length > 0 && (
-          <div className="inv-start">
-            <h3>{t("invStartTitle")}</h3>
-            <p className="hint">{t("invStartText")}</p>
+          <div className="card info inv-start">
+            <h3 className="card-title">{t("invStartTitle")}</h3>
+            <p className="card-meta">{t("invStartText")}</p>
             {cursor.on && cursor.dual && cursor.t1 !== null && cursor.t2 !== null && cursor.t1 !== cursor.t2
               ? <button className="btn primary sm inv-wc" onClick={() => useApp.setState({ whatChanged: { a: Math.min(cursor.t1!, cursor.t2!), b: Math.max(cursor.t1!, cursor.t2!) } })}>
                   {t("invStartGo")}</button>
@@ -62,14 +62,14 @@ export default function InvestigatePanel() {
           </div>
         )}
         <div className="cond-head">
-          <h3>{t("conditions")}</h3>
+          <h3 className="eyebrow">{t("conditions")}</h3>
           <button className="btn outline sm cond-new" onClick={() => useApp.setState({ condEdit: { id: "new" } })} disabled={!files.length}>
             <Icon.Plus /> {t("condNew")}
           </button>
         </div>
-        {!files.length && <p className="hint">{t("condNoFiles")}</p>}
+        {!files.length && <p className="empty-state">{t("condNoFiles")}</p>}
         {edit?.id === "new" && <CondEditor key="new" />}
-        {!conds.length && edit?.id !== "new" && files.length > 0 && <p className="hint">{t("condEmpty")}</p>}
+        {!conds.length && edit?.id !== "new" && files.length > 0 && <p className="empty-state">{t("condEmpty")}</p>}
         <ul className="cond-list">
           {conds.map((c) => {
             const k = count(c.id);
@@ -260,17 +260,17 @@ function OccSection({ cond }: { cond: Condition }) {
           {names.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
         <select className="occ-stat" value={stat} onChange={(e) => setStat(e.target.value as "max" | "min" | "mean")} aria-label={t("occStat")}>
-          <option value="max">max</option><option value="min">min</option><option value="mean">{t("occMean")}</option>
+          <option value="max">{t("maximal")}</option><option value="min">{t("minimal")}</option><option value="mean">{t("occMean")}</option>
         </select>
       </div>
       <div className="occ-table-wrap">
-        <table className="occ-table">
-          <thead><tr>{multi && <th>{t("occFile")}</th>}{head("a", t("occStartS"))}{head("d", t("occDurS"))}{head("v", `${stat}`)}</tr></thead>
+        <table className="data occ-table">
+          <thead><tr>{multi && <th>{t("occFile")}</th>}{head("a", t("occStartS"))}{head("d", t("occDurS"))}{head("v", stat === "max" ? t("maximal") : stat === "min" ? t("minimal") : t("occMean"))}</tr></thead>
           <tbody>
             {sorted.map((r, i) => (
               <tr key={i} onClick={() => go(r)} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") go(r); }}>
                 {multi && <td>{fileLabel(runs, r.rid)}</td>}
-                <td>{fmtNum(r.a, lang, 5)}</td><td>{fmtNum(r.b - r.a, lang, 4)}</td><td>{r.v === null ? "–" : fmtNum(r.v, lang, 5)}</td>
+                <td className="num">{fmtNum(r.a, lang, 5)}</td><td className="num">{fmtNum(r.b - r.a, lang, 4)}</td><td className="num">{r.v === null ? "–" : fmtNum(r.v, lang, 5)}</td>
               </tr>
             ))}
           </tbody>

@@ -99,7 +99,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       `.rel-panel`'s position, `.g3-cam-hint` / `.geo-hint` / `.g3-measure`'s position) and `review.css` (R3's map lines)
       may be trimmed when convenient – nothing breaks if they stay.
   <!-- lane L5 -->
-  - **L5 Analysis and new capabilities** – in progress · done: F3 F1 F2 D7 D14 D3 D4 · next: D5 · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: under L3 (strip counts from Checks; the profile's numbers and chips – D14)
+  - **L5 Analysis and new capabilities** – in progress · done: F3 F1 F2 D7 D14 D3 D4 D5 · next: D6 · tasks F3 F1 F2 D7 D14 D3 D4 D5 D6 D9+F4 D10 · requests: under L3 (strip counts from Checks; the profile's numbers and chips – D14)
     - HAND-OVER 2026-11-15 (Claude, lane L5): stopped because of context (D4 Compare is a large panel – start it fresh).
       Last finished task: D3 (commit 4ba6175, on main). Before it D14 76ae712. F3 F1 F2 D7 D14 D3 all on main.
       In progress: none; uncommitted / stashed: none.
@@ -4330,3 +4330,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
   `test_offline_switch`, `test_map_export`, `test_scene3d`; e2e `test_offline_map`, `test_map_smooth`,
   `test_round_1112` 25/25. Pictures `docs/dev/mockups/M5/{before,after}` (dark en, light he).
 - 2026-11-15 · L1 end of lane: the union of L1's e2e files once on `main` (582c501): `test_calm_screen`, `test_settings`, `test_plot_polish`, `test_first_minute`, `test_welcome_cards`, `test_plot_menus`, `test_findings_report`, `test_live_report`, `test_fresh_user`, `test_file_help_menus`, `test_template_tabs`, `test_templates_recent_badfiles`, `test_tour`, `test_move_plots_tabs`, `test_features` – 180 passed, 1 failed: `test_live_report::test_one_map`, bisected to L3's B1 (`81af77f`; the map plot's kind menu does not open) – written under L3. Lane L1 done; requests from other lanes are still answered here.
+- 2026-11-15 · L5 D5 Investigate + What changed: the verdict card first (summary + caveat, as the mock-up), onset times in mono, one primary action; Investigate's start card, eyebrow head, empty states, `table.data` occurrences with the statistic translated. Ran: tsc; e2e test_what_changed, test_conditions, test_occurrences, test_runs_matrix (21) – green; pictures D5 before / after dark en, light he (RTL fine); no control added. Next: D6.

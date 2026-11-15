@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, type ChangeChain, type ChangeCluster, type FirstChange, type LagResult } from "../api";
+import { api, type ChangeChain, type ChangeCluster, type FirstChange, type LagResult, type RunInfo } from "../api";
 import { actions, activeTab, fileLabel, rangeKey, signalName, styledSignal, TRACE_COLORS, uid, useApp, type Plot, type Tab } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
@@ -221,6 +221,7 @@ export default function WhatChanged() {
                     <button className="iconbtn sm wc-hide" aria-label={t("wcHide")} title={t("wcHide")} onClick={() => hide([x.id])}><Icon.X /></button>
                   </div>
                 );
+  const summary = shown.length ? onsetSummary(t, lang, runs, shown, span) : null;
   return (
     <section className="wc-section">
       <div className="wc-head">
@@ -239,11 +240,15 @@ export default function WhatChanged() {
       {items && (
         <>
           {/* review (2026-11-13): the how-to-read notes folded under one line that keeps the caveat in sight */}
-          <details className="wc-how">
-            <summary>{t("wcHowRead")}</summary>
-            <p className="wc-warn">{t(order === "likely" ? "wcNotCauseLikely" : "wcNotCause")}{coarse > 0.02 ? ` ${t("wcResolution", { ms: fmtNum(coarse * 1000, lang, 3) })}` : ""}</p>
-            {otherFiles.length > 0 && <p className="hint wc-other-hint">{t("wcOtherHint")}</p>}
-          </details>
+          {/* D5: the verdict first, as one tinted card; the caveat stays in it, the how-to-read folded */}
+          <div className={`card wc-verdict${summary ? " warn" : ""}`}>
+            {summary && <p className="card-title wc-sum">{summary}</p>}
+            <details className="wc-how">
+              <summary>{t("wcHowRead")}</summary>
+              <p className="wc-warn">{t(order === "likely" ? "wcNotCauseLikely" : "wcNotCause")}{coarse > 0.02 ? ` ${t("wcResolution", { ms: fmtNum(coarse * 1000, lang, 3) })}` : ""}</p>
+              {otherFiles.length > 0 && <p className="hint wc-other-hint">{t("wcOtherHint")}</p>}
+            </details>
+          </div>
           {noRoom ? <p className="hint wc-noroom">{t("wcNoRoom")}</p> : !changed.length && <p className="hint">{t("wcNone")}</p>}
           {changed.length > 0 && (
             <div className="wc-tools">
@@ -328,7 +333,7 @@ export default function WhatChanged() {
           {showSame && <p className="hint">{same.map((x) => signalName(runs, x.id)).join(", ")}</p>}
           {nodata.length > 0 && !noRoom && <p className="hint">{t("wcNoData", { names: nodata.map((x) => signalName(runs, x.id)).join(", ") })}</p>}
           <div className="occ-actions">
-            <button className="btn outline sm wc-stack" disabled={!shown.length} onClick={() => stacked()}>
+            <button className="btn primary sm wc-stack" disabled={!shown.length} onClick={() => stacked()}>
               {picked.length ? t("wcStackPicked", { n: picked.length }) : t("wcStackTop")}</button>
             <button className="btn outline sm wc-lag" disabled={picked.length !== 2} onClick={runLag}>{t("wcLag")}</button>
           </div>
@@ -344,11 +349,10 @@ export default function WhatChanged() {
  *  it rose, blue: it fell), fainter when it is less likely to matter; the span shaded, 0 = its start. A click
  *  on a row opens its group in the list below. */
 const ONSET_ROWS = 18;
-function Onsets({ t, lang, xs, span, order, onRow }: { t: ReturnType<typeof useT>; lang: Lang; xs: FirstChange[];
-  base: [number, number] | null; span: { a: number; b: number }; order: "likely" | "time"; onRow: (id: string) => void }) {
-  const runs = useApp((st) => st.runs);
+/** The signals with an onset time and how to name them: two files open, the same name comes twice - each
+ *  row says its file (its tag, as on the legend). */
+function onsetLabels(runs: RunInfo[], xs: FirstChange[]) {
   const timed = xs.filter((x) => x.t !== undefined && !x.isEvent);
-  // two files open: the same name comes twice - each row says its file (its tag, as on the legend)
   const ridOf = (x: FirstChange) => x.id.slice(0, x.id.indexOf("/"));
   const multi = new Set(timed.map(ridOf)).size > 1;
   const label = (x: FirstChange) => {
@@ -356,11 +360,26 @@ function Onsets({ t, lang, xs, span, order, onRow }: { t: ReturnType<typeof useT
     const r = runs.find((y) => y.id === ridOf(x));
     return `${r?.tag || fileLabel(runs, ridOf(x))} · ${x.name}`;
   };
+  return { timed, label };
+}
+
+/** D5: the answer in one sentence - the verdict card's title (the first change, the most likely one). */
+function onsetSummary(t: ReturnType<typeof useT>, lang: Lang, runs: RunInfo[], xs: FirstChange[], span: { a: number }) {
+  const { timed, label } = onsetLabels(runs, xs);
+  if (!timed.length) return null;
+  const first = [...timed].sort((a, b) => a.t! - b.t!)[0];
+  const likely = [...timed].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
+  const at = (first.t! - span.a >= 0 ? "+" : "") + fmtNum(first.t! - span.a, lang, 3);
+  return t("wcSummary", { n: timed.length, first: label(first), at, likely: label(likely) });
+}
+
+function Onsets({ t, lang, xs, span, order, onRow }: { t: ReturnType<typeof useT>; lang: Lang; xs: FirstChange[];
+  base: [number, number] | null; span: { a: number; b: number }; order: "likely" | "time"; onRow: (id: string) => void }) {
+  const runs = useApp((st) => st.runs);
+  const { timed, label } = onsetLabels(runs, xs);
   const top = (order === "likely" ? [...timed].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)) : timed).slice(0, ONSET_ROWS)
     .sort((a, b) => (a.t! - b.t!));
   if (!top.length) return null;
-  const first = [...timed].sort((a, b) => a.t! - b.t!)[0];
-  const likely = [...timed].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
   // the time axis spans where the changes are (and the span's start), not the quiet baseline before them
   const lo0 = Math.min(span.a, ...top.map((x) => x.t!)), hi = span.b;
   const lo = lo0 - (hi - lo0) * 0.04;
@@ -368,8 +387,7 @@ function Onsets({ t, lang, xs, span, order, onRow }: { t: ReturnType<typeof useT
   const rel = (v: number) => (v - span.a >= 0 ? "+" : "") + fmtNum(v - span.a, lang, 3);
   return (
     <figure className="wc-onsets" aria-label={t("wcOnsets")} data-rows={top.length}>
-      <figcaption className="wc-sum">{t("wcSummary", { n: timed.length, first: label(first), at: rel(first.t!), likely: label(likely) })}</figcaption>
-      <div className="wc-ohead"><span>{t("wcOnsets")}</span></div>
+      <figcaption className="wc-ohead eyebrow">{t("wcOnsets")}</figcaption>
       <ol className="wc-orows">
         {top.map((x) => {
           const a = 0.35 + 0.65 * Math.max(0, Math.min(1, x.score ?? 0.5));
@@ -383,6 +401,7 @@ function Onsets({ t, lang, xs, span, order, onRow }: { t: ReturnType<typeof useT
                   <i className={`wc-obar ${x.up ? "up" : "down"}`} style={{ insetInlineStart: pct(x.t!), width: `calc(100% - ${pct(x.t!)})`, opacity: a }} />
                   <i className={`wc-odot ${x.up ? "up" : "down"}`} style={{ insetInlineStart: pct(x.t!), opacity: a }} />
                 </span>
+                <span className="wc-ot num">{rel(x.t!)}</span>
               </button>
             </li>
           );
