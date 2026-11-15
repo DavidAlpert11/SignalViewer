@@ -41,7 +41,7 @@ export const emptyCommon = (): StudyPanelState => ({ open: false, demo: false, p
 
 /** What the middle of the area shows (C6; UI only, not undone): the *New study* choice, the study's Set up, a
  *  table in its four steps, Together (the study of several systems); "" = as before (the table, or the panel). */
-export type Part = "" | "new" | "setup" | "table" | "together";
+export type Part = "" | "new" | "setup" | "table" | "together" | "about";   // about: a demo study's explanation (C9)
 
 /** One Undo for the whole area (C4): which part each step was made in, oldest first - `"setup"` (the study
  *  file) or `"t:" + tableId` (a table's question, roles, view). Undo takes the newest and undoes it there. */

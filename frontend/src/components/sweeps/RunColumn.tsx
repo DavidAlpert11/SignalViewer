@@ -1,6 +1,7 @@
 /* C8: the Run column (plan §4.3 / §4.6 A, mock-up sweeps.html) - the right column of a study, beside every part
    of it: the next round (what it will run, or what is still missing - Set up says it), the loop's controls (Next
-   round / Until converged / Stop / Start over; for a study of your own also *Only write the files*), its progress
+   round / Until converged / Stop / Start over; for a study of your own also *Only write the files* and *Run them*
+   with the launcher - C9: the one place a round is written or run), its progress
    and convergence. Collapsible; the choice is remembered. The demo's controls are here too (its explanation, the
    space and the rounds stay in its page). */
 import { useState } from "react";
@@ -10,13 +11,15 @@ import { Icon } from "../../icons";
 import { getPrefValue, setPref } from "../../prefs";
 import { useSweeps } from "../../sweeps/state";
 import { readiness, type Missing } from "../../sweeps/setup";
-import { demoAction, isUnsaved, suggestNext } from "../../sweeps/studyStore";
+import { demoAction, isUnsaved, launcherCommand, sendToLauncher, suggestNext } from "../../sweeps/studyStore";
+import { confirmAsk } from "../Overlays";
 import { notify, notifyError } from "../../sweeps/notify";
 import { saveStudyDialog } from "./StudyPanel";
 import ConvergenceChart from "./ConvergenceChart";
 import LoopSection from "./LoopSection";
 
 const PREF = "sv3.swRunHidden";
+let confirmedThisSession = false;                // W17: the launcher command is shown once per session
 const MISSING: Record<Missing, string> = { params: "rcMissParams", range: "rcMissRange", output: "rcMissOutput", goal: "rcMissGoal", command: "rcMissCommand" };
 export const missingText = (t: TFn, m: Missing[]) => m.map((x) => t(MISSING[x] as never)).join(", ");
 
@@ -53,6 +56,7 @@ function NextRound() {
   const study = useSweeps((s) => s.common.study)!;
   const p = useSweeps((s) => s.common.loopProgress);
   const path = useSweeps((s) => s.common.path);
+  const status = useSweeps((s) => s.common.status);
   const [busy, setBusy] = useState(false);
   const r = readiness(study);
   const k = (p?.round ?? study.history?.length ?? 0) + 1;
@@ -64,6 +68,21 @@ function NextRound() {
       notify(n.exhausted ? t("cpExhausted") : t("cpNextDone", { k: n.round, c: n.counts.candidates, r: n.counts.runs, f: n.files.join(", ") }), n.exhausted ? "error" : "info");
     } catch (e) { notifyError(e); } finally { setBusy(false); }
   };
+  // W17 (C9: was *Send to launcher* above the ranking): the written round run with the study's command - once
+  // per session the exact command is shown first
+  const hasCmd = !!study.launcher?.submit?.length;
+  const written = !!study.history?.some((h) => h.proposals.some((x) => x.state === "pending"));
+  const runThem = async () => {
+    if (!path || isUnsaved()) { if (!(await saveStudyDialog(t))) return; }
+    try {
+      const cmd = await launcherCommand();
+      if (!confirmedThisSession) {
+        if (!(await confirmAsk(t("cpSendTitle"), t("cpSendText", { cwd: cmd.cwd, n: cmd.submitted, cmd: cmd.command.join(" ") }), t("cpSendOk")))) return;
+        confirmedThisSession = true;
+      }
+      await sendToLauncher();
+    } catch (e) { notifyError(e); }
+  };
   return (
     <section className={`card rc-next${r.missing.length ? " warn" : " ok"}`} data-missing={r.missing.join(" ")} data-round={k}>
       <span className="card-title">{r.missing.length ? t("rcMissingTitle", { k }) : t("rcReady", { k })}</span>
@@ -74,7 +93,13 @@ function NextRound() {
         {/* W15: the next runs written to the round's folder, for a launcher of your own - nothing runs */}
         <button className="btn outline sm rc-write" disabled={busy || !study.tables.length} onClick={() => { void write(); }}
           title={t("rcWriteHint")}>{t("rcWrite")}</button>
+        <button className="btn outline sm rc-send" disabled={!hasCmd || !written} onClick={() => { void runThem(); }}
+          title={hasCmd ? t("rcRunThemHint") : t("cpNoLauncher")}>{t("rcRunThem")}</button>
       </div>
+      {status && (
+        <span className="card-meta cp-run-states" role="status" data-finished={status.finished ? "1" : "0"}>
+          {t("cpRunsCount", { k: status.round, done: status.counts.done, sub: status.counts.submitted, failed: status.counts.failed, missing: status.counts.missing })}</span>
+      )}
     </section>
   );
 }

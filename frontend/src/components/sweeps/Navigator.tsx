@@ -35,8 +35,8 @@ export default function Navigator() {
   const name = common.open ? (common.study?.name || stem(baseName(common.path)) || t("nsTitle")) : study ? stem(study.name) : "";
   const done = common.open && common.study ? setupDone(common.study, !!common.guess) : null;
   const systems = common.study?.tables.length ?? 0;
-  const tableOn = part !== "setup" && part !== "together";
-  const show = (p: "setup" | "together") => useSweeps.setState({ part: p });
+  const tableOn = part !== "setup" && part !== "together" && part !== "about";
+  const show = (p: "setup" | "together" | "about") => useSweeps.setState({ part: p });
   const openSetup = async () => {
     if (common.open) { show("setup"); return; }
     try { if (await setupFromOpenTable()) show("setup"); } catch (e) { notifyError(e); }
@@ -64,6 +64,12 @@ export default function Navigator() {
             <Icon.Settings width={14} height={14} /><span className="sw-ellipsis">{t("nvSetupItem")}</span>
           </button>
         </>}
+        {common.open && common.demo && (
+          <button className={`sw-nav-item${part === "about" ? " on" : ""}`} data-nav="about" aria-current={part === "about" ? "true" : undefined}
+            onClick={() => show("about")}>
+            <span aria-hidden="true">ⓘ</span><span className="sw-ellipsis">{t("nvAbout")}</span>
+          </button>
+        )}
         {common.open && systems >= 2 && <>
           <div className="sw-nav-sec"><span className="eyebrow">{t("nvTogether")}</span></div>
           <button className={`sw-nav-item${part === "together" ? " on" : ""}`} data-nav="together" aria-current={part === "together" ? "true" : undefined}
@@ -168,7 +174,7 @@ function RoundItem({ r }: { r: FileTable["rounds"][number] }) {
   const part = useSweeps((s) => s.part);
   const file = r.files.find((f) => f.rows !== null)?.path ?? "";
   const i = useMemo(() => (file ? openIndex(studies, file) : -1), [studies, file]);
-  const on = i >= 0 && i === active && part !== "setup" && part !== "together";
+  const on = i >= 0 && i === active && part !== "setup" && part !== "together" && part !== "about";
   return (
     <button className={`sw-nav-item sw-nav-round${on ? " on" : ""}`} data-nav="round" data-round={r.round ?? ""} disabled={!file}
       aria-current={on ? "true" : undefined} title={file} onClick={() => openFile(file)}>

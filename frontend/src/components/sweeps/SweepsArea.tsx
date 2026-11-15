@@ -53,6 +53,7 @@ import PlotToolbar from "./PlotToolbar";
 import SetDetail from "./SetDetail";
 import SetsTable from "./SetsTable";
 import StudyPanel, { openStudyDialog } from "./StudyPanel";
+import { HowItWorks } from "./DemoView";
 import NewStudy from "./NewStudy";
 import SetupView from "./SetupView";
 import { chooseNewStudy, openStudyFile, redoStudy, undoStudy, useStudyPanel } from "../../sweeps/studyStore";
@@ -172,10 +173,12 @@ export default function SweepsScreen() {
     return onAreaExample(take);
   }, []);
   const common = useStudyPanel((s) => s.open);
+  const demo = useStudyPanel((s) => s.demo);
   const part = useSweeps((s) => s.part);
   // C6: what the middle shows - the New study choice, the study's Set up, a table, or the study of several systems
   const middle = part === "new" ? <NewStudy />
     : common && part === "setup" ? <SetupView />
+    : common && demo && part === "about" ? <div className="cp-panel dm-panel dm-about"><HowItWorks /></div>
     : part === "table" && study ? <StudyView study={study} />
     : common ? <StudyPanel /> : study ? <StudyView study={study} /> : <SweepsWelcome />;
   // C7: the navigator beside every part of a study (not on the welcome page or the New study choice)

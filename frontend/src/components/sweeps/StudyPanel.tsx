@@ -1,17 +1,16 @@
 /* W14 / W15 / W17: Sweeps → Common parameters - one parameter set for many systems.
    Left: the study (tables, their columns' roles, constraints, goal; the shared parameters; the ranking; the
    search space). Middle: the ranked values (pass / fail per table, score, local choice, the deciding scenario,
-   why a value fails), the shared values' space, the next runs and the launcher. State: sweeps/studyStore.ts;
+   why a value fails) and the shared values' space, with the next runs proposed on both (C9: writing and running
+   them is the Run column's). State: sweeps/studyStore.ts;
    the study file is the one definition (docs/dev/study.schema.json). The demo (W18) is DemoView. */
 import { useEffect, useMemo, useState } from "react";
 import { fmtNum, useT, type TFn } from "../../i18n";
 import { pickPath, useApp } from "../../store";
 import { Icon } from "../../icons";
-import { confirmAsk } from "../Overlays";
 import { studyApi } from "../../sweeps/studyApi";
 import {
-  closePanel, editStudy, isUnsaved, launcherCommand, openStudyFile, redoStudy, reqOf, saveStudyAs, sendToLauncher,
-  undoStudy, useStudyPanel,
+  closePanel, editStudy, isUnsaved, openStudyFile, redoStudy, reqOf, saveStudyAs, undoStudy, useStudyPanel,
 } from "../../sweeps/studyStore";
 import type { CommonRow, Role, Study, StudyTable } from "../../sweeps/studyTypes";
 import SpaceView, { type SpacePoint } from "./SpaceView";
@@ -20,7 +19,6 @@ import DemoView from "./DemoView";
 const ROLES: Role[] = ["shared", "scenario", "local", "output", "ignore"];
 const STUDY_EXT = ".svstudy.json";
 const TABLE_EXTS = [".csv", ".tsv", ".txt", ".parquet", ".pq", ".xlsx", ".xls"];
-let confirmedThisSession = false;                // W17: the launcher command is shown once per session
 
 const say = (text: string, kind: "info" | "error" = "info") => useApp.getState().toast({ kind, text, ms: kind === "error" ? 12000 : 6000 });
 const fmtVals = (v: Record<string, number | string> | null | undefined, lang: "en" | "he") =>
@@ -237,8 +235,6 @@ function Results() {
   const busy = useStudyPanel((s) => s.busy);
   const next = useStudyPanel((s) => s.next);
   const pinned = useStudyPanel((s) => s.pinned);
-  const status = useStudyPanel((s) => s.status);
-  const path = useStudyPanel((s) => s.path);
   const study = useStudyPanel((s) => s.study);
   const tried = useStudyPanel((s) => s.loopProgress?.tried);
   const points = useMemo<SpacePoint[]>(() => [
@@ -249,17 +245,6 @@ function Results() {
   ], [r, next, tried]);
   if (!r) return <p className="empty-note">{busy ? t("swReading") : ""}</p>;
   const best = r.rows.find((x) => x.feasible) ?? null;
-  const send = async () => {
-    if (!path || isUnsaved()) { if (!(await saveStudyDialog(t))) return; }
-    try {
-      const cmd = await launcherCommand();
-      if (!confirmedThisSession) {
-        if (!(await confirmAsk(t("cpSendTitle"), t("cpSendText", { cwd: cmd.cwd, n: cmd.submitted, cmd: cmd.command.join(" ") }), t("cpSendOk")))) return;
-        confirmedThisSession = true;
-      }
-      await sendToLauncher();
-    } catch (e) { say((e as Error).message, "error"); }
-  };
   const exportCsv = async () => {
     const p = await pickPath({ mode: "save", title: t("cpExport"), exts: [".csv"], defaultName: (study?.name || "ranking") + ".csv" });
     if (!p) return;
@@ -273,13 +258,7 @@ function Results() {
         <span className="hint">{r.mode === "minworst" ? t("cpModeMinworst") : t("cpModePareto")}</span>
         <span className="spacer" />
         <button className="btn outline" onClick={exportCsv}><Icon.Download /> {t("cpExport")}</button>
-        <button className="btn outline" onClick={send} title={study?.launcher?.submit?.length ? undefined : t("cpNoLauncher")} disabled={!study?.launcher?.submit?.length}>
-          <Icon.Send /> {t("cpSend")}</button>
       </div>
-      {status && (
-        <p className="cp-run-states" role="status" data-finished={status.finished ? "1" : "0"}>
-          {t("cpRunsCount", { k: status.round, done: status.counts.done, sub: status.counts.submitted, failed: status.counts.failed, missing: status.counts.missing })}</p>
-      )}
       <div className="cp-results-body">
         <div className="cp-rank-wrap">
           <table className="sw-table cp-rank">

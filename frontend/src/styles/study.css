@@ -107,6 +107,7 @@
 .lp-rounds { font-variant-numeric: tabular-nums; }
 .lp-rounds td.lp-better, .lp-rounds tr.lp-better td { color: var(--ok); }
 .dm-rounds { max-width: 560px; }
+.dm-about { overflow: auto; padding: var(--sp-3); }
 .dm-how { border: 1px solid var(--line); border-radius: var(--r-l); background: var(--panel); padding: var(--sp-3); }
 .dm-how h3 { margin: 0 0 var(--sp-2); font-size: var(--fs-l); color: var(--ink-strong); }
 .dm-how ol { margin: 0; padding-inline-start: var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-2); line-height: 1.45; }

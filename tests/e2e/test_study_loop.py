@@ -15,6 +15,7 @@ DEMO = os.path.join(ROOT, "examples", "smart_sweep_demo", "demo.svstudy.json")
 def test_the_demo_explains_itself(pg):
     pg.locator(".ex-card[data-example='smartSweepDemo']").click()
     pg.wait_for_selector(".dm-strip")
+    pg.locator(".sw-nav [data-nav=about]").click()                               # C9: the study's About page
     how = pg.locator(".dm-how")
     how.wait_for()
     io = how.locator(".dm-io").all_inner_texts()

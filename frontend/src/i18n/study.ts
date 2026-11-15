@@ -66,7 +66,6 @@ export const en = {
   cpReason_boundary: 'boundary',
   cpReason_gap: 'gap',
   cpReason_start: 'start',
-  cpSend: 'Send to launcher',
   cpSendTitle: 'Run the launcher command?',
   cpSendText: 'From the study file, run in {cwd} for {n} runs: {cmd}',
   cpSendOk: 'Run it',
@@ -211,6 +210,9 @@ export const en = {
   rcMissCommand: "the command",
   rcWrite: "Only write the files",
   rcWriteHint: "The next runs' parameters files written to the round's folder (next/round_k) for a launcher of your own - nothing runs.",
+  rcRunThem: "Run them",
+  rcRunThemHint: "The runs written for the last round, sent with the study's command (Set up › How to run).",
+  nvAbout: "About this study",
 };
 
 export const he: typeof en = {
@@ -279,7 +281,6 @@ export const he: typeof en = {
   cpReason_boundary: 'גבול',
   cpReason_gap: 'פער',
   cpReason_start: 'התחלה',
-  cpSend: 'שלח ל-launcher',
   cpSendTitle: 'להריץ את פקודת ה-launcher?',
   cpSendText: 'מקובץ המחקר, תרוץ ב-{cwd} עבור {n} הרצות: {cmd}',
   cpSendOk: 'הרץ',
@@ -424,4 +425,7 @@ export const he: typeof en = {
   rcMissCommand: "הפקודה",
   rcWrite: "רק לכתוב את הקבצים",
   rcWriteHint: "קובצי הפרמטרים של הריצות הבאות נכתבים לתיקיית הסבב (next/round_k) עבור משגר משלכם - שום דבר לא רץ.",
+  rcRunThem: "להריץ אותן",
+  rcRunThemHint: "הריצות שנכתבו לסבב האחרון, נשלחות עם הפקודה של המחקר (הגדרה › איך מריצים).",
+  nvAbout: "על המחקר הזה",
 };

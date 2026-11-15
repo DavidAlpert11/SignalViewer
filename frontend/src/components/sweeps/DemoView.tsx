@@ -1,5 +1,6 @@
 /* W18: the smart-sweep demo - the shared-parameter space (tried values by round, feasible or not, the best, the full
-   grid's optimum as a ring), the rounds and the one-sentence result, computed from the numbers. Its Next round / Run
+   grid's optimum as a ring), the rounds and the one-sentence result, computed from the numbers. How it works is the
+   study's About page (`HowItWorks`, C9). Its Next round / Run
    until converged / Reset, the live strip and the convergence chart are in the Run column (C8).
    The demo runs in its own work folder (svcore/demo.py); the backend runs the rounds, this view polls. */
 import { fmtInt, fmtNum, useT, type TFn } from "../../i18n";
@@ -58,7 +59,6 @@ export default function DemoView() {
             <SpaceView axes={p.axes} points={p.tried.map((x) => ({ values: x.values, feasible: x.feasible, round: x.round }))}
               best={p.best?.values} optimum={p.optimum.values} rounds={p.round} />
           </div>
-          <HowItWorks />
         </div>
       )}
     </div>
@@ -66,8 +66,9 @@ export default function DemoView() {
 }
 
 /** The demo explained on the screen, with the real files: the question, the program's input and output, the
- *  loop, and how to make it yours (a copy in a folder, opened as an ordinary study). */
-function HowItWorks() {
+ *  loop, and how to make it yours (a copy in a folder, opened as an ordinary study). C9: the study's *About*
+ *  page (the navigator's item), no longer below the rounds. */
+export function HowItWorks() {
   const t = useT();
   const study = useStudyPanel((s) => s.study);
   const path = useStudyPanel((s) => s.path);

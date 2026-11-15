@@ -59,3 +59,7 @@ def test_suggest_next_runs_writes_a_round(pg):
     pg.wait_for_function("document.querySelector('.cp-state').innerText.includes('pending runs from round 1')")
     assert os.path.isfile(os.path.join(work, "next", "round_1", "A.csv"))
     assert pg.locator(".cp-space .cp-cand").count() > 0                                # on the space, another marker
+    # C9: one place to write and to run a round - the Run column; the ranking keeps only its CSV export
+    assert pg.locator(".cp-results-head button").count() == 1
+    run_them = pg.locator(".sw-run .rc-send")
+    assert run_them.count() == 1 and run_them.is_disabled()                            # drones.svstudy.json has no command
