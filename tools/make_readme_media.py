@@ -84,10 +84,10 @@ def reset(app):
     for r in runs:
         if r.get("format") != "derived":
             urllib.request.urlopen(urllib.request.Request(f"{app.url}/api/runs/{r['id']}", method="DELETE"))
-    for name in ("autosave.json", "ui_settings.json", "sweep_autosave.json"):    # settings too (1.8: kept in the app folder) -
+    for name in ("autosave.json", "ui_settings.json", "sweep_autosave.json", "recent.json"):   # settings too (1.8: kept in the app folder) -
         try:                                             # the Hebrew scene must not leave the next ones in Hebrew
             os.remove(os.path.join(app.home, ".signalviewer", name))
-        except OSError:
+        except OSError:                                  # (recent files: a picture shows the welcome as a new user sees it)
             pass
 
 
@@ -489,6 +489,12 @@ def img_28_map_by_mode(b, app):
         p.mode = 'geo'; p.xSignal = o.lon; p.signals = [{sig: o.lat, color: '#3D8BFD', width: 1.5, scale: 1, offset: 0}]; p.objects = [o]; return ws; })""", obj)
     pg.evaluate("window.__sv.setState({ geoBase: 'osm' })")      # OpenStreetMap's colours (needs the internet)
     pg.wait_for_selector(".track-key", timeout=30000); pg.wait_for_timeout(2500)
+    pg.locator(".plot").first.hover()                         # the map's bar shows on the map in use
+    pg.locator(".geo-fit").first.click()                      # framed on the whole track (a short copter flight)
+    pg.wait_for_timeout(1500)
+    if pg.evaluate("!!window.__svGlobe"):
+        pg.wait_for_function("window.__svGlobe.widget.scene.globe.tilesLoaded", timeout=60000)
+    pg.mouse.move(5, H - 5); pg.wait_for_timeout(2500)
     shot(pg, "28_map_by_mode"); ctx.close()
 
 
@@ -544,8 +550,8 @@ def img_00_hero(b, app):
 
 
 def img_31_flight_map_3d(b, app):
-    """M1 (1.22's first picture): one window, 2 x 2, dark, at 2x - one window, 2 x 2, dark, at 2x: the map with the track coloured
-    by the flight mode and the vehicle at the cursor; the 3D attitude; Roll desired vs actual with
+    """M1 (1.22's first picture): one window, 2 x 2, dark, at 2x: the map (drawn in 3D since 1.28) with the track
+    coloured by the flight mode and the vehicle at the cursor; altitude and Roll desired vs actual with
     the mode lane; the vibration behind the health check's finding - the cursor at the vibration
     (~140 s of the ArduPilot example), the findings docked beside the timeline. No signal list, no
     popups. tools/make_social_preview.py crops docs/images/social-preview.png from it."""
@@ -568,11 +574,13 @@ def img_31_flight_map_3d(b, app):
       }
       tab.rows = 2; tab.cols = 2; tab.rowSizes = [1.15, 1]; tab.linkX = true;
       tab.sharedStates = [sig('MODE.Mode')];
-      tab.plots.push(
+      tab.plots.push(                                   // 1.28: the tab has one map (its cameras cover 3D)
+        { id: 'hero-alt', title: 'Altitude', signals: [line('CTUN.DAlt [m]', '#8FA3B8', 1.25), line('CTUN.Alt [m]', '#58A6FF', 1.75)] },
         { id: 'hero-roll', title: 'Roll', signals: [line('ATT.DesRoll [deg]', '#8FA3B8', 1.25), line('ATT.Roll [deg]', '#F2A33A', 1.75)] },
         { id: 'hero-vibe', title: 'Vibration', signals: [line('VIBE[0].VibeX [m/s/s]', '#4C9AFF'), line('VIBE[0].VibeY [m/s/s]', '#3FB950'),
           line('VIBE[0].VibeZ [m/s/s]', '#E5534B')] });
       ws.activeTab = tab.id; tab.active = 2;
+      tab.plots = [tab.plots[0], tab.plots[tab.plots.length - 3], tab.plots[tab.plots.length - 2], tab.plots[tab.plots.length - 1]];
       return ws; })""", rid)
     # the map in OpenStreetMap's colours (owner: more inviting than the dark automatic one)
     # (1.23: SV_HERO_MAP=auto - the offline map, on a computer without the internet)
@@ -596,7 +604,7 @@ def img_31_flight_map_3d(b, app):
       const s = C.SceneTransforms.worldToWindowCoordinates(w.scene, C.BoundingSphere.fromPoints(pts).center);
       const r = w.canvas.getBoundingClientRect();
       return s ? { x: r.left + s.x, y: r.top + s.y } : null; }""")
-    g = pg.locator(".plot", has_text="3D").locator("canvas").first.bounding_box()
+    g = pg.locator(".plot:has(.globe3d)").locator("canvas").first.bounding_box()
     pg.mouse.move(*((xy["x"], xy["y"]) if xy else (g["x"] + g["width"] / 2, g["y"] + g["height"] * 0.55)))
     for _ in range(2):
         pg.mouse.wheel(0, -240); pg.wait_for_timeout(200)
