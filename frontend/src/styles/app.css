@@ -24,3 +24,11 @@
 .area-tools { display: flex; align-items: center; gap: var(--sp-1); flex-shrink: 0; }
 .stage-bar > .tabs-wrap { height: 28px; flex: 0 1 auto; min-width: 120px; }
 .stage-bar .tab { height: 28px; }
+
+/* D8: the Inspector - section titles as eyebrows (A4), numbers in the mono face (.num), a statistic pinned to the run
+   at a glance from its line (shown on hover / focus); the timeline's warnings in --warn (amber is the cursor's) */
+.inspector .section h3 { min-height: 24px; }
+.inspector table.vals td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; direction: ltr; text-align: end; }
+.inspector .name-row .stats-pin { float: inline-end; opacity: 0; }
+.inspector .name-row:hover .stats-pin, .inspector .stats-pin:focus-visible { opacity: 1; }
+.tl-event, .tl-finding { background: var(--warn); }

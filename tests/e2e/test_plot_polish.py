@@ -81,3 +81,21 @@ def test_window_statistics_in_the_legend(pg):
     pg.wait_for_function("(w) => { const t = [...document.querySelectorAll('.chip .wstat b')].map((e) => e.textContent).join('|'); return t && t !== w; }",
                          arg="|".join(pg.locator(".chip .wstat b").all_inner_texts()))
     assert check() != whole
+
+
+def test_pin_a_statistic_to_the_run_at_a_glance(pg):
+    """D8 + D14 (lane L3): the Inspector's statistics pin a line's number to the run at a glance, by the
+    signal's name (Undo-able, saved with a template); a fifth is refused with a message."""
+    from test_features import menu_item
+    open_files(pg, "run_a.csv")
+    sig(pg, "Speed").click()
+    pg.evaluate("window.__sv.setState({ inspectorOpen: true })")
+    row = pg.locator(".inspector table.stats tr.name-row").first
+    row.wait_for()
+    row.hover()
+    row.locator(".stats-pin").click()
+    menu_item(pg, "max")
+    pg.wait_for_function("(window.__sv.state().ws.glance || []).some((g) => g.stat === 'max' && g.name.startsWith('Speed'))")
+    assert pg.locator(".inspector table.stats td.num").count() >= 4          # the numbers in their mono column
+    pg.keyboard.press("Control+z")
+    pg.wait_for_function("!(window.__sv.state().ws.glance || []).length")

@@ -23,6 +23,7 @@
 - F2 (legend): `test_plot_polish.py::test_window_statistics_in_the_legend` new (= the CSV's numbers over the window, follows a zoom) (L3)
 - D2: `test_name_tree.py::test_quick_chips_and_the_count_for_a_big_file` new; ran `test_name_tree`, `test_templates_recent_badfiles`, `test_workflows -k small_window` (the head still fits at 1100 px) (L3)
 - D1: selectors `.areabar` → `.area-tools` (Recordings tools) / `.stage-bar .more-tabs` in `test_features`, `test_file_help_menus` (Live now in the top row's area tools, gone in another area - asserted), `test_object_templates`, `test_one_per_plot`, `test_templates_recent_badfiles`, `test_workflows`; ran those + `test_plot_polish`, `test_move_plots_tabs`, `test_template_tabs`, `test_calm_screen`, `test_first_minute`, `test_globe3d`, `test_map_smooth`, `test_less_clutter`, `test_tab_band`, `test_unsaved_close` (views that gain space) (L3)
+- D8: `test_plot_polish.py::test_pin_a_statistic_to_the_run_at_a_glance` new; ran `test_plot_polish`, `test_plot_style`, `test_timeline`, `test_range_notes`, `test_less_clutter`, `test_features` + `test_workflows` (whole files) (L3)
 
 <!-- 1114 lane L4 -->
 `test_offline_map.py` – M2 (L4): `test_satellite_with_roads_is_one_layer` new.

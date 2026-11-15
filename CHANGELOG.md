@@ -25,6 +25,7 @@
 - On demand, the legend shows the statistics of the time on screen beside each line – lowest, mean and highest – and they follow every zoom and pan (the plot's ⋯ menu › Legend).
 - The file panel counts the open signals, and for a big file offers quick filters under the search while you use it – the groups the current tab uses first – one click shows only that group.
 - One top row: the Recordings tools (open / save, templates, live, undo / redo, clear, Inspector) sit in the app's top bar, and the plot tabs moved into the bar above the plots – the plots gain 40 pixels of height.
+- The Inspector reads more calmly: small section labels, numbers in aligned monospaced columns, and a star on each line's statistics pins that number to the run at a glance. On the timeline, warnings now have their own colour (amber is only the cursor).
 
 <!-- lane L4 -->
 - **Map: *Satellite + roads*.** A new background: the satellite photos with the roads and their names drawn over them

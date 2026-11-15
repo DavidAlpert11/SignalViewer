@@ -11,6 +11,9 @@ import { inkOn, labelsOf, labelText, stateColor } from "../values";
 import { Icon } from "../icons";
 import { unitOf } from "../units";
 import { copyText } from "../errorReport";
+import { openMenu } from "./Overlays";
+import { glanceLabel } from "../templates";
+import type { GlanceStat } from "../store/model";
 
 /** 10 significant digits: hides floating-point noise such as 4.596540300000117 */
 const clean = (v: number) => String(Number(v.toPrecision(10)));
@@ -241,13 +244,23 @@ export default function Inspector() {
     if (await copyText(lines.join("\n"))) useApp.getState().toast({ kind: "info", text: t("copiedTable") });
     else useApp.getState().toast({ kind: "error", text: t("copyTextFailed") });
   };
+  // D14 (3) / D8: a statistic of a line pinned to the run at a glance (by the signal's NAME, so it works on the
+  // next file of the same kind; the profile's number is over the whole run - the mean a plain sample mean)
+  const pinMenu = (e: React.MouseEvent, name: string) => openMenu(e, (["min", "max", "mean", "range"] as GlanceStat[]).map((stat) => ({
+    label: t(`glStat_${stat}` as "glStat_max"),
+    run: () => {
+      const st = useApp.getState();
+      if (actions.pinGlance(name, stat)) st.toast({ kind: "info", text: t("glPinned", { label: glanceLabel({ name, stat }) }) });
+      else st.toast({ kind: "error", text: t("glFull") });
+    },
+  })));
   const setT = (k: "t1" | "t2", v: number) => useApp.setState({ cursor: { ...useApp.getState().cursor, [k]: v } });
 
   return (
     <aside className="inspector" aria-label="Inspector">
       <div className="section">
         <h3>
-          {t("cursorValues")}
+          <span className="eyebrow">{t("cursorValues")}</span>
           <span className="seg" role="group">
             <button className={scope === "active" ? "on" : ""} onClick={() => useApp.setState({ inspectorScope: "active" })}>{t("activePlotOnly")}</button>
             <button className={scope === "all" ? "on" : ""} onClick={() => useApp.setState({ inspectorScope: "all" })}>{t("allPlots")}</button>
@@ -289,9 +302,9 @@ export default function Inspector() {
                     return (
                       <tr key={s.sig + s.color}>
                         {name}
-                        <td title={fmtNum(v1, lang, 10)}>{fmtNum(v1, lang, dual ? 4 : 5)}</td>
-                        {dual && <><td title={fmtNum(v2, lang, 10)}>{fmtNum(v2, lang, 4)}</td><td>{v1 !== null && v2 !== null ? fmtNum(v2 - v1, lang, 4) : "—"}</td>
-                          <td>{v1 !== null && v2 !== null && cursor.t2 !== cursor.t1 ? fmtNum((v2 - v1) / ((cursor.t2 ?? 0) - (cursor.t1 ?? 0)), lang, 4) : "—"}</td></>}
+                        <td className="num" title={fmtNum(v1, lang, 10)}>{fmtNum(v1, lang, dual ? 4 : 5)}</td>
+                        {dual && <><td className="num" title={fmtNum(v2, lang, 10)}>{fmtNum(v2, lang, 4)}</td><td className="num">{v1 !== null && v2 !== null ? fmtNum(v2 - v1, lang, 4) : "—"}</td>
+                          <td className="num">{v1 !== null && v2 !== null && cursor.t2 !== cursor.t1 ? fmtNum((v2 - v1) / ((cursor.t2 ?? 0) - (cursor.t1 ?? 0)), lang, 4) : "—"}</td></>}
                       </tr>
                     );
                   })}
@@ -303,7 +316,7 @@ export default function Inspector() {
       </div>
 
       <div className="section">
-        <h3>{t("statistics")}<span style={{ marginInlineStart: "auto", color: "var(--faint)", fontWeight: 400 }}>
+        <h3><span className="eyebrow">{t("statistics")}</span><span style={{ marginInlineStart: "auto", color: "var(--faint)", fontWeight: 400 }}>
           {dual ? t("statsRegion") : t("statsVisible")}</span>
           <button className="iconbtn sm" title={t("copyStats")} aria-label={t("copyStats")} disabled={!statSigs.length} onClick={copyStats}><Icon.Copy /></button></h3>
         {whereOptions.length > 0 && (
@@ -332,10 +345,12 @@ export default function Inspector() {
               return (
                 <tbody key={s.sig} title={st ? `${t("std")}: ${fmtNum(st.std * Math.abs(s.scale), lang)} · ${t("p2p")}: ${fmtNum(st.peak_to_peak * Math.abs(s.scale), lang)} · ${t("count")}: ${fmtInt(st.samples, lang)}` : ""}>
                   <tr className="name-row"><td colSpan={4}><span className="sw" style={{ background: s.color }} /><FileTag runs={runs} sig={s.sig} />{s.label || signalName(runs, s.sig, false)}
-                    {st?.weighting === "time" && <span className="stats-tw" data-gaps={st.gaps ?? 0} title={t("statsTimeWeighted", { n: st.gaps ?? 0 })}>⏱</span>}</td></tr>
+                    {st?.weighting === "time" && <span className="stats-tw" data-gaps={st.gaps ?? 0} title={t("statsTimeWeighted", { n: st.gaps ?? 0 })}>⏱</span>}
+                    {!labelsOf(runs, s.sig) && !s.sig.startsWith("derived/") && <button className="iconbtn sm stats-pin" title={t("glPinTo")} aria-label={`${t("glPinTo")}: ${s.label || signalName(runs, s.sig, false)}`}
+                      onClick={(e) => pinMenu(e, s.sig.slice(s.sig.indexOf("/") + 1))}><Icon.Star width={12} height={12} /></button>}</td></tr>
                   {labelsOf(runs, s.sig)
                     ? <tr><td colSpan={4} className="hint">{t("textStatsNote", { n: Object.keys(labelsOf(runs, s.sig)!).length })}</td></tr>
-                    : <tr>{vals.map((v, i) => <td key={i} title={fmtNum(v ?? null, lang, 10)}>{!st && statsLoading ? "…" : fmtNum(v ?? null, lang, 4)}</td>)}</tr>}
+                    : <tr>{vals.map((v, i) => <td key={i} className="num" title={fmtNum(v ?? null, lang, 10)}>{!st && statsLoading ? "…" : fmtNum(v ?? null, lang, 4)}</td>)}</tr>}
                 </tbody>
               );
             })}
@@ -345,7 +360,7 @@ export default function Inspector() {
 
       {multi.length > 1 && (
         <div className="section">
-          <h3>{t("nSelected", { n: multi.length })}
+          <h3><span className="eyebrow">{t("nSelected", { n: multi.length })}</span>
             <button className="linklike" style={{ marginInlineStart: "auto", fontWeight: 400 }} onClick={() => useApp.setState({ multi: [] })}>{t("clearSelection")}</button></h3>
           <p className="hint" style={{ fontSize: "var(--fs-m)", margin: "0 0 8px" }}>{t("batchHint")}</p>
           {(() => {
@@ -400,7 +415,7 @@ export default function Inspector() {
       )}
 
       <div className="section">
-        <h3>{t("properties")}</h3>
+        <h3><span className="eyebrow">{t("properties")}</span></h3>
         {!sel || !selected ? <p className="hint">{t("selectSignalHint")}</p> : (
           <div key={selected.plotId + selected.sig}>
             <div className="field"><label>{t("label")}</label>
@@ -452,7 +467,7 @@ export default function Inspector() {
         )}
       </div>
       <div className="section notes-section">
-        <h3>{t("notes")}
+        <h3><span className="eyebrow">{t("notes")}</span>
           <button className="iconbtn sm" style={{ marginInlineStart: "auto" }} onClick={() => actions.addNoteAtCursor()}
             title={`${t("noteAdd")} (N)`} aria-label={t("noteAdd")}><Icon.Plus /></button></h3>
         {!(ws.notes ?? []).length ? <p className="hint">{t("notesEmpty")}</p> : (
