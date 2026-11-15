@@ -32,6 +32,7 @@
 - The open hint, the tour and the messages about logs say *logs (ArduPilot, PX4, MAVLink)* / *log* instead of *flight logs*; the map's menu says *Export the run*.
 - The signal list: ☆ beside the search box pins the search as a chip under it (kept in the session and in a template, with Undo); a template's pinned searches show there too, with ✕ to unpin.
 - *The run at a glance* shows the profile's numbers (max altitude, battery used … - pinned from the Inspector or a template) in mono beside the run's name: a click goes to its time, ⋯ unpins it, a signal the file does not have is said, not hidden; and a *Checks: n failed · m to look at* chip (limits, data quality, the log's own check) opens the Checks panel.
+- Fixed: with several plots, the first click on a button in another plot's head (its kind menu …) was lost – the head no longer moves when the plot becomes active.
 <!-- lane L4 -->
 - **Map: *Satellite + roads*.** A new background: the satellite photos with the roads and their names drawn over them
   (Esri), in the 2D map, the 3D view, exported pictures and offline map pages. Online and opt-in like every online layer;

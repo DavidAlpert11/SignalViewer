@@ -28,6 +28,7 @@
 - D8: `test_plot_polish.py::test_pin_a_statistic_to_the_run_at_a_glance` new; ran `test_plot_polish`, `test_plot_style`, `test_timeline`, `test_range_notes`, `test_less_clutter`, `test_features` + `test_workflows` (whole files) (L3)
 - D14 (2) pinned searches: `test_name_tree.py::test_pinned_searches_as_chips` new, the quick-chips test's selector `[data-group]`; ran `test_name_tree`, `test_less_clutter` (L3)
 - D14 (1) + D7 the strip's numbers and Checks count: `test_plot_polish.py::test_the_run_at_a_glance_shows_its_numbers_and_the_checks` new; `test_less_clutter` counts `.ov-gl-go` as data; ran `test_plot_polish`, `test_less_clutter`, `test_overview_strip`, `test_tab_band`, `test_flat_line_solo` (L3)
+- B1 fix (the head does not move when a plot becomes active): `test_live_report::test_one_map` green again (no test change); L3's end-of-lane union: 30 files, 272 green (L3)
 
 <!-- 1114 lane L4 -->
 `test_offline_map.py` – M2 (L4): `test_satellite_with_roads_is_one_layer` new.

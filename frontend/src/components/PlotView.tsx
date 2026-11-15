@@ -493,7 +493,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             };
   const title = plot.title || t("plotTitle", { n: index + 1 });
   const several = tab.plots.length > 1;
-  const eyebrow = [plot.title ? t("plotTitle", { n: index + 1 }) : "", active && several ? t("plotActive") : ""].filter(Boolean).join(" · ");
+  const eyebrowName = plot.title ? t("plotTitle", { n: index + 1 }) : "";
   const nLines = plot.signals.length;
   const metaText = nLines >= 2 && mode !== "geo" && mode !== "3d"
     ? [t("plotMetaLines", { n: nLines }), mode === "time" && plot.signals.some((s) => s.axis === "right" && !s.state) ? t("plotMetaTwoY") : ""].filter(Boolean).join(" · ")
@@ -531,7 +531,10 @@ export default function PlotView({ tab, plot, index, active }: Props) {
           onDragStart={(e) => { e.dataTransfer.setData(PLOT_MIME, String(index)); e.dataTransfer.setData(PLOT_ID_MIME, plot.id); e.dataTransfer.effectAllowed = "copyMove"; useApp.setState({ plotDrag: plot.id }); }}
           onDragEnd={() => useApp.setState({ plotDrag: null })}>⠿</span>
         {/* B1: the card's eyebrow - which plot (when it has its own title) and whether it is the active one */}
-        {eyebrow && <span className="eyebrow plot-eyebrow" data-active={active || undefined}>{eyebrow}</span>}
+        {/* "Active" keeps its place on every plot of the tab (hidden when not active): a mousedown on another plot's
+            head makes it active - had the head grown then, its buttons moved under the pointer and the click missed */}
+        {(eyebrowName || several) && <span className="eyebrow plot-eyebrow" data-active={active || undefined}>{eyebrowName}
+          {several && <span className="pe-active" aria-hidden={!active || undefined}>{eyebrowName ? " · " : ""}{t("plotActive")}</span>}</span>}
         {editingTitle ? (
           <input className="plot-title" autoFocus defaultValue={plot.title} placeholder={title}
             onBlur={(e) => { actions.renamePlot(plot.id, e.target.value.trim()); setEditingTitle(false); }}

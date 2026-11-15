@@ -69,20 +69,11 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
     - 2026-11-15 · C8 The Run column (`RunColumn.tsx`, right of `.sw-ws`, only while a study file is open): the next round (`readiness()`: round 1's sets × scenarios = runs, or *Missing: …* with a Set up button), *Only write the files* (W15 `suggestNext`, moved from the ranking's head - one place), LoopSection (moved out of StudyPanel); for the demo its Next round / Until converged / Stop / Reset, the strip and the convergence chart (moved out of DemoView, which keeps the sentence, rounds, space, how it works). Folds, remembered (`sv3.swRunHidden`). study.css: selection / state colours per L1 (`--select`, `--info`, `--warn`). Ran: tsc; e2e test_sweeps_workspace 4 (+ the column's ready / missing, fold remembered), test_study_loop, test_study_demo, test_study_common - green; pictures dark en / light he. Seen: a demo round opened from the navigator shows its raw columns without the study's roles (0 parameters) - to do with C9/C11. Next: C9.
     - 2026-11-15 · L2 stopped at a task boundary (context, §7): C1–C8 on main; hand-over block above.
   <!-- lane L3 -->
-  - **L3 Plots and the frame** – own tasks done (B1–B5, F2's legend, D1, D2, D8), requests open · next: the HAND-OVER below · requests: –
-    - HAND-OVER 2026-11-15 (Claude, lane L3): stopped because of the context budget (REDESIGN_PROMPT §7), the lane's own tasks done.
-      Last finished task: D8 (commit 124b033, on main). In progress: none; uncommitted / stashed: none.
-      Next step, exactly: the open requests below, one commit each - (a) L1's D13 wording in `i18n/{app,files,plots}.ts` (en + he);
-      (b) L5's D14 (2) pinned searches as chips in DataPanel beside D2's quick chips (`ws.searches`, `actions.pinSearch / unpinSearch`) -
-      keep test_less_clutter's ≤ 54 controls (show them like the quick chips, while the search is in use, or count them);
-      (c) L5's D14 (1) + D7: the *run at a glance* numbers and the Checks counts in OverviewStrip (`api.glance`, `glanceLabel`).
-      Then the end of the lane (§6): the union of the lane's e2e files once (E2E_MAP lane L3 lines), the report.
-      Checks: quick_check green at 124b033; e2e run per task (E2E_MAP, lane L3); test_perf_budget 0.7–1.0 s before and after B4 (budget 30 s).
-      Not run: the union of the lane's e2e files after the last merges; the whole suite (Final's).
-      Watch out: run.py's warm-up rebuilds the UI and reinstalls node_modules - never run it while tsc / quick_check runs; A3's
-      test_components_are_defined_once forbids restyling .btn / .chipbtn / .seg ... in area files; `.app` drops its area-bar
-      row through `.app:not(:has(> .areabar))` in styles/app.css (App.tsx untouched); count_controls is now 42 / 107 / 60 / 16
-      (the +2 / +2 since D1 are other lanes' merged work - the same count with D8 stashed).
+  - **L3 Plots and the frame** – **done** · done: B1–B5, F2's legend, D1, D2, D8, the requests (L1's D13 wording, L5's D14 (1)/(2) + D7, L4's geoBase), the B1 fix for test_one_map · next: – (lane done; requests still answered) · requests: –
+    - END OF LANE 2026-11-15 (Claude, lane L3): the union of the lane's e2e files (30 files, E2E_MAP lane L3 + test_live_report) on main at 7cbc8a3:
+      271 passed, 1 failed (test_one_map, below) → fixed; after the fix test_live_report, test_plot_polish, test_plot_menus, test_less_clutter,
+      test_move_plots, test_aligned_plots, test_one_per_plot, test_workflows 48 passed. quick_check green. Not run: the whole suite (Final's).
+      For L5: the Checks chip opens the Checks panel on its first log, not on the strip's run (LogPanel's `rid` is local state).
     - DONE (L3, 2026-11-15) – From L5 (D7, 2026-11-14): the *run at a glance* strip (OverviewStrip, yours) could show the Checks counts (failed / to look at) opening the Checks panel (`panel: 'log'`); the numbers come from `/api/limits` (the tab's limits), `quality[runId]` in the store and `/api/runs/{id}/health` – as `ChecksView.tsx` `Checks` computes them (I can export a helper if you want it).
     - From L5 (D14, 2026-11-14): **profiles are on `main`** – please show them (the strip and the signal list are yours):
       (1) DONE (L3, 2026-11-15) – *the run at a glance* strip: `ws.glance` (≤ 4 `{name, stat, label?}`) → `api.glance(rid, ws.glance)` → `{items: [{name, stat, sig, value, unit, t}]}`; the name via `glanceLabel(item)` (templates.ts), the value with `fmtNum` + `unit`; `sig: null` → say *not in this file* (`t("glNotInFile", {label, name})`), never drop it silently; a `mean` item's tooltip `t("glMeanNote")` (plain sample mean); a click on a number with `t` → go to that time; its ⋯ → `actions.unpinGlance(i)`. Re-ask on `rid` / `dataVersion` / `ws.glance` change.
@@ -95,7 +86,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       "Export the flight" → "Export the run"; `files.fxParamNoLog` / `fxParamNoFile` / `fxParamUnknown` / `err_logNoData`
       "flight log" → "log"; `files.errHint` "such as the flight mode" → "such as a mode". (`signals.refSignalsHint` and
       `plots.fftFiltersTitle` are examples / a format's own feature: keep.)
-    - Found by L1's end-of-lane run (2026-11-15): `tests/e2e/test_live_report.py::test_one_map` fails from B1 (`81af77f`)
+    - DONE (L3, 2026-11-15, B1 fix) – Found by L1's end-of-lane run (2026-11-15): `tests/e2e/test_live_report.py::test_one_map` fails from B1 (`81af77f`)
       on – a click on a map plot's `.mode-btn` opens no `.menu.ctx` (items `[]`); passes at `9469906` (B1's parent). Bisected
       on `main`: 9469906 ✓, 81af77f ✗, every later commit ✗. B1 (and B6, which lists it green) should look at it.
   <!-- lane L4 -->
@@ -4375,3 +4366,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
   checked in Vitest on the log's signal names). The 2D start dock now sits above the scale bar. Picture `docs/dev/mockups/F6/after`.
 - 2026-11-15 · L5 D6 Report: the replay card an info `.card` (no amber), the plots' head an eyebrow with its count, the empty report an `.empty-state`, inline sizes to panels.css. Ran: tsc; e2e test_replay, test_findings_report, test_judge_a_run, test_live_report (test_one_map fails on main without D6 too – noted under L4), test_features -k report/caption/preview – green otherwise; pictures D6 before / after dark en, light he (RTL fine); no control added. Next: D9+F4.
 - 2026-11-15 · L5 hand-over after D6 (context): D4 D5 D6 on main; next D9+F4. HAND-OVER block in the L5 board line.
+- 2026-11-15 · L3 B1 fix (test_live_report::test_one_map, found by L1): a mousedown on a not-active plot made it active and B1's eyebrow grew *Active* - the head shifted and the click's mouseup missed the kind button (no menu). *Active* now keeps its room on every plot of a several-plot tab (hidden when not active). Ran: tsc; e2e test_live_report, test_plot_polish, test_plot_menus, test_less_clutter, test_move_plots, test_aligned_plots, test_one_per_plot, test_workflows - 48 passed. L3 end of lane: union of the lane's e2e files 271 passed + this one fixed; L3 done.
