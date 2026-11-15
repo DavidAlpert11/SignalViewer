@@ -171,8 +171,14 @@ def no_toasts(pg):
     pg.wait_for_timeout(200)
 
 
+# a headless browser draws 3D on software WebGL: its "reduced quality" badge and the camera's one-line help
+# are true on screen but not what the pictures are about
+SHOT_HIDE = ".globe3d-light, .g3-cam-hint { display: none !important; }"
+
+
 def shot(pg, name):
     no_toasts(pg)
+    pg.add_style_tag(content=SHOT_HIDE)
     pg.mouse.move(W - 5, H - 5)
     pg.wait_for_timeout(300)
     path = os.path.join(IMAGES, name + ".png")
@@ -332,7 +338,8 @@ def log_panel(pg, app, tab):
     apply_template(pg, "bi-ap-vibration")
     pg.evaluate("window.__sv.setState({ panel: 'log', startCard: null })")
     pg.wait_for_selector(".log-panel, .health, [role='tab']")
-    pg.locator("[role='tab']", has_text=tab).first.click()
+    ids = {"Health": "health", "Events": "events", "Parameters": "params", "File": "file"}       # D7: the Checks view's tabs
+    pg.locator(f"[role='tab'][data-tab='{ids.get(tab, tab)}']").first.click()
     pg.wait_for_timeout(1200)
 
 
@@ -468,7 +475,8 @@ def img_23_sweeps_goal(b, app):
 
 def img_18_frames(b, app):
     ctx, pg = page(b, app); open_api(pg, app, "uav_flight.csv")
-    sig(pg, "GPS.Alt").click()
+    pg.get_by_placeholder("Search signals").fill("GPS.Alt")          # D2: the list groups by prefix
+    sig(pg, "Alt").click()
     pg.click("[aria-label='Create signals']")
     pg.locator(".analysis .seg.wide button", has_text="Frames").click(); pg.wait_for_timeout(400)
     pg.locator(".seg.wide button", has_text="A plot per axis").click()
@@ -636,7 +644,7 @@ def img_31_flight_map_3d(b, app):
     pg = ctx.new_page()
     pg.goto(app.url); pg.wait_for_selector(".app"); pg.wait_for_timeout(400)
     pg.evaluate("window.__sv.setState({ theme: 'dark' })")
-    pg.locator(".examples-line button", has_text="ArduPilot").click()          # as a user starts: the example
+    pg.locator(".ex-card[data-example='ardupilot']").click()                  # as a user starts: the example
     pg.wait_for_selector(".findings-dock", timeout=60000)
     pg.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.name === 'Flight')")
     rid = S(pg, "s.runs.find((r) => r.format === 'bin').id")
@@ -808,6 +816,15 @@ def _ex_save(png: bytes, path: str) -> int:
     with open(path, "wb") as f:
         f.write(buf.getvalue())
     return buf.tell()
+
+
+def img_38_welcome_cards(b, app):
+    """The welcome screen a new user sees: the demos grouped by area, each card with its picture."""
+    ctx, pg = page(b, app)
+    pg.wait_for_selector(".ex-card img", timeout=30000)
+    pg.evaluate("Promise.all([...document.querySelectorAll('.ex-card img')].map((i) => i.complete ? 1 : new Promise((r) => { i.onload = i.onerror = r; })))")
+    pg.wait_for_timeout(600)
+    shot(pg, "38_welcome_cards"); ctx.close()
 
 
 def img_examples(browser, app):
