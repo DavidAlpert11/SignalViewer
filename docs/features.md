@@ -13,6 +13,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - :material-cursor-default-click: [Reading values](#values)
 - :material-function-variant: [Math and analysis](#math)
 - :material-compare-horizontal: [Comparing runs](#compare)
+- :material-clipboard-check: [Checks and the file](#checks)
 - :material-airplane: [Flight logs](#flight)
 - :material-map: [Map and 3D](#map)
 - :material-tune-variant: [Sweeps: a run envelope's results](#sweeps)
@@ -164,7 +165,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Any layout up to 9 plots (one layout button: the common ones, a grid picker or type rows × columns; drop a signal on a plot's right or bottom edge to split it)
 - Shrinking the layout removes the extra plots (Undo)
 - Drag the gaps between plots to resize
-- Time / X-Y / FFT / Map per plot (longitude + latitude signals; wheel = zoom, drag = pan, double-click = fit; online map layers, or the offline map that ships with the app – terrain shading and colour by height, water, rivers, roads and runways, place and airport names in Hebrew or English; detailed for Israel and its surroundings (elevation ~130 m, roads down to regional roads, villages), the rest of the world coarser; it also fills in for online tiles that cannot be had without internet)
+- Time / X-Y / FFT / Map per plot (longitude + latitude signals; wheel = zoom, drag = pan, double-click = fit; the *Map* background picker - online maps ☁, *My maps*, or the offline map that ships with the app – terrain shading and colour by height, water, rivers, roads and runways, place and airport names in Hebrew or English; detailed for Israel and its surroundings (elevation ~130 m, roads down to regional roads, villages), the rest of the world coarser; it also fills in for online tiles that cannot be had without internet)
 - Objects on the map: an aircraft, UAV, drone, missile, ship or vehicle whose latitude / longitude (and altitude, heading, pitch, roll) come from signals – from any open files, filled in from their names (GPS.Lat / Lng / Alt, ATT.Yaw…; MAVLink 1e7 degrees handled) – chosen by typing their names, each with the unit it is in and ƒ to change it on the spot (radians → degrees…) – drawn as an icon at the timeline's time, pointing along its heading or, without one, where it moves; its track follows the timeline's mode; *Track colour*: the object's own, by a state (the flight mode by itself, in the mode lane's colours) or by a value (a colour scale), with a key in the map's corner (3D too) - the plain track of the same position takes the object's colour; follow keeps it in the middle; edit / remove from its chip (Undo)
 - 3D view (a plot mode): the earth with the bundled terrain and the same map tiles, the plot's objects as 3D models (aircraft, UAV, drone, missile, ship, vehicle) at the timeline's time with heading, pitch and roll, their tracks, names, and a readout (altitude, height above ground, attitude); altitude given above sea level, above the take-off point or above the ground; a bar to choose the object (its values in a data box that can be hidden: position, altitude, height above ground, heading, pitch, roll, ground speed, climb), the camera – general, or on the object (turning goes around it, zooming goes towards it) – and a second / third object: a dashed line to each with the distance, and in the box the horizontal distance, height difference, slant range and bearing (on the WGS84 ellipsoid); works with no internet (CesiumJS ships with the app, no Cesium ion); on a computer without graphics acceleration it switches to lighter settings and says so
 - Own time: a 3D plot can leave the timeline and get its own bar, play and speed (the other plots keep the timeline's; framed so it shows), and go back
@@ -194,6 +195,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Legend place
 
+- **Statistics of the shown window** (1.28; a plot's menu ▸ *Legend*): the lowest, mean and highest value of each line over the time on screen, beside it in the legend, recomputed with every pan and zoom - fast on signals of tens of millions of samples. The mean is the plain mean of the samples in the window, not weighted by time.
 - A plot's menu ▸ *Legend*: *Automatic* (above while it fits in two rows, else a column beside the plot), *Above the plot*, *Beside the plot*, *Hidden* (a button says how many signals and shows it again)
 - Beside the plot: a row per signal, the values in one aligned column, a filter above 8 signals, the width dragged (double-click: as it was)
 - The values never move the legend: each keeps a place as wide as the widest it had, and the header does not get lower while the pointer is in the plot; the time under the pointer is in the plot's corner; a name that says its unit (`Roll [deg]`) does not repeat it after the value
@@ -221,7 +223,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Top bar
 
-- The top row is the same in every work area: the areas as one switch (*Recordings · Sweeps · Fleet*), Ctrl+K, Settings, day / night (one click), language and the Help menu. The Recordings bar under it (no File menu, F35): open / save session, the plot tabs with **+** (a new tab) and **▾** (the views menu: a new tab, a template or collection, the tabs a template left out), Templates ▾ (save a template, a new collection), **Live ▾** (it follows the open files and MAVLink, so it is the Recordings area's), undo / redo, Clear ▾ (what to clear, see *Start over*) and the Inspector - opening files is in the file list (Ctrl+O), recent files Ctrl+P; Settings (theme, text size, time as seconds or a clock; kept between starts, not changed by sessions; the disk space the app uses for speed - CSV cache and log indexes, copies of files dropped into a browser, map tiles - each with its size and *Clear*; and the results kept in memory to be fast - changed and derived signals, spectra, plot summaries, statistics - with its limit, `SV_MEMCACHE_MB`, default 1024) and Help menu (keyboard shortcuts, the examples, copy error details, about)
+- One top row, the same in every work area: the areas as one switch (*Recordings · Sweeps · Fleet*), then the Recordings tools (no File menu, F35): open / save session, Templates ▾ (save a template, a new collection), **Live ▾** (it follows the open files and MAVLink, so it is the Recordings area's), undo / redo, Clear ▾ (what to clear, see *Start over*) and the Inspector; Ctrl+K, Settings, day / night (one click), language and the Help menu. The plot tabs, with **+** (a new tab) and **▾** (the views menu: a new tab, a template or collection, the tabs a template left out), are in the stage bar above the plots (1.28: the plots gained 40 pixels of height) - opening files is in the file list (Ctrl+O), recent files Ctrl+P; Settings (theme, text size, time as seconds or a clock; kept between starts, not changed by sessions; the disk space the app uses for speed - CSV cache and log indexes, copies of files dropped into a browser, map tiles - each with its size and *Clear*; and the results kept in memory to be fast - changed and derived signals, spectra, plot summaries, statistics - with its limit, `SV_MEMCACHE_MB`, default 1024) and Help menu (keyboard shortcuts, the examples, copy error details, about)
 
 ### Zoom
 
@@ -400,7 +402,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Any number of files
 - Baseline run or mean
 - One signal: RMS / max / mean Δ, correlation, tolerance, automatic time alignment (Undo), plot runs / differences
-- **Events, one list** (Log panel ▸ Events): the log's modes, events, errors and messages, the health findings, the conditions' stretches and the plotted signals' limit violations, in time order, each kind a chip; **] / [** jump to the next / previous event of any kind (not plain messages) - the status bar names it (*◆ 3/24 · Mode · ALT_HOLD*); a focused condition keeps ] / [ for its stretches; *Next event* / *Previous event* in the command palette
+- **Events, one list** (*Checks* ▸ Events): the log's modes, events, errors and messages, the health findings, the conditions' stretches and the plotted signals' limit violations, in time order, each kind a chip; **] / [** jump to the next / previous event of any kind (not plain messages) - the status bar names it (*◆ 3/24 · Mode · ALT_HOLD*); a focused condition keeps ] / [ for its stretches; *Next event* / *Previous event* in the command palette
 - **Data quality when a file opens** (in the background): per signal - missing values, gaps (the spectra's rule), repeated or backwards time stamps, rate changes (a block median of the step, so jitter and one gap are not changes); states and events are only checked for missing values. A note when there is something to say (*Show*), a **!** badge on the file and a mark on its signals (hover: what); *Data quality…* in the file's menu lists every signal (click: plot it)
 - **Trust badges**: a derived signal that rests on an assumption is marked - ≈ on its legend chip, a word in *Create signals*' list (*interpolated*: another signal's values read between its samples, linear or nearest; *filtered by stretch*: a filter run on each stretch between gaps, or on an even grid for uneven samples; *skipped missing*, *gaps bridged*, *gap: unknown after*, *infinite → missing*), the tooltip saying exactly what; a map / 3D object with an *Automatic* angle unit shows ≈ with the guess and why; the status bar shows *● Online map* while an online map layer is on screen and *Network off* when the app may not use the network
 - **Judge a run** (golden run → verdict → report): *Compare against* starts on a golden run, else a file named as the reference (golden, reference, baseline, nominal, expected), else the first file. Tick **★ Golden run** to remember the baseline file with its tolerances; a recording opened later that has at least half of its signals gets *Judge it against <golden run>* on the start card - one click opens the golden run beside it, its tolerances and Compare. The **verdict** opens the panel: per file ✓ all N signals within / ✗ k of N outside; *Show the worst failure* picks the signal with the largest share outside (its difference over time below); *Report…* makes a tab of the failing signals (each with every file) and a report with the verdict table first (per signal: the tolerance, each file's ✓ / ✗, share outside and largest difference) - in HTML, PDF and Word
@@ -424,6 +426,38 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 - An autopilot log (.bin / .ulg) and a telemetry log (.tlog) of the same flight: noticed automatically ("looks like the same flight – Align"), or right-click a file → *Align time with another file*. Three independent methods, shown with how reliable they are and whether they agree: autopilot boot clock (the .tlog carries it - exact for every message that has it), matching events (the same texts, mode changes, arm / disarm), signal correlation (ATT.Roll ~ ATTITUDE.roll… or two signals you pick; units do not matter). *Apply & check* opens a tab with the same quantity and both flight modes on top of each other. Undo. Test pair: `python tools/make_same_flight.py out_dir`
 
+## Checks and the file { #checks }
+
+For any recording, not only flight logs (1.28: the Log panel became *Checks*).
+
+### Checks
+
+- One verdict, then tinted cards (green / yellow / red edge): your limits, the data quality (gaps, repeated or backwards time, missing values) and, for a log, its health check; a card's signals plot with one click
+- *The run at a glance* shows a *Checks: n failed · m to look at* chip that opens Checks on that run
+
+### The file
+
+- The structure of any recording: a log's message types, a ROS bag's topics, a MATLAB file's structs, a table's column groups - each with its rate, samples, units and gaps, the time base and the values at the cursor; a live link's file as it grows; a click on a column plots it
+
+### Parameters of a run
+
+- One list for every format: a flight log's parameters, a MATLAB file's scalars, texts and struct fields, signals that hold one value the whole run, numbers in the file name - each with where it came from
+- **Compare with** another open file: only what differs (a parameter changed during a flight counts by its start and its end); *Runs × conditions* in Compare shows a MATLAB file's settings and a log's parameters when they differ between the runs
+
+### At a glance and profiles
+
+- *The run at a glance*: up to four numbers per run (the maximum, minimum, mean, first or last value of a signal over the whole run) in mono beside its name - a click goes to its time, ⋯ unpins it, a signal the file does not have is said, not hidden; pinned with the ☆ beside a statistic in the Inspector. The mean is the plain mean of the samples
+- A template is also a profile: its at-a-glance numbers, its instruments and its pinned searches (☆ beside the signal list's search box: a chip under it, kept in the session and the template, with Undo). The built-in ArduPilot, MAVLink and PX4 templates bring theirs (max altitude, max speed, battery used, lowest voltage…; ATT, VIBE, GPS, BAT…); a template you save keeps yours
+
+### Live instruments
+
+- *Checks ▸ Instruments*: big readouts of each chosen signal's latest value at the time (while live: the newest data from a MAVLink link, data sent from Python or a file being written) and the attitude indicator with heading, altitude and ground speed; a reading that stopped arriving says how old it is; tiles added and removed with Undo; a template brings its own
+
+### Test-bench example
+
+- *A pump on a test bench* on the welcome screen (`examples/bench/pump_run_07.parquet`): phases as a state, units, a 0.2 s pressure spike, a 2 s gap and a motor temperature that creeps over its limit. Its `checks.json` runs in CI: `signalviewer-cli check examples/bench/pump_run_07.parquet --checks examples/bench/checks.json` (2 of 4 checks fail, on purpose; exit code 1)
+- An example whose data no built-in view fits opens with *Quick look*
+
 ## Flight logs { #flight }
 
 ![The health check of an ArduPilot log](images/09_health_check.png){ .sv-shot loading=lazy }
@@ -434,14 +468,14 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Health check
 
-- Log panel → Health: vibration, accelerometer clipping, GPS satellites / HDop / fix, battery (below BATT_LOW_VOLT / BATT_CRT_VOLT for BATT_LOW_TIMER seconds, the resting voltage with BATT_FS_VOLTSRC = 1), EKF variances (FS_EKF_THRESH), motors at full output and motor imbalance (the motor outputs from SERVOn_FUNCTION, named by motor number), board power, errors / warnings in the log. Each finding: a sentence, the moment (click → cursor), the stretches (click → zoom with both cursors on it), *Plot* (its signals in a new tab). Works for .bin, .tlog and .ulg
+- *Checks* (for a log: its health check): vibration, accelerometer clipping, GPS satellites / HDop / fix, battery (below BATT_LOW_VOLT / BATT_CRT_VOLT for BATT_LOW_TIMER seconds, the resting voltage with BATT_FS_VOLTSRC = 1), EKF variances (FS_EKF_THRESH), motors at full output and motor imbalance (the motor outputs from SERVOn_FUNCTION, named by motor number), board power, errors / warnings in the log. Each finding: a sentence, the moment (click → cursor), the stretches (click → zoom with both cursors on it), *Plot* (its signals in a new tab). Works for .bin, .tlog and .ulg
 
 ### Filter review, step response, hardware (1.21)
 
 - **IMU batch sampler** (`INS_LOG_BAT_MASK`): `ISBH` / `ISBD` become `ISBD[i].GyrX … AccZ` at the sensor's own rate; with `INS_LOG_BAT_OPT` 4 (or 2) the samples after the filters are `…Post`. Their spectrum (FFT / Welch) is taken per burst and averaged ("averaged over N bursts") instead of bridging the pauses between bursts
 - **Filters** on an FFT plot (or the *ArduPilot · Filter review* template): the harmonic notches' lines at the centre frequencies the log recorded (`FTN` / `FTNS` / `FCN`, else `INS_HNTCH_FREQ`) × the harmonics of `INS_HNTCH_HMNCS` (and `INS_HNTC2_*`), the gyro low-pass (`INS_GYRO_FILTER`), and for a gyro before the filters a dashed line: its spectrum after them, estimated with ArduPilot's own filter coefficients - as ArduPilot's Filter Review
 - **Step response** plot type (and a tab of *ArduPilot · Rates (PID)*): signals in pairs (setpoint, measured - `RATE.RDes`, `RATE.R`); the loop's response to a step estimated from the flight by Wiener deconvolution over 2-second windows, averaged; rise time, overshoot and settling; over the cursors' region when they are on; needs 40 Hz or more (fast attitude / PID logging) - as ArduPilot's PID Review and PID-Analyzer
-- **Log panel ▸ Hardware**: the board and firmware (boot messages), frame, ESC protocol, loop rate, each IMU / compass / barometer decoded from its device id (chip, bus, address), GPS and battery monitor types; *Copy* for a forum post - as ArduPilot's Hardware Report
+- ***Checks* ▸ Hardware**: the board and firmware (boot messages), frame, ESC protocol, loop rate, each IMU / compass / barometer decoded from its device id (chip, bus, address), GPS and battery monitor types; *Copy* for a forum post - as ArduPilot's Hardware Report
 
 ### Built-in views
 
@@ -456,10 +490,10 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Fleet
 
-- The **Fleet** area (beside Recordings and Sweeps in the top row; it was a panel of the rail): add folders of flight logs (.bin / .tlog / .ulg, sub-folders too) – each log is read once into a local index (`~/.signalviewer/fleet.sqlite`; Update reads only new and changed logs, drops removed ones, lists unreadable ones with the reason)
+- The **Fleet** area (beside Recordings and Sweeps in the top bar; it was a panel of the rail): add folders of flight logs (.bin / .tlog / .ulg, sub-folders too) – each log is read once into a local index (`~/.signalviewer/fleet.sqlite`; Update reads only new and changed logs, drops removed ones, lists unreadable ones with the reason)
 - Search all flights at once: name / vehicle / firmware, a finding at a level (error, warning or error), a number above / below a limit (every number the health check measures: vibration max, clipping count, battery min, EKF max…, and the duration)
 - The chosen number's trend over the flights' dates, the limit drawn, flights over it in red, click a point to open that flight
-- Per flight: vehicle, firmware, duration, time in each flight mode, its findings with Open here (opens the log, cursor at the finding, Log panel)
+- Per flight: vehicle, firmware, duration, time in each flight mode, its findings with Open here (opens the log, cursor at the finding, *Checks*)
 - *Try the example fleet* (`examples/fleet`, ten flights of two copters: a motor wearing out, poor GPS, a worn battery) - opens on the vibration trend; see the [Fleet tutorial](fleet-tutorial.md). The trend follows the typed search (a vehicle's name: its flights alone)
 - The date comes from the log's GPS time (current ArduPilot firmware too, since 1.6.0 – an older index reads those logs again once), else the file's date (marked *)
 
@@ -469,17 +503,17 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Map
 
-- One **Map** (1.26): the earth with its terrain; its bar's camera *General · From above · On the object · Chase · Cockpit* on a chosen object, + / − / fit, *Relation*, *Display*, *▶ Story*; the mouse's latitude / longitude, ground height and distance from the reference (and from the nearest place) in a corner. Without graphics acceleration it is drawn flat and says so. *3D (XYZ)* is the other plot type - any three signals on plain 3D axes, not a map.
+- One **Map** (1.26): the earth with its terrain; its bar's camera *Free · From above · Around it · Behind it · Cockpit* on a chosen object (1.28: named by what they do, each with a small picture; *Behind it* is what *Track up* did, and a saved session opens with the same camera), + / − / fit, *Relation*, *Display*, *▶ Story*; the mouse's latitude / longitude, ground height and distance from the reference (and from the nearest place) in a corner. Without graphics acceleration it is drawn flat and says so. *3D (XYZ)* is the other plot type - any three signals on plain 3D axes, not a map.
 - **Places** (1.26): points (with an icon), lines and areas on every Map, and saved camera views - *Places of this session* and *My places* (`~/.signalviewer/places.json`); right-click *Add a place here…*, typed positions (decimal or degrees-minutes-seconds), *Mark this spot*, import `.kml` / `.kmz` / `.geojson` / `.csv`, export `.kml`; a click flies there; in the pages, pictures, KML and ACMI (stationary waypoints).
 - **The wow** (1.26): the sun where it was, sky, soft shadows near the objects, drop lines and discs, the last 10 s brighter, camera flights, Cockpit, the flight display (attitude, ground speed and altitude tapes), a mini-map, and the error surface between truth and a navigation solution (green → red at the 95th percentile; the flat drawing colours the track). Off in the light mode.
 - **Story mode** (1.26): the moments that matter (the log's marks, takeoff / landing, highest, fastest, steepest bank, passing a place, the largest error or closest / farthest) played as a guided film in the live page and the app; PDF / Word "The flight in N moments".
 - **Settings > Map and objects** (1.26): a new object's icon by its class, a new Map's camera and relation box, *Always flat*, names, track width, model size, m-km / ft-NM, decimal / DMS / MGRS, elevation files, the export rate, the Story - for new things only.
-- The Geo plot (longitude × latitude) on real maps: streets (OpenStreetMap, or Esri), light / dark grey (Esri, with labels); *automatic* is the offline map (since 1.23; nothing is sent), the online layers are grouped as such in the menu and an amber *Online map* sign shows while they are used; *Settings ▸ Never use the network* (or `SV_OFFLINE=1`) turns them off, satellite (Esri World Imagery), topographic (OpenTopoMap). Tiles come through the app and are kept on disk (`~/.signalviewer/tiles`), so places already seen work without internet; without internet the map shows country borders and names (Natural Earth, English / Hebrew). *Borders* (beside the layer, offline map and satellite): country borders with a halo, dashed, and the names, over the satellite photos too - with no internet as well. Track with a halo, start (green) / end (red), the cursor's position, scale bar in metres, the provider's attribution. Wheel = zoom at the pointer, drag = pan, double-click = fit
+- The Geo plot (longitude × latitude) on real maps: streets (OpenStreetMap, or Esri), light / dark grey (Esri, with labels); *automatic* is the offline map (since 1.23; nothing is sent), the online maps are marked ☁ in the *Map* background picker and an amber *Online map* sign shows while they are used; *Settings ▸ Never use the network* (or `SV_OFFLINE=1`) turns them off, satellite (Esri World Imagery), topographic (OpenTopoMap). Tiles come through the app and are kept on disk (`~/.signalviewer/tiles`), so places already seen work without internet; without internet the map shows country borders and names (Natural Earth, English / Hebrew). *Borders* (a background in the *Map* picker, over the offline map and satellite): country borders with a halo, dashed, and the names, over the satellite photos too - with no internet as well. Track with a halo, start (green) / end (red), the cursor's position, scale bar in metres, the provider's attribution. Wheel = zoom at the pointer, drag = pan, double-click = fit
 - The pointer over a time plot of the same tab shows a faint copy of each object where it was at that moment (on the map; a faint point in 3D) - also with the cursors on; nothing moves the cursor
 - Every object of a recording found by its names (since 1.24) - every prefix with a latitude and a longitude (`phys.*`, `nav.*`, `gps.*`, `ins2_*`; NED / ENU / ECEF positions too), classed as truth, navigation or receiver - and added at once (one Undo) or chosen, with *Why?*: which signals, by which rule, what is missing, what almost matched; each object takes its signals from its own prefix only. A line in the file panel offers them when the file opens. Truth is drawn as a line, a navigation solution dashed, a receiver as points
 - An attitude for an object without one: from its motion (heading along the course over ground, pitch from the climb, held below a speed) or borrowed from another object on the same vehicle - its icon outlined, ≈ on its chip
 - Primary and secondary objects (since 1.24): range, horizontal distance, height difference, bearing, relative bearing, closure, time and distance of closest approach, heading difference and aspect at the cursor; their error signals (position, altitude, attitude) and differences over time in NED, ENU, ECEF, latitude / longitude / altitude or along / across the primary's track, velocity differences, all in one click (`relate`, in the backend); click an object to make it the primary, Shift+click a secondary; Q / X keys in 3D
-- Smooth motion (since 1.24): drag with glide, wheel and + / − zoom, *Fit everything*, *Follow* (with an offset by dragging; north or *Track up*), arrow / + / − / F / 0 keys; while playing only what moves is drawn again. 3D camera *Chase* (behind and above, turning with the object) and *Look at* (from the primary towards a secondary), with a short flight between views
+- Smooth motion (since 1.24): drag with glide, wheel and + / − zoom, *Fit everything*, *Follow* (with an offset by dragging; *Behind it* keeps the heading up, the N turns a turned map back north), arrow / + / − / F / 0 keys; while playing only what moves is drawn again. 3D camera *Behind it* (behind and above, turning with the object) and *Look at* (from the primary towards a secondary), with a short flight between views
 - *Export the flight* (1.26, a map's or a 3D view's menu; since 1.27 under *Save / export*): *Tacview (.acmi)…*, *Tacview CSV files (a folder)…* (one per object, `Model (name) [Colour].csv`), *Google Earth (.kml)…* (a timed track per object when the log has dates). The ACMI's `Name` is a model Tacview draws (C172, MQ-9, DJI300, AIM-9M, Zodiac, Pickup), the object's name its `CallSign`; objects with no position are left out and named; the shown places go too.
 - *Export for Tacview (.acmi)…* (since 1.24, now under *Export the flight*): the objects as a Tacview ACMI 2.2 text file - position, altitude above sea level and attitude as the 3D view draws them, 10 samples a second, the kind (plane, rotorcraft, ship, ground vehicle, missile), name and nearest Tacview colour
 - Objects whose position is in metres (since 1.25) - NED, ENU or ECEF - are found and added like latitude / longitude ones: `tgt.ned.x`, `nav.x_ned`, `ship.ecefX`, `boat.pos.north / east / up`; every ArduPilot EKF lane (`XKF1[n]`, `NKF1[n]`) with its own attitude through the EKF origin (`ORGN`), PX4 and MAVLink local positions through theirs. The origin is found (the object's own `ref_*`, a known group, an `origin` / `ref` / `home` / `datum` group beside it), explained in *Why?*, and never offered as an object; a row without one opens *Advanced…* with a suggestion
@@ -489,9 +523,18 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - A map leaves the app (since 1.25): *Save image (PNG)* (this view or all the tracks), *Save as HTML (opens offline)* - one file with the tracks, a time slider and values on hover - and maps inside reports (PDF, Word, HTML)
 - The whole process from a script (since 1.25): `rec.objects()`, `sv.compare_objects(…)`, `sv.similar(…)`, `sv.map_image / map_html`, `sv.report`; `signalviewer-cli objects | compare-objects | compare-similar | map` (with `--tolerance` for pass / fail and JUnit); `POST /api/objects/detect | compare | similar` - the same numbers as the dialog. See [Scripting API](api.md) and [Command line](command-line.md)
 
+### Map backgrounds, height profile, arrows (1.28)
+
+- **The *Map* background picker** in the corner of every map (2D and 3D): each background as a picture of the place on screen - Offline (the default), the online maps marked ☁ (greyed out with the reason when *Never use the network* is on), *Borders*, *Satellite + roads* (Esri satellite photos with the roads and their names) and your own maps; opening it downloads nothing
+- **My maps** (*Add a map…*): a raster MBTiles file (fully offline) or an XYZ / TMS tile server of your own, in 2D, 3D, exported pictures and offline map pages; *Never use the network* blocks a server on the internet, not one on this PC or a private address
+- **Keep this area offline…**: an area's tiles at chosen zooms, the size estimated first, progress, Stop, the kept areas with their size and Delete - only where the map's terms allow it (ground heights, your own servers); OpenStreetMap, Esri and OpenTopoMap forbid bulk downloads and the dialog says so
+- A quieter offline map in both themes (land and water a step off the app's colours, softer relief, roads muted by their order); the camera bar is one glass bar in the top corner, the data box at the bottom corner, nothing covers anything else
+- **Height profile** (*Profile* in the map's bar): the object's height and the ground under it along the distance, for any recording with positions; the cursor's moment marked, a click moves the cursor; coarse ground data is said, with how to get finer (`.hgt`, or keep the area offline)
+- **Arrows along the path**: any two signals (north and east components - a wind, a velocity, a force) drawn as arrows along an object's track on the map and in 3D; the file's own pair is offered (an ArduPilot log's estimated wind, a CSV's velocity)
+
 ## Sweeps: a run envelope's results { #sweeps }
 
-A second work area (the top row: *Recordings* · *Sweeps*) for a table with a row per run - the
+A second work area (the top bar: *Recordings* · *Sweeps*) for a table with a row per run - the
 parameters and scenarios first, the outputs last (CSV, Parquet or Excel, or a folder of them) - and
 the question *which parameters hold in every scenario, and which of them is best?* Try it on the
 example: a drone's roll controller (kp_roll, ki_roll, filter_hz; wind, payload, gusts; roll error,
@@ -507,6 +550,12 @@ overshoot, energy...), with a second, finer sweep to merge. The same answer on t
 - **Split by**: one condition's values apart - *All together* or one value (a set must hold in every combination of the other conditions with it), the best set per value side by side, a group of each value, re-runs kept with their value.
 
 ### Studies, templates and undo
+
+- One *Open ▾*: *New study…*, a table, a folder and *Open a saved study* (a table's `.svsweep` or a study file, `.svstudy.json`). *New study…*: **I have results** (a table of runs; its columns fill the study's set-up and the answer shows at once) or **Start from nothing** (a set-up page: ranges, steps and how many values in the first round, the scenarios, the outputs and what is good, the command - on this PC or the farm's launcher; round 1 runs that grid, each next round is aimed)
+- The study's navigator: *Set up* (how many of its four parts are filled), *Together* (two systems or more, ranked together; a study with one table is ranked on its own), the *Tables* - each table, the tables merged into it and each round the loop has run (new ones marked; a round opens as its table, with the study's roles and goal) - and *About this study*
+- The **Run** column: what the next round will run (sets × scenarios = runs) or what is still missing; **Run them**, *Only write the files* (for a launcher of your own), *Next round*, *Run until converged*, *Stop*, the progress and the convergence; folds away and stays folded
+- *Study ▾ → Report of the study…*: one offline HTML page of the whole study (what varies, each table's goal and limits, the shared answer with each table's verdict, the rounds run), in the app's language
+- One Undo for all of Sweeps: Ctrl+Z undoes the last change, in a table's question or in the study's set-up
 
 - Every change is undone with Ctrl+Z (Ctrl+Y redoes); the open studies are kept and open again where they were; a study is saved as `.svsweep`; *Follow the file* reads a table again when it changes.
 - *Clear ▾* (beside *Study ▾*): groups, charts, filters and the re-run list; the goal and the results (the columns stay); start the study over; everything (every study closed after asking - the notice's *Undo* opens them again).
