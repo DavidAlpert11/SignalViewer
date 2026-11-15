@@ -5,7 +5,7 @@ import { useApp } from "../store";
 let pending: { path: string; demo: boolean } | null = null;
 const listeners = new Set<() => void>();
 
-/** Open this .svstudy.json in Sweeps → Common parameters (demo: the smart-sweep demo's view). */
+/** Open this .svstudy.json as the Sweeps area's study (demo: the smart-sweep demo's view). */
 export function requestStudy(path: string, demo = false): void {
   pending = { path, demo };
   useApp.setState({ area: "sweeps" });

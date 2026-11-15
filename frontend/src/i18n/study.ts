@@ -142,9 +142,9 @@ export const en = {
   dmHow3: "The loop",
   dmHow3Text: "Signal Viewer proposes the next gains, starts the program for each run (on this PC's workers), waits for the results in the folder, reads them, ranks the gains, and proposes again - until the best stops changing.",
   dmHow4: "Your own program",
-  dmHow4Text: "Copy the demo to a folder, open it in Sweeps → Common parameters, and replace sim.py by your program (the same input / output) - or the command by your farm's launcher.",
+  dmHow4Text: "Copy the demo to a folder, open it with Open ▾ → Open a saved study, and replace sim.py by your program (the same input / output) - or, in Set up, the command by your farm's launcher.",
   dmCopy: "Copy the demo to a folder…",
-  dmCopied: "Copied - opened in Common parameters. Change the command under Runs, then Run the loop.",
+  dmCopied: "Copied - opened as a study. Change the command in Set up, then Next round or Run until converged in the Run column.",
   dmCopyTitle: "A new or empty folder for your copy",
   // --- C6: New study, Set up
   nsTitle: "New study",
@@ -361,9 +361,9 @@ export const he: typeof en = {
   dmHow3: "הלולאה",
   dmHow3Text: "Signal Viewer מציע את ההגברים הבאים, מפעיל את התוכנה לכל הרצה (על העובדים של המחשב), ממתין לתוצאות בתיקייה, קורא אותן, מדרג ומציע שוב – עד שהטוב מפסיק להשתנות.",
   dmHow4: "התוכנה שלכם",
-  dmHow4Text: "העתיקו את ההדגמה לתיקייה, פתחו אותה ב-Sweeps ← פרמטרים משותפים, והחליפו את sim.py בתוכנה שלכם (אותו קלט / פלט) – או את הפקודה ב-launcher של החווה.",
+  dmHow4Text: "העתיקו את ההדגמה לתיקייה, פתחו אותה ב-פתיחה ▾ ← פתיחת מחקר שמור, והחליפו את sim.py בתוכנה שלכם (אותו קלט / פלט) – או, בהגדרה, את הפקודה ב-launcher של החווה.",
   dmCopy: "העתק את ההדגמה לתיקייה…",
-  dmCopied: "הועתק – נפתח בפרמטרים משותפים. שנו את הפקודה תחת הרצות, ואז הרצת הלולאה.",
+  dmCopied: "הועתק – נפתח כמחקר. שנו את הפקודה בהגדרה, ואז סבב הבא או הרץ עד התכנסות בעמודת ההרצה.",
   dmCopyTitle: "תיקייה חדשה או ריקה להעתק",
   // --- C6: New study, Set up
   nsTitle: "מחקר חדש",

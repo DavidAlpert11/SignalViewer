@@ -548,6 +548,11 @@ converged* and *Stop*, its progress and how it converges; its arrow folds it awa
 undoes and closes the study, and *Report of the study…* writes one HTML page of the whole study. One
 Ctrl+Z undoes the last change anywhere in Sweeps.
 
+The open tables are pills in the top row, beside the area names (a click shows one, its × closes it). A round
+stays marked *new* until you open it. A study table opened from the navigator *is* that table: change its
+goal in the four steps and the study's table changes too – *Together* ranks with it, and one Ctrl+Z takes
+both back. A single table opened with *I have results* is saved as its own `.svsweep`.
+
 ## 14. When something goes wrong
 
 - **Help → Copy error details** copies the version, the system and the end of the log; paste it
