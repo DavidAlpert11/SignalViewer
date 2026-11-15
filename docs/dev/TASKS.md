@@ -18,7 +18,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   resizable, a labelled *Remove from the study* with Undo; Next runs = the proposal + *Run from the app* (`NextStep.tsx`,
   `RunPanel.tsx` - the Run column is gone, *How to run* moved there from Set up); the systems together = a tab of
   Results. §7b file dialog done: New folder, Rename (F2), Delete (Del, to the recycle bin - `app/trash.py`, no new
-  dependency), only in the user's own folders. Next: the 404 on /api/object_track, the stability round.
+  dependency), only in the user's own folders. The 404 on /api/object_track fixed (a map asked for a closed file's
+  track). Next: the stability round (quick_check, the whole e2e suite with xdist + measure_e2e_memory, build, CHANGELOG).
 - **2026-11-16 · main is not stable (owner): Out of Memory, the 3D map's "Fragment shader failed to compile", slow
   maps.** Findings, numbers and plan: `docs/dev/PLAN_2026-11-16.md`. Found: every closed 3D map kept its WebGL
   context alive (Cesium's static index-buffer cache) up to 16 - fixed in `Globe3D.tsx` (contexts released, render
@@ -145,3 +146,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   Refused outside home / data drives, in hidden folders, on a drive or main folder itself, on a file open in the app.
   pytest test_fs_edit (7); e2e test_file_browser_edit (new, 2) + the file-dialog tests of test_features,
   test_first_minute, test_fresh_user, test_templates_recent_badfiles, test_user_reader - 45 green.
+- 2026-11-16 · The 404 on /api/object_track (owner's GPU run): a map still on screen while its file closes asked for
+  that file's track (the runs changed before the plot unmounted). `positionOpen` skips objects whose position is not
+  in an open file (GeoChart, Globe3D). measure_maps --cycles 1: 6 console messages (the 404s) before, 0 after. Vitest
+  mapObjects; e2e test_map_memory, test_map_objects, test_globe3d - 26 green.

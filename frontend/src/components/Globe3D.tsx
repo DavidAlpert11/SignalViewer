@@ -18,7 +18,7 @@ import { indexSpan } from "./chartUtil";
 import { pairOf, relation, type At } from "../relation";
 import RelationPanel from "./RelationPanel";
 import MapBar from "./MapBar";
-import { altAt, angleUnitOf, bearing, colorRuns, derivedAttitude, fmtDistance, groundDistance, objectAt, trackColors, trackKey, trackRequest, trackTime, visualOrder, type ObjTrack, type TrackColors, shownObjects, mapCamera } from "../mapObjects";
+import { altAt, angleUnitOf, bearing, colorRuns, derivedAttitude, fmtDistance, groundDistance, objectAt, trackColors, trackKey, trackRequest, trackTime, visualOrder, type ObjTrack, type TrackColors, shownObjects, mapCamera, positionOpen } from "../mapObjects";
 import { labelsOf, stateColor } from "../values";
 import TrackKeys from "./TrackKeys";
 import { hasWebGL } from "../webgl";
@@ -381,7 +381,9 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
     (async () => {
       const out: Record<string, Track3> = {};
       const empty: string[] = [];
+      const open = useApp.getState().runs;
       for (const o of shownObjects(plot)) {
+        if (!positionOpen(o, open)) continue;                         // its file closed: nothing to ask for
         try {
           const r = await api.objectTrack(trackRequest(o, plot.objects ?? []));
           if (r.valid === 0) { empty.push(o.id); continue; }           // P2: no position - drawn as nothing, not in Fit

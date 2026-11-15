@@ -14,7 +14,7 @@ import TrackKeys from "./TrackKeys";
 import RelationPanel, { RingIcon } from "./RelationPanel";
 import MapBar from "./MapBar";
 import { markNoPosition } from "../noPosition";
-import { isMapPlot, mapCamera } from "../mapObjects";
+import { isMapPlot, mapCamera, positionOpen } from "../mapObjects";
 
 /** 1.26: Track up - chosen, or the camera's Chase (on the object, close, its direction of travel up) */
 const trackUpOf = (p: Plot) => p.mapUp === "track" || ((p.camera === "chase" || p.camera === "cockpit") && !!p.followObject);
@@ -207,7 +207,9 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     (async () => {
       const out: Record<string, ObjTrack> = {};
       const empty: string[] = [];
+      const open = useApp.getState().runs;
       for (const o of shownObjects(plot)) {
+        if (!positionOpen(o, open)) continue;                         // its file closed: nothing to ask for
         try {
           const r = await api.objectTrack(trackRequest(o, plot.objects ?? []));
           if (r.valid === 0) { empty.push(o.id); continue; }           // P2: no position - drawn as nothing, not in Fit

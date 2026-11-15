@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attitudeOf, derivedAttitude, guessRoles, trackKey, trackOfClass, trackRequest } from "./mapObjects";
+import { attitudeOf, derivedAttitude, guessRoles, positionOpen, trackKey, trackOfClass, trackRequest } from "./mapObjects";
 import { addable, firstSource, isAdded, linkAttitudes, objectSources, whyLines } from "./objectAdd";
 import { detectObjects } from "./objectDetect";
 import type { MapObject, Plot } from "./store";
@@ -111,5 +111,14 @@ describe("objects from positions in metres (L3, L4)", () => {
       "vehicle_local_position.ref_lat", "vehicle_local_position.ref_lon", "vehicle_local_position.ref_alt"])).candidates[0];
     expect(whyLines(px4, "en").some((l) => l.includes("ref_lat / ref_lon / ref_alt") && l.includes("first value is used"))).toBe(true);
     expect(whyLines(detectObjects(run(["s.ecef_x [cm]", "s.ecef_y [cm]", "s.ecef_z [cm]"])).candidates[0], "en").some((l) => l.includes("in cm"))).toBe(true);
+  });
+});
+
+describe("positionOpen (§7b: no track asked for a closed file)", () => {
+  it("is open only when the latitude and longitude come from files open now", () => {
+    const o = { id: "o1", lat: "r1/Lat", lon: "r1/Lon" } as never;
+    expect(positionOpen(o, [{ id: "r1" }])).toBe(true);
+    expect(positionOpen(o, [{ id: "r2" }])).toBe(false);
+    expect(positionOpen({ id: "o2", lat: "r1/Lat", lon: "r2/Lng" } as never, [{ id: "r1" }])).toBe(false);
   });
 });

@@ -249,6 +249,13 @@ export function fmtDistance(m: number, lang: string): string {
   return fmtDistanceUnits(m, lang);                // P8: metres / km or feet / NM - mapDefaults.ts is the one formatter
 }
 
+/** §7b (a 404 on /api/object_track in the owner's GPU run): its position is in files open now - a map redrawn
+ *  while a file closes (or after it closed, the object still listed) must not ask for a track that is gone. */
+export function positionOpen(o: MapObject, runs: { id: string }[]): boolean {
+  const run = (sig: string) => sig.slice(0, sig.indexOf("/"));
+  return [o.lat, o.lon].every((s) => !!s && runs.some((r) => r.id === run(s)));
+}
+
 /** P6: the objects a map draws - every one not hidden. Drawing loops and Fit use this; lookups of
  *  another object (a borrowed attitude, the pair) use the whole list. */
 export function shownObjects(plot: { objects?: MapObject[] }): MapObject[] {
