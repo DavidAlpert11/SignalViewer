@@ -68,12 +68,13 @@ def test_offline_tiles_stand_in_for_unreachable_online_ones(pg):
 
 
 def test_borders_over_the_offline_map_and_the_satellite_photos(pg):
-    """1.20.1 (a user's request): *Borders* beside the layer - country borders and names over the
+    """1.20.1 (a user's request): *Borders* beside the layer (since M1 in the map's background picker) - country borders and names over the
     offline map and the satellite photos; turned off, the base layer changes; the street maps have
     no such switch (their tiles draw their own)."""
     pg.evaluate("window.__sv.setState({ geoBase: 'satellite', geoBorders: true })")
     _map(pg)
-    box = pg.locator(".plot .geo-borders input")
+    pg.locator(".map-layers-btn").first.click()          # M1: Borders lives in the map's background picker
+    box = pg.locator(".plot .ml-borders input")
     box.wait_for()
     assert box.is_checked()
     _wait_pixels(pg, 10000)
@@ -87,7 +88,7 @@ def test_borders_over_the_offline_map_and_the_satellite_photos(pg):
     assert pg.evaluate("document.querySelector('.plot .geo canvas').toDataURL().length") != sig_on
     assert on > 10000
     pg.evaluate("window.__sv.setState({ geoBase: 'osm' })")
-    pg.wait_for_selector(".plot .geo-borders", state="detached")
+    pg.wait_for_selector(".plot .ml-borders", state="detached")
 def _pick(pg, base):
     """M1: choose a map background in the picker (top-end of the map)."""
     pg.locator(".map-layers-btn").first.click()

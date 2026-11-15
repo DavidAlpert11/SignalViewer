@@ -4,7 +4,6 @@ import TrustBadge, { AngleGuessBadge, AttitudeSourceBadge } from "./TrustBadge";
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { mergeKind, PLOT_ID_MIME } from "../store/actions/layout";
 import { plotHasContent, actions, onTimeAxis, tabBandLanes, fileMark, pickPath, rangeKey, showFileTags, signalName, useApp, type MenuItem, type Plot, type PlotMode, type Tab } from "../store";
-import { GEO_BASES, effectiveBase, isOnlineBase, isPhotoBase, type GeoBase } from "../mapBase";
 import { fmtNum, translate, useT } from "../i18n";
 import { api } from "../api";
 import { exportRange, placesSpec, plotSpec } from "../plotSpec";
@@ -498,10 +497,6 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   const metaText = nLines >= 2 && mode !== "geo" && mode !== "3d"
     ? [t("plotMetaLines", { n: nLines }), mode === "time" && plot.signals.some((s) => s.axis === "right" && !s.state) ? t("plotMetaTwoY") : ""].filter(Boolean).join(" · ")
     : "";
-  const geoBase = useApp((s) => s.geoBase);
-  const netOff = useApp((s) => s.offlineOnly || s.offlineForced);
-  const shownBase = effectiveBase(geoBase, netOff);
-  const geoBorders = useApp((s) => s.geoBorders);
 
   return (
     <section
@@ -594,24 +589,6 @@ export default function PlotView({ tab, plot, index, active }: Props) {
         )}
         {(mode === "geo" || mode === "3d") && (
           <span className="xpick">
-            <select value={geoBase} onChange={(e) => useApp.setState({ geoBase: e.target.value as GeoBase })}
-              aria-label={t("geoLayer")} title={t(netOff ? "geoLayerHintOff" : "geoLayerHint")}>
-              <optgroup label={t("geoLocalGroup")}>
-                {GEO_BASES.filter((b) => !isOnlineBase(b)).map((b) => <option key={b} value={b}>{t(`geo_${b}` as "geo_auto")}</option>)}
-              </optgroup>
-              <optgroup label={t(netOff ? "geoOnlineGroupOff" : "geoOnlineGroup")}>
-                {GEO_BASES.filter(isOnlineBase).map((b) =>
-                  <option key={b} value={b} disabled={netOff}>{t(`geo_${b}` as "geo_auto")}</option>)}
-              </optgroup>
-            </select>
-            {/* O1: a small, clear sign whenever map tiles come from the internet */}
-            {isOnlineBase(shownBase) && (
-              <span className="net-badge" role="status" title={t("netOnlineHint")}>{t("netOnline")}</span>
-            )}
-            {mode === "geo" && (shownBase === "offline" || isPhotoBase(shownBase)) && (
-              <label className="acheck geo-borders" title={t("geoBordersHint")}>
-                <input type="checkbox" checked={geoBorders} onChange={(e) => useApp.setState({ geoBorders: e.target.checked })} />{t("geoBorders")}</label>
-            )}
             {/* objects: things that move, drawn at the timeline's time */}
             <button className="btn sm obj-add" onClick={() => useApp.setState({ objectDialog: { plotId: plot.id } })} title={t("objAddHint")}>
               + {t("objAdd")}</button>
