@@ -27,6 +27,7 @@
 <!-- 1114 lane L4 -->
 `test_offline_map.py` – M2 (L4): `test_satellite_with_roads_is_one_layer` new.
 `test_offline_map.py` – M1 / M3 / M4 (L4): the layer chosen in the picker (`.map-layers-btn`, `.ml-card[data-base=…]`) instead of the plot head's select; new `test_the_background_picker_is_one_place_and_downloads_nothing`, `test_my_maps_an_mbtiles_file_draws_offline`, `test_keep_this_area_offline_refuses_what_the_terms_forbid`.
+`test_live_report.py`, `test_globe3d.py`, `test_map_smooth.py` – M6 (L4): the cameras by their `.g3-cam-free/-top/-centre/-chase` classes and new names; Track up = Behind it; the object picker only with a following camera.
 `test_map_objects.py`, `test_map_smooth.py`, `test_globe3d.py`, `test_object_relations.py`, `test_live_report.py` – B6 (L4): run, no change (the map chrome moved into `styles/map.css` + docks; selectors kept).
 
 <!-- 1114 lane L5 -->

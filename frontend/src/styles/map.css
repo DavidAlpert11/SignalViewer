@@ -8,7 +8,7 @@
 /* the bar: glass, as wide as its buttons (not the whole plot), top-start */
 .map-bar.geo-bar, .map-bar.globe3d-bar {
   inset-inline-start: var(--sp-2); inset-inline-end: auto; top: var(--sp-2);
-  width: max-content; max-width: calc(100% - 2 * var(--sp-2));
+  width: max-content; max-width: calc(100% - 3 * var(--sp-2) - 76px);   /* room for the Map button top-end (M1) */
   justify-content: flex-start; gap: var(--sp-1_5) var(--sp-2); padding: var(--sp-1) var(--sp-1_5);
   border-radius: var(--r-card); border: 1px solid color-mix(in srgb, var(--overlay-ink) 14%, transparent);
   background: var(--overlay-bg); color: var(--overlay-ink); box-shadow: var(--shadow-md);
@@ -92,3 +92,5 @@
 .keep-err { color: var(--danger); flex-basis: 100%; }
 .keep-h { margin: var(--sp-2) 0 0; font-size: var(--fs-m); color: var(--ink-strong); }
 .keep-list td.muted { color: var(--muted); }
+.cam-ico { vertical-align: -2px; margin-inline-end: var(--sp-1); flex: none; }   /* M6: a picture on each camera button */
+.map-bar .g3-seg button { white-space: nowrap; }

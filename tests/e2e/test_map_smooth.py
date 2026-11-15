@@ -77,6 +77,7 @@ def test_keys_only_while_the_map_has_focus(three):
 
 def test_drag_while_following_offsets_and_back(three):
     pg = three
+    pg.locator(".map-bar .g3-cam-centre").click()                    # M6: the object picker is with a following camera
     pg.locator(".geo-follow").select_option(label="nav")
     pg.keyboard.press("Home")
     _settled(pg)
@@ -130,13 +131,14 @@ def test_playback_redraws_the_map_without_the_panels(three):
 
 
 def test_track_up_turns_the_map(three):
-    """N6: Track up - the map turns so the object's heading points up (the fixture's circle heads east at
-    t = 47.12 s), the N on the button shows where north is, the arrows move the map as seen on the screen;
-    north up again puts it back."""
+    """N6 / M6: Behind it (Track up folded into it) - the map turns so the object's heading points up (the fixture's
+    circle heads east at t = 47.12 s), the N shows where north is, the arrows move the map as seen on the screen;
+    the N's click puts north up again."""
     pg = three
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, t1: 47.12 } })")
-    pg.locator(".geo-up").click()
-    assert S(pg, "s.ws.tabs[0].plots.find((p) => (p.mode === 'geo' || p.mode === '3d')).mapUp") == "track"
+    assert pg.locator(".geo-up").count() == 0                        # north up: no turned map to undo
+    pg.locator(".map-bar .g3-cam-chase").click()
+    assert S(pg, "s.ws.tabs[0].plots.find((p) => (p.mode === 'geo' || p.mode === '3d')).camera") == "chase"
     rot = lambda: pg.evaluate("document.querySelector('.plot-canvas.geo canvas').style.transform")
     pg.wait_for_function("document.querySelector('.plot-canvas.geo canvas').style.transform.startsWith('rotate(-')")
     ang = float(rot()[len("rotate(-"):].rstrip("deg)"))

@@ -305,7 +305,7 @@ def render(mdata: Dict, fmt: str = "png", theme: str = "light", scale: float = 1
 # The words of the offline map pages - the 2D map and the 3D view share their toolbar and relation box
 # (report_assets/relation.js, mappage.css); the relation's words are the app's (i18n/mapsAnd3d.ts rel*).
 PAGE_STRINGS = {
-    "en": {"camera": "Camera", "camFree": "General", "camCentre": "On the object", "camClose": "Chase",
+    "en": {"camera": "Camera", "camFree": "Free", "camCentre": "Around it", "camClose": "Behind it",
            "trail": "Trail", "trailAll": "whole", "tcaGo": "Go to the closest moment",
            "camFreeHint": "Move the view yourself", "camCentreHint": "Keep the chosen object in the middle",
            "camCloseHint": "Close to the chosen object (in 3D: behind it, looking where it goes)",
@@ -325,7 +325,7 @@ PAGE_STRINGS = {
            "display": "Display", "displayHint": "The flight display of the object the camera is on: attitude, speed, altitude, heading",
            "errs": "Error surface", "errsHint": "Between the two tracks of one vehicle (truth and a solution): coloured by their distance",
            "gs": "GS", "alt": "ALT"},
-    "he": {"camera": "מצלמה", "camFree": "כללית", "camCentre": "על האובייקט", "camClose": "מרדף",
+    "he": {"camera": "מצלמה", "camFree": "חופשית", "camCentre": "סביבו", "camClose": "מאחוריו",
            "trail": "שובל", "trailAll": "כולו", "tcaGo": "לעבור לרגע הכי קרוב",
            "camFreeHint": "להזיז את התצוגה בעצמכם", "camCentreHint": "האובייקט שנבחר באמצע",
            "camCloseHint": "קרוב לאובייקט שנבחר (בתלת-ממד: מאחוריו, מסתכל לאן שהוא טס)",

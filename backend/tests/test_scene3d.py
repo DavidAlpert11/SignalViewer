@@ -154,7 +154,7 @@ def test_both_pages_share_the_toolbar_and_the_relation_box(rid):
     d2 = json.loads(re.search(r"const D = (\{.*?\});\n", p2, re.S).group(1))
     assert d3["pair"] == d2["pair"] == {"primary": "GPS[0]", "secondary": "POS"}
     assert [o["track"] for o in d3["objects"]] == [o["track"] for o in d2["objects"]] == [None, "points"]
-    assert d2["S"]["camClose"] == "מרדף" and d3["S"]["camClose"] == "Chase"            # the app's words (g3CamChase)
+    assert d2["S"]["camClose"] == "מאחוריו" and d3["S"]["camClose"] == "Behind it"     # the app's words (g3CamChase, M6)
 
 
 def test_sun_where_it_was():

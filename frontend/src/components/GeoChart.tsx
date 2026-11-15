@@ -12,7 +12,7 @@ import TrackKeys from "./TrackKeys";
 import RelationPanel, { RingIcon } from "./RelationPanel";
 import MapBar from "./MapBar";
 import { markNoPosition } from "../noPosition";
-import { isMapPlot } from "../mapObjects";
+import { isMapPlot, mapCamera } from "../mapObjects";
 
 /** 1.26: Track up - chosen, or the camera's Chase (on the object, close, its direction of travel up) */
 const trackUpOf = (p: Plot) => p.mapUp === "track" || ((p.camera === "chase" || p.camera === "cockpit") && !!p.followObject);
@@ -983,17 +983,8 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   };
 
   const trackUp = trackUpOf(plot);
-  // Chase: close to the object (about 900 m across), the first time it is chosen for an object
-  const chaseKey = (plot.camera === "chase" || plot.camera === "cockpit") && plot.followObject ? plot.followObject : "";
-  useEffect(() => {
-    const v = viewRef.current;
-    if (!chaseKey || !v || !size.w) return;
-    const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * v.cy)));
-    const z = Math.log2(size.w * 40075016.686 * Math.cos(lat) / (256 * 900));
-    followOff.current = null; setOffFollow(false);
-    animateTo({ ...v, z: Math.max(1, Math.min(22, z)) }, 260);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chaseKey]);
+  // M6: Behind it leaves the zoom alone (Chase used to zoom to ~900 m - the same as Around it then, turned)
+  const camMode = mapCamera(plot);
   const prec = view ? Math.max(1, Math.min(8, Math.round(view.z * 0.3 + 1))) : 2;
   return (
     <div className="plot-canvas geo" ref={wrapRef} style={{ position: "relative" }} tabIndex={0} onKeyDown={onKey}
@@ -1015,10 +1006,10 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       {view && (
         objects.length > 0 ? (
         <MapBar plot={plot} objects={objects} className="geo-bar" chaseHint="mapCamChaseHint" onZoom={(d) => zoomBy(d)} onFit={() => { actions.updatePlot(plot.id, { followObject: null, camera: undefined }); fitAll(); }}>
-          {objects.length > 0 && (
-            <button className={`geo-up${trackUp ? " on" : ""}`} aria-pressed={trackUp}
-              title={t(trackUp ? "mapTrackUpHint" : "mapNorthUpHint")} aria-label={t(trackUp ? "mapTrackUp" : "mapNorthUp")}
-              onClick={() => actions.updatePlot(plot.id, { mapUp: trackUp ? undefined : "track" })}>
+          {/* M6: Track up is Behind it; the N shows where north is while the map is turned, a click turns it back */}
+          {trackUp && (
+            <button className="geo-up on" aria-pressed={true} title={t("mapNorthUpBack")} aria-label={t("mapNorthUpBack")}
+              onClick={() => actions.updatePlot(plot.id, { mapUp: undefined, ...(plot.camera === "chase" || plot.camera === "cockpit" ? { camera: undefined } : {}) })}>
               <span ref={northRef} className="geo-north" aria-hidden="true">N</span></button>
           )}
           {offFollow && plot.followObject && <button className="geo-back" onClick={backToFollow}>{t("mapBackToFollow")}</button>}
@@ -1042,6 +1033,9 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
             const S = 256 * 2 ** v.z, hw = size.w / 2 / S, hh = size.h / 2 / S;
             return [Math.max(-85, latOf(v.cy + hh)), Math.max(-180, lonOf(v.cx - hw)), Math.min(85, latOf(v.cy - hh)), Math.min(180, lonOf(v.cx + hw))];
           }} />
+      )}
+      {view && objects.length > 0 && !hint && (camMode === "free" || camMode === "top" || camMode === "centre" || camMode === "chase") && (
+        <div className="g3-cam-hint map-cam-line" role="note">{t(`camLine_${camMode}`)}</div>
       )}
       {view && hint && (
         <div className="geo-hint" role="note">{t("mapHint")}

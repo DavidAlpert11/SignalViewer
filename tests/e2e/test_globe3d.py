@@ -172,7 +172,7 @@ def test_related_objects_distance_line_and_box(g3multi):
 def test_camera_on_the_object_zooms_towards_it(g3multi):
     pg = g3multi
     pg.locator(".globe3d .rel-panel select[aria-label='Reference']").select_option("B")
-    pg.locator(".globe3d-bar button", has_text="On the object").click()
+    pg.locator(".globe3d-bar .g3-cam-centre").click()                          # M6: Around it
     probe = """(() => { const { widget: w, Cesium: C } = window.__svGlobe;
       const pos = C.Cartesian3.fromDegrees(34.51, 32.5, 500);
       const dir = C.Cartesian3.normalize(C.Cartesian3.subtract(pos, w.camera.positionWC, new C.Cartesian3()), new C.Cartesian3());
@@ -392,7 +392,7 @@ def test_camera_chase_and_look_at(g3multi):
     pg.wait_for_function(f"(() => {{ const c = {CAM}; return c.b > 0.9995 && c.dist < 60; }})()", timeout=20000)
     c = pg.evaluate(CAM)
     assert c["e"] > 0.9 and c["dist"] < 60, c                                     # from A, towards B (east)
-    pg.locator(".globe3d-bar button", has_text="General").click()
+    pg.locator(".globe3d-bar .g3-cam-free").click()                            # M6: Free
     assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].followObject") is None
     assert "drag to move" in pg.locator(".g3-cam-hint").inner_text()
 

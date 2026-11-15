@@ -43,6 +43,10 @@
   estimated first; progress, Stop; the kept areas listed with their size and Delete). Only where the map's terms allow
   it: ground heights (open data) and your own servers. OpenStreetMap, Esri and OpenTopoMap forbid bulk downloads - the
   dialog says so; places you look at are still kept as before.
+- **Map cameras named by what they do:** Free · From above · Around it · Behind it · Cockpit (3D), each with a small
+  picture and a line saying what it does. From above never follows an object; Behind it is what *Track up* did (the
+  separate Track up button is gone; the N turns a turned map back north) and no longer zooms in by itself. Saved sessions
+  open with the same camera as before.
 <!-- lane L5 -->
 - **Create signals in the new look** (D3): the suggested frame conversions are the app's chips, the derived signals' heading shows how many there are, and an empty list says what will appear there.
 - **Profiles** (D14): a template now also carries its *at a glance* numbers (up to four – the maximum, minimum, mean, first or last value of a signal over the whole run) and pinned searches for the signal list. The built-in ArduPilot, MAVLink and PX4 templates bring theirs (max altitude, max speed, battery used, lowest voltage…; ATT, VIBE, GPS, BAT…); a template you save keeps yours, so a test bench or a simulation gets its own. A number the file does not have is said, not hidden; the mean is the plain mean of the samples.

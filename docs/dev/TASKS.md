@@ -82,19 +82,19 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       "flight log" → "log"; `files.errHint` "such as the flight mode" → "such as a mode". (`signals.refSignalsHint` and
       `plots.fftFiltersTitle` are examples / a format's own feature: keep.)
   <!-- lane L4 -->
-  - **L4 Map** – in progress · done: M2, M3, M4, B6, M1 (but the plot head's old select – L3) · next: M6 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
+  - **L4 Map** – in progress · done: M2, M3, M4, B6, M1 (but the plot head's old select – L3), M6 · next: M5 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
     - **Request to L3** (from L4, M1 – needed for M1's *one place for the layer*): in `PlotView.tsx` remove the map
       layer `<select aria-label="Map">`, the `.net-badge` and the *Borders* checkbox (the `(mode === "geo" || mode === "3d")`
       `xpick` block; keep *+ Add an object*) and the now unused `geoBase` / `shownBase` / `geoBorders` / `GEO_BASES` imports –
       all three live in the map's *Map* picker now (`MapLayers.tsx`, top-end of every map, 2D and 3D; e2e
       `test_offline_map.py` already uses only the picker). And `store/slices/view.ts`: `geoBase`'s type → `GeoBase` from
       `mapBase.ts` (it has `"satroads"` and `` `my:${string}` `` now; `MapLayers` casts until then).
-    - DONE (F2 legend, 2026-11-14) – From L5 (2026-11-14): **F2's endpoint is on `main`** – `POST /api/stats/window {signals: [ids], t0, t1}` (shown time; offsets applied) → `{stats: {id: {n, min, max, mean, t0, t1}}}`, states and closed signals left out, < 5 ms per call on 20M samples (block summaries cached). For the legend on demand (B2): call it on the view's x-range after a pan / zoom settles. Backend `svcore/windowstats.py`, test `tests/test_window_stats.py`.
-  <!-- lane L4 -->
-  - **L4 Map** – in progress · done: M2, M3a, M4a (backends), B6 · next: M1 (+ M3b / M4b) · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
     - DONE (L3, 2026-11-15) – *Request to L3* (from L4, M2): `store/slices/view.ts` `geoBase`'s type → `GeoBase` from `mapBase.ts` (it now has
       `"satroads"`; today the store's union lacks it, PlotView's select casts); `PlotView.tsx` the *Borders* switch for
       `isPhotoBase(shownBase)` (from `mapBase.ts`) instead of `=== "satellite"`. Both go away with M1 if L4 may then touch PlotView's map select.
+    - *For L3* (from L4, M6, 2026-11-15): `tests/e2e/test_live_report.py::test_one_map` fails on `main` without L4's
+      changes too: after clicking the Map plot's `.mode-btn` no `.menu.ctx` item is read (`items == []`) – the plot
+      head / its kind menu is L3's (B1). Not touched by L4.
     - *Request to L1* (from L4, B6): the map chrome's new rules are in `styles/map.css` (L4, loaded last); the rules they
       supersede in `index.css` (`.map-bar.geo-bar`, `.globe3d-readout`, `.globe3d-light`, `.track-keys`'s position, `.g3-fd`,
       `.rel-panel`'s position, `.g3-cam-hint` / `.geo-hint` / `.g3-measure`'s position) and `review.css` (R3's map lines)
@@ -4307,3 +4307,14 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-15 · L5 D3 Analysis (Create signals): frame suggestions on `.chipbtn` (selector in test_features updated), the derived list's count, its `.empty-state`; *pin to at a glance* stays with the Inspector (L3) - the panel has no statistics. For L1: `.frame-sugs .chip-btn` rules in index.css unused now. Ran: tsc; e2e test_features -k create/formula/frame/derived (5), test_trust_badges, test_missing_choice, test_pyops (5) - green; pictures D3 before / after dark en, light he (RTL fine); no control added (count unchanged). Next: D4 Compare.
 
 - 2026-11-15 · L5 hand-over after D3 (context): F3 F1 F2 D7 D14 D3 on main; next D4. HAND-OVER block in the L5 board line.
+- 2026-11-15 · L4 M6 the cameras named by what they do: Free · From above · Around it · Behind it · Cockpit (3D only;
+  flat it was Behind it again), each with a small picture (`MapBar.tsx` `CamIcon`, the text colour); From above never
+  follows (an old session's From above on an object keeps it: saved values unchanged); the object picker shows only with
+  a following camera; *Track up* folded into Behind it (it had no job of its own: Behind it on the flat map = the
+  object in the middle, its heading up) – the bar's Track up button is gone, the flat map's N shows only while turned
+  and turns it back north (an old `mapUp: "track"` still turns the map); Behind it leaves the zoom alone (Chase zoomed to
+  ~900 m); the flat map gets the one line saying what the chosen camera does (the 3D view's hint already did); the same
+  names in the offline pages (`mapimage.PAGE_STRINGS`). Ran: `test_scene3d`, `test_map_export`; e2e `test_globe3d`,
+  `test_map_smooth`, `test_round_1112`, `test_object_relations`, `test_live_report` – all green but
+  `test_live_report::test_one_map`, which fails on main too (the plot kind menu, L3 – noted under L3). Selectors
+  updated (labels → `.g3-cam-*` classes), no assertion weakened. Pictures `docs/dev/mockups/M6/after`.

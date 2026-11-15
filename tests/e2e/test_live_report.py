@@ -61,13 +61,15 @@ def test_one_bar(pg):
         return [b.locator(".g3-seg").first.locator("button").all_inner_texts(), b.locator(".geo-zoom-in, .geo-zoom-out, .geo-fit, .rel-toggle").count(),
                 b.locator("select.geo-follow option").all_inner_texts()]
     two = bar()
-    assert two == [["General", "From above", "On the object", "Chase", "Cockpit"], 4, ["Plane", "Chase"]], two   # P9: Cockpit
+    # M6: the cameras named by what they do; From above follows nothing, so the object picker shows with a following camera
+    assert two == [["Free", "From above", "Around it", "Behind it", "Cockpit"], 4, []], two   # P9: Cockpit
     assert "on" in (geo.locator(".map-bar .g3-cam-top").get_attribute("class") or "")   # a 2D-era map: From above
     geo.locator(".map-bar .g3-cam-chase").click()
     pg.wait_for_function("(() => { const p = window.__sv.state().ws.tabs[0].plots[1]; return p.camera === 'chase' && p.followObject === 'o1'; })()")
+    assert geo.locator(".map-bar select.geo-follow option").all_inner_texts() == ["Plane", "Chase"]
     if geo.locator(".geo-up").count():
-        assert "on" in (geo.locator(".geo-up").get_attribute("class") or "")         # Chase, drawn flat: track up
-    geo.locator(".map-bar button", has_text="General").click()
+        assert "on" in (geo.locator(".geo-up").get_attribute("class") or "")         # Behind it, drawn flat: track up
+    geo.locator(".map-bar .g3-cam-free").click()
     pg.wait_for_function("(() => { const p = window.__sv.state().ws.tabs[0].plots[1]; return p.followObject === null && p.camera === 'free'; })()")
     geo.locator(".map-bar .g3-cam-top").click()
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[1].camera === 'top'")
@@ -108,6 +110,6 @@ def test_live_html_report_with_the_3d_view(pg):
         fr.locator("#trail").select_option("20")
         assert fr.evaluate("window.__page.trail()") == 20
         # the same toolbar in the 3D page as in the 2D map's page, with the app's words
-        assert fr.locator("#cam button").all_inner_texts()[:3] == ["General", "On the object", "Chase"]   # (+ Cockpit in 3D, P9)
+        assert fr.locator("#cam button").all_inner_texts()[:3] == ["Free", "Around it", "Behind it"]   # (+ Cockpit in 3D, P9; M6 names)
     finally:
         page.close()
