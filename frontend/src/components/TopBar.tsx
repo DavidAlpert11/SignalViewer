@@ -1,5 +1,5 @@
 import { clearMenuItems } from "../clearing";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { toggleLive } from "../live";
 import { mavlinkConnect, mavlinkDisconnect } from "../mavlink";
 import { api } from "../api";
@@ -18,6 +18,8 @@ import { startTour } from "./Tour";
 import { openTemplates, templateMenuItems } from "../templateMenu";
 import { forgetMore, moreUsable, openMoreTabs, tx } from "../templates";
 import { getPref, setPref } from "../prefs";
+// the Sweeps area's open tables (its own code stays out of the main bundle, loaded with the area)
+const SweepsTables = lazy(() => import("./sweeps/SweepsTables"));
 
 
 /** Where a menu opens under its button (left-aligned, or right-aligned in Hebrew). */
@@ -69,6 +71,8 @@ export default function TopBar() {
     <header className="topbar">
       <div className="brand" title={t("appName")}><BrandMark /><span className="hide-compact">{t("appName")}</span></div>
       <AreaSwitcher />
+      {/* C10: the Sweeps area's tables, as Recordings' tools below - one top row */}
+      {area === "sweeps" && <Suspense fallback={null}><SweepsTables /></Suspense>}
       <div className="spacer" />
       <button className="search-trigger" data-tour="palette" onClick={() => useApp.setState({ paletteOpen: true, paletteMode: "all" })}>
         <Icon.Search width={14} height={14} /> <span>{t("commands")}</span><span className="kbd">Ctrl K</span>

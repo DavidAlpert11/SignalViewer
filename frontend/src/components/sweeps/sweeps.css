@@ -572,3 +572,10 @@
 .sw-split-table { flex: none; max-height: 240px; }
 .sw-split-toggle { font-size: 0.846rem; margin-bottom: 4px; }
 .sw-pane.sw-out-of-report { opacity: 0.6; }
+
+/* C10: the open tables as pills in the top row (SweepsTables, mounted by TopBar) - placed here, drawn by .pill */
+.sw-pills { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; flex: 0 1 auto; overflow-x: auto; scrollbar-width: none; margin-inline-start: var(--sp-2); }
+.sw-tbl-pill { max-width: 220px; flex: none; }
+.sw-tbl-pill .sw-ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw-tbl-pill .x { display: inline-flex; opacity: .6; border-radius: 50%; }
+.sw-tbl-pill .x:hover { opacity: 1; background: var(--raised); }

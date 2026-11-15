@@ -24,10 +24,10 @@ def _study(pg, expr):
 def _to_sweeps(pg):
     pg.locator(".areas .area-btn", has_text="Sweeps").click()
     pg.wait_for_selector(".sw-welcome, .sw-study-wrap, .su, .ns")
-    while pg.locator(".areabar .tab").count():                     # every table closed: the welcome page
-        n = pg.locator(".areabar .tab").count()
-        pg.locator(".areabar .tab .x").first.click()
-        pg.wait_for_function(f"document.querySelectorAll('.areabar .tab').length === {n - 1}")
+    while pg.locator(".sw-pills .sw-tbl-pill").count():                     # every table closed: the welcome page
+        n = pg.locator(".sw-pills .sw-tbl-pill").count()
+        pg.locator(".sw-pills .sw-tbl-pill .x").first.click()
+        pg.wait_for_function(f"document.querySelectorAll('.sw-pills .sw-tbl-pill').length === {n - 1}")
 
 
 def _new_study(pg):
@@ -267,8 +267,8 @@ def test_results_first_next_runs_saved_and_reopened(pg):
     save_as(pg, "walkthrough.svsweep")                                           # one table, a guessed Set up: its own file
     pg.wait_for_selector(".toast:has-text('Saved')")
     _idle(pg)
-    pg.locator(".areabar .tab.active .x").click()
-    pg.wait_for_function("document.querySelectorAll('.areabar .tab').length === 0")
+    pg.locator(".sw-pills .sw-tbl-pill.on .x").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-pills .sw-tbl-pill').length === 0")
     _bar_menu(pg, "Open", "Open a saved study")
     goto_folder(pg, pg.env["out"])
     pg.locator(".dialog .fs-row", has_text="walkthrough.svsweep").click()

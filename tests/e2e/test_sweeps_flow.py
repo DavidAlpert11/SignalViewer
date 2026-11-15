@@ -37,10 +37,10 @@ def _bar_menu(pg, button, item):
 
 def _close_studies(pg):
     """Every study closed (its tab's ×): the welcome page."""
-    while pg.locator(".areabar .tab").count():
-        n = pg.locator(".areabar .tab").count()
-        pg.locator(".areabar .tab .x").first.click()
-        pg.wait_for_function(f"document.querySelectorAll('.areabar .tab').length === {n - 1}")
+    while pg.locator(".sw-pills .sw-tbl-pill").count():
+        n = pg.locator(".sw-pills .sw-tbl-pill").count()
+        pg.locator(".sw-pills .sw-tbl-pill .x").first.click()
+        pg.wait_for_function(f"document.querySelectorAll('.sw-pills .sw-tbl-pill').length === {n - 1}")
     pg.wait_for_selector(".sw-welcome")
 
 
@@ -291,15 +291,15 @@ def test_save_reopen_and_close(pg):
     _bar_menu(pg, "Study", "Save the study")
     save_as(pg, "drone.svsweep")
     pg.wait_for_selector(".toast:has-text('Saved')")
-    n = pg.locator(".areabar .tab").count()
+    n = pg.locator(".sw-pills .sw-tbl-pill").count()
     _bar_menu(pg, "Open", "Open a saved study")
     goto_folder(pg, pg.env["out"])
     pg.locator(".dialog .fs-row", has_text="drone.svsweep").click(); pg.click(".dialog-foot .btn.primary")
-    pg.wait_for_function(f"document.querySelectorAll('.areabar .tab').length === {n + 1}")
+    pg.wait_for_function(f"document.querySelectorAll('.sw-pills .sw-tbl-pill').length === {n + 1}")
     assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "3"              # where it was saved: the goal
     pg.wait_for_function("document.querySelectorAll('.sw-limit-met').length === 2")
-    pg.locator(".areabar .tab.active .x").click()
-    pg.wait_for_function(f"document.querySelectorAll('.areabar .tab').length === {n}")
+    pg.locator(".sw-pills .sw-tbl-pill.on .x").click()
+    pg.wait_for_function(f"document.querySelectorAll('.sw-pills .sw-tbl-pill').length === {n}")
 
 
 def test_two_sweeps_merged(pg):

@@ -215,7 +215,7 @@ def sweeps_fresh(pg):
     """The Sweeps area with no study open (the studies are kept from the last scene)."""
     pg.locator(".areas .area-btn", has_text="Sweeps").click()
     pg.wait_for_selector(".sw-welcome, .sw-study-wrap")
-    if pg.locator(".areabar .tab .x").count():                  # Clear > Everything (1.20)
+    if pg.locator(".sw-pills .sw-tbl-pill .x").count():                  # Clear > Everything (1.20)
         pg.locator(".sw-clear-btn").click()
         pg.locator(".menu.ctx button", has_text="Everything").click()
         pg.locator(".dialog-foot .btn").last.click()

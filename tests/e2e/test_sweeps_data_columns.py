@@ -47,7 +47,7 @@ def test_join_on_keys_continue_with_and_reopen(pg, tmp_path):
     _bar_menu(pg, "Study", "Save the study")
     save_as(pg, "joined.svsweep")
     pg.wait_for_selector(".toast:has-text('Saved')")
-    pg.locator(".areabar .tab.active .x").click()
+    pg.locator(".sw-pills .sw-tbl-pill.on .x").click()
     pg.wait_for_selector(".sw-welcome")
     _bar_menu(pg, "Open", "Open a saved study")                           # W16: from Open ▾ (selector change by L8)
     goto_folder(pg, pg.env["out"])
@@ -72,7 +72,7 @@ def test_source_column_and_closing_tables(pg):
     # closing the table in use: the next steps go on with another
     pg.locator(".sw-table-item").nth(0).locator("button[aria-label^='Close']").click()
     pg.wait_for_function("document.querySelectorAll('.sw-table-item').length === 2")
-    assert pg.locator(".areabar .tab").count() >= 1
+    assert pg.locator(".sw-pills .sw-tbl-pill").count() >= 1
 
 
 def test_condition_cards_runs_and_range(pg):

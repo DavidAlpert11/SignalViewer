@@ -278,18 +278,6 @@ function SweepsBar() {
   const report = () => useSweeps.setState({ reportOpen: true });
   return (
     <div className="areabar" role="toolbar" aria-label={t("areaSweeps")}>
-      <nav className="tabs-wrap">
-        <div className="tabs" role="tablist">
-          {studies.map((s, i) => (
-            <div key={s.tableId} role="tab" tabIndex={0} aria-selected={i === active} className={`tab${i === active ? " active" : ""}`}
-              onClick={() => useSweeps.setState({ active: i })} onKeyDown={(e) => { if (e.key === "Enter") useSweeps.setState({ active: i }); }}>
-              <span>{s.name}</span>
-              <span className="x" role="button" aria-label={t("swCloseStudy")} title={t("swCloseStudy")}
-                onClick={(e) => { e.stopPropagation(); useSweeps.getState().close(i); }}><Icon.X width={12} height={12} /></span>
-            </div>
-          ))}
-        </div>
-      </nav>
       {(study || common) && <>
         <button className="iconbtn" disabled={!canUndo} onClick={() => useSweeps.getState().undo()} title={`${t("undo")} (Ctrl+Z)`} aria-label={t("undo")}><Icon.Undo /></button>
         <button className="iconbtn" disabled={!canRedo} onClick={() => useSweeps.getState().redo()} title={`${t("redo")} (Ctrl+Y)`} aria-label={t("redo")}><Icon.Redo /></button>
