@@ -1,7 +1,8 @@
 # Signal Viewer – user guide
 
-Signal Viewer shows recorded signals – test runs, flight logs, simulation output – as plots you can
-zoom, measure and compare. Everything runs on your computer; nothing is sent anywhere.
+Signal Viewer is a workbench for analysing and validating any time-series data – flight, vehicle and
+bench tests, simulation output, ROS 2 and CAN recordings – as plots you can zoom, measure, check and
+compare. Everything runs on your computer; nothing is sent anywhere.
 
 ## 1. Start
 
@@ -9,7 +10,7 @@ zoom, measure and compare. Everything runs on your computer; nothing is sent any
   extract the portable `.zip` and double-click *Signal Viewer.bat*.
 - **Linux / macOS:** extract the `-portable.7z` and run `SignalViewer/SignalViewer`.
 - The first screen offers **examples** (a drone flight, the same mission flown twice, three car runs,
-  an ArduPilot log). One click opens one ready to look at – the quickest way to learn the app.
+  an ArduPilot log, a pump on a test bench…). One click opens one ready to look at – the quickest way to learn the app.
 
 ## 2. Open your files
 
@@ -32,15 +33,18 @@ are told apart by them.
 
 ## 3. The screen
 
-- **Top:** the work areas as one switch - *Recordings* (your files and plots), *Sweeps* (a run
-  envelope's results table) and *Fleet* (every flight log in a folder).
+- **Top:** one row - the work areas as one switch (*Recordings* - your files and plots, *Sweeps* - a run
+  envelope's results table, *Fleet* - every flight log in a folder), then the Recordings tools (open /
+  save, templates, live, undo / redo, clear, Inspector), Ctrl+K, Settings, the theme, the language and Help.
 - **Left:** the panels – *Data* (the open files and their signals), *Create signals*, *Compare runs*,
-  *Investigate*, *Report* and *Flight log* (greyed until a flight log is open).
-- **Middle:** the plots of the current tab. Tabs are at the top: **+** makes one, **▾** opens a
+  *Investigate*, *Report* and *Checks* (the verdict, structure and parameters of any file - section 10).
+- **Middle:** the plots of the current tab. The plot tabs are in the bar above the plots: **+** makes one, **▾** opens a
   template or collection - and a template's other tabs: a template may open only its default ones
   (the ArduPilot full review: Attitude and Flight) and keep the rest there, their number on the ▾.
   The layout button (1 × 1) splits a tab into rows and columns. When a tab's plots share the time,
-  its flight-mode lane is drawn once - in the strip above them - with the cursors and the pointer on it.
+  its flight-mode lane (or any state signal) is a thin coloured band inside the top plot, lined up with its
+  time axis (*Settings → Look → Mode band* puts it above the plots instead). The timeline shows the same
+  modes as colour along its track.
 - **Bottom:** the timeline – play, the time shown, the cursor. Time is written in seconds as
   recorded, like the axes; *Settings* (the gear, Ctrl+,) can show a clock from the start instead,
   and holds the theme and the text size.
@@ -52,9 +56,8 @@ are told apart by them.
   drag it onto any plot. Drop on a plot's right or bottom edge to make a new plot there.
 - The button next to the plot's title (**Time ▾**) changes the plot's type: Time, X-Y, 3D (XYZ - any
   three signals on plain axes), Map, FFT, Spectrogram, Envelope (many runs of one quantity), Video. The **Map**
-  is the earth with its terrain; its bar has the camera *General · From above · On the object · Chase* on the
-  object beside it (*From above*: straight down, north up, the whole flight framed - *Track up* beside it),
-  + / − / fit, *Relation* (the relation box shown or hidden), and its extras (look at, a third object, data,
+  is the earth with its terrain; its bar has the camera *Free · From above · Around it · Behind it · Cockpit*
+  on the object beside it (*From above*: straight down, north up, the whole flight framed), + / − / fit, *Relation* (the relation box shown or hidden), and its extras (look at, a third object, data,
   events, measure, its own time). The mouse's position is shown in a corner: latitude, longitude, the ground
   height there and the distance / bearing from the reference. A map saved by an earlier version opens *From
   above*. Where the computer cannot draw 3D (remote desktops, some virtual machines) the Map is drawn flat
@@ -62,7 +65,12 @@ are told apart by them.
 - **Right-click a legend chip** for its options: second value axis, show as states, move, remove…
 - **Many signals in one plot?** The legend moves into a column beside the plot by itself (a row per
   signal, the values aligned, a filter); the plot's menu ▸ *Legend* puts it above, beside or hides it.
-  Point at a name to bring its line to the front.
+  Point at a name to bring its line to the front. Each line shows its value at the cursor (and the change
+  Δ between the two cursors) in a monospaced number with its unit.
+- **Statistics of what is on screen:** the plot's ⋯ menu ▸ *Legend* ▸ *Statistics of the shown window*
+  shows beside each line its lowest, mean and highest value over the time on screen, recomputed as you pan
+  and zoom - fast on signals of tens of millions of samples. The mean is the plain mean of the samples in
+  the window, not weighted by time: where the rate changes, the faster part counts more.
 - **Your own groups:** select signals, right-click ▸ *Group these* ▸ *New group…* and give it a name;
   `/` in the name puts a group inside another (`Nav/IMU`). *My groups* is at the top of the list.
 - **Right-click in the plot** for: cursor here, note here, previous zoom, show everything, export
@@ -156,9 +164,12 @@ are told apart by them.
   template) and *My places* (yours, in every session - ★ moves a place there). A click flies the camera there;
   the search box also takes a position; *Save this view* keeps the camera by name. The mouse readout says
   how far the nearest place is, and the relation box can compare the reference with a place.
-- **The Map's cameras:** *General · From above · On the object · Chase · Cockpit* (from the object, looking
-  where it points, rolling with it). Every change flies there. *Display* shows the flight display of the
-  object the camera is on (attitude, ground speed, altitude, heading; on by default in Chase and Cockpit);
+- **The Map's cameras**, named by what they do - each with a small picture and a line in its menu: *Free*
+  (move it yourself), *From above* (straight down, never follows an object), *Around it* (turn around the
+  object, the wheel towards it), *Behind it* (behind and above it, turning with its heading) and *Cockpit*
+  (from the object, looking where it points, rolling with it). Every change flies there; a session saved
+  earlier opens with the same camera as before. *Display* shows the flight display of the
+  object the camera is on (attitude, ground speed, altitude, heading; on by default Behind it and in Cockpit);
   a mini-map shows the whole flight while the camera is near an object (a click flies there). When the
   reference and the compared object are one vehicle (truth and a navigation solution), an **error
   surface** between their tracks shows where the solution left the truth (its scale and toggle are in the
@@ -177,11 +188,29 @@ are told apart by them.
   and the keys work on it: arrows move it, + / − zoom, F follows, 0 fits everything (Shift+←/→ still
   step the cursor). *Settings → Camera following an object*: *Smooth* (default) eases after the object,
   so a noisy position does not shake the view; *Exact* stays right on it.
-  The **N** button turns the map *Track up*: the followed object's heading (else the primary's, else the
-  first's) points up and the N shows where north is; click again for north up.
-- **The 3D camera:** *General* (move freely), *On the object* (turn around it, wheel towards it), *Chase*
-  (behind and above it, turning with it), *Look at* (from it towards the second object). A change of mode
-  or object flies there; a line at the bottom says what the mouse does.
+  *Behind it* keeps the object's heading up; when the map is turned, the **N** button turns it back north.
+  *Look at* (the Map's extras) looks from one object towards the second. A line at the bottom says what the
+  mouse does.
+- **The map's background:** the *Map* button in the corner of every map (2D and 3D) shows each background
+  as a picture of the place on screen - *Offline* (the default, shipped with the app), the online maps
+  marked ☁ (*Satellite*, *Satellite + roads*, the street and topographic maps; greyed out with the reason
+  when *Settings → Never use the network* is on), *Borders* (country borders and names over the map, with
+  no internet too) and **My maps**. Opening the picker downloads nothing.
+  - **Add a map…** takes a raster **MBTiles** file (fully offline) or your organisation's tile server
+    (XYZ / TMS, for example on the local network); it is used like any background in 2D, 3D and exports.
+    *Never use the network* blocks a server on the internet, not one on this PC or a private address.
+  - **Keep this area offline…** downloads an area's tiles at the zooms you choose before going to the
+    field - the size is estimated first, with progress, Stop, and the kept areas listed with their size and
+    Delete. Only where the map's terms allow it (the ground heights and your own servers); OpenStreetMap,
+    Esri and OpenTopoMap forbid bulk downloads and the dialog says so - places you look at are still kept.
+- **Height profile:** *Profile* in the map's bar shows, under the map, the object's height and the ground
+  under it along the distance, for any recording with positions. The cursor's moment is marked; a click in
+  the profile moves the cursor. Where the ground data is coarse it says so and how to get finer ground
+  (`.hgt` files, or *Keep this area offline…*).
+- **Arrows along the path:** any two signals that are north and east components - a wind, a velocity, a
+  force - drawn as arrows along an object's track, on the map and in 3D (the object's settings ›
+  *Arrows along the path*). The file's own pair is offered by itself (an ArduPilot log's estimated wind, a
+  CSV's velocity).
 - **The rings - the reference and the compared object:** with two objects or more on a map, one is the
   *reference* (a solid ring; also called the primary) and one is *compared with* it (a dashed ring; the
   secondary) - by default the truth and the first navigation solution. The relation box, the
@@ -293,8 +322,8 @@ one of its edges to zoom, double-click it to show everything (Backspace undoes a
   tolerance of its own or leaves it out; **Save tolerances…** writes them in the file
   `signalviewer-cli compare --tolerances` reads, so a CI job judges the next run the same way.
 - **] and [** jump to the next / previous event - a mode change, a log event or error, a health
-  finding, a condition, a signal outside its limits; the status bar says which. The Log panel's
-  **Events** lists them all.
+  finding, a condition, a signal outside its limits; the status bar says which. *Checks › Events*
+  (for a flight log) lists them all.
 - **! beside a file's name** (and on some of its signals): its data has something to know - values
   missing, time with no data, repeated or backwards time stamps, a rate that changes. Click it (or
   right-click the file → **Data quality…**) for each signal's details.
@@ -358,7 +387,7 @@ shown change together – on the axis, in the list, in the legend – and it can
 
 - **Save session** (the disk icon at the top left, Ctrl+S; opening one: the folder icon next to it, Ctrl+Shift+O) keeps everything – files, tabs, plots, zoom, notes. The app also
   restores your last work by itself when it starts.
-- **Templates** (the Recordings bar, under the top row): save a tab or a whole set of tabs as a template, and open it later on
+- **Templates** (the top bar): save a tab or a whole set of tabs as a template, and open it later on
   other files with the same signals.
 - **Send it as a replay** (Report, at the top; Ctrl+K): the tab as one HTML page for a colleague. It
   opens in any browser with no install and no network, on the moment you were looking at; a click on
@@ -371,8 +400,8 @@ shown change together – on the axis, in the list, in the legend – and it can
   checked (the log's own check, Compare's verdict, the investigation), what it shows and the conclusion –
   write the conclusion in *Summary* (the panel reminds you when it is empty). **The HTML report is one live page**: a time bar at the bottom moves every
   plot's cursor, the map and the 3D view together, with Play and the log's marks, while each plot keeps its
-  own zoom and statistics. The 3D view is in it live (turn, zoom, the camera *General · On the object · Chase* on an
-  object - *Chase* sits behind it; *Closest in* goes to that moment; a *Trail* of the last seconds; an attitude indicator; where the browser has no 3D graphics, its picture), and the map and the 3D
+  own zoom and statistics. The 3D view is in it live (turn, zoom, the camera *Free · Around it · Behind it* on an
+  object; *Closest in* goes to that moment; a *Trail* of the last seconds; an attitude indicator; where the browser has no 3D graphics, its picture), and the map and the 3D
   view have the same buttons and the same relation box as in the app (hide it with *Relation*); in PDF and Word every plot, the map and the 3D view are pictures. A plot that
   cannot go into a report (a video, occurrences) is listed greyed with the reason.
 - A plot's **⋯** menu ▸ **Save / export**: export the data (CSV), save the image (PNG, SVG), **save an image for a
@@ -380,40 +409,82 @@ shown change together – on the axis, in the list, in the legend – and it can
   lines on and off, values under the pointer). *Copy image* is a line of its own in the menu. The 3D view's **⋯** saves its image at
   the screen's size or at twice it, and removes the 3D view. A map whose object already draws the track
   shows no Lon / Lat pickers; **⋯ ▸ Lat / lon track** brings them back.
-- **Clear ▾** (the Recordings bar): this tab's plots, the other tabs, all
+- **Clear ▾** (the top bar): this tab's plots, the other tabs, all
   tabs, or all the work on the data - tabs, notes, derived signals and edits - while the files stay
   open. Each is undone with **Undo** in the message or Ctrl+Z. *Everything* also closes the files
   (it asks first).
 
-## 10. Flight logs
+## 10. Checks: any file's verdict, structure and parameters
+
+**Checks** (the left rail) works with every recording, not only flight logs. Its tabs:
+
+- **Checks** – one verdict first, then tinted cards (green / yellow / red edge): your limits, the data
+  quality (gaps, repeated or backwards time, missing values) and, for a flight log, the log's own health
+  check. A card's signals plot with one click.
+- **Events** (flight logs) – the modes, log events, errors, messages, findings, conditions and limit
+  violations in one list, in time order.
+- **Parameters** – the parameters of the run, for every format, in one list: a flight log's parameters, a
+  MATLAB file's scalars, texts and struct fields, signals that hold one value the whole run, numbers in the
+  file name; each says where it came from. **Compare with** another open file shows only what differs
+  (a parameter changed during the run counts by its value at the start and at the end). *Compare runs ›
+  Runs × conditions* shows the same settings when they differ between the runs.
+- **The file** – the structure of any recording: a log's message types, a ROS bag's topics, a MATLAB
+  file's structs, a table's column groups - each with its rate, samples, units and gaps, the time base and
+  the values at the cursor; a live file as it grows. Click a column to plot it.
+- **Instruments** – big readouts of each chosen signal's latest value at the time, and the attitude
+  indicator with heading, altitude and ground speed. While live (a MAVLink link, data sent from Python, a
+  file being written) they show the newest data; a reading that stopped arriving says how old it is.
+  *Add an instrument…* adds a tile, ✕ removes one (Undo works); a template brings its own.
+- **Hardware** (flight logs) – the board, firmware and sensors decoded from the log.
+
+**The run at a glance** (above the plots) names each run with up to four numbers – max altitude, battery
+used, lowest voltage… – in mono beside its name: a click goes to its time, ⋯ unpins it, and a number the
+file does not have is said, not hidden. Pin one from the Inspector (the ☆ beside a statistic) or let a
+template bring them: a template is also a **profile** - its at-a-glance numbers (the maximum, minimum,
+mean, first or last value of a signal over the whole run), its instruments and its pinned searches for the
+signal list (☆ beside the search box). The built-in ArduPilot, MAVLink and PX4 templates bring theirs; a
+template you save keeps yours, so a test bench or a simulation gets its own. A *Checks: n failed · m to
+look at* chip opens Checks on that run.
+
+**A test bench, pass / fail in CI.** The welcome screen's *pump on a test bench* (`examples/bench`) is a
+run recorded as Parquet - phases as a state, units, a 0.2 s pressure spike, a 2 s gap and a motor
+temperature that creeps over its limit. Its `checks.json` holds the same limits for the command line:
+
+```bash
+signalviewer-cli check examples/bench/pump_run_07.parquet --checks examples/bench/checks.json
+```
+
+2 of its 4 checks fail, on purpose; the exit code (1) fails a CI job. See [Command line](command-line.md).
+
+## 11. Flight logs
 
 ArduPilot and PX4 logs open with ready views (attitude, rates, vibration, battery, GPS, the map and
 the flight modes as coloured lanes; a setpoint such as DesRoll is drawn dashed beside its measured
 value) and a **health check** that points at what is worth a look - its findings wait beside the
-timeline (*3 findings*) and are ◆ marks on it; a click plots the signals behind one. The
-*Flight log* panel lists the messages, events and parameters. On the map, an object's
-*Track colour* can follow the flight mode (or a value such as the altitude), with a key. *Borders*
-(beside the map's layer) draws country borders and names over the offline map and the satellite
-photos, with no internet too.
+timeline (*3 findings*) and are ◆ marks on it; a click plots the signals behind one. *Checks* lists
+the log's events, parameters and hardware too. On the map, an object's *Track colour* can follow the
+flight mode (or a value such as the altitude), with a key, and *Arrows along the path* can show the
+log's estimated wind.
 
-**Fleet** (the top row: *Recordings · Sweeps · Fleet*) runs the same checks on every log in a folder: follow a number over weeks
+**Fleet** (the top bar: *Recordings · Sweeps · Fleet*) runs the same checks on every log in a folder: follow a number over weeks
 (a motor wearing out), find the first flight over a limit, list the flights with a finding. *Try the
 example fleet* shows how - the [Fleet tutorial](fleet-tutorial.md) walks through it.
 
-## 11. Live data
+## 12. Live data
 
-**Live** (the Recordings bar, beside undo) follows files that are still being written – a CSV growing, a MATLAB file saved
+**Live** (the top bar, beside undo) follows files that are still being written – a CSV growing, a MATLAB file saved
 again and again – and can connect to a MAVLink stream. From Python, `signalviewer_push.show(...)`
 sends arrays straight into the running app.
 
 While live, the time (cursor) stays at the newest data, so the values read at it and the objects on
 the map and in 3D move with each update; move it back to look at a moment, press **End** to follow
 again. To try it without a logger: `python tools/live_demo.py` writes an aircraft and a ship that
-keep moving – open both files, add an object from each, press Live.
+keep moving – open both files, add an object from each, press Live. *Checks › Instruments* shows the
+newest values as big readouts while live.
 
-## 12. Sweeps: which parameters hold
+## 13. Sweeps: which parameters hold
 
-**Sweeps** (the top row, next to *Recordings*) is for the results of a run envelope: a table with a
+**Sweeps** (the top bar, next to *Recordings*) is for the results of a run envelope: a table with a
 row per run – the parameters you choose, the scenarios you don't (wind, payload, seed), and the
 outputs. It answers *which parameter sets hold in every scenario, and which of them is best?* Try
 *Try an example* on its first screen: a drone's roll controller swept over wind, payload and gusts.
@@ -424,7 +495,8 @@ Four steps, left to right:
    as lines - the wheel zooms, a click on a line shows that run), export (CSV, or HTML with its
    parallel plot as you left it) or close. **Merge** makes a new table from the ticked ones - the
    rows one under the other, or side by side on key columns (join) - with a source column if you
-   want it; the tables merged stay. **Continue with** chooses the table the next steps work on.
+   want it; the tables merged stay. In a study, the navigator on the left chooses the table the next
+   steps work on (see *Studies* below).
 2. **Columns** – check each column's role: parameter, output, condition (what you don't choose:
    wind, payload), identifier (a run id or a recording), not used. Above the table: undo, redo,
    *Reset to guessed roles*, *Template ▾* (save to a JSON file to share, load - it says what matched)
@@ -456,7 +528,27 @@ value only.
 Ctrl+Z undoes any step, the study is kept when the app closes, and *Study ▾* saves it or makes a
 template for the next table. In CI: `signalviewer-cli sweep results.csv --question study.svsweep`.
 
-## 13. When something goes wrong
+**Studies: many tables, the next runs, the loop.** *Open ▾* holds *New study…*, a table, a folder and
+*Open a saved study* (a table's `.svsweep` or a study file, `.svstudy.json`). *New study…* asks how to
+begin:
+
+- **I have results** – load a table of runs; the roles are guessed from its columns and fill the study's
+  set-up (parameters and their ranges, scenarios, outputs), and the answer shows at once.
+- **Start from nothing** – a set-up page: what varies (ranges, steps, how many values in the first round),
+  the scenarios, what your program writes and what is good, and the command that runs one run on this PC
+  or your farm's launcher. Round 1 runs that grid; each next round is aimed by the results.
+
+The **navigator** on the left lists the study: its *Set up* (how many of its four parts are filled),
+*Together* when it has two systems (tables) or more – the values that hold for all of them – and its
+*Tables*: each table, the tables merged into it and each round the loop has run (new ones marked). One
+click opens any of them in the four steps; *About this study* explains it. The **Run** column on the right
+says what the next round will run (for round 1: sets × scenarios = runs) or what is still missing, with
+**Run them**, *Only write the files* (for a launcher of your own), the loop's *Next round*, *Until
+converged* and *Stop*, its progress and how it converges; its arrow folds it away. *Study ▾* saves,
+undoes and closes the study, and *Report of the study…* writes one HTML page of the whole study. One
+Ctrl+Z undoes the last change anywhere in Sweeps.
+
+## 14. When something goes wrong
 
 - **Help → Copy error details** copies the version, the system and the end of the log; paste it
   into your report. Nothing is sent automatically.
@@ -489,8 +581,9 @@ for the numbers.
 
 ## One parameter set for many systems, the next runs, the farm, the demo
 
-*Sweeps → Open ▾ → Common parameters (several tables)*: a study of several sweep tables, saved as a
-`.svstudy.json`. The ranked values, why a value fails, *Suggest next runs* and *Send to launcher* are explained in
+*Sweeps → Open ▾ → New study…*: a study of one or several sweep tables, saved as a `.svstudy.json`
+(section 13). The values ranked *Together*, why a value fails, the next runs and the Run column's
+*Run them* are explained in
 [One parameter set for many systems](common-gains.md) and [Launcher mode](launcher.md); the welcome screen's
 *Smart sweep demo* in [The smart-sweep demo](smart-sweep-demo.md).
 
