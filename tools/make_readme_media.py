@@ -196,7 +196,7 @@ def finish_video(ctx, pg, name, since=None):
     mark() - only what was recorded after it is kept (loading the app and the files is cut; the
     recording's clock lags while loading, so the cut is measured from the end)."""
     keep = (mark(pg) - since) if since is not None else None
-    vid = pg.video.path() if pg.video else None
+    vid = str(pg.video.path()) if pg.video else None          # Playwright returns a Path
     ctx.close()
     if not vid or not shutil.which("ffmpeg"):
         print("video skipped (no ffmpeg):", name)
