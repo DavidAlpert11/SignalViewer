@@ -43,8 +43,8 @@ own delay, which is one of the things you want to measure, not to remove.
 
 ## 3. Look closer
 
-Drag over the 20° roll doublet. The commands coincide; the model (red) settles at ±20°, the
-vehicle (purple) overshoots to about −24° and rings once – lower damping than the model assumed.
+Drag over the 20° roll doublet. The commands coincide; the model settles at ±20°, the
+vehicle overshoots to about −24° and rings once – lower damping than the model assumed.
 Pitch, a few plots down, follows the model.
 
 ![The 20-degree roll doublet: the vehicle overshoots, the model does not](images/23_sim_vs_flight_overshoot.png){ .sv-shot loading=lazy }
