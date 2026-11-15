@@ -9,7 +9,7 @@ import { useT } from "../../i18n";
 import { Icon } from "../../icons";
 import { recipeFiles, useSweeps, type Study } from "../../sweeps/state";
 import { setupDone } from "../../sweeps/setup";
-import { applyStudyTable, setupFromOpenTable } from "../../sweeps/studyStore";
+import { applyStudyTable, markSeen, setupFromOpenTable } from "../../sweeps/studyStore";
 import { studyApi, type StudyTables } from "../../sweeps/studyApi";
 import { TABLE_EXTS } from "../../sweeps/studyFile";
 import { notifyError } from "../../sweeps/notify";
@@ -31,7 +31,7 @@ export default function Navigator() {
   const common = useSweeps((s) => s.common);
   const study = studies[active];
   const tables = useStudyFileTables(common.open ? common.path : "", common.loopProgress?.round ?? common.demoProgress?.round ?? 0,
-    common.loopProgress?.runs.done ?? common.demoProgress?.runs.done ?? 0);
+    common.loopProgress?.runs.done ?? common.demoProgress?.runs.done ?? 0, common.seenAt);
   const name = common.open ? (common.study?.name || stem(baseName(common.path)) || t("nsTitle")) : study ? stem(study.name) : "";
   const done = common.open && common.study ? setupDone(common.study, !!common.guess) : null;
   const systems = common.study?.tables.length ?? 0;
@@ -93,14 +93,14 @@ export default function Navigator() {
 }
 
 /** The study file's tables and rounds, asked again when the loop moves on (a round done, runs finished). */
-function useStudyFileTables(path: string, round: number, runs: number): StudyTables | null {
+function useStudyFileTables(path: string, round: number, runs: number, since?: number | null): StudyTables | null {
   const [r, setR] = useState<StudyTables | null>(null);
   useEffect(() => {
     if (!path) { setR(null); return; }
     let live = true;
-    studyApi.tables(path).then((x) => live && setR(x)).catch(() => live && setR(null));
+    studyApi.tables(path, since).then((x) => live && setR(x)).catch(() => live && setR(null));
     return () => { live = false; };
-  }, [path, round, runs]);
+  }, [path, round, runs, since]);
   return r;
 }
 
@@ -177,7 +177,7 @@ function RoundItem({ r, table }: { r: FileTable["rounds"][number]; table?: strin
   const on = i >= 0 && i === active && part !== "setup" && part !== "together" && part !== "about";
   return (
     <button className={`sw-nav-item sw-nav-round${on ? " on" : ""}`} data-nav="round" data-round={r.round ?? ""} disabled={!file}
-      aria-current={on ? "true" : undefined} title={file} onClick={() => openFile(file, table)}>
+      aria-current={on ? "true" : undefined} title={file} onClick={() => { markSeen(r.files.map((f) => f.mtime)); openFile(file, table); }}>
       <span className="sw-nav-tick" aria-hidden="true">└</span><span className="sw-ellipsis">{t("nvRound", { n: r.round ?? 0 })}</span>
       {r.new && <span className="pill on sw-nav-new">{t("nvNew")}</span>}
       <span className="sw-nav-n">{r.rows.toLocaleString()}</span>

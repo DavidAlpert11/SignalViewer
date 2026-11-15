@@ -9,7 +9,7 @@ import { studyApi } from "./studyApi";
 import { areaRoles, goalToStudy, studyToGoal } from "./studyRoles";
 import { upgradeQuestion } from "./model";
 import { newSetupStudy, setupFromResults } from "./setup";
-import type { DemoProgress, LauncherSubmitResult, NextRunsResult, Study, StudyReq } from "./studyTypes";
+import type { DemoProgress, LauncherSubmitResult, NextRunsResult, Study, StudyReq, StudyTable } from "./studyTypes";
 
 export type { StudyPanelState };
 
@@ -44,7 +44,7 @@ export async function openStudyFile(path: string, demo = false): Promise<void> {
   set({ ...EMPTY, open: true, demo, path, busy: true });
   try {
     const { path: p, study } = await studyApi.open(path);
-    set({ path: p, study, saved: JSON.stringify(study), busy: false });
+    set({ path: p, study, saved: JSON.stringify(study), busy: false, seenAt: Date.now() / 1000 });
     if (demo) set({ demoProgress: await studyApi.demoProgress(p) });
     else { await evaluate(); await refreshLoop(); if (get().loopProgress?.running) pollLoop(); }
   } catch (e) { set({ busy: false, error: (e as Error).message }); }
@@ -81,10 +81,35 @@ export function applyStudyTable(index: number, tableId: string): void {
   const roles = areaRoles(named as Parameters<typeof areaRoles>[0], was);
   const values = Object.fromEntries(t.columns.filter((c) => c.values?.length).map((c) => [c.name, c.values!]));
   const { question } = studyToGoal(spec, t.question, values);
+  asRead.set(t.tableId, { question: JSON.stringify(question), goal: { constraints: spec.constraints, objective: spec.objective, aggregate: spec.aggregate, drop: spec.drop } });
   useSweeps.setState({ studies: st.studies.map((x, i) => (i === index
-    ? { ...x, columns: x.columns.map((c) => (roles[c.name] && roles[c.name] !== c.role ? { ...c, role: roles[c.name] } : c)), question } : x)) });
+    ? { ...x, columns: x.columns.map((c) => (roles[c.name] && roles[c.name] !== c.role ? { ...c, role: roles[c.name] } : c)), question, studyTable: tableId } : x)) });
   useSweeps.getState().evaluate();
 }
+
+/** C11: a study table's file open in the four steps is that table - its goal changed there (an edit, or that edit's
+ *  Undo / Redo) is written into the study file's table, so Together's ranking follows. No step of its own: the
+ *  table's one step undoes both (C4's one order). What the study cannot hold stays the table's own (`goalToStudy`). */
+const asRead = new Map<string, { question: string; goal: Partial<StudyTable> }>();   // by the area's tableId
+function followTableGoals(st: ReturnType<typeof useSweeps.getState>, prev: ReturnType<typeof useSweeps.getState>): void {
+  const study = st.common.study;
+  if (!study || st.studies === prev.studies) return;
+  let tables = study.tables;
+  for (const t of st.studies) {
+    const was = prev.studies.find((x) => x.tableId === t.tableId);
+    if (!t.studyTable || !was || was.studyTable !== t.studyTable || was.question === t.question) continue;   // just opened: as read
+    const values = Object.fromEntries(t.columns.filter((c) => c.values?.length).map((c) => [c.name, c.values!]));
+    const read = asRead.get(t.tableId);
+    // back to the goal as it was read (an Undo): the study table's own words again, not a rewrite of them
+    const patch = read && read.question === JSON.stringify(t.question) ? read.goal
+      : Object.fromEntries(Object.entries(goalToStudy(t.question, values).patch).filter(([, v]) => v !== undefined));
+    tables = tables.map((x) => (x.id === t.studyTable ? { ...x, ...patch } : x));
+  }
+  if (tables === study.tables || JSON.stringify(tables) === JSON.stringify(study.tables)) return;
+  set({ study: { ...study, tables } });
+  void evaluate();
+}
+useSweeps.subscribe(followTableGoals);
 
 /** The study's Set up filled from the table on screen (I have results; the navigator's Set up for a table opened
  *  on its own, C7). False when no table is open. */
@@ -139,8 +164,14 @@ export async function saveStudyAs(path: string): Promise<string> {
   const s = get();
   if (!s.study) return "";
   const r = await studyApi.save(path, s.study);
-  set({ path: r.path, saved: JSON.stringify(s.study) });
+  set({ path: r.path, saved: JSON.stringify(s.study), seenAt: s.seenAt ?? Date.now() / 1000 });
   return r.path;
+}
+
+/** A round's files opened: what they hold is seen - only rounds written later stay *new*. */
+export function markSeen(mtimes: (number | null)[]): void {
+  const m = Math.max(get().seenAt ?? 0, ...mtimes.map((x) => x ?? 0));
+  if (m > 0) set({ seenAt: m });
 }
 
 export const isUnsaved = (s = get()) => !!s.study && JSON.stringify(s.study) !== s.saved;

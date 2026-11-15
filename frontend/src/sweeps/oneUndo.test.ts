@@ -5,7 +5,7 @@ vi.mock("../api", () => ({ call: () => new Promise(() => { /* never */ }) }));
 
 const { emptyQuestion, emptyView } = await import("./model");
 const { emptyCommon, useSweeps } = await import("./state");
-const { editStudy, redoStudy, undoStudy, useStudyPanel } = await import("./studyStore");
+const { applyStudyTable, editStudy, redoStudy, undoStudy, useStudyPanel } = await import("./studyStore");
 type TableStudy = import("./state").Study;
 
 function table(id: string): TableStudy {
@@ -85,5 +85,24 @@ describe("one Undo for the area (C4)", () => {
     expect(useSweeps.getState().common.pinned).toBe(3);
     const view = (window as unknown as { __svStudy: { state: () => { pinned: number } } }).__svStudy;
     expect(view.state().pinned).toBe(3);
+  });
+});
+
+describe("a study table's file opened in the area is that table (C11)", () => {
+  it("its goal edited there is the study table's, and the one Undo gives back the study's own words", () => {
+    const spec = { id: "T1", name: "A", paths: ["/x/A.csv"], roles: { err: "output" as const }, constraints: ["err < 5 and err > 0"],
+      objective: { expr: "err", sense: "min" as const }, aggregate: "worst" as const };
+    useSweeps.setState({ common: { ...emptyCommon(), open: true, study: { version: 1, name: "s0", tables: [spec] } } });
+    applyStudyTable(0, "T1");
+    const st = () => useStudyPanel.getState().study!.tables[0];
+    expect(st().constraints).toEqual(["err < 5 and err > 0"]);                          // opening is no edit
+    expect(useSweeps.getState().undoOrder).toEqual([]);
+    useSweeps.getState().updateGoal({ optimize: [{ column: "err", direction: "max", weight: 1 }] });
+    expect(st().objective).toEqual({ expr: "err", sense: "max" });                        // the study follows
+    expect(useSweeps.getState().undoOrder).toEqual(["t:A"]);                              // one step, the table's
+    undoStudy();
+    expect(st()).toEqual(spec);                                                           // both back, as written
+    redoStudy();
+    expect(st().objective).toEqual({ expr: "err", sense: "max" });
   });
 });

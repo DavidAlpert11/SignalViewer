@@ -35,9 +35,12 @@ export interface StudyPanelState {
   error: string;
   /** C6 *I have results*: what the backend guessed from the table (the values seen, for Set up) */
   guess?: import("./setup").FromTable | null;
+  /** UI only: a round's file written after this (seconds) is marked *new* - set when the study opens or is first
+   *  saved, raised when a round is opened (the loop rewrites the study file each round, so its own time cannot say) */
+  seenAt?: number | null;
 }
 export const emptyCommon = (): StudyPanelState => ({ open: false, demo: false, path: "", study: null, saved: "", past: [], future: [], result: null,
-  next: null, submit: null, status: null, demoProgress: null, loopProgress: null, pinned: null, busy: false, error: "", guess: null });
+  next: null, submit: null, status: null, demoProgress: null, loopProgress: null, pinned: null, busy: false, error: "", guess: null, seenAt: null });
 
 /** What the middle of the area shows (C6; UI only, not undone): the *New study* choice, the study's Set up, a
  *  table in its four steps, Together (the study of several systems); "" = as before (the table, or the panel). */
@@ -89,6 +92,8 @@ export interface Study {
   evalError: string;
   /** the file changed on disk since it was read (and the study does not follow it) */
   changed: boolean;
+  /** C11: the study file's table this file was opened as (its goal edited here is that table's) - not saved */
+  studyTable?: string;
   /** a template whose columns this table has, offered when it opened */
   offer: string | null;
   /** the tables merged into this one, in order (their file names) */

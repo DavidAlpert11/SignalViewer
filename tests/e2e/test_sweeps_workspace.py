@@ -226,3 +226,141 @@ def test_old_files_open(pg):
     pg.evaluate("p => window.__svRequestStudy(p)", os.path.join(work, "fixture.svstudy.json"))
     pg.wait_for_function("window.__svStudy.state().study && window.__svStudy.state().study.tables.length >= 1")
     assert pg.locator(".sw-nav").count() == 1
+
+
+def test_results_first_next_runs_saved_and_reopened(pg):
+    """3 (walkthrough 1-3): I have results -> the example's question typed in Goals -> 12 of 45 sets hold; the Results' Next runs
+    -> Near the best -> Export (a CSV, as before); Study ▾ Save -> a .svsweep; closed and opened again: the same step."""
+    from test_features import save_as
+    from test_sweeps_flow import _bar_menu, _holding, _step, _tab, _the_goal
+    _new_study(pg)
+    pg.locator(".ns-have").click()
+    goto_folder(pg, EXAMPLES)
+    pg.locator(".dialog .dialog-body .fs-row", has_text="drone_tuning.csv").first.click()
+    pg.click(".dialog-foot .btn.primary")
+    pg.wait_for_selector(".sw-study-wrap")
+    _idle(pg)
+    _the_goal(pg)                                                                # roll error, overshoot; the least energy
+    _step(pg, "results")
+    _idle(pg)
+    assert _holding(pg) == 12
+    assert "12 of 45" in pg.locator(".sw-answer").inner_text()
+    _tab(pg, "next")
+    pg.wait_for_function("window.__svSweeps.doc().view.center === 'next'")
+    side = pg.locator(".sw-next-side")
+    for k in side.locator(".sw-kind").all():                                     # only Near the best
+        box = k.locator("input")
+        if ("Near the best" in k.inner_text()) != box.is_checked():
+            box.click()
+    side.locator(".btn", has_text="Suggest").click()
+    pg.wait_for_selector(".sw-next .sw-table tbody tr")
+    n = pg.locator(".sw-next .sw-table tbody tr").count()
+    pg.locator(".sw-next-main .btn", has_text="Export the next runs").click()
+    pg.locator(".menu.ctx button", has_text="The run list").hover()
+    pg.locator(".menu.ctx button", has_text="CSV").click()
+    save_as(pg, "near_best.csv")
+    pg.wait_for_selector(".toast:has-text('near_best.csv')")
+    rows = open(os.path.join(pg.env["out"], "near_best.csv"), encoding="utf-8").read().strip().splitlines()
+    assert len(rows) > n and {"kp_roll", "ki_roll", "filter_hz"} <= set(rows[0].split(","))
+    step = pg.locator(".sw-step-btn.on .sw-step-n").inner_text()
+    _bar_menu(pg, "Study", "Save the study")
+    save_as(pg, "walkthrough.svsweep")                                           # one table, a guessed Set up: its own file
+    pg.wait_for_selector(".toast:has-text('Saved')")
+    _idle(pg)
+    pg.locator(".areabar .tab.active .x").click()
+    pg.wait_for_function("document.querySelectorAll('.areabar .tab').length === 0")
+    _bar_menu(pg, "Open", "Open a saved study")
+    goto_folder(pg, pg.env["out"])
+    pg.locator(".dialog .fs-row", has_text="walkthrough.svsweep").click()
+    pg.click(".dialog-foot .btn.primary")
+    pg.wait_for_selector(".sw-study-wrap .sw-steps")
+    _idle(pg)
+    assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == step        # the same place
+    assert _holding(pg) == 12
+
+
+SIM = '''# a test program: one run = one parameters file in (JSON), one CSV row out where the study reads it
+import csv, json, os, sys
+p = json.load(open(sys.argv[1], encoding="utf-8"))
+err = (p["a"] - 1.2) ** 2 + (p["b"] - 2.1) ** 2 + 0.05 * p["wind"]
+os.makedirs(os.path.dirname(p["out"]), exist_ok=True)
+with open(p["out"], "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["run_id", "a", "b", "wind", "err"])
+    w.writerow([p["run_id"], p["a"], p["b"], p["wind"], err])
+'''
+
+
+def test_runs_first_round_one_then_round_two(pg):
+    """5 (walkthrough 4-5): Start from nothing with a test program -> Next round saves the study (.svstudy.json) and
+    runs round 1 -> Round 1 under Tables; a click opens it in the four steps with the goal typed in Set up; Next round
+    again -> Round 2 listed, marked new."""
+    import sys
+    work = os.path.join(pg.env["out"], "runs_first")
+    os.makedirs(work, exist_ok=True)
+    with open(os.path.join(work, "sim.py"), "w", encoding="utf-8") as f:
+        f.write(SIM)
+    from test_features import save_as
+    _new_study(pg)
+    pg.locator(".ns-nothing").click()
+    pg.wait_for_selector("[data-part=setup]")
+    for name, lo, hi, step in (("a", "0", "2", "0.5"), ("b", "1", "3", "0.5")):
+        pg.locator(".su-add-param").click()
+        _field(pg, ".su-new-param", name)
+        pg.wait_for_selector(f"tr[data-param={name}]")
+        for i, v in ((1, lo), (2, hi), (3, step)):
+            _field(pg, f"tr[data-param={name}] input >> nth={i}", v)
+    pg.locator(".su-add-scenario").click()
+    _field(pg, ".su-new-scenario", "wind")
+    pg.wait_for_selector("tr[data-scenario=wind]")
+    _field(pg, "tr[data-scenario=wind] input >> nth=1", "0, 5")
+    _field(pg, ".su-outputs", "err")
+    pg.locator(".su-goal").select_option("err")
+    _field(pg, ".su-command", f"{sys.executable} {{{{study_dir}}}}/sim.py {{{{params_file}}}}")
+    pg.wait_for_function("document.querySelector('.sw-run .rc-next').dataset.missing === ''")
+    pg.locator(".sw-run .lp-next").click()                                       # unsaved: Save as first
+    save_as(pg, "runs_first.svstudy.json", work)
+    pg.wait_for_function("document.querySelector('.sw-nav [data-nav=round][data-round=\"1\"]')", timeout=120000)
+    assert _study(pg, "s.tables[0].objective") == {"expr": "err", "sense": "min"}
+    pg.wait_for_selector(".sw-run .lp[data-round='1']:not([data-state=running]) .lp-next:enabled", timeout=120000)   # round 1 finished
+    pg.locator(".sw-nav [data-nav=round][data-round='1']").first.click()
+    pg.wait_for_selector(".sw-study-wrap .sw-steps")
+    pg.wait_for_function("window.__svSweeps.doc() && window.__svSweeps.doc().columns.some((c) => c.name === 'a' && c.role === 'param')")
+    _idle(pg)
+    roles = {c["name"]: c["role"] for c in pg.evaluate("window.__svSweeps.doc().columns")}
+    assert roles["b"] == "param" and roles["wind"] == "hold" and roles["err"] == "output"
+    q = pg.evaluate("window.__svSweeps.doc().question")
+    assert q["goals"][q["active"]]["optimize"][0]["column"] == "err"            # the goal from Set up
+    pg.wait_for_selector(".sw-nav [data-nav=round][data-round='1'].on")         # the round shown
+    pg.locator(".sw-run .lp-next").click()
+    pg.wait_for_selector(".sw-nav [data-nav=round][data-round='2'] .sw-nav-new", timeout=120000)
+    assert pg.locator(".sw-nav [data-nav=round][data-round='1'] .sw-nav-new").count() == 0   # opened: seen
+
+
+def test_a_table_goal_edited_in_the_area_reaches_the_study(pg):
+    """6 (walkthrough 6, Together's half): a study of three drones; Drone B's file opened from the navigator in the
+    four steps; a limit set in its Goal step is the study file's table B's constraint and Together's ranking follows;
+    the one Ctrl+Z takes both back - the study table in its own words again."""
+    from test_sweeps_flow import _condition, _step
+    _to_sweeps(pg)
+    pg.evaluate("p => window.__svRequestStudy(p)", os.path.join(ROOT, "examples", "drones", "drones.svstudy.json"))
+    pg.wait_for_selector("[data-shot='study'][data-settled='1']", timeout=60000)
+    pg.wait_for_function("window.__svStudy.state().result && !window.__svStudy.state().busy")
+    before = _study(pg, "s.tables.find((t) => t.id === 'B').constraints")
+    feasible = pg.evaluate("window.__svStudy.state().result.counts.feasible")
+    assert feasible > 0
+    pg.wait_for_selector(".sw-nav [data-nav=file-table]:has-text('Drone B')")
+    pg.locator(".sw-nav [data-nav=file-table]", has_text="Drone B").click()
+    pg.wait_for_function("window.__svSweeps.doc() && window.__svSweeps.doc().columns.some((c) => c.name === 'energy' && c.role === 'output')")
+    _idle(pg)
+    assert _study(pg, "s.tables.find((t) => t.id === 'B').constraints") == before   # opening is no edit
+    _step(pg, "goals")
+    _condition(pg, "energy", "<=", 0.001)                                         # nothing uses that little
+    _idle(pg)
+    pg.wait_for_function("window.__svStudy.state().study.tables.find((t) => t.id === 'B').constraints.some((c) => c.includes('energy'))")
+    pg.wait_for_function("window.__svStudy.state().result && !window.__svStudy.state().busy && "
+                         f"window.__svStudy.state().result.counts.feasible < {feasible}")   # Together follows
+    pg.keyboard.press("Control+z")                                                 # one step: the table and the study
+    pg.wait_for_function(f"JSON.stringify(window.__svStudy.state().study.tables.find((t) => t.id === 'B').constraints) === {json.dumps(json.dumps(before, separators=(',', ':')))}")
+    pg.wait_for_function(f"window.__svStudy.state().result && !window.__svStudy.state().busy && window.__svStudy.state().result.counts.feasible === {feasible}")
+    assert pg.locator(".sw-run").count() == 1

@@ -29,7 +29,7 @@ import { notify, notifyError, say } from "../../sweeps/notify";
 import { activeParams, colLabel, reorderedAxes, scaleOf, scopedColumns, scopeKey, showMask, shownAxes } from "../../sweeps/view";
 import { keptMask } from "../../sweeps/filters";
 import ReportDialog from "./ReportDialog";
-import { TABLE_EXTS } from "../../sweeps/studyFile";
+import { TABLE_EXTS, fileKind } from "../../sweeps/studyFile";
 import TemplatesDialog from "./TemplatesDialog";
 import StepNav from "./StepNav";
 import { RawCenter, ZoomButtons } from "./RawStep";
@@ -107,8 +107,12 @@ export async function openStudyPath(p: string): Promise<void> {
 }
 
 async function saveStudy(t: TFn) {
-  if (useStudyPanel.getState().open) { await saveStudyDialog(t); return; }   // C10: one Save - the study file when open
-  const st = useSweeps.getState(), study = st.studies[st.active], doc = st.saved();
+  const st = useSweeps.getState(), cp = useStudyPanel.getState();
+  // C10: one Save - the study file when the study needs one (C5 `fileKind`); one table with a guessed Set up
+  // (*I have results*) stays the table's own .svsweep; a study opened from its file is saved there
+  const asStudy = !st.studies.length || !!cp.path?.toLowerCase().endsWith(STUDY_FILE_EXT) || fileKind(cp.study, st.studies.length) === "svstudy";
+  if (cp.open && asStudy) { await saveStudyDialog(t); return; }
+  const study = st.studies[st.active], doc = st.saved();
   if (!study || !doc) return;
   if (!doc.path && !doc.tables?.length) { notify(t("swCannotSaveRows"), "error"); return; }
   const p = await pickPath({ mode: "save", title: t("swSaveStudy"), exts: [STUDY_EXT], defaultName: study.name.replace(/\.[^.]+$/, "") + STUDY_EXT });

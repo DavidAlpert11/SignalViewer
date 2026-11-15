@@ -14,7 +14,8 @@ export interface StudyTables {
 
 export const studyApi = {
   fromTable: (id: string, roles: Record<string, string>) => call<FromTable>("/api/sweeps/setup/from-table", { id, roles }),
-  tables: (study_path: string) => call<StudyTables>(`/api/sweeps/study/tables?study_path=${encodeURIComponent(study_path)}`),
+  tables: (study_path: string, since?: number | null) =>
+    call<StudyTables>(`/api/sweeps/study/tables?study_path=${encodeURIComponent(study_path)}${since ? `&since=${since}` : ""}`),
   open: (study_path: string) => call<{ path: string; study: Study }>("/api/sweeps/study/open", { study_path }),
   save: (path: string, study: Study) => call<{ path: string }>("/api/sweeps/study/save", { path, study }),
   mapping: (paths: Record<string, string[]>) =>
