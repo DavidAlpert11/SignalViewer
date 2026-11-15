@@ -1,7 +1,6 @@
 """Analysis: derived signals and transforms, FFT, X-Y / XYZ, object tracks, states."""
 
 import asyncio
-import re
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np

@@ -9,7 +9,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app import prefs
-from app.common import APP_DIR, AUTOSAVE, atomic_open, fail, log, read_autosave, write_autosave
+from app.common import AUTOSAVE, atomic_open, fail, log, read_autosave, write_autosave
 from app.routes.export import _check_target
 from app.store import store
 

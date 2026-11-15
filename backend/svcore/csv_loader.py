@@ -210,9 +210,6 @@ def _unique_names(names: List[str]) -> List[str]:
     return out
 
 
-def _resolve_time_column(columns: List[str], wanted: Optional[str]) -> int:
-    """Return the index of the time column (name, numeric index, or auto-detect)."""
-    return _resolve_time_column_how(columns, wanted)[0]
 
 
 def _resolve_time_column_how(columns: List[str], wanted: Optional[str]) -> Tuple[int, bool]:
@@ -582,8 +579,6 @@ def _cache_store(key: str, meta: Dict, time: np.ndarray, sigs: Dict[str, np.ndar
         return False
 
 
-def clear_cache():
-    shutil.rmtree(CACHE_DIR, ignore_errors=True)
 
 
 def prune_cache(keep: Optional[str] = None, source: Optional[str] = None) -> int:
@@ -1038,16 +1033,6 @@ def _parse_appended(raw: bytes, text: str, run: Run) -> Dict[str, np.ndarray]:
     return encoded({c: (df[c].to_numpy(dtype=object) if c in texts else _to_numeric_array(df[c], np.float64)) for c in cols})
 
 
-def reload_csv(run: Run, all_paths: List[str]) -> Optional[Run]:
-    """
-    Reload a run from disk with the SAME import settings it was originally loaded with,
-    preserving user-level run properties (custom name, offset, description).
-    """
-    settings = CSVImportSettings.from_dict(run.import_settings) if run.import_settings else CSVImportSettings()
-    new_run = load_csv(run.file_path, all_paths, settings)
-    if new_run is not None:
-        copy_run_user_properties(run, new_run)
-    return new_run
 
 
 def copy_run_user_properties(src: Run, dst: Run):

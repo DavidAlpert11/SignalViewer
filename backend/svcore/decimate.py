@@ -34,8 +34,6 @@ MAX_POINTS_PER_TRACE = int(os.environ.get("SV_MAX_POINTS", "4000"))
 _BLOCK = 1 << 22  # samples processed per block (bounded temporary memory)
 
 
-def decimation_enabled() -> bool:
-    return MAX_POINTS_PER_TRACE > 0
 
 
 def _minmax_indices(y: np.ndarray, n_out: int) -> np.ndarray:

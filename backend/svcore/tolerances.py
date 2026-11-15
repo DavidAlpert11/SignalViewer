@@ -86,8 +86,6 @@ def has_limit(t: Dict[str, Any]) -> bool:
     return t.get("abs") is not None or t.get("pct") is not None or bool(t.get("time"))
 
 
-def any_limit(tol: Dict[str, Any]) -> bool:
-    return has_limit(tol.get("default") or {}) or any(has_limit(v) for v in (tol.get("signals") or {}).values())
 
 
 def judge(row: Dict[str, Any], t: Dict[str, Any]) -> Tuple[Optional[bool], Optional[float]]:

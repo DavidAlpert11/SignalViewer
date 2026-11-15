@@ -89,14 +89,6 @@ def _frames_csv(text: str) -> List[Tuple[float, int, bool, bytes, str]]:
     return out
 
 
-def looks_like_can(path: str) -> bool:
-    """Cheap test on the first lines (a .log is not always a CAN log)."""
-    try:
-        with open(path, encoding="utf-8", errors="replace") as f:
-            head = [f.readline() for _ in range(40)]
-    except OSError:
-        return False
-    return any(_CANDUMP_LOG.match(x) or _ASC.match(x) or (_CANDUMP_SCREEN.match(x) and x.startswith("(")) for x in head)
 
 
 def find_dbcs(path: str, extra_folders: List[str]) -> List[str]:

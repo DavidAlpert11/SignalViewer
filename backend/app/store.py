@@ -37,7 +37,6 @@ from app.livewatch import SETTLE_MAX, SETTLE_QUIET, TIME_SLACK, UPLOAD_DIR, Live
 from app import userreaders
 from svcore.analysis import HOLD_OPS, NAN_OPS, SAMPLING_OPS, DerivedDef, compute, is_discrete
 from svcore.memcache import CACHE as MEMCACHE, own_bytes
-from collections import OrderedDict
 import contextlib
 import json
 import re

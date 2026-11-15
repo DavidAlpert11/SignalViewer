@@ -52,9 +52,6 @@ def _unwrap(y: np.ndarray, period: float) -> np.ndarray:
     return out
 
 
-def _circular_mean(rows: np.ndarray, period: float) -> np.ndarray:
-    a = rows * (2 * np.pi / period)
-    return np.arctan2(np.nanmean(np.sin(a), axis=0), np.nanmean(np.cos(a), axis=0)) * (period / (2 * np.pi))
 
 
 def _grid(base_t: np.ndarray, lo: float, hi: float) -> np.ndarray:

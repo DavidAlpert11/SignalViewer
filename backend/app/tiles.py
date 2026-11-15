@@ -178,13 +178,3 @@ def _composite(src: str, z: int, x: int, y: int) -> Optional[tuple]:
     except Exception:                                   # a broken reference tile: the picture still shows
         return under
 
-
-def cache_size() -> int:
-    total = 0
-    for here, _d, files in os.walk(CACHE):
-        for f in files:
-            try:
-                total += os.path.getsize(os.path.join(here, f))
-            except OSError:
-                pass
-    return total

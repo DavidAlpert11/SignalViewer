@@ -8,8 +8,7 @@ Log panel: logged messages with their level, navigation-mode changes, arm / disa
           (initial value, every change, defaults when the log has them).
 """
 import logging
-import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import numpy as np
 

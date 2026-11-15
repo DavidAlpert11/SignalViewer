@@ -6,7 +6,6 @@ errors) in time order. Each reader fills one of these and puts it on the Run as 
 import re
 from typing import Dict, List, Optional, Tuple
 
-import numpy as np
 
 _ERR_WORDS = re.compile(r"crash|emergency|critical|panic|fail|error|lost|terminat|thrust loss|ekf.*(variance|lane switch)", re.I)
 _WARN_WORDS = re.compile(r"prearm|arm:|warn|unhealthy|glitch|timeout|bad |low|check|disabled|not ready|vibration|clipping", re.I)
@@ -81,6 +80,3 @@ def text_codes(values, labels: Optional[Dict[int, str]] = None):
     from svcore.csv_loader import encode_text
     return encode_text(values, labels)
 
-
-def finite_float(a) -> np.ndarray:
-    return np.asarray(a, dtype=np.float64)

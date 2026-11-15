@@ -38,11 +38,6 @@ class Signal:
         """Get display label"""
         return self.display_name or self.name
     
-    def get_data_with_offset(self, time: np.ndarray) -> tuple:
-        """Get time and data with offset applied"""
-        return time + self.time_offset, self.data
-
-
 
 class _LazyBudget:
     """How much of the lazily-read values stays in memory (SV_LAZY_MB, default 1536 MB): the
@@ -191,10 +186,7 @@ class Run:
     _dataflash: Any = None        # .bin: formats and units, for live mode
     _tlog: Any = None             # .tlog: parser state, for live mode
     
-    @property
-    def signal_names(self) -> List[str]:
-        return list(self.signals.keys())
-    
+
     def signal_parts(self, signal_name: str) -> tuple:
         """(time as stored, data, time offset): the signal's time is time + offset. P1: callers that
         only look up a window or a moment shift the question by -offset and the answer by +offset,
