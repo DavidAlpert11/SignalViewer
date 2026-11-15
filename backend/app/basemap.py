@@ -198,11 +198,24 @@ _RIFT = (29.6, 35.15, 33.2, 35.85)                               # s, w, n, e
 
 
 # ------------------------------------------------------------------ colours
-_STOPS_LIGHT = [(-500, (164, 196, 142)), (0, (180, 208, 152)), (200, (205, 222, 165)), (500, (232, 226, 176)),
-                (900, (226, 204, 156)), (1400, (210, 178, 138)), (2000, (190, 160, 128)), (3000, (176, 160, 150)),
-                (4500, (232, 228, 224)), (6500, (255, 255, 255))]
-_STOPS_DARK = [(-500, (38, 56, 44)), (0, (42, 62, 48)), (300, (58, 70, 52)), (800, (72, 70, 54)),
-               (1500, (82, 72, 60)), (2500, (88, 82, 78)), (4500, (120, 120, 124)), (6500, (150, 150, 155))]
+# M5 (the redesign, plan §5.4): a quiet map under the data - the land a step off the app's surfaces (index.css
+# tokens: dark --bg #0e131a / --panel #141b24, light --bg #eef1f5 / --panel #fbfcfd), the relief in low
+# contrast, water a cool tint of the same, roads muted in their order (main ones warm). The tracks and objects,
+# drawn by the map on top, carry the colour. LOOK is in the tile cache's path: a new look draws new tiles.
+LOOK = "m5"
+_STOPS_LIGHT = [(-500, (214, 224, 210)), (0, (222, 230, 216)), (200, (230, 234, 220)), (500, (236, 233, 218)),
+                (900, (232, 224, 206)), (1400, (224, 212, 194)), (2000, (214, 204, 192)), (3000, (206, 202, 198)),
+                (4500, (236, 236, 236)), (6500, (250, 250, 250))]
+_STOPS_DARK = [(-500, (24, 33, 32)), (0, (27, 37, 35)), (300, (34, 42, 38)), (800, (42, 46, 41)),
+               (1500, (50, 50, 46)), (2500, (60, 60, 62)), (4500, (88, 90, 96)), (6500, (118, 122, 128))]
+_WATER = {False: (192, 212, 230), True: (17, 30, 43)}
+_ROADS = {   # class: (fill, casing) - 1 motorway / trunk, 2 primary, 3 secondary / tertiary, 4 the rest
+    False: {1: ((230, 146, 92), (176, 104, 62)), 2: ((240, 208, 136), (180, 150, 92)),
+            3: ((255, 255, 255), (178, 184, 192)), 4: ((255, 255, 255), (196, 202, 208))},
+    True: {1: ((178, 124, 86), (10, 14, 20)), 2: ((146, 132, 98), (10, 14, 20)),
+           3: ((98, 106, 118), (12, 16, 22)), 4: ((82, 88, 100), (12, 16, 22))},
+}
+_RUNWAY = {False: (120, 124, 132), True: (128, 132, 140)}
 
 
 def _tint(H: np.ndarray, stops) -> np.ndarray:
@@ -257,10 +270,10 @@ def render_tile(style: str, z: int, x: int, y: int) -> Optional[bytes]:
     sh = _shade(Hp, z, lat_mid, S)[P:-P, P:-P]
     H, G = Hp[P:-P, P:-P], Gp[P:-P, P:-P]
     rgb = _tint(H, _STOPS_DARK if dark else _STOPS_LIGHT)
-    rgb *= (0.55 + 0.6 * sh)[..., None] if not dark else (0.6 + 0.55 * sh)[..., None]
+    rgb *= (0.72 + 0.36 * sh)[..., None] if not dark else (0.7 + 0.42 * sh)[..., None]       # M5: relief, quieter
     img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB")
 
-    water = (31, 51, 70) if dark else (170, 203, 230)
+    water = _WATER[dark]
     pad = (b[3] - b[1]) * 0.05
     # land: everything else is water
     mask = Image.new("L", (S, S), 0)
@@ -316,22 +329,19 @@ def render_tile(style: str, z: int, x: int, y: int) -> Optional[bytes]:
         return out
     ne_roads = _visible("ne_roads", b, pad, outside)
     osm_roads = _visible("osm_roads", b, pad)
-    road_light = {1: ((226, 120, 60), (150, 80, 40)), 2: ((246, 206, 100), (160, 130, 60)),
-                  3: ((255, 255, 255), (150, 150, 150)), 4: ((255, 255, 255), (170, 170, 170))}
-    road_dark = {1: ((200, 120, 70), (20, 20, 20)), 2: ((170, 150, 90), (20, 20, 20)),
-                 3: ((130, 130, 135), (25, 25, 25)), 4: ((110, 110, 115), (25, 25, 25))}
-    pal = road_dark if dark else road_light
+    pal = _ROADS[dark]
     min_zoom = {1: 5, 2: 7, 3: 10, 4: 11}
     for cls in (4, 3, 2, 1):                                     # main roads on top
         if z < min_zoom[cls]:
             continue
-        w = k * {1: 1.6, 2: 1.3, 3: 1.0, 4: 0.8}[cls] * (1 + max(0, z - 9) * 0.35)
+        # M5: wider as the map comes closer (a street at zoom 14 reads as a street, not a hairline)
+        w = k * {1: 1.6, 2: 1.3, 3: 1.0, 4: 0.8}[cls] * (1 + max(0, z - 9) * 0.35 + max(0, z - 12) * 0.45)
         cas = pal[cls][1] if z >= 9 else None
         lines([it for it in osm_roads if it[1] == cls], pal[cls][0], w, cas)
         if cls <= 2:
             lines([it for it in ne_roads if it[1] == cls], pal[cls][0], w, cas)
     if z >= 10:
-        lines(_visible("osm_runways", b, pad), (90, 90, 95) if not dark else (150, 150, 155), k * (2 + (z - 10) * 2.2))
+        lines(_visible("osm_runways", b, pad), _RUNWAY[dark], k * (2 + (z - 10) * 2.2))
 
     img = img.resize((256, 256), Image.Resampling.LANCZOS)
     buf = io.BytesIO()

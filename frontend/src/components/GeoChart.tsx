@@ -537,6 +537,25 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     })(W + 2 * M, H + 2 * M);
     ctx = screen;
 
+    // P7: places - lines and areas on the map, points as their icon with the name; M5: under the tracks and
+    //     objects (the data stays on top of every label)
+    for (const pl of userPlaces) {
+      const col = pl.color || "#d29922";
+      if (pl.points && pl.points.length > 1) {
+        ctx.beginPath();
+        pl.points.forEach(([a, b], i) => { const px = X(mx(b)), py = Y(my(a)); if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); });
+        if (pl.kind === "area") { ctx.closePath(); ctx.globalAlpha = 0.2; ctx.fillStyle = col; ctx.fill(); ctx.globalAlpha = 1; }
+        ctx.lineWidth = 2.5; ctx.strokeStyle = col; ctx.stroke();
+      }
+      const [la, lo] = pl.points?.length ? pl.points[Math.floor(pl.points.length / 2)] : [pl.lat, pl.lon];
+      const px = X(mx(lo)), py = Y(my(la)), sz = 22 * uiScale();
+      if (pl.kind === "point") { const im = placeImg(placeIconSvg(pl.icon, pl.color, 48)); if (im.complete) ctx.drawImage(im, px - sz / 2, py - sz, sz, sz); }
+      ctx.font = `600 ${Math.round(11 * uiScale())}px ${family}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.lineWidth = 3; ctx.strokeStyle = dark ? "rgba(14,22,32,.9)" : "rgba(255,255,255,.92)";
+      ctx.strokeText(pl.name, px + sz * 0.55, py - sz * 0.55);
+      ctx.fillStyle = dark ? "#e6edf3" : "#24292f"; ctx.fillText(pl.name, px + sz * 0.55, py - sz * 0.55);
+    }
+    (window as unknown as { __svMapPlaces?: string[] }).__svMapPlaces = userPlaces.map((p) => p.name);   // for tests
     // 4. tracks, with a halo so they read on any map
     plot.signals.forEach((ps0) => {
       const t = tracks.find((x) => x.id === ps0.sig);
@@ -659,24 +678,6 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
         ctx.fillStyle = dark ? "#e6edf3" : "#24292f"; ctx.fillText(o.name, px + sz * 0.6, py - sz * 0.45);
       }
     }
-    // P7: places - lines and areas on the map, points as their icon with the name
-    for (const pl of userPlaces) {
-      const col = pl.color || "#d29922";
-      if (pl.points && pl.points.length > 1) {
-        ctx.beginPath();
-        pl.points.forEach(([a, b], i) => { const px = X(mx(b)), py = Y(my(a)); if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); });
-        if (pl.kind === "area") { ctx.closePath(); ctx.globalAlpha = 0.2; ctx.fillStyle = col; ctx.fill(); ctx.globalAlpha = 1; }
-        ctx.lineWidth = 2.5; ctx.strokeStyle = col; ctx.stroke();
-      }
-      const [la, lo] = pl.points?.length ? pl.points[Math.floor(pl.points.length / 2)] : [pl.lat, pl.lon];
-      const px = X(mx(lo)), py = Y(my(la)), sz = 22 * uiScale();
-      if (pl.kind === "point") { const im = placeImg(placeIconSvg(pl.icon, pl.color, 48)); if (im.complete) ctx.drawImage(im, px - sz / 2, py - sz, sz, sz); }
-      ctx.font = `600 ${Math.round(11 * uiScale())}px ${family}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-      ctx.lineWidth = 3; ctx.strokeStyle = dark ? "rgba(14,22,32,.9)" : "rgba(255,255,255,.92)";
-      ctx.strokeText(pl.name, px + sz * 0.55, py - sz * 0.55);
-      ctx.fillStyle = dark ? "#e6edf3" : "#24292f"; ctx.fillText(pl.name, px + sz * 0.55, py - sz * 0.55);
-    }
-    (window as unknown as { __svMapPlaces?: string[] }).__svMapPlaces = userPlaces.map((p) => p.name);   // for tests
     // N7: the primary (a ring) and the secondary (a dashed ring), and a line between them with the range
     // (or from the primary to every object, or none - plot.relLines)
     const pair = pairOf(plot);

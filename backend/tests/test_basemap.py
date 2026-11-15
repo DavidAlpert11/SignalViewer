@@ -15,7 +15,7 @@ from app.main import app  # noqa: E402
 
 client = TestClient(app)
 pytestmark = pytest.mark.skipif(not basemap.available(), reason="offline map data not built")
-WATER = (170, 203, 230)
+WATER = basemap._WATER[False]                  # M5: the light map's water (the look's own colour)
 
 
 def _tile_xy(lat, lon, z):

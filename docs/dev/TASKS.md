@@ -78,7 +78,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       "flight log" → "log"; `files.errHint` "such as the flight mode" → "such as a mode". (`signals.refSignalsHint` and
       `plots.fftFiltersTitle` are examples / a format's own feature: keep.)
   <!-- lane L4 -->
-  - **L4 Map** – in progress · done: M2, M3, M4, B6, M1 (but the plot head's old select – L3), M6 · next: M5 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
+  - **L4 Map** – in progress · done: M2, M3, M4, B6, M1 (but the plot head's old select – L3), M6, M5 · next: F5 · tasks M2 M3 M4 B6 M1 M6 M5 F5 F6 · requests: –
     - **Request to L3** (from L4, M1 – needed for M1's *one place for the layer*): in `PlotView.tsx` remove the map
       layer `<select aria-label="Map">`, the `.net-badge` and the *Borders* checkbox (the `(mode === "geo" || mode === "3d")`
       `xpick` block; keep *+ Add an object*) and the now unused `geoBase` / `shownBase` / `geoBorders` / `GEO_BASES` imports –
@@ -4318,3 +4318,11 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-15 · L3 D8 Inspector (eyebrow titles, mono number columns, ☆ pin a statistic to at a glance – L5's request 3), the timeline's warnings in --warn. Ran: tsc, Vitest; e2e test_plot_polish (new test), test_plot_style, test_timeline, test_range_notes, test_less_clutter, test_features, test_workflows green; count_controls 42 / 107 / 60 / 16 (same without D8: the change since D1 is other lanes'); pictures docs/dev/mockups/L3/after-D8. Next: L5's strip / pinned-search requests, L1's wording request.
 - 2026-11-15 · L3 hand-over: own tasks done and on main (B1–B5, F2's legend, D1, D2 (+ fix), D8, L4's geoBase request); open: L1's D13 wording, L5's pinned searches / at-a-glance strip / Checks counts (see the L3 HAND-OVER block). quick_check green at 124b033.
 - 2026-11-15 · L5 D4 Compare: the verdict a tinted `.card`, `table.data` with mono `.num` columns (panel, Table of all signals, Compare objects' statistics – one marked line in CompareObjectsDialog.tsx), the parameters that differ from the baseline file per file (F3, read-only, below the list); L1's D13 wording in compare.ts / investigate.ts done (test_features' sync toast now *same run*). For L1: `table.vals.cmp2` rules in index.css unused. Ran: tsc; e2e test_compare_params (new), test_compare_diff, test_compare_tolerances, test_judge_a_run, test_compare_similar, test_features -k compare/same_flight/values_on_plot/escape (13) – green; quick_check green; pictures D4 before / after dark en, light he (RTL fine). Compare is not on count_controls' screens; no control added. Next: D5.
+- 2026-11-15 · L4 M5 the offline map's look: `app/basemap.py` – a quiet palette a step off the app's surfaces (land
+  near `--panel` / `--bg` in each theme, low-contrast relief, water a cool tint, roads muted by their order with the main
+  ones warm), roads wider from zoom 12 on, `LOOK = "m5"` in the tile cache's path (new tiles for the new look); the 3D
+  sky from `--plot-bg`, the globe under the tiles the new water; the 2D map draws places (and their names) under the
+  tracks and objects. Not done: in 3D, Cesium draws every label after the tracks (labels have no depth test) – the
+  places' names stay over a track there. Ran: `test_basemap` (its water colour now read from the module),
+  `test_offline_switch`, `test_map_export`, `test_scene3d`; e2e `test_offline_map`, `test_map_smooth`,
+  `test_round_1112` 25/25. Pictures `docs/dev/mockups/M5/{before,after}` (dark en, light he).

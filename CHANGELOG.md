@@ -49,6 +49,9 @@
   picture and a line saying what it does. From above never follows an object; Behind it is what *Track up* did (the
   separate Track up button is gone; the N turns a turned map back north) and no longer zooms in by itself. Saved sessions
   open with the same camera as before.
+- **A quieter offline map** in both themes: land and water a step off the app's own colours, softer relief, roads
+  muted by their order and wider when zoomed in - the tracks carry the colour. On the 2D map places sit under the
+  tracks and objects.
 <!-- lane L5 -->
 - **Compare in the new look** (D4): the verdict is a tinted card (green when every file passes, red when one fails), the numbers in mono columns; and below the list, **the parameters that differ** from the baseline file for each file compared (a log's parameters, a MATLAB file's settings, a number in the file name…), a value changed during the run shown from its start to its end. Wording: the sync messages say *the same run*, not *the same flight*.
 - **Create signals in the new look** (D3): the suggested frame conversions are the app's chips, the derived signals' heading shows how many there are, and an empty list says what will appear there.

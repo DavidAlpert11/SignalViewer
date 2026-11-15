@@ -289,8 +289,10 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
     if (!cz || !w) return;
     const dark = theme === "dark";
     w.imageryLayers.removeAll();
-    w.scene.backgroundColor = cz.Color.fromCssColorString(dark ? "#0e1620" : "#cfdbe6");
-    w.scene.globe.baseColor = cz.Color.fromCssColorString(dark ? "#1f3346" : "#aacbe6");
+    // M5: the sky is the plot's own background (a token); the globe under the tiles the offline map's water
+    const plotBg = getComputedStyle(document.documentElement).getPropertyValue("--plot-bg").trim();
+    w.scene.backgroundColor = cz.Color.fromCssColorString(plotBg || (dark ? "#0b1016" : "#ffffff"));
+    w.scene.globe.baseColor = cz.Color.fromCssColorString(dark ? "#111e2b" : "#c0d4e6");     // = basemap._WATER
     const merc = new cz.WebMercatorTilingScheme();
     const off = dark ? "offline_topo_dark" : "offline_topo";
     w.imageryLayers.addImageryProvider(new cz.UrlTemplateImageryProvider({ url: `/api/tiles/${off}/{z}/{x}/{y}`, maximumLevel: 14, tilingScheme: merc,

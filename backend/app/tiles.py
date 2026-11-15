@@ -97,7 +97,7 @@ def tile(src: str, z: int, x: int, y: int) -> Optional[tuple]:
     if src in basemap.STYLES:                                   # drawn here from bundled data: no network
         if not (0 <= z <= basemap.MAX_ZOOM) or not (0 <= x < 2 ** z) or not (0 <= y < 2 ** z):
             return None
-        path = os.path.join(CACHE, f"{src}-{basemap.data_version()}", str(z), str(x), f"{y}.jpg")
+        path = os.path.join(CACHE, f"{src}-{basemap.data_version()}-{basemap.LOOK}", str(z), str(x), f"{y}.jpg")   # M5: a new look, new tiles
         if os.path.isfile(path):
             with open(path, "rb") as f:
                 return f.read(), "image/jpeg"
