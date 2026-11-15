@@ -45,6 +45,10 @@ export async function offerStart(runId: string, files = 1, auto = false) {
     const best = rankTemplates(all.filter((x) => !x.generator && (fitOf.get(x.id) ?? 0) >= FIT_MIN), fitOf, run.format)[0];
     // nothing fits: no card - the empty plot itself offers Quick look and the views that fit (W3)
     if (best) template = { id: best.id, name: best.name, fit: fitOf.get(best.id) ?? 0 };
+    // E4: an example opens ready to look at even when no view fits its data (a test bench, any custom
+    // format) - the generic Quick look, as the empty plot would offer
+    const quick = r.builtin.find((x) => x.generator === "quicklook");
+    if (!template && auto && quick) template = { id: quick.id, name: quick.name, fit: 1 };
   } catch { /* no suggestion */ }
   let health: HealthFinding[] | null = null;
   if (FLIGHT.has(run.format) && run.log) {

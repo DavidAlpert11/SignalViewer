@@ -558,7 +558,7 @@ def test_fs_list_and_complete(tmp_path):
 def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
     from app.routes import fs as m
     r = client.get("/api/examples").json()
-    assert [x["id"] for x in r] == ["flight", "twoFlights", "car", "ardupilot", "simVsFlight", "investigate",
+    assert [x["id"] for x in r] == ["flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "investigate",
                                     "sweepTable", "commonGains", "smartSweepDemo", "fleet"] and len(r[2]["paths"]) == 3
     assert [x.get("open") for x in r[-4:]] == ["sweep", "study", "study", "fleet"] and r[-2]["paths"][-1].endswith("demo.svstudy.json")
     assert all(os.path.isfile(p) for x in r for p in x["paths"])
@@ -579,6 +579,28 @@ def test_two_flights_example_is_ready_to_compare():
     assert 0.0005 < np.max(np.abs(la - lb)) < 0.02                      # tens to hundreds of metres apart
     assert np.std(np.diff(sig(b, "ATT.Roll"))) > np.std(np.diff(sig(a, "ATT.Roll")))   # gusts
     assert sig(b, "Battery")[-1] < sig(a, "Battery")[-1]                                # more drain
+
+
+def test_bench_example_is_found_by_its_checks():
+    """E4: the test-bench example (a pump, Parquet) - phases as a state, units, and what Checks must find:
+    the motor temperature over its limit late in STEADY, a 0.2 s pressure spike, a 2 s gap."""
+    from app.checks import load_checks, run_checks
+    from app.store import Store
+    ex = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "bench")
+    lr = Store().open_file(os.path.join(ex, "pump_run_07.parquet"))
+    names = set(lr.run.signals)
+    for n in ("Phase", "RPM", "Pressure", "MotorTemp", "Vibration"):
+        assert any(k.startswith(n) for k in names), n
+    labels = lr.run.signals["Phase"].labels
+    assert set(labels.values()) == {"IDLE", "RAMP", "STEADY", "STOP"}
+    out = run_checks(os.path.join(ex, "pump_run_07.parquet"), load_checks(os.path.join(ex, "checks.json")))
+    res = {r["name"]: r for r in out["results"]}
+    assert res["Motor temperature below 85 °C"]["status"] == "fail"
+    assert res["Pressure below 16 bar"]["status"] == "fail"
+    assert res["Speed 2850 - 2950 rpm while steady"]["status"] == "pass"
+    assert res["Vibration below 0.5 g"]["status"] == "pass"
+    t = np.asarray(lr.run.time, float)
+    assert np.max(np.diff(t)) > 1.9                                                   # the gap
 
 
 def test_ardupilot_example_health_and_modes():

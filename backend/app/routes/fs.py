@@ -62,6 +62,7 @@ EXAMPLE_SETS = [
     {"id": "flight", "files": ["uav_flight.csv"]},
     {"id": "twoFlights", "files": ["uav_flight.csv", "uav_flight_windy.csv"]},     # T44: two tracks, Compare
     {"id": "car", "files": ["run_012.csv", "run_013.csv", "run_014.csv"]},
+    {"id": "bench", "files": ["bench/pump_run_07.parquet"]},                       # E4: a pump on a test bench (Parquet)
     {"id": "ardupilot", "files": ["copter_flight.bin"]},                               # T45: a flight log
     {"id": "simVsFlight", "files": ["sim_vs_flight/sim_attitude_doublets.mat",         # C13: a model against its flight
                                      "sim_vs_flight/flight_attitude_doublets.bin"]},

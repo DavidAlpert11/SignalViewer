@@ -5,7 +5,7 @@ export type StorageKind = "cache" | "uploads" | "tiles" | "memory";
 /** memory (P2): not on disk - the results kept in memory to be fast, with its limit and per kind */
 export type StorageInfo = Record<StorageKind, { path: string; bytes: number; limit?: number; kinds?: Record<string, { bytes: number; entries: number }> }>;
 /** The welcome screen's examples (backend routes/fs.py EXAMPLE_SETS). */
-export type ExampleId = "flight" | "twoFlights" | "car" | "ardupilot" | "simVsFlight" | "investigate" | "commonGains" | "smartSweepDemo" | "sweepTable" | "fleet";
+export type ExampleId = "flight" | "twoFlights" | "car" | "bench" | "ardupilot" | "simVsFlight" | "investigate" | "commonGains" | "smartSweepDemo" | "sweepTable" | "fleet";
 /** P1: what an export of a map's objects reports: the rate used (lowered for a long recording) and the
  *  objects left out because they have no position (P2). */
 export interface FlightExport { path: string; objects: number; size?: number; rate: number; lowered: boolean; leftOut: string[] }

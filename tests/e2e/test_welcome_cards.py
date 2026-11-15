@@ -68,7 +68,7 @@ def test_every_area_has_its_demo(pg):
     the table with its question answered, the Fleet card the fleet on its vibration question."""
     pg.wait_for_selector(".examples-group")
     groups = pg.locator(".examples-group").evaluate_all("els => els.map((g) => [...g.querySelectorAll('.ex-card')].map((c) => c.dataset.example))")
-    assert groups == [["flight", "twoFlights", "car", "ardupilot", "simVsFlight", "investigate"],
+    assert groups == [["flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "investigate"],
                       ["sweepTable", "commonGains", "smartSweepDemo"], ["fleet"]], groups
     pg.locator(".ex-card[data-example='sweepTable']").click()
     pg.wait_for_function("window.__sv.state().area === 'sweeps'")

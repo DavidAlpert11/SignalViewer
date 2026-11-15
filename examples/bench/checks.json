@@ -1,0 +1,9 @@
+{
+  "checks": [
+    {"name": "Motor temperature below 85 °C", "signal": "MotorTemp", "hi": 85},
+    {"name": "Pressure below 16 bar", "signal": "Pressure", "hi": 16},
+    {"name": "Speed 2850 - 2950 rpm while steady", "signal": "RPM", "lo": 2850, "hi": 2950,
+     "during": {"state": "Phase", "value": "STEADY"}},
+    {"name": "Vibration below 0.5 g", "signal": "Vibration", "hi": 0.5}
+  ]
+}

@@ -80,6 +80,9 @@
 - **Statistics of what is on screen** (F2): min, mean and max of each signal over the visible window, recomputed as you pan and zoom – fast on signals of tens of millions of samples.
 - **The file** (F1): the structure of any recording – a log's message types, a ROS bag's topics, a MATLAB file's structs, a table's column groups – with each one's rate, samples, units, gaps and the time base; a live link's file as it grows.
 - **The parameters of a run, for every format** (F3): a flight log's parameters, a MATLAB file's scalars, texts and struct fields, signals that hold one value, numbers in the file name – one list; and **two runs compared**, only what differs (a parameter changed during a flight counts by its start and its end). *Runs × conditions* now also shows a MATLAB file's settings and a log's parameters when they differ between the runs.
+<!-- Final -->
+- **A test-bench example** on the welcome screen: a pump on a bench, recorded as Parquet – phases as a state, units, a 0.2 s pressure spike, a 2 s gap and a motor temperature that creeps over its limit. Its `checks.json` runs in CI with `signalviewer-cli check examples/bench/pump_run_07.parquet --checks examples/bench/checks.json` (2 of 4 checks fail, on purpose).
+- An example whose data no built-in view fits now opens with *Quick look* instead of an empty plot.
 <!-- end of lanes -->
 
 ## 1.27.0 – 2026-11-13
