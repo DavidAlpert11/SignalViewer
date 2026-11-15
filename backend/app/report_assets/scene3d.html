@@ -18,13 +18,12 @@
 <body>
 <header>
   <h1 id="title"></h1>
-  <span class="seg" id="cam" role="radiogroup"><span id="camT"></span><button data-cam="free" role="radio"></button><button data-cam="centre" role="radio"></button><button data-cam="close" role="radio"></button><button data-cam="cockpit" role="radio"></button></span>
+  <span class="seg" id="cam" role="radiogroup"><span id="camT"></span><button data-cam="free" role="radio"></button><button data-cam="top" role="radio"></button><button data-cam="centre" role="radio"></button><button data-cam="close" role="radio"></button><button data-cam="cockpit" role="radio"></button></span>
   <label><span id="objT"></span><select id="obj"></select></label>
   <button id="disp" aria-pressed="false"></button><button id="errs" aria-pressed="true" hidden></button>
   <button id="zin">+</button><button id="zout">−</button><button id="fit">⤢</button>
   <label><span id="trailT"></span><select id="trail"></select></label>
   <button id="rel" aria-pressed="true"></button>
-  <button id="top">⊤</button>
   <label><span id="exT"></span><select id="ex"><option value="1">×1</option><option value="2">×2</option><option value="5">×5</option><option value="10">×10</option></select></label><span id="flat" class="hint" hidden></span>
   <button id="theme">◐</button>
 </header>
@@ -65,8 +64,9 @@ rel.onShow = (on) => { $("rel").setAttribute("aria-pressed", String(on)); need()
 $("rel").onclick = () => rel.show(!rel.shown());
 const followIdx = D.objects.findIndex((o) => o.name === D.follow);
 let onCam = () => {};
-// the app's camera: Chase is the page's Close, Cockpit its Cockpit (P9), On the object its On the object
-const startMode = followIdx < 0 ? "free" : D.camera === "chase" ? "close" : D.camera === "cockpit" ? "cockpit" : "centre";
+const follows = () => cam.st.mode !== "free" && cam.st.mode !== "top";   // From above never follows an object (as in the app)
+// the app's cameras (M6): Free · From above · Around it · Behind it (the page's "close") · Cockpit
+const startMode = D.camera === "top" ? "top" : followIdx < 0 ? "free" : D.camera === "chase" ? "close" : D.camera === "cockpit" ? "cockpit" : "centre";
 const cam = svToolbar(S, D.objects, { mode: startMode, obj: followIdx >= 0 ? followIdx : rel.pair.p }, (st, user) => onCam(st, user));
 $("help").textContent = S.help3d;
 let state = () => ({ t: Number(slider.value), gl: false, objects: [] });
@@ -78,7 +78,7 @@ let draw = () => { tval.textContent = Number(slider.value).toFixed(2) + " s"; if
 if (!webgl()) {
   // no WebGL (remote desktop, a virtual machine, a blocked driver): the picture made with the page
   const img = $("fallback"); img.src = D.fallback; img.hidden = false; $("nogl").textContent = S.noGl; $("nogl").hidden = false;
-  for (const id of ["cam", "zin", "zout", "fit", "top", "help", "adi"]) $(id).hidden = true;
+  for (const id of ["cam", "zin", "zout", "fit", "help", "adi"]) $(id).hidden = true;
   $("trail").parentElement.hidden = true;
   $("obj").parentElement.hidden = true; $("ex").parentElement.hidden = true;
 } else (function () {
@@ -287,6 +287,7 @@ if (!webgl()) {
     if (user && st.mode === "close") glideTo({ r: 70, ph: 1.32, free: false });
     else if (user && st.mode === "centre") glideTo({ r: Math.min(sph.r, 1500), free: false });
     else if (user && st.mode === "free") glideTo({});
+    else if (user && st.mode === "top") glideTo({ ph: 0.03, th: 0 });             // straight down, north up; follows nothing
     showDisplay(st.mode);
     need();
   };
@@ -323,7 +324,7 @@ if (!webgl()) {
     errMesh = new T.Mesh(g, new T.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.45, side: T.DoubleSide, depthWrite: false }));
     errMesh.renderOrder = 3; scene.add(errMesh);
   }
-  if (cam.st.mode !== "free") sph.r = 1500;
+  if (follows()) sph.r = 1500;
   const place = () => {
     glideStep();
     const ck = cam.st.mode === "cockpit" ? objs[cam.st.obj] : null;
@@ -336,7 +337,7 @@ if (!webgl()) {
       camera.rotation.order = "YXZ"; camera.rotation.set(pitch, -yaw, -roll);
       return;
     }
-    if (cam.st.mode !== "free") {
+    if (follows()) {
       const ob = objs[cam.st.obj];
       if (ob) { target.set(ob.at.x, ob.at.y, ob.at.z).add(followOff); if (cam.st.mode === "close" && !glide) sph.th = -ob.at.yaw * R; }
     }
@@ -360,13 +361,14 @@ if (!webgl()) {
     }
     if (p.b === 2 || p.sh || e.shiftKey) pan(dx, dy);
     else { if (cam.st.mode === "close") document.querySelector('#cam [data-cam="centre"]').click();   // turning around it: still on it
+      if (cam.st.mode === "top") cam.free();                                     // turning from above: Free (as tilting in the app)
       sph.th -= dx * 0.006; sph.ph = Math.min(1.53, Math.max(0.03, sph.ph - dy * 0.006)); }
     need();
   });
   function pan(dx, dy) {
     const k = sph.r * 0.0016, f = new T.Vector3(-Math.sin(sph.th), 0, -Math.cos(sph.th)), r = new T.Vector3(Math.cos(sph.th), 0, -Math.sin(sph.th));
     const d = r.multiplyScalar(-dx * k).add(f.multiplyScalar(dy * k));
-    if (cam.st.mode !== "free") followOff.add(d); else target.add(d);
+    if (follows()) followOff.add(d); else target.add(d);
   }
   const zoom = (k) => { sph.r = Math.max(5, sph.r * k); need(); };
   canvas.addEventListener("wheel", (e) => { e.preventDefault(); zoom(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
@@ -537,7 +539,7 @@ if (!webgl()) {
   const miniXY = (e, n, W) => [W / 2 + (e - miniBox.ce) / miniBox.span * W, W / 2 - (n - miniBox.cn) / miniBox.span * W];
   function mini() {
     // a short frame (a report's map) has no room for it beside the relation box
-    const on = cam.st.mode !== "free" && !(canvas.clientHeight < 560 && rel.el && rel.shown());
+    const on = follows() && !(canvas.clientHeight < 560 && rel.el && rel.shown());
     miniCv.hidden = !on;
     if (!on) return;
     const r = Math.min(2, devicePixelRatio || 1), W = 150;
@@ -569,11 +571,10 @@ if (!webgl()) {
     grounds: grounds.length, fog: !!scene.fog, t: Number(slider.value), gl: true, trail: trail.sec, cam: cam.st.mode, camDist: sph.r, objects: objs.map((ob) => ({ name: ob.o.name, x: ob.at.x, up: ob.at.y / ex, north: -ob.at.z, t: ob.at.t })) });
   $("ex").addEventListener("change", () => { ex = Number($("ex").value) || 1; setGround(); setFar(); setTracks(); need(); });
   $("fit").onclick = () => { cam.free(); fit(); };
-  $("top").onclick = () => glideTo({ ph: 0.03, th: 0 });
-  if (D.camera === "top") $("top").onclick();             // P4: the Map's camera in the app was From above
+  if (cam.st.mode === "top") glideTo({ ph: 0.03, th: 0 });   // P4: the Map's camera in the app was From above
   addEventListener("resize", need);
   fit(); update();
-  if (cam.st.mode !== "free") sph.r = 1500;
+  if (follows()) sph.r = 1500;
   if (cam.st.mode === "close") { sph.r = 70; sph.ph = 1.32; }      // opened from a link on Chase
   showDisplay(cam.st.mode);
   window.__scene.glideTo = glideTo;                                // P10: the story flies the camera

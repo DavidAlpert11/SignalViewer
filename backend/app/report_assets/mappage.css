@@ -1,12 +1,13 @@
 /* The offline map pages (2D map and 3D view, 1.26): one toolbar, one relation box - the same in both */
-:root { --bg: #ffffff; --ink: #1f2a36; --muted: #5a6979; --line: #d5dce4; --panel: #f7f9fb; --accent: #945d0b; --amber: #d9912b; --sky: #dfe9f3; color-scheme: light; }
-:root.dark { --bg: #151b23; --ink: #e6edf3; --muted: #8e9cad; --line: #2d3a4b; --panel: #1c2430; --accent: #f2a93b; --amber: #f2a93b; --sky: #0e141b; color-scheme: dark; }
+:root { --bg: #ffffff; --ink: #1f2a36; --muted: #5a6979; --line: #d5dce4; --panel: #f7f9fb; --accent: #945d0b; --amber: #d9912b; --select: #1f2a36; --select-ink: #ffffff; --sky: #dfe9f3; color-scheme: light; }
+:root.dark { --bg: #151b23; --ink: #e6edf3; --muted: #8e9cad; --line: #2d3a4b; --panel: #1c2430; --accent: #f2a93b; --amber: #f2a93b; --select: #e6edf3; --select-ink: #151b23; --sky: #0e141b; color-scheme: dark; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Arial, sans-serif; }
 body { display: flex; flex-direction: column; }
 header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
 header h1 { font-size: 14px; margin: 0; flex: 1; min-width: 6em; }
 button, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
-button.on, button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+/* selected: the app's neutral ink (amber is the cursor and time only, as in the app since 1.28) */
+button.on, button[aria-pressed="true"] { background: var(--select); border-color: var(--select); color: var(--select-ink); }
 .seg { display: inline-flex; align-items: center; gap: 0; }
 .seg > span { color: var(--muted); margin-inline-end: 4px; }
 .seg button { border-radius: 0; margin-inline-start: -1px; }

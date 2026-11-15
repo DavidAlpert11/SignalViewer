@@ -96,19 +96,21 @@ function svRelation(host, objs, S, pair, onPair, onSeek) {
   return api;
 }
 
-/* The toolbar both pages share: its words, the camera (Free · Centre · Close) and the object it is on
+/* The toolbar both pages share: its words, the camera (Free · From above · Around it · Behind it · Cockpit - each page
+   has the ones it can do) and the object it is on
    (default the reference). `set(mode)` is called on a change. */
 function svToolbar(S, objs, start, set) {
   "use strict";
   const $ = function (id) { return document.getElementById(id); };
   const words = { camT: S.camera, objT: S.object, timeT: S.time, help: S.help };
   Object.keys(words).forEach(function (id) { if ($(id)) $(id).textContent = words[id]; });
-  [["zin", S.zin], ["zout", S.zout], ["fit", S.fit], ["theme", S.theme], ["rel", S.relationHint], ["top", S.top], ["trail", S.trail]].forEach(function (p) {
+  [["zin", S.zin], ["zout", S.zout], ["fit", S.fit], ["theme", S.theme], ["rel", S.relationHint], ["trail", S.trail]].forEach(function (p) {
     const b = $(p[0]); if (b) { b.title = p[1]; b.setAttribute("aria-label", p[1]); } });
   if ($("rel")) $("rel").textContent = S.relation;
   if ($("slider")) $("slider").setAttribute("aria-label", S.time);
   const cams = Array.prototype.slice.call(document.querySelectorAll("#cam button"));
-  const label = { free: S.camFree, centre: S.camCentre, close: S.camClose, cockpit: S.camCockpit }, hint = { free: S.camFreeHint, centre: S.camCentreHint, close: S.camCloseHint, cockpit: S.camCockpitHint };
+  const label = { free: S.camFree, top: S.top, centre: S.camCentre, close: S.camClose, cockpit: S.camCockpit },
+    hint = { free: S.camFreeHint, top: S.camTopHint, centre: S.camCentreHint, close: S.camCloseHint, cockpit: S.camCockpitHint };
   cams.forEach(function (b) { b.textContent = label[b.dataset.cam]; b.title = hint[b.dataset.cam]; });
   const sel = $("obj");
   objs.forEach(function (o, i) { const op = document.createElement("option"); op.value = i; op.textContent = o.name; sel.append(op); });

@@ -307,7 +307,7 @@ def render(mdata: Dict, fmt: str = "png", theme: str = "light", scale: float = 1
 PAGE_STRINGS = {
     "en": {"camera": "Camera", "camFree": "Free", "camCentre": "Around it", "camClose": "Behind it",
            "trail": "Trail", "trailAll": "whole", "tcaGo": "Go to the closest moment",
-           "camFreeHint": "Move the view yourself", "camCentreHint": "Keep the chosen object in the middle",
+           "camFreeHint": "Move the view yourself", "camTopHint": "Straight down, north up - it follows nothing", "camCentreHint": "Keep the chosen object in the middle",
            "camCloseHint": "Close to the chosen object (in 3D: behind it, looking where it goes)",
            "object": "Object", "zin": "Zoom in", "zout": "Zoom out", "fit": "Fit all tracks", "theme": "Light / dark",
            "relation": "Relation", "relationHint": "Show / hide the relation box (reference and compared object)",
@@ -327,7 +327,7 @@ PAGE_STRINGS = {
            "gs": "GS", "alt": "ALT"},
     "he": {"camera": "מצלמה", "camFree": "חופשית", "camCentre": "סביבו", "camClose": "מאחוריו",
            "trail": "שובל", "trailAll": "כולו", "tcaGo": "לעבור לרגע הכי קרוב",
-           "camFreeHint": "להזיז את התצוגה בעצמכם", "camCentreHint": "האובייקט שנבחר באמצע",
+           "camFreeHint": "להזיז את התצוגה בעצמכם", "camTopHint": "ישר למטה, הצפון למעלה – לא עוקבת אחרי שום דבר", "camCentreHint": "האובייקט שנבחר באמצע",
            "camCloseHint": "קרוב לאובייקט שנבחר (בתלת-ממד: מאחוריו, מסתכל לאן שהוא טס)",
            "object": "אובייקט", "zin": "התקרבות", "zout": "התרחקות", "fit": "כל המסלולים", "theme": "בהיר / כהה",
            "relation": "יחס", "relationHint": "הצגה / הסתרה של תיבת היחס (בסיס ומושווה)",

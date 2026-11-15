@@ -112,7 +112,11 @@ def test_live_html_report_with_the_3d_view(pg):
         fr.locator("#trail").select_option("20")
         assert fr.evaluate("window.__page.trail()") == 20
         # the same toolbar in the 3D page as in the 2D map's page, with the app's words
-        assert fr.locator("#cam button").all_inner_texts()[:3] == ["Free", "Around it", "Behind it"]   # (+ Cockpit in 3D, P9; M6 names)
+        assert fr.locator("#cam button").all_inner_texts() == ["Free", "From above", "Around it", "Behind it", "Cockpit"]   # the app's cameras (M6)
+        if gl:                                                                       # From above follows nothing, as in the app
+            fr.locator('#cam [data-cam="top"]').click()
+            fr.wait_for_function("window.__scene.state.cam === 'top'")
+            assert fr.locator('#cam [data-cam="top"]').get_attribute("aria-checked") == "true"
     finally:
         page.close()
 

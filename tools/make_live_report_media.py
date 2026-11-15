@@ -91,9 +91,11 @@ def shoot(path_html: str, out_dir: str) -> None:
     from playwright.sync_api import sync_playwright
     os.makedirs(out_dir, exist_ok=True)
     with sync_playwright() as p:
-        b = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"])
+        exe = os.environ.get("SV_CHROMIUM")
+        b = p.chromium.launch(args=["--no-sandbox", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+                              **({"executable_path": exe} if exe else {}))
         pg = b.new_page(viewport={"width": 1600, "height": 1000}, device_scale_factor=2)
-        pg.goto("file://" + path_html)
+        pg.goto("file://" + path_html, wait_until="domcontentloaded")
         pg.wait_for_function("window.__replay && document.querySelectorAll('iframe.mapframe').length === 2")
         pg.wait_for_timeout(4000)
         out = os.path.join(out_dir, "live_page.png")
@@ -114,7 +116,7 @@ def shoot(path_html: str, out_dir: str) -> None:
         tmp = path_html.replace(".html", "_3d.html")
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(html.replace('"dark":false', '"dark":true'))
-        pg2.goto("file://" + tmp)
+        pg2.goto("file://" + tmp, wait_until="domcontentloaded")
         pg2.wait_for_timeout(2500)
         pg2.evaluate("() => { const s = document.getElementById('slider'); s.value = 150; s.dispatchEvent(new Event('input')); }")
         pg2.wait_for_timeout(1500)
