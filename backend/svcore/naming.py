@@ -45,16 +45,6 @@ def get_csv_display_name(filepath: str, all_paths: List[str]) -> str:
     return basename
 
 
-def get_csv_short_name(filepath: str, all_paths: List[str]) -> str:
-    """Get CSV display name without extension"""
-    display = get_csv_display_name(filepath, all_paths)
-    return os.path.splitext(display)[0]
-
-
-
-
-
-
 _UNIT = re.compile(r"\s+\[[^\]]*\]$")
 
 

@@ -450,10 +450,6 @@ def webview2_version() -> str:
     return _newest(found)
 
 
-def _webview2_installed() -> bool:
-    return bool(webview2_version())
-
-
 def find_browsers() -> List[Tuple[str, str, str]]:
     """(kind, executable, version) of the browsers installed on this computer (Windows; other
     systems use the default browser)."""
@@ -566,11 +562,6 @@ def window_unavailable_reason() -> str:
         if _major(version) < MIN_CHROMIUM:
             return f"the Microsoft Edge WebView2 runtime is too old ({version}; the app needs {MIN_CHROMIUM} or newer)"
     return ""
-
-
-def native_window_available() -> bool:
-    """pywebview installed, and on Windows the Edge WebView2 runtime present."""
-    return not window_unavailable_reason()
 
 
 if __name__ == "__main__":

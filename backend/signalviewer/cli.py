@@ -143,7 +143,7 @@ def cmd_check(a) -> int:
     return 2 if count["error"] else 1 if count["fail"] else 0
 
 
-def _print_results(results, a, mark_extra=None) -> dict:
+def _print_results(results, a) -> dict:
     rs = [r for f in results for r in f["results"]]
     count = {k: sum(r["status"] == k for r in rs) for k in ("pass", "fail", "error", "skipped", "info")}
     count["info"] -= sum(r["name"] == "(time alignment)" and r["status"] == "info" for r in rs)   # not a signal

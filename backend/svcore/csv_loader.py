@@ -210,8 +210,6 @@ def _unique_names(names: List[str]) -> List[str]:
     return out
 
 
-
-
 def _resolve_time_column_how(columns: List[str], wanted: Optional[str]) -> Tuple[int, bool]:
     """(index, found_by_name): False when it fell back to the first column."""
     if wanted is not None and str(wanted) in columns:
@@ -577,8 +575,6 @@ def _cache_store(key: str, meta: Dict, time: np.ndarray, sigs: Dict[str, np.ndar
         print(f"[CACHE] Could not write cache: {e}", flush=True)
         shutil.rmtree(tmp, ignore_errors=True)
         return False
-
-
 
 
 def prune_cache(keep: Optional[str] = None, source: Optional[str] = None) -> int:
@@ -1031,17 +1027,6 @@ def _parse_appended(raw: bytes, text: str, run: Run) -> Dict[str, np.ndarray]:
     if df.empty:
         return {}
     return encoded({c: (df[c].to_numpy(dtype=object) if c in texts else _to_numeric_array(df[c], np.float64)) for c in cols})
-
-
-
-
-def copy_run_user_properties(src: Run, dst: Run):
-    """Carry user-edited run properties over to a freshly loaded Run."""
-    dst.run_name = src.run_name
-    dst.description = src.description
-    dst.time_offset = src.time_offset
-    if src.csv_display_name and src.file_path == dst.file_path:
-        dst.csv_display_name = src.csv_display_name  # keep a user rename
 
 
 def _run_nbytes(run: Run) -> int:
