@@ -54,6 +54,12 @@ export default function FileBrowser() {
   const [error, setError] = useState("");
   const [hidden, setHidden] = useState(0);              // files of other types in this folder
   const [places, setPlaces] = useState<FsPlaces | null>(null);
+  // §7b (a friend's request: "like a browser"): a folder being made, a row being renamed, a delete being asked,
+  // and what the last of them did - all inline, in this dialog (a second dialog would open under a picker)
+  const [making, setMaking] = useState(false);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [asking, setAsking] = useState<FsEntry | null>(null);
+  const [note, setNote] = useState<{ kind: "info" | "error"; text: string } | null>(null);
   const dragFav = useRef<number | null>(null);
   const [sort, setSort] = useState<"modified" | "name">(() => (getPref(SORT_KEY) === "name" ? "name" : "modified"));
   const lang = useApp((st) => st.lang);
@@ -106,6 +112,7 @@ export default function FileBrowser() {
       setPicked((cur) => (same ? cur.filter((x) => r.entries.some((en) => en.path === x)) : []));
       if (!same) { anchor.current = null; setFilter(""); }
       setSugg([]); setSuggAt(-1);
+      if (!same) { setMaking(false); setRenaming(null); setAsking(null); setNote(null); }
       if (r.path) setPref(lastDirKey(picker), r.path);
     } catch (e) { if (my === seq.current) setError((e as Error).message); }
   };
@@ -115,6 +122,7 @@ export default function FileBrowser() {
     // "show import options" is a per-open choice: it must not silently stick to the next open
     if (open) {
       setPath(""); setTyped(""); setEntries([]); setSugg([]); setFilter("");   // not the previous open's folder, even for a moment
+      setMaking(false); setRenaming(null); setAsking(null); setNote(null);
       api.places().then(setPlaces).catch(() => setPlaces(null));        // T24: the side column
       navigated.current = false; userTyped.current = false; listed.current = null; setWithOptions(false); go(startFolder(picker), true); setName(picker?.defaultName ?? "");
       setTypeAt(Math.max(0, Math.min((picker?.types?.length ?? 1) - 1, picker?.type ?? 0)));
@@ -178,6 +186,45 @@ export default function FileBrowser() {
     setPicked((cur) => ((ev.ctrlKey || ev.metaKey) && !picker ? (cur.includes(e.path) ? cur.filter((x) => x !== e.path) : [...cur, e.path]) : [e.path]));
   };
   const dirOf = dirOfPath;
+  // §7b: make, rename, delete - each lists the folder again and says what happened (or why not) above the list
+  const fail = (e: unknown) => setNote({ kind: "error", text: (e as Error).message });
+  const makeFolder = async (n: string) => {
+    setMaking(false);
+    if (!n.trim() || !path) return;
+    try {
+      const r = await api.makeFolder(path, n);
+      // saving or choosing a folder: into the new one (made to save in); opening: it is listed
+      await go(saving || folderMode ? r.path : path);
+    } catch (e) { fail(e); }
+  };
+  const rename = async (e: FsEntry, n: string) => {
+    setRenaming(null);
+    if (!n.trim() || n.trim() === e.name) return;
+    try {
+      const was = picked.includes(e.path);
+      const r = await api.renamePath(e.path, n);
+      await go(path);                                    // (drops the old name from what is picked)
+      if (was && !e.dir) setPicked((cur) => [...cur, r.path]);
+    } catch (err) { fail(err); }
+  };
+  const trash = async (e: FsEntry) => {
+    setAsking(null);
+    try {
+      await api.trashPath(e.path);
+      await go(path);
+      setPicked((cur) => cur.filter((x) => x !== e.path));
+      setNote({ kind: "info", text: t("fsDeleted", { n: e.name }) });
+    } catch (err) { fail(err); }
+    dialogRef.current?.focus();
+  };
+  /** F2 renames, Delete asks to delete - the one row picked (as in Explorer). */
+  const editKey = (ev: React.KeyboardEvent) => {
+    const one = picked.length === 1 ? entries.find((x) => x.path === picked[0]) : undefined;
+    if (!one) return false;
+    if (ev.key === "F2") { ev.preventDefault(); setRenaming(one.path); return true; }
+    if (ev.key === "Delete") { ev.preventDefault(); setAsking(one); return true; }
+    return false;
+  };
   /** A suggestion chosen: a folder opens (and completion goes on from it); a file is picked -
    *  opened at once when opening, put in the name box when saving. */
   const choose = async (it: { path: string; dir: boolean; name: string }) => {
@@ -212,6 +259,7 @@ export default function FileBrowser() {
   const filterKey = (e: React.KeyboardEvent) => {
     const tag = (e.target as HTMLElement).tagName;
     if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+    if (editKey(e)) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a" && !picker) {      // F21: every file shown
       e.preventDefault(); setPicked(shown.filter((x) => !x.dir).map((x) => x.path)); return;
     }
@@ -322,6 +370,8 @@ export default function FileBrowser() {
               </ul>
             )}
           </span>
+          <button className="btn outline sm fs-new-folder" disabled={!path || making} onClick={() => { setMaking(true); setNote(null); }}>
+            <Icon.Plus /> {t("fsNewFolder")}</button>
           <span className="seg fs-sort" role="group" aria-label={t("sortBy")}>
             <button className={sort === "modified" ? "on" : ""} aria-pressed={sort === "modified"} onClick={() => changeSort("modified")}>{t("sortModified")}</button>
             <button className={sort === "name" ? "on" : ""} aria-pressed={sort === "name"} onClick={() => changeSort("name")}>{t("sortName")}</button>
@@ -361,13 +411,39 @@ export default function FileBrowser() {
         )}
         <div className="dialog-body" style={{ minHeight: 260 }}>
           {error && <p className="empty-note">{error}</p>}
-          {shown.map((e) => (
-            <button key={e.path} className={`fs-row${picked.includes(e.path) ? " on" : ""}`}
-              onClick={(ev) => (e.dir ? go(e.path) : clickFile(e, ev))}
-              onDoubleClick={() => !e.dir && !saving && confirm([e.path])}>
-              {e.dir ? <Icon.Folder /> : <Icon.File />}<span>{e.name}</span>
-              <span className="mtime">{fmtDate(e.mtime)}</span><span className="size">{fmtSize(e.size)}</span>
-            </button>
+          {note && <p className={`fs-note ${note.kind}`} role={note.kind === "error" ? "alert" : "status"}><span>{note.text}</span>
+            <button className="iconbtn sm" onClick={() => setNote(null)} aria-label={t("close")}><Icon.X /></button></p>}
+          {asking && (
+            <div className="fs-confirm" role="alertdialog" aria-label={t("fsDeleteN", { n: asking.name })}>
+              <span>{t(asking.dir ? "fsDeleteAskDir" : "fsDeleteAsk", { n: asking.name })}</span>
+              <button className="btn outline sm" onClick={() => { setAsking(null); dialogRef.current?.focus(); }}>{t("cancel")}</button>
+              <button className="btn primary danger sm fs-confirm-ok" autoFocus onClick={() => { void trash(asking); }}>{t("fsDelete")}</button>
+            </div>
+          )}
+          {making && (
+            <div className="fs-row fs-edit"><Icon.Folder />
+              <NameBox value="" label={t("fsNewFolderName")} placeholder={t("fsNewFolder")} onDone={(v) => { void makeFolder(v); }}
+                onCancel={() => setMaking(false)} /></div>
+          )}
+          {shown.map((e) => renaming === e.path ? (
+            <div key={e.path} className="fs-row fs-edit">{e.dir ? <Icon.Folder /> : <Icon.File />}
+              <NameBox value={e.name} label={t("fsRenameN", { n: e.name })} onDone={(v) => { void rename(e, v); }} onCancel={() => setRenaming(null)} /></div>
+          ) : (
+            <div key={e.path} className={`fs-item${picked.includes(e.path) ? " on" : ""}`}>
+              <button className={`fs-row${picked.includes(e.path) ? " on" : ""}`}
+                onClick={(ev) => (e.dir ? go(e.path) : clickFile(e, ev))}
+                onDoubleClick={() => !e.dir && !saving && confirm([e.path])}>
+                {e.dir ? <Icon.Folder /> : <Icon.File />}<span>{e.name}</span>
+                <span className="mtime">{fmtDate(e.mtime)}</span><span className="size">{fmtSize(e.size)}</span>
+              </button>
+              {/* a row's own actions, on hover / focus / selection (F2 and Delete do the same) */}
+              <span className="fs-acts">
+                <button className="iconbtn sm fs-rename" onClick={() => { setRenaming(e.path); setNote(null); }} title={`${t("fsRenameN", { n: e.name })} (F2)`}
+                  aria-label={t("fsRenameN", { n: e.name })}><Icon.Edit /></button>
+                <button className="iconbtn sm fs-delete" onClick={() => { setAsking(e); setNote(null); }} title={`${t("fsDeleteN", { n: e.name })} (Del)`}
+                  aria-label={t("fsDeleteN", { n: e.name })}><Icon.Trash /></button>
+              </span>
+            </div>
           ))}
           {!error && !filter && path && !entries.length && (
             <p className="empty-note fs-empty">{t("fsEmpty")}{hidden > 0 ? ` ${t("fsHidden", { n: hidden })}` : ""}</p>
@@ -405,4 +481,22 @@ export default function FileBrowser() {
       </div>
     </div>
   );
+}
+
+/** A name typed in a row of the list (a new folder, a rename): Enter keeps it, Esc does not; a file's name is
+ *  chosen without its extension, as in Explorer. */
+function NameBox({ value, label, placeholder, onDone, onCancel }: {
+  value: string; label: string; placeholder?: string; onDone: (v: string) => void; onCancel: () => void;
+}) {
+  const [v, setV] = useState(value);
+  const done = useRef(false);
+  const finish = (ok: boolean) => { if (done.current) return; done.current = true; if (ok) onDone(v); else onCancel(); };
+  return <input className="fs-name-in" autoFocus value={v} aria-label={label} placeholder={placeholder} spellCheck={false}
+    onChange={(e) => setV(e.target.value)}
+    onFocus={(e) => { const dot = value.lastIndexOf("."); e.target.setSelectionRange(0, dot > 0 ? dot : value.length); }}
+    onKeyDown={(e) => {
+      if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); finish(true); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(false); }
+    }}
+    onBlur={() => finish(!!v.trim() && v !== value)} />;
 }

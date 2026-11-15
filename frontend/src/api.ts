@@ -444,6 +444,10 @@ export const api = {
     call<{ dir: string | null; items: { name: string; path: string; dir: boolean }[]; common: string }>("/api/fs/complete", { text, base, exts }),
   listDir: (path?: string | null, exts?: string[]) => call<{ path: string; parent: string | null; entries: FsEntry[]; hidden?: number }>("/api/fs/list", { path, exts }),
   places: () => call<FsPlaces>("/api/fs/places"),
+  // §7b: the file dialog as a browser - a new folder, a rename, to the recycle bin (only in the user's own folders)
+  makeFolder: (parent: string, name: string) => call<{ path: string }>("/api/fs/mkdir", { parent, name }),
+  renamePath: (path: string, name: string) => call<{ path: string }>("/api/fs/rename", { path, name }),
+  trashPath: (path: string) => call<{ path: string; trash: string }>("/api/fs/delete", { path }),
   setFavourites: (paths: string[]) => call<{ favourites: { path: string; exists: boolean }[] }>("/api/fs/favourites", { paths }, "PUT"),
   compare: (signals: string[], baseline: string, alignment: string, tolerances: Tolerances,
     windows?: Record<string, [number, number]> | null, trace = 0) =>

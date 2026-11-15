@@ -247,3 +247,127 @@ def complete_path(req: CompleteRequest):
     else:
         common_path = folder + (common if len(common) >= len(prefix) else prefix)
     return {"dir": folder, "items": items, "common": common_path}
+
+
+# ------------------------------------------------------------------ New folder, Rename, Delete (PLAN 2026-11-16 §7b)
+# The file dialog works like a browser's: a folder made where you save, a file renamed or moved to the recycle bin
+# (app/trash.py - never deleted for good). Only in the user's own folders: under the home folder or on a data drive
+# (another drive than the system's; /media, /mnt, /Volumes) - never the system's folders, a hidden one (the app's own
+# ~/.signalviewer among them), a drive itself or the home / Desktop / Documents / Downloads folders themselves.
+
+_BAD_CHARS = set('<>:"|?*') if os.name == "nt" else set()
+_RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
+
+
+def _norm(p: str) -> str:
+    return os.path.normcase(os.path.realpath(os.path.expanduser(p)))
+
+
+def _under(p: str, root: str) -> bool:
+    return p == root or p.startswith(root.rstrip("\\/") + os.sep)
+
+
+def _own_roots() -> List[str]:
+    roots = [_norm("~")]
+    if os.name == "nt":
+        system = (os.environ.get("SystemDrive") or "C:").upper()
+        roots += [_norm(d) for d in _windows_drives() if not d.upper().startswith(system)]
+    else:
+        roots += [_norm(d) for d in ("/media", "/mnt", "/Volumes", "/run/media") if os.path.isdir(d)]
+    return roots
+
+
+def _check_own(path: str, target: bool) -> str:
+    """The real path of `path` if it is in the user's own folders (else a 403 that says so). `target`: it is the
+    thing renamed or deleted (not only where something is made) - a drive or a standard folder itself is refused."""
+    p = _norm(path)
+    root = next((r for r in _own_roots() if _under(p, r)), None)
+    if root is None:
+        fail(403, f"{path} is not in your own folders (your home folder or a data drive) - "
+                  "Signal Viewer does not change system folders. Use your file manager for it.")
+    if any(part.startswith(".") for part in os.path.relpath(p, root).split(os.sep) if part != "."):
+        fail(403, f"{path} is in a hidden folder - Signal Viewer does not change hidden folders (its own settings live there).")
+    home = _norm("~")
+    if target:
+        fixed = {home, *(_norm(s["path"]) for s in _standard_folders()), *_own_roots(), *(_norm(d) for d in _drives())}
+        if p in fixed:
+            fail(403, f"{path} is a drive or one of your main folders - it is not renamed or deleted from here.")
+        open_files = {_norm(getattr(lr.run, "file_path", "") or "") for lr in store.runs.values()}
+        if any(f and _under(f, p) for f in open_files):
+            fail(409, f"{os.path.basename(path)} is open in Signal Viewer - close it first (File > Close), then try again.")
+    return os.path.realpath(os.path.expanduser(path))
+
+
+def _check_name(name: str) -> str:
+    n = (name or "").strip()
+    if not n or n in (".", "..") or any(c in n for c in "\\/") or any(c in _BAD_CHARS for c in n) \
+            or len(n) > 255 or (os.name == "nt" and n.split(".")[0].upper() in _RESERVED):
+        fail(400, f"\"{name}\" cannot be a file or folder name - use letters, digits, spaces, - and _"
+                  + (", without < > : \" | ? *." if os.name == "nt" else ", without /."))
+    if n.startswith("."):
+        fail(400, f"\"{name}\" would be hidden (it starts with a dot) - choose a name without the dot at the start.")
+    return n
+
+
+class MkdirRequest(BaseModel):
+    parent: str
+    name: str
+
+
+@router.post("/api/fs/mkdir")
+def make_folder(req: MkdirRequest):
+    parent = _check_own(req.parent, target=False)
+    if not os.path.isdir(parent):
+        fail(404, f"Folder not found: {req.parent}")
+    path = os.path.join(parent, _check_name(req.name))
+    if os.path.lexists(path):
+        fail(409, f"{os.path.basename(path)} already exists in this folder - choose another name.")
+    try:
+        os.mkdir(path)
+    except PermissionError:
+        fail(403, f"No permission to make a folder in {parent}.")
+    except OSError as e:
+        fail(500, f"Could not make the folder: {e.strerror or e}.")
+    return {"path": path}
+
+
+class RenameRequest(BaseModel):
+    path: str
+    name: str
+
+
+@router.post("/api/fs/rename")
+def rename_entry(req: RenameRequest):
+    src = _check_own(req.path, target=True)
+    if not os.path.lexists(src):
+        fail(404, f"Not found: {req.path} - it may have been moved or deleted; the folder is listed again.")
+    dst = os.path.join(os.path.dirname(src), _check_name(req.name))
+    if os.path.normcase(dst) != os.path.normcase(src) and os.path.lexists(dst):
+        fail(409, f"{os.path.basename(dst)} already exists in this folder - choose another name.")
+    try:
+        os.rename(src, dst)
+    except PermissionError:
+        fail(403, f"No permission to rename {os.path.basename(src)} - is it open in another program?")
+    except OSError as e:
+        fail(500, f"Could not rename it: {e.strerror or e}.")
+    return {"path": dst}
+
+
+class DeleteRequest(BaseModel):
+    path: str
+
+
+@router.post("/api/fs/delete")
+def delete_entry(req: DeleteRequest):
+    """To the recycle bin (app/trash.py): it can be put back from there."""
+    from app.trash import to_trash
+    path = _check_own(req.path, target=True)
+    if not os.path.lexists(path):
+        fail(404, f"Not found: {req.path} - it may have been moved or deleted already.")
+    try:
+        where = to_trash(path)
+    except PermissionError:
+        fail(403, f"No permission to delete {os.path.basename(path)} - is it open in another program?")
+    except OSError as e:
+        fail(500, f"Could not move {os.path.basename(path)} to the recycle bin: {e.strerror or e}. Nothing was deleted.")
+    return {"path": path, "trash": where}

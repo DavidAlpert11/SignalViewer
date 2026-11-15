@@ -601,11 +601,25 @@ table.vals .sw { display: inline-block; width: 8px; height: 8px; border-radius: 
 .fs-filter { margin-inline-start: auto; display: inline-flex; align-items: center; gap: var(--sp-1); padding: 1px 4px 1px 8px; border-radius: var(--r-l); background: var(--amber-soft); color: var(--ink); }
 .dialog:focus { outline: none; }               /* focused only to keep type-to-filter keys */
 .crumbs input { flex: 1; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 3px 8px; }
-.fs-row { display: grid; grid-template-columns: 22px 1fr 80px; align-items: center; gap: var(--sp-2); width: 100%; padding: 5px 14px; border: 0; background: none; text-align: start; cursor: pointer; color: var(--ink); direction: ltr; }
+.fs-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto 72px; align-items: center; gap: var(--sp-2); width: 100%; padding: 5px 14px; border: 0; background: none; text-align: start; cursor: pointer; color: var(--ink); direction: ltr; }
 .fs-row:hover { background: var(--panel-2); }
 .fs-row.on { background: var(--select-soft); }
 .fs-row svg { width: 16px; height: 16px; color: var(--muted); }
 .fs-row .size { color: var(--faint); text-align: right; font-size: var(--fs-sm); }
+/* §7b: a row's Rename / Delete at its end, over the size, on hover / focus / selection; a name typed in a row */
+.fs-item { position: relative; }
+.fs-acts { position: absolute; inset-block: 0; inset-inline-end: 10px; display: none; align-items: center; gap: 2px; }
+.fs-item:hover .fs-acts, .fs-item:focus-within .fs-acts, .fs-item.on .fs-acts { display: flex; }
+.fs-item:hover .size, .fs-item:focus-within .size, .fs-item.on .size { visibility: hidden; }   /* the actions take its place */
+.fs-acts .fs-delete:hover { color: var(--danger); background: var(--danger-soft); }
+.fs-edit { cursor: default; }
+.fs-edit .fs-name-in { grid-column: 2 / -1; }
+.fs-name-in { width: 100%; background: var(--bg); border: 1px solid var(--focus); border-radius: var(--r-s); padding: 2px 6px; font: inherit; color: var(--ink); }
+.fs-note, .fs-confirm { display: flex; align-items: center; gap: var(--sp-2); margin: 6px 14px; padding: 6px 10px; border-radius: var(--r-m); }
+.fs-note > span, .fs-confirm > span { flex: 1; }
+.fs-note.info { background: var(--panel-2); color: var(--ink); }
+.fs-note.error { background: var(--danger-soft); color: var(--danger); }
+.fs-confirm { background: var(--danger-soft); border: 1px solid var(--danger); color: var(--ink); }
 .import-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-2_5); padding: 10px 14px; }
 .import-grid label { display: flex; flex-direction: column; gap: var(--sp-1); color: var(--muted); font-size: var(--fs-m); }
 .import-grid input, .import-grid select { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; }
