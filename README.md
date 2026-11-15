@@ -50,7 +50,7 @@ no cloud, no telemetry, no internet needed.
 
 <p align="center">
   🎬 <a href="docs/media/demo_simulation.mp4"><b>Simulation vs. reality – 90-second demo</b></a>
-  &nbsp;·&nbsp; 🎓 <a href="docs/media/training.mp4"><b>Training: Signal Viewer in ten minutes</b></a>
+  &nbsp;·&nbsp; 🎓 <a href="docs/media/training.mp4"><b>Training film – nine short chapters, 3½ minutes</b></a>
 </p>
 
 ## Try it in one minute

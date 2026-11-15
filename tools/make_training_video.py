@@ -35,7 +35,9 @@ SLIDES = r"""
   #tr-slide .foot { margin-top: 38px; font-size: 18px; color: #8b98a9; }
   #tr-ring { position: fixed; z-index: 99998; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%;
     border: 3px solid #f2a33a; pointer-events: none; opacity: 0; transform: scale(.4); transition: opacity .2s, transform .35s ease; }
-  #tr-ring.on { opacity: 1; transform: scale(1); }`;
+  #tr-ring.on { opacity: 1; transform: scale(1); }
+  /* recorded without a graphics card: the 3D view's "reduced quality" badge is true here, not for the viewer */
+  .globe3d-light { display: none !important; }`;
   document.head.appendChild(st);
   window.__slide = (no, h, items, foot) => {
     let d = document.getElementById('tr-slide');
@@ -81,13 +83,19 @@ class Lesson(Film):
         self.glide(self.pg.locator(f"button:has(.rail-label:text-is('{name}'))").first)
 
 
-def chapter(film, app, no, title, items, show, foot=""):
-    """A slide, then the live part (on a fresh workspace, behind the slide); a failure is logged and skipped."""
+def chapter(film, app, no, title, items, show, foot="", keep=False, prepare=None):
+    """A slide, then the live part. keep: go on with what the last chapter opened (one example serves several
+    chapters - no reopening); else a fresh workspace behind the slide. prepare: work done behind the slide
+    (a map loading its tiles) - its wait is cut from the film. A failure is logged and the chapter skipped."""
     film.cap()
     film.slide(no, title, items, foot)
     try:
-        fresh(film, app)
-        film.slide(no, title, items, foot, hold=5.5)
+        if not keep:
+            fresh(film, app)
+            film.slide(no, title, items, foot)          # the reload took the slide away: back before anything shows
+        if prepare:
+            film.wait_cut(lambda: prepare(film, app))
+        film.slide(no, title, items, foot, hold=5.0)
         film.slide()
         film.pg.wait_for_timeout(700)
         show(film, app)
@@ -98,11 +106,40 @@ def chapter(film, app, no, title, items, show, foot=""):
         film.slide()
 
 
-def open_example(film, ex, ready):
-    film.glide(film.pg.locator(f".ex-card[data-example='{ex}']").first)
+def open_example(film, ex, ready, glide=True):
+    card = film.pg.locator(f".ex-card[data-example='{ex}']").first
+    film.glide(card) if glide else card.click()
     film.pg.wait_for_selector(ready, timeout=90000)
-    film.pg.wait_for_timeout(1800)
+    film.pg.wait_for_function("window.__sv.state().busy === 0 && !document.querySelector('.job')", timeout=90000)
+    film.pg.wait_for_timeout(1200)
     no_toasts(film.pg)
+
+
+def tiles_settled(pg, quiet_ms=1500, timeout_s=60):
+    """The map's tiles are in: at least one tile request, then none in flight for quiet_ms."""
+    import time
+    state = {"open": 0, "seen": 0, "last": time.time()}
+
+    def is_tile(r):
+        u = r.url
+        return "/tiles/" in u or "tile" in u.split("?")[0].rsplit("/", 4)[0] or "arcgisonline" in u or "openstreetmap" in u
+
+    def on_req(r):
+        if is_tile(r):
+            state["open"] += 1; state["seen"] += 1; state["last"] = time.time()
+
+    def on_done(r):
+        if is_tile(r):
+            state["open"] = max(0, state["open"] - 1); state["last"] = time.time()
+    pg.on("request", on_req); pg.on("requestfinished", on_done); pg.on("requestfailed", on_done)
+    end = time.time() + timeout_s
+    try:
+        while time.time() < end:
+            pg.wait_for_timeout(250)
+            if state["seen"] and not state["open"] and (time.time() - state["last"]) * 1000 > quiet_ms:
+                return
+    finally:
+        pg.remove_listener("request", on_req); pg.remove_listener("requestfinished", on_done); pg.remove_listener("requestfailed", on_done)
 
 
 # ----------------------------------------------------------------------------- the chapters
@@ -112,13 +149,12 @@ def ch_workspace(f, app):
     pg.mouse.wheel(0, 500); pg.wait_for_timeout(1400); pg.mouse.wheel(0, -500); pg.wait_for_timeout(800)
     f.cap("Open a file – or drop it on the window", "Here: three test runs of a car, as CSV")
     open_example(f, "car", ".grid canvas")
-    f.cap("Left: the files and their signals, grouped and searchable", "Units, rates and a sparkline for each signal", hold=3.6)
-    f.cap("Top: the three areas, files, templates, Undo", "Every change to the workspace can be undone (Ctrl+Z)", hold=3.4)
+    f.cap("Left: the files and their signals, grouped and searchable", "Units, rates and a sparkline for each signal", hold=3.4)
+    f.cap("Top: the three areas, files, templates, Undo", "Every change to the workspace can be undone (Ctrl+Z)", hold=3.2)
 
 
 def ch_plots(f, app):
     pg = f.pg
-    open_example(f, "car", ".grid canvas")
     f.cap("Click a signal to plot it – Ctrl+click adds it to the same plot")
     f.glide(pg.locator(".sig", has_text="RPM").first)
     pg.wait_for_timeout(1500)
@@ -133,20 +169,24 @@ def ch_plots(f, app):
     f.cap("Two cursors: the change between them, Δ, in the legend", "D toggles them")
     f.glide(pg.locator(".stage-bar .cursor-btn").nth(1))
     pg.wait_for_timeout(2600)
-    f.cap("Drag to zoom, double-click to fit – all plots share the time axis", "The plot shows every spike, even zoomed out", hold=3.4)
+    f.cap("Drag to zoom, double-click to fit – all plots share the time axis", "The plot shows every spike, even zoomed out")
+    pg.mouse.move(box["x"] + box["width"] * 0.3, box["y"] + box["height"] * 0.5)
+    pg.mouse.down(); pg.mouse.move(box["x"] + box["width"] * 0.55, box["y"] + box["height"] * 0.5, steps=20); pg.mouse.up()
+    pg.wait_for_timeout(1800)
+    pg.mouse.dblclick(box["x"] + box["width"] * 0.5, box["y"] + box["height"] * 0.5)
+    pg.wait_for_timeout(1400)
 
 
 def ch_compare(f, app):
     pg = f.pg
-    open_example(f, "car", ".grid canvas")
-    f.cap("Compare: every shared signal ranked by how different it is")
+    f.cap("Compare: the same three runs – every shared signal ranked by how different it is")
     f.rail("Compare")
     pg.wait_for_selector(".sim-row", timeout=30000)
     pg.wait_for_timeout(2200)
     f.cap("Click a row: its signal from every run, overlaid")
     f.glide(pg.locator(".sim-row").first)
     pg.wait_for_timeout(2600)
-    f.cap("Mark one run as golden, set tolerances – the verdict is pass / fail", "The same check runs from the command line, in CI", hold=3.6)
+    f.cap("Mark one run as golden, set tolerances – the verdict is pass / fail", "The same check runs from the command line, in CI", hold=3.4)
 
 
 def ch_checks(f, app):
@@ -156,71 +196,105 @@ def ch_checks(f, app):
     f.cap("Checks: one verdict for the file")
     f.rail("Checks")
     pg.wait_for_timeout(2600)
-    f.cap("Your limits, the data's own quality, a log's health check", "Gaps, stuck values, spikes – each a click from its moment", hold=4.0)
+    f.cap("Your limits, the data's own quality, a log's health check", "Gaps, stuck values, spikes – each a click from its moment", hold=3.6)
     f.cap("The file: the structure of any recording")
     f.glide(pg.locator("[role='tab'][data-tab='file']").first)
-    pg.wait_for_timeout(3000)
+    pg.wait_for_timeout(2800)
 
 
 def ch_investigate(f, app):
     pg = f.pg
-    f.cap("A known fault: two runs, one went wrong")
+    f.cap("A known fault: a drone in three gusts – the heavy run loses its roll")
     open_example(f, "investigate", ".grid canvas")
-    f.cap("Investigate: name an event, find every time it happened")
-    f.rail("Investigate")
-    pg.wait_for_timeout(2800)
-    f.cap("What changed? – put two cursors around the moment", "Signals that left their usual range, in time order, the likeliest cause first", hold=4.2)
-
-
-def ch_map(f, app):
-    pg = f.pg
-    f.cap("Positions in the file: the run on a map")
-    open_example(f, "flight", ".grid canvas, .geo canvas")
-    pg.wait_for_timeout(1500)
-    for name, say in (("From above", "From above: the whole track, north up"), ("Behind it", "Behind it: follow the object, the way it moves"),
-                      ("Around it", "Around it: orbit the object at the cursor's time")):
-        btn = pg.get_by_role("button", name=name).first
-        if btn.count():
-            f.cap(say)
-            f.glide(btn)
-            pg.wait_for_timeout(2400)
-    f.cap("Map background: offline by default; online maps and your own are opt-in")
-    f.glide(pg.locator(".map-layers-btn").first)
-    pg.wait_for_timeout(2600)
-    pg.keyboard.press("Escape")
-    pg.wait_for_timeout(600)
-    f.cap("Play: every plot, the map and the 3D view follow one time bar", hold=2.6)
-
-
-def ch_sweeps(f, app):
-    pg = f.pg
-    f.cap("A table of runs: 810 runs of a controller sweep")
-    open_example(f, "sweepTable", ".pp canvas")
-    f.cap("Which parameter sets hold in every scenario – and the best one", "Data · Columns · Goal · Results: four steps", hold=4.0)
-    f.cap("A study can also start from nothing", "Set up the parameters and ranges; the app runs your simulation round after round", hold=3.8)
+    roll = pg.locator(".sig").filter(has=pg.get_by_text("Roll", exact=True)).first
+    if roll.count():
+        f.glide(roll)
+        pg.wait_for_timeout(1400)
+    f.cap("What changed? – two cursors around the moment it went wrong")
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 38.46, t2: 39.24, active: 1 } })")
+    pg.wait_for_selector(".sel-bar:not([hidden])", timeout=20000)
+    pg.wait_for_timeout(1200)
+    f.glide(pg.locator(".sel-changed").first)
+    pg.wait_for_selector(".wc-section", timeout=30000)
+    pg.wait_for_timeout(1800)
+    f.cap("The signals that left their usual range, in time order", "Wind first, then the vibration, motor 3 – and only then the roll", hold=4.4)
 
 
 def ch_report(f, app):
     pg = f.pg
-    open_example(f, "car", ".grid canvas")
     f.cap("Report: what is on screen becomes one offline HTML page")
     f.rail("Report")
-    pg.wait_for_timeout(2800)
-    f.cap("It opens with the process in brief: the data, what was checked, the conclusion", "Any browser, no install – PDF and Word too", hold=4.0)
+    pg.wait_for_timeout(1800)
+    prev = pg.locator(".side .btn", has_text="Preview").first
+    if prev.count():
+        f.glide(prev)
+        pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').length > 1000", timeout=60000)
+        pg.wait_for_timeout(1500)
+        f.cap("It opens with the process in brief: the data, what was checked, the conclusion", "Any browser, no install – PDF and Word too", hold=3.0)
+        pg.mouse.wheel(0, 700); pg.wait_for_timeout(1800)
+        pg.evaluate("window.__sv.setState({ reportPreviewHtml: null })")
+        pg.wait_for_timeout(600)
+    else:
+        f.cap("It opens with the process in brief: the data, what was checked, the conclusion", "Any browser, no install – PDF and Word too", hold=3.6)
 
 
 def ch_keys(f, app):
     pg = f.pg
-    open_example(f, "car", ".grid canvas")
     f.cap("Ctrl+K: every command and every signal, by name")
     pg.keyboard.press("Control+k"); pg.wait_for_timeout(700)
-    pg.keyboard.type("two cursors", delay=70); pg.wait_for_timeout(1800)
+    pg.keyboard.type("motor", delay=80); pg.wait_for_timeout(1800)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
-    f.cap("Templates: save this view, apply it to the next run", "Profiles add their numbers to the run at a glance", hold=3.6)
+    f.cap("Ctrl+Z undoes any change to the workspace", "Templates: save this view, apply it to the next run", hold=3.4)
+
+
+def prep_map(f, app):
+    """Behind the slide: the flight opened, the satellite map's tiles loaded - the map is there when the slide goes."""
+    pg = f.pg
+    pg.evaluate("window.__sv.setState({ geoBase: 'satroads' })")
+    pg.locator(".ex-card[data-example='flight']").first.click()
+    pg.wait_for_selector(".grid canvas, .geo canvas", timeout=90000)
+    pg.wait_for_function("window.__sv.state().busy === 0", timeout=90000)
+    tiles_settled(pg)
+    no_toasts(pg)
+
+
+def ch_map(f, app):
+    """From above on the loaded satellite map, played: the object moves along its track. The tilted cameras are
+    named, not shown - recorded without a graphics card, the 3D view draws their low horizon black and slow."""
+    pg = f.pg
+    f.cap("Positions in the file: the run on a map", "Here the satellite map with its roads – the offline map is the default", hold=3.2)
+    box = pg.locator(".grid .plot").first.bounding_box()
+    pg.mouse.move(box["x"] + box["width"] * 0.6, box["y"] + box["height"] * 0.5, steps=12)   # the map's bar shows on the map in use
+    pg.wait_for_timeout(600)
+    pg.evaluate("window.__sv.setState({ playSpeed: 20 })")         # a 10-minute flight: 20× so it is seen moving
+    play = pg.locator(".tl-play").first
+    f.cap("Play: the object moves along its track – every plot and the map on one time bar")
+    f.glide(play)
+    pg.wait_for_timeout(5200)
+    f.cap("Cameras named by what they do", "From above · Around it · Behind it · Cockpit – one click in the map's bar")
+    f.glide(pg.locator(".g3-cam-top").first, click=False)
+    pg.wait_for_timeout(3200)
+    f.glide(play)
+    pg.wait_for_timeout(800)
+
+
+def ch_sweeps(f, app):
+    pg = f.pg
+    f.cap("A table of runs: 810 runs of a controller sweep", "Opened with its question: which settings hold in every scenario")
+    open_example(f, "sweepTable", ".pp canvas")
+    pg.wait_for_timeout(1500)
+    f.cap("Each line is one run – the ones that hold every limit stand out, the best is marked", hold=3.6)
+    goals = pg.locator(".sw-step-btn[data-step='goals']").first
+    if goals.count():
+        f.cap("The question is plain: limits on the outputs, then what is best")
+        f.glide(goals)
+        pg.wait_for_timeout(2600)
+        f.glide(pg.locator(".sw-step-btn[data-step='results']").first)
+        pg.wait_for_timeout(1800)
+    f.cap("A study can also start from nothing", "Set the parameters and ranges; Sweeps runs your simulation round after round", hold=3.6)
 
 
 def record(b, app, tmp):
-    make_demo_video.OVERLAY  # the captions' and titles' styles
     reset(app)
     ctx = b.new_context(viewport={"width": W, "height": H}, color_scheme="dark",
                         record_video_dir=tmp, record_video_size={"width": W, "height": H})
@@ -232,46 +306,46 @@ def record(b, app, tmp):
     f.overlay()
     start = f.now()
 
-    f.slide("TRAINING", "Signal Viewer in ten minutes",
+    f.slide("TRAINING", "Signal Viewer, step by step",
             ["From raw measurements to an engineering answer you can defend",
              "Any time-series data: test runs, logs, simulations, ROS 2, CAN",
              "Everything on your own machine – no account, no internet"],
-            "English and Hebrew · free and open source (MIT)", hold=6.0)
+            "Nine short chapters on the built-in demos · English and Hebrew · free and open source (MIT)", hold=5.5)
     f.slide("AGENDA", "What you will learn",
             ["1 · The workspace   2 · Plots and cursors   3 · Comparing runs",
-             "4 · Checks and limits   5 · Investigating a fault   6 · Map and 3D",
-             "7 · Sweeps   8 · Reports   9 · Working fast"], hold=6.0)
+             "4 · Checks   5 · What changed first   6 · Reports",
+             "7 · Working fast   8 · Map and 3D   9 · Sweeps"], hold=5.0)
 
     chapter(f, app, "CHAPTER 1", "The workspace", ["The welcome screen and its demos", "Opening files: any supported format, or drag and drop",
                                                     "Files, signals and the three areas"], ch_workspace)
     chapter(f, app, "CHAPTER 2", "Plots and cursors", ["Click a signal to plot it; Ctrl+click to add it to the same plot",
                                                         "One cursor for values, two cursors for the change between them",
-                                                        "Zoom, pan, and every spike kept on screen"], ch_plots)
+                                                        "Zoom, pan, and every spike kept on screen"], ch_plots, keep=True)
     chapter(f, app, "CHAPTER 3", "Comparing runs", ["Every shared signal ranked by how different it is",
                                                      "A golden run and tolerances give a pass / fail verdict",
-                                                     "Runs on different clocks are aligned first (Align time)"], ch_compare)
-    chapter(f, app, "CHAPTER 4", "Checks and limits", ["One verdict per file, for any format",
-                                                        "Limits per phase or mode, data quality, a log's health check",
-                                                        "The same checks in CI: signalviewer-cli check"], ch_checks)
-    chapter(f, app, "CHAPTER 5", "Investigating a fault", ["Name an event and find every time it happened",
-                                                            "What changed? – the first signal to move, and what led what",
-                                                            "Findings and notes, kept with the session"], ch_investigate)
-    chapter(f, app, "CHAPTER 6", "Map and 3D", ["Any recording with positions, on an offline map",
-                                                 "Cameras named by what they do: From above, Behind it, Around it, Cockpit",
-                                                 "Height profile, arrows along the path, your own maps"], ch_map)
-    chapter(f, app, "CHAPTER 7", "Sweeps", ["A table of results – or start from nothing",
-                                             "The parameter sets that hold in every scenario, one set for several systems",
-                                             "A loop that runs your simulation until the best stops changing"], ch_sweeps)
-    chapter(f, app, "CHAPTER 8", "Reports", ["One HTML page that opens with the process in brief",
+                                                     "Runs on different clocks are aligned first (Align time)"], ch_compare, keep=True)
+    chapter(f, app, "CHAPTER 4", "Checks", ["One verdict per file, for any format",
+                                             "Limits per phase or mode, data quality, a log's health check",
+                                             "The same checks in CI: signalviewer-cli check"], ch_checks)
+    chapter(f, app, "CHAPTER 5", "What changed first", ["Two cursors around the moment it went wrong",
+                                                         "The signals that left their usual range, in time order",
+                                                         "The likeliest cause first – a lead, not a proof"], ch_investigate)
+    chapter(f, app, "CHAPTER 6", "Reports", ["One HTML page that opens with the process in brief",
                                               "Plots, map and 3D on one time bar – any browser, offline",
-                                              "PDF and Word as well"], ch_report)
-    chapter(f, app, "CHAPTER 9", "Working fast", ["Ctrl+K – any command or signal by name", "Ctrl+Z – undo anything in the workspace",
-                                                   "Templates and profiles – the same view on the next run"], ch_keys)
+                                              "PDF and Word as well"], ch_report, keep=True)
+    chapter(f, app, "CHAPTER 7", "Working fast", ["Ctrl+K – any command or signal by name", "Ctrl+Z – undo anything in the workspace",
+                                                   "Templates and profiles – the same view on the next run"], ch_keys, keep=True)
+    chapter(f, app, "CHAPTER 8", "Map and 3D", ["Any recording with positions, on a map – offline by default",
+                                                 "Cameras named by what they do: From above, Around it, Behind it, Cockpit",
+                                                 "Height profile, arrows along the path, your own maps"], ch_map, prepare=prep_map)
+    chapter(f, app, "CHAPTER 9", "Sweeps", ["A table of results – or start from nothing",
+                                             "The parameter sets that hold in every scenario, and the best one",
+                                             "A loop that runs your simulation until the best stops changing"], ch_sweeps)
 
     f.cap()
     f.slide("", "You are ready", ["Start from a demo on the welcome screen, then open your own files",
                                   "The user guide: davidalpert11.github.io/SignalViewer",
-                                  "Questions and ideas: github.com/DavidAlpert11/SignalViewer"], "Signal Viewer · engineering data workbench", hold=6.0)
+                                  "Questions and ideas: github.com/DavidAlpert11/SignalViewer"], "Signal Viewer · engineering data workbench", hold=5.5)
     end = f.now()
     vid = str(pg.video.path())
     ctx.close()
