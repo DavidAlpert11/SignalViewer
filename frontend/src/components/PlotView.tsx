@@ -126,7 +126,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   const map3d = isMap && !flat;                            // the 3D view's menu items
   const geoObjects = isMap && flat;                        // drawn flat: the flat map's items
   // N8 / P1: the objects of this map / 3D view for Tacview (.acmi or CSV files) and Google Earth (.kml) -
-  // positions and attitudes as this view draws them, one submenu "Export the flight"
+  // positions and attitudes as this view draws them, one submenu "Export the run"
   const exportFlight = async (kind: "acmi" | "csv" | "kml") => {
     const objs = plot.objects ?? [];
     const path = kind === "csv"

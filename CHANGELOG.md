@@ -28,6 +28,7 @@
 - One top row: the Recordings tools (open / save, templates, live, undo / redo, clear, Inspector) sit in the app's top bar, and the plot tabs moved into the bar above the plots – the plots gain 40 pixels of height.
 - The Inspector reads more calmly: small section labels, numbers in aligned monospaced columns, and a star on each line's statistics pins that number to the run at a glance. On the timeline, warnings now have their own colour (amber is only the cursor).
 
+- The open hint, the tour and the messages about logs say *logs (ArduPilot, PX4, MAVLink)* / *log* instead of *flight logs*; the map's menu says *Export the run*.
 <!-- lane L4 -->
 - **Map: *Satellite + roads*.** A new background: the satellite photos with the roads and their names drawn over them
   (Esri), in the 2D map, the 3D view, exported pictures and offline map pages. Online and opt-in like every online layer;

@@ -71,7 +71,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
       (2) the signal list (D2 chips): `ws.searches` as chips (`q` typed into the search box on click; `label ?? q`), ✕ → `actions.unpinSearch(q)`, and *Pin this search* beside the search box → `actions.pinSearch(text)` (toast `t("glSearchPinned", {q})`).
       (3) DONE (D8, 2026-11-15) – the Inspector's statistics (D8): *Pin to at a glance* → `actions.pinGlance(name, stat)` (false = full: toast `t("glFull")`). Strings are in `i18n/templates.ts` (gl*). Analysis (D3, mine) gets the same pin.
     - DONE (F2 legend, 2026-11-14) – From L5 (2026-11-14): **F2's endpoint is on `main`** – `POST /api/stats/window {signals: [ids], t0, t1}` (shown time; offsets applied) → `{stats: {id: {n, min, max, mean, t0, t1}}}`, states and closed signals left out, < 5 ms per call on 20M samples (block summaries cached). For the legend on demand (B2): call it on the view's x-range after a pan / zoom settles. Backend `svcore/windowstats.py`, test `tests/test_window_stats.py`.
-    - Request from L1 (D13 wording audit, 2026-11-14) – generic chrome says *recording / run / signal*; a format's name stays
+    - DONE (L3, 2026-11-15) – Request from L1 (D13 wording audit, 2026-11-14) – generic chrome says *recording / run / signal*; a format's name stays
       (plan §3.6). In your i18n files, en + he: `app.dropHint` / `app.noFilesHint` / `app.tourOpenText` "flight logs" →
       "logs (ArduPilot, PX4, MAVLink)"; `app.rpLog` "The flight log's own check" → "The log's own check"; `plots.exportFlight`
       "Export the flight" → "Export the run"; `files.fxParamNoLog` / `fxParamNoFile` / `fxParamUnknown` / `err_logNoData`
@@ -4342,3 +4342,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
   `tests/test_height_profile.py` (new, 8: distance against a numpy reference, Jerusalem's ground, coarse ground, AGL →
   MSL, decimation, radians, no position, the route), mypy; e2e `tests/e2e/test_height_profile.py` (new) green.
   Pictures `docs/dev/mockups/F5/after`.
+- 2026-11-15 · L3 D13 wording (L1's request): `app.dropHint` / `noFilesHint` / `tourOpenText` "logs (ArduPilot, PX4, MAVLink)", `rpLog` "The log's own check", `plots.exportFlight` "Export the run", `files.fxParam*` / `err_logNoData` "log", `errHint` "such as a mode" - en + he. Ran: tsc, i18n Vitest. Next: L5's D14 (2) pinned searches.
