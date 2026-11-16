@@ -128,7 +128,7 @@ def test_without_webgl_the_map_is_flat_with_its_line(pg):
           s.commit((ws) => { const p = ws.tabs[0].plots[0]; p.mode = '3d';
             p.objects = [{ id: 'o1', name: 'phys', kind: 'aircraft', color: '#e5677a', lat: run.id + '/phys.lat', lon: run.id + '/phys.lon' }]; return ws; }); }""")
         page.wait_for_selector(".map-flat-note:has-text('Shown flat')")
-        page.wait_for_selector(".plot .map-bar .g3-cam-top")
+        page.wait_for_selector(".plot .map-bar .g3-cam-object")                  # the same bar: Free · On the object
     finally:
         page.close()
 
