@@ -11,6 +11,7 @@ import { escapeTaken } from "./components/Overlays";
 
 export function useShortcuts() {
   useEffect(() => {
+    let spaceTaken = false;                // set by onKey, read by onKeyUp (below)
     const onKey = (e: KeyboardEvent) => {
       const st = useApp.getState();
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement;
@@ -46,7 +47,7 @@ export function useShortcuts() {
         return;
       }
       if (mod) return;
-      if (e.key === " ") { e.preventDefault(); actions.toggleCursor(); }
+      if (e.key === " ") { e.preventDefault(); spaceTaken = true; actions.toggleCursor(); }
       else if (e.key.toLowerCase() === "d") actions.toggleDual();
       else if (e.key.toLowerCase() === "r") actions.resetZoom();
       else if (e.key.toLowerCase() === "m") useApp.setState({ soloPlot: !st.soloPlot });   // one plot at a time (1-9 then flips through them)
@@ -75,8 +76,13 @@ export function useShortcuts() {
         else if (st.startCard) useApp.setState({ startCard: null });
       }
     };
+    // RV11 (review B7): after a click on a toolbar button that button keeps the focus, and the browser "clicks" it
+    // again when Space comes up - Space looked like it did nothing (or pressed the button). Space is the cursor:
+    // its keyup does not reach the focused button (Enter still presses it). The report pages do the same for Play.
+    const onKeyUp = (e: KeyboardEvent) => { if (e.key === " " && spaceTaken) { e.preventDefault(); spaceTaken = false; } };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKeyUp);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKeyUp); };
   }, []);
 
 }

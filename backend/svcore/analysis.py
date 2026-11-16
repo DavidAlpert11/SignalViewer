@@ -263,7 +263,11 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict,
                             holds=[bool(x) for x in states] if states is not None and params.get("hold", True) is not False else None,
                             nan=policy, report=rep)
         except FormulaError as e:
-            raise OpError(str(e)) from None
+            # RV11: a syntax error said on the text as typed (the expression sent has its names rewritten)
+            from svcore.formula import syntax_message_for
+            typed = str(params.get("text") or "")
+            said = syntax_message_for(typed) if typed and ("Syntax error" in str(e) or "ends too early" in str(e)) else None
+            raise OpError(said or str(e)) from None
     if op in UNARY:
         flagged = op in ("derivative", "integral") and (params.get("update") or {}).get("flag")
         if len(signals) != (2 if flagged else 1):

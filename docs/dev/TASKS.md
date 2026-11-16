@@ -101,7 +101,9 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   every scenario, the next runs, a re-run with recording for the interesting ones). Waits for his yes; then README,
   docs/index.md and the welcome screen's groups.
   RV10 done: file B rose (was teal-green next to A's blue); setpoints drawn above their measurement.
-  Next: RV11 while the owner confirms SW2 (b)'s reading and BR1; then SW2 (b).
+  RV11 done: Space after a toolbar click = the cursor (keyup kept from the focused button), P plays in pages too;
+  formula syntax errors at their place in the typed text, unknown functions named; camera following under Map.
+  Next: SW2 (b) once the owner confirms its reading (asked); BR1 waits for his yes; then the full e2e and the report.
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
@@ -453,3 +455,5 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-16 · RV10 done. backend test_file_marks; e2e test_setpoint_pairs, test_setpoint_style, test_plot_style,
   test_plot_polish, test_tab_band, test_what_changed, test_round_1112, test_release_1_21, test_compare_diff,
   test_runs_matrix.
+- 2026-11-16 · RV11 done. backend test_formula_messages (new, 4); e2e test_space_and_settings (new, 2), test_settings,
+  test_replay, test_features -k space/setting/replay/formula/fx/cursor.

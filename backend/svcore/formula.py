@@ -133,6 +133,39 @@ def _funcs(t: np.ndarray, nan: str = "propagate"):
 FUNCTION_NAMES = sorted(_funcs(np.zeros(1)).keys())
 
 
+def _syntax_message(expr: str, e: SyntaxError) -> str:
+    """RV11 (review B8): where the formula is wrong, as the user wrote it - the end ("x1 +": something missing) or the
+    character (1-based) with the text up to it. Python's offset is 0 / past the end when the input ends too early."""
+    text = expr.rstrip()
+    off = e.offset or 0
+    if off <= 0 or off > len(text) or "EOF" in (e.msg or "") or "never closed" in (e.msg or ""):
+        tail = text[-20:]
+        return f"The formula ends too early: something is missing after '{tail}' (a value, or a closing bracket)."
+    before = expr[max(0, off - 20):off]
+    return f"Syntax error at character {off}: '{before}' <- check what is just before here."
+
+
+def syntax_message_for(text: str) -> Optional[str]:
+    """The syntax message for the formula as the user typed it ({Signal name} and ^ kept in place, same length), or
+    None when that text parses - so a position and a quote point into what is on the screen, not the rewritten form."""
+    import re
+    probe = re.sub(r"\{[^}]*\}", lambda m: "x" * len(m.group(0)), text).replace("^", "*")
+    try:
+        ast.parse(probe, mode="eval")
+    except SyntaxError as e:
+        return _syntax_message(text, e)
+    return None
+
+
+def _unknown_function(fn: ast.expr, funcs: dict) -> str:
+    """RV11 (review B8): an unknown function by its name, with the closest known one."""
+    import difflib
+    if not isinstance(fn, ast.Name):
+        return "Only a function's name can be called, e.g. sqrt(x)."
+    near = difflib.get_close_matches(fn.id, list(funcs), n=1, cutoff=0.6)
+    return f"Unknown function: {fn.id}()" + (f" - did you mean {near[0]}()?" if near else ". Use one of the listed functions.")
+
+
 def parse(expr: str, n_vars: int) -> ast.Expression:
     """Parse and validate; raises FormulaError with a readable message."""
     if not expr or not expr.strip():
@@ -142,7 +175,7 @@ def parse(expr: str, n_vars: int) -> ast.Expression:
     try:
         tree = ast.parse(expr.replace("^", "**"), mode="eval")
     except SyntaxError as e:
-        raise FormulaError(f"Syntax error near position {e.offset or 0}.") from None
+        raise FormulaError(_syntax_message(expr, e)) from None
     allowed_names = {f"v{i}" for i in range(n_vars)} | {"t", "pi", "e"}
     funcs = _funcs(np.zeros(1))
     for node in ast.walk(tree):
@@ -169,7 +202,7 @@ def parse(expr: str, n_vars: int) -> ast.Expression:
             continue
         if isinstance(node, ast.Call):
             if not isinstance(node.func, ast.Name) or node.func.id not in funcs:
-                raise FormulaError("Unknown function.")
+                raise FormulaError(_unknown_function(node.func, funcs))
             if node.keywords:
                 raise FormulaError("Functions take positional arguments only.")
             arity = funcs[node.func.id][1]

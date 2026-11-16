@@ -334,7 +334,7 @@
       if (v >= hi) { setTime(hi, true); stop(); return; }
       setTime(v); raf = requestAnimationFrame(tick);
     };
-    var label = function () { playBtn.innerHTML = playing ? "&#10074;&#10074;" : "&#9654;"; var l = playing ? T.rpPause : T.rpPlay; playBtn.title = l + " (Space)"; playBtn.setAttribute("aria-label", l); playBtn.setAttribute("aria-pressed", String(playing)); };
+    var label = function () { playBtn.innerHTML = playing ? "&#10074;&#10074;" : "&#9654;"; var l = playing ? T.rpPause : T.rpPlay; playBtn.title = l + " (Space, P)"; playBtn.setAttribute("aria-label", l); playBtn.setAttribute("aria-pressed", String(playing)); };
     function stop() { if (!playing) return; playing = false; cancelAnimationFrame(raf); label(); setTime(RP.t, true); }
     var play = function () { endStory(); if (playing) { stop(); return; } if (RP.t >= hi) RP.t = lo; playing = true; label(); last = performance.now(); raf = requestAnimationFrame(tick); };
     playBtn.addEventListener("click", play);
@@ -346,6 +346,11 @@
       return e.key === " " && tg !== "SELECT" && tg !== "INPUT" && tg !== "TEXTAREA" && (tg !== "BUTTON" || inBar);
     };
     document.addEventListener("keydown", function (e) { if (spaceIsPlay(e)) { e.preventDefault(); if (!e.repeat) play(); } });
+    // RV11 (review B7): P plays here as in the app (where Space is the cursor)
+    document.addEventListener("keydown", function (e) {
+      var tg = e.target && e.target.tagName;
+      if ((e.key === "p" || e.key === "P") && !e.ctrlKey && !e.metaKey && !e.altKey && tg !== "INPUT" && tg !== "TEXTAREA" && tg !== "SELECT" && !e.repeat) play();
+    });
     document.addEventListener("keyup", function (e) { if (spaceIsPlay(e)) e.preventDefault(); });
     document.getElementById("theme").addEventListener("click", function () { frames().forEach(function (f) { tell(f, { dark: root.getAttribute("data-theme") === "dark" }); }); });
     // another tab's plots are new objects: they start on the page's time

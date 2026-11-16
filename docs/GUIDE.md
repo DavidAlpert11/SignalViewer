@@ -396,7 +396,7 @@ shown change together – on the axis, in the list, in the legend – and it can
   page* for the tab alone): one HTML page for a colleague, with the report's title, notes and conclusion below
   when written. It
   opens in any browser with no install and no network, on the moment you were looking at; a click on
-  any plot or on its timeline moves the cursor in every plot and on the map, **Play** (or Space) plays
+  any plot or on its timeline moves the cursor in every plot and on the map, **Play** (Space, or P as in the app) plays
   it, a drag zooms every plot, and the log's errors, warnings, findings and your notes are marks to jump
   to. The page's address keeps the moment (`…replay.html#t=125.4`), so a link can point at a time.
   *Open it* in the message shows it in your browser before you send it.

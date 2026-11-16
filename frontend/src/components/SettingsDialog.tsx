@@ -53,6 +53,7 @@ function StorageSection() {
 function MapSection({ seg }: { seg: <V extends string | number>(value: V, opts: [V, string][], set: (v: V) => void, label: string) => ReactElement }) {
   const t = useT();
   const m = useApp((s) => s.mapPrefs);
+  const smoothFollow = useApp((s) => s.smoothFollow);
   const [elev, setElev] = useState(elevationFolder());
   const row = (label: TKey, ctl: ReactElement, hint?: TKey) => <div className="set-row"><span>{t(label)}{hint && <small>{t(hint)}</small>}</span>{ctl}</div>;
   return (
@@ -66,6 +67,8 @@ function MapSection({ seg }: { seg: <V extends string | number>(value: V, opts: 
             {MAP_CHOICES.kinds.map((k) => <option key={k} value={k}>{t(`obj_${k}` as TKey)}</option>)}</select></label>
         ))}</span></div>
       {row("setMapCamera", seg(m.camera, [["free", t("g3CamFree")], ["centre", t("g3CamObject")]], (v) => setMapPref("camera", v), t("setMapCamera")))}
+      {/* RV11 (review B9): how the camera follows an object - beside the camera of a new Map (it was under Time) */}
+      {row("setSmoothFollow", seg(smoothFollow ? "on" : "off", [["on", t("setSmoothFollowOn")], ["off", t("setSmoothFollowOff")]], (v) => useApp.setState({ smoothFollow: v === "on" }), t("setSmoothFollow")), "setSmoothFollowHint")}
       {row("setMapDrawing", seg(m.drawing, [["auto", t("setMapDrawAuto")], ["flat", t("setMapDrawFlat")]], (v) => setMapPref("drawing", v), t("setMapDrawing")), "setMapDrawingHint")}
       {row("setMapRelation", seg(m.relation, [["shown", t("setShown")], ["hidden", t("setHidden")]], (v) => setMapPref("relation", v), t("setMapRelation")))}
       {row("setMapNames", seg(m.names, [["shown", t("setShown")], ["hidden", t("setHidden")]], (v) => setMapPref("names", v), t("setMapNames")))}
@@ -94,7 +97,6 @@ export default function SettingsDialog() {
   const theme = useApp((s) => s.theme);
   const uiScale = useApp((s) => s.uiScale);
   const timeFormat = useApp((s) => s.timeFormat);
-  const smoothFollow = useApp((s) => s.smoothFollow);
   const askBeforeClose = useApp((s) => s.askBeforeClose);
   const clickPlacesCursor = useApp((s) => s.clickPlacesCursor);
   const lineWidth = useApp((s) => s.lineWidth);
@@ -137,8 +139,6 @@ export default function SettingsDialog() {
             {seg(timeFormat, [["seconds", t("setTimeSeconds")], ["clock", t("setTimeClock")]], (v) => useApp.setState({ timeFormat: v }), t("setTime"))}</div>
                     <div className="set-row"><span>{t("setClickCursor")}<small>{t("setClickCursorHint")}</small></span>
             {seg(clickPlacesCursor ? "on" : "off", [["on", t("setClickCursorOn")], ["off", t("setClickCursorOff")]], (v) => useApp.setState({ clickPlacesCursor: v === "on" }), t("setClickCursor"))}</div>
-          <div className="set-row"><span>{t("setSmoothFollow")}<small>{t("setSmoothFollowHint")}</small></span>
-            {seg(smoothFollow ? "on" : "off", [["on", t("setSmoothFollowOn")], ["off", t("setSmoothFollowOff")]], (v) => useApp.setState({ smoothFollow: v === "on" }), t("setSmoothFollow"))}</div>
           <h3 className="set-group-title">{t("setGrpWork")}</h3>
           <div className="set-row"><span>{t("setTabChoice")}<small>{t("setTabChoiceHint")}</small></span>
             {seg(tplTabChoice, [["ask", t("setTabChoiceAsk")], ["defaults", t("setTabChoiceDefaults")]], (v) => useApp.setState({ tplTabChoice: v }), t("setTabChoice"))}</div>

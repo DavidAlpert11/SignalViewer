@@ -112,7 +112,7 @@ def test_live_report_and_replay(rid):
            "replay": {"t": 50, "extent": [0, 300], "events": [], "compact": False, "link": False}}
     html = report.build_html(store, req)
     assert '<body class="live">' in html and 'id="rp-track"' in html           # one time for the page...
-    assert "<table" in html and "Made with Signal Viewer" not in html          # ...with the report's tables and layout
+    assert "<table" in html and "Made with Signal Viewer" in html              # ...with the report's tables and layout; RV8: the brand line too
     m = re.search(r'<script type="application/json" id="sv-data">(.*?)</script>', html, re.S)
     assert json.loads(m.group(1))["replay"]["link"] is False
     # a 1.25 replay request (no compact / link) is the replay as before
