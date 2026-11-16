@@ -795,7 +795,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       const cv = cvRef.current, W = cv?.clientWidth || 600, v = viewRef.current;
       const m = Math.max(200, to.range || 1500) * 1.4;
       const z = Math.max(2, Math.min(20, Math.log2((W * 40075016.686 * Math.cos((to.lat * Math.PI) / 180)) / m / 256)));
-      if (plot.followObject) actions.updatePlot(plot.id, { followObject: null, camera: "free" });
+      if (plot.followObject) actions.setMapCamera(plot.id, null);
       flyToRef.current({ z: v ? z : z, cx: mx(to.lon), cy: my(to.lat) });
     });
     mapCameraNow.set(plot.id, () => {
@@ -862,8 +862,10 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   const zoomRef = useRef(zoomBy); zoomRef.current = zoomBy;
   /** Fit everything (the bar's button, 0, a double-click): every track in view - the camera Free again (a
    *  camera on the object would pull the view back to it) */
-  const fitFree = () => { if (plot.followObject) actions.updatePlot(plot.id, { followObject: null, camera: undefined }); fitAll(); };
-  const fitRef = useRef(fitFree); fitRef.current = fitFree;
+  const fitFree = () => { if (plot.followObject) actions.setMapCamera(plot.id, null); fitAll(); };
+  /** a double-click: on an object - the camera on it; elsewhere - Fit everything */
+  const dbl = (cx: number, cy: number) => { const id = objUnder(cx, cy); if (id) actions.setMapCamera(plot.id, id); else fitFree(); };
+  const dblRef = useRef(dbl); dblRef.current = dbl;
   useEffect(() => {
     const cv = cvRef.current;
     if (!cv) return;
@@ -923,7 +925,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     };
     const onMove = (e: MouseEvent) => { const v = viewRef.current; if (v) { const g = at(e, v); mouseRef.current = { lon: lonOf(g.wx), lat: latOf(g.wy) }; setMouse(mouseRef.current); } hoverRef.current(e); };
     const onLeave = () => { setMouse(null); setRingTip(null); };
-    const onDbl = () => fitRef.current();
+    const onDbl = (e: MouseEvent) => dblRef.current(e.clientX, e.clientY);
     cv.addEventListener("wheel", onWheel, { passive: false });
     cv.addEventListener("mousedown", onDown);
     cv.addEventListener("mousemove", onMove);
@@ -985,7 +987,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
      + / − zoom, F follows (the primary object, else the first), 0 fits everything */
   const toggleFollow = () => {
     const id = plot.followObject ? null : (plot.primaryObject && objects.some((o) => o.id === plot.primaryObject) ? plot.primaryObject : objects[0]?.id ?? null);
-    actions.updatePlot(plot.id, { followObject: id });
+    actions.setMapCamera(plot.id, id);
   };
   const onKey = (e: React.KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;

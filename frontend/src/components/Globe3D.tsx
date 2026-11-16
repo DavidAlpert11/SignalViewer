@@ -308,6 +308,12 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
           rootFocus.current();                              // its keys (Q / X) work after a click
         };
         h.setInputAction((e: { position: import("cesium").Cartesian2 }) => pickAt(e, true), Cz.ScreenSpaceEventType.LEFT_CLICK, Cz.KeyboardEventModifier.SHIFT);
+        // a double-click on an object puts the camera on it (elsewhere the view's own double-click: Fit everything)
+        h.setInputAction((e: { position: import("cesium").Cartesian2 }) => {
+          const got = w.scene.pick(e.position) as { id?: unknown; primitive?: { id?: unknown } } | undefined;
+          const id = typeof got?.id === "string" ? got.id : typeof got?.primitive?.id === "string" ? got.primitive.id : null;
+          if (id) dblObj.current = id.startsWith("ring-") ? id.slice(5) : id;
+        }, Cz.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
         h.setInputAction((e: { position: import("cesium").Cartesian2 }) => {
           if (!measuringRef.current) { pickAt(e, false); return; }
           const ray = w.camera.getPickRay(e.position);
@@ -685,7 +691,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
     if (!cz || !w) return;
     if (plot.followObject) {
       ownFlight.current = true;
-      actions.updatePlot(plot.id, { followObject: null, camera: "free" });
+      actions.setMapCamera(plot.id, null);
     }
     w.camera.lookAtTransform(cz.Matrix4.IDENTITY);
     const duration = reducedMotion() ? 0 : 1.2;
@@ -1057,15 +1063,39 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   };
   const pickRef = useRef(pick);
   pickRef.current = pick;
-  /** Q / Shift+Q: the next / previous primary; X: swap them - while the 3D view has the focus. */
+  const dblObj = useRef<string | null>(null);          // the object a double-click was on (Cesium's handler runs first)
+  /** The view's keys while it has the focus (the 2D map's, plus turning): arrows - On the object: look around
+   *  it (← left, ↑ up), Free: move over the ground; + / − zoom; F the camera on the object / Free; 0 Fit
+   *  everything; Q / Shift+Q the next / previous primary, X swaps them. Shift+arrows still step the cursor. */
   const onKey = (e: React.KeyboardEvent) => {
-    if (e.ctrlKey || e.metaKey || e.altKey || objects.length < 2) return;
-    const k = e.key.toLowerCase(), cur = pairOf(plot);
-    if (k === "q") {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const w = widgetRef.current, k = e.key, kl = k.toLowerCase(), cur = pairOf(plot);
+    const arrow = !e.shiftKey && (k === "ArrowLeft" || k === "ArrowRight" || k === "ArrowUp" || k === "ArrowDown");
+    if (arrow && w && cz) {
+      const c = w.camera;
+      if (plot.followObject) {
+        // orbiting the object: the camera going right turns the look left; going down turns it up
+        const a = cz.Math.toRadians(k === "ArrowLeft" || k === "ArrowRight" ? 10 : 5);
+        if (k === "ArrowLeft") c.rotateRight(a); else if (k === "ArrowRight") c.rotateLeft(a);
+        else if (k === "ArrowUp") c.rotateDown(a); else c.rotateUp(a);
+      } else {
+        // over the ground, along the camera's heading, a sixth of its height a step
+        const hd = c.heading, f = k === "ArrowUp" ? 1 : k === "ArrowDown" ? -1 : 0, r = k === "ArrowRight" ? 1 : k === "ArrowLeft" ? -1 : 0;
+        const local = new cz.Cartesian3(f * Math.sin(hd) + r * Math.cos(hd), f * Math.cos(hd) - r * Math.sin(hd), 0);
+        const dir = cz.Matrix4.multiplyByPointAsVector(cz.Transforms.eastNorthUpToFixedFrame(c.positionWC), local, new cz.Cartesian3());
+        c.move(cz.Cartesian3.normalize(dir, dir), Math.max(20, (c.positionCartographic?.height ?? 1000) / 6));
+      }
+      w.scene.requestRender();
+      updateRef.current();
+    } else if (k === "+" || k === "=") zoom3d(1);
+    else if (k === "-" || k === "_") zoom3d(-1);
+    else if (k === "0") fitFree();
+    else if (kl === "f" && objects.length) actions.setMapCamera(plot.id, plot.followObject ? null : (objects.some((o) => o.id === cur.primary) ? cur.primary : objects[0].id));
+    else if (kl === "q" && objects.length > 1) {
       const i = objects.findIndex((o) => o.id === cur.primary);
       const next = objects[(i + (e.shiftKey ? -1 : 1) + objects.length) % objects.length].id;
       actions.setObjectPair(plot.id, next, next === cur.secondary ? cur.primary : cur.secondary);
-    } else if (k === "x" && cur.secondary) actions.setObjectPair(plot.id, cur.secondary, cur.primary);
+    } else if (kl === "x" && objects.length > 1 && cur.secondary) actions.setObjectPair(plot.id, cur.secondary, cur.primary);
     else return;
     e.preventDefault(); e.stopPropagation();
   };
@@ -1131,16 +1161,18 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   // On the object: a zoom in to sitting on it (or out again) hides / shows its model - checked after each frame
   // drawn (the camera's moveEnd needs frames the request-render mode does not draw), the scene updated only
   // when the camera crosses the line
+  const [sitting, setSitting] = useState(false);      // the flight display's default: shown while sitting on it
   useEffect(() => {
     const w = widgetRef.current, id = plot.followObject;
     if (!w || !cz || !id) return;
     let was: boolean | null = null;
-    return w.scene.postRender.addEventListener(() => {
+    const off = w.scene.postRender.addEventListener(() => {
       const fs = lastStates.current.get(id);
       if (!fs) return;
       const near = cz.Cartesian3.distance(w.camera.positionWC, fs.pos) < SIT_M;
-      if (near !== was) { const first = was === null; was = near; if (!first) updateRef.current(); }
+      if (near !== was) { const first = was === null; was = near; setSitting(near); if (!first) updateRef.current(); }
     });
+    return () => { off(); setSitting(false); };
   }, [cz, plot.followObject]);
   // N6: the time moves the scene without a React render (playback re-rendered this 2-3 times a frame)
   useEffect(() => useApp.subscribe((s, p) => { if (s.cursor !== p.cursor) updateRef.current(); }), []);
@@ -1177,9 +1209,9 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   const keepOwn = (v: number) => actions.updatePlot(plot.id, { ownTime: v });
 
   const primaryId = pairOf(plot).primary ?? "";
-  // P9: the camera's object - its flight display (a toggle, off by default: it would cover the view's middle) and the mini-map
+  // P9: the camera's object - its flight display (a toggle; by default shown while sitting on the object) and the mini-map
   const close = mapCamera(plot) === "object";
-  const dispOn = close && !!plot.display;
+  const dispOn = close && (plot.display ?? sitting);
   const dispSrc = plot.followObject ? lastStates.current.get(plot.followObject) : undefined;
   const dispState = dispOn && dispSrc ? { name: dispSrc.name, roll: dispSrc.roll, pitch: dispSrc.pitch, hdg: dispSrc.hdg, gs: dispSrc.gs, alt: dispSrc.alt, agl: dispSrc.agl } : null;
   const miniTracks = useMemo(() => objects.filter((o) => tracks[o.id]).map((o) => ({ color: o.color, lat: tracks[o.id].lat, lon: tracks[o.id].lon })), [objects, tracks]);
@@ -1199,7 +1231,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   const secondaryName = plot.relHidden ? null : objects.find((o) => o.id === pairOf(plot).secondary)?.name;
   const reFit = () => { scene3.current.fitted = false; setTracks((x) => ({ ...x })); };
   /** Fit everything (the bar's button, a double-click): the camera Free again, every track in view */
-  const fitFree = () => { if (plot.followObject) actions.updatePlot(plot.id, { followObject: null, camera: undefined }); reFit(); };
+  const fitFree = () => { if (plot.followObject) actions.setMapCamera(plot.id, null); reFit(); };
   /** + / − of the map bar: towards / away from what the camera is on (the followed object, else the ground) */
   const zoom3d = (dir: 1 | -1) => {
     const w = widgetRef.current, cz0 = cz;
@@ -1216,7 +1248,8 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   useEffect(() => { if (failed) onFlat?.(failed); }, [failed]);   // eslint-disable-line react-hooks/exhaustive-deps
   if (failed) return null;
   return (
-    <div ref={rootRef} className={`globe3d${detached ? " own-time" : ""}`} onDoubleClick={fitFree} tabIndex={-1} onKeyDown={onKey}
+    <div ref={rootRef} className={`globe3d${detached ? " own-time" : ""}`} onDoubleClick={() => { const id = dblObj.current; dblObj.current = null;
+        if (id && objects.some((o) => o.id === id)) actions.setMapCamera(plot.id, id); else fitFree(); }} tabIndex={-1} onKeyDown={onKey}
       onPointerDownCapture={(e) => { if (!(e.target as HTMLElement).closest("button, select, input, a")) rootRef.current?.focus({ preventScroll: true }); }}>
       <div ref={hostRef} className="globe3d-host" />
       <div ref={creditRef} className="globe3d-credits" />

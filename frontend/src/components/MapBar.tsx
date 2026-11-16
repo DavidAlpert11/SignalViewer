@@ -40,8 +40,7 @@ export default function MapBar({ plot, objects, onZoom, onFit, className, object
   const target = on ?? pairOf(plot).primary ?? objects[0].id;
   // two cameras (owner, 2026-11-16): Free, or On the object - turn around it, nearer / further down to it
   const mode = on ? "object" : "free";
-  const set = (m: "free" | "object", id = target) =>
-    actions.updatePlot(plot.id, m === "free" ? { followObject: null, camera: "free" } : { followObject: id, camera: undefined });
+  const set = (m: "free" | "object", id = target) => actions.setMapCamera(plot.id, m === "free" ? null : id);
   const cam: ["free" | "object", TKey, TKey][] = [["free", "g3CamFree", "g3CamFreeHint"], ["object", "g3CamObject", objectHint]];
   return (
     <div ref={barRef} className={`map-bar ${className}`} role="toolbar" aria-label={t("g3Bar")} onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>

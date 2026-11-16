@@ -243,7 +243,7 @@ def _tabor_page(env, tmp_path, camera=None, replay=None):
 
 def test_the_wow_in_the_3d_page(env, tmp_path, gl_browser):
     """P9: the 3D page - the sun of the scene, drop lines and the last 10 s, flights, On the object down to
-    sitting on it (its own model hidden), the flight display (off by default, its toggle), the mini-map, the
+    sitting on it (its own model hidden), the flight display (shown while sitting on it, its toggle), the mini-map, the
     error surface between truth and nav (one vehicle: p95 near 6 m)."""
     path, _r = _tabor_page(env, tmp_path)
     ctx = gl_browser.new_context(viewport={"width": 1300, "height": 800})
@@ -266,10 +266,9 @@ def test_the_wow_in_the_3d_page(env, tmp_path, gl_browser):
     for _ in range(30):
         page.mouse.wheel(0, -500)
     page.wait_for_function("window.__scene.state.wow.sitting && window.__scene.state.camDist < 2")
+    page.wait_for_function("window.__scene.state.wow.display")               # sitting on it: the flight display by default
     page.click("#disp")
-    page.wait_for_function("window.__scene.state.wow.display")               # the next frame shows it (no sleep)
-    page.click("#disp")
-    page.wait_for_function("!window.__scene.state.wow.display")
+    page.wait_for_function("!window.__scene.state.wow.display")              # the next frame hides it (no sleep)
     page.click("#errs")
     page.wait_for_function("!window.__scene.state.wow.errorSurface.shown")
     ctx.close()

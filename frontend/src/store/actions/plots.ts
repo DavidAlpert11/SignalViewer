@@ -335,6 +335,11 @@ export const plotActions = {
       return ws;
     });
   },
+  /** The Map's camera (2D and 3D): on this object, or Free (null) - the bar, F, a double-click on an object,
+   *  Ctrl+K and Fit all go through here. An older `camera` value is replaced. */
+  setMapCamera(plotId: string, on: string | null) {
+    plotActions.updatePlot(plotId, on ? { followObject: on, camera: undefined } : { followObject: null, camera: "free" });
+  },
   updatePlot(plotId: string, patch: Partial<Plot>) {
     useApp.getState().commit((ws) => {
       ws.tabs.forEach((t) => t.plots.forEach((p) => { if (p.id === plotId) Object.assign(p, patch); }));

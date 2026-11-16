@@ -459,6 +459,7 @@ if (!webgl()) {
     $("errscale").hidden = !(errInfo && errOn && showRel);
     if (errInfo) $("errscale").innerHTML = `${S.errs} 0<i></i>${svDist(errInfo.p95, S.units)} (p95)`;
     renderer.render(scene, camera);
+    if (!dispSet) { dispOn = !!sitOn; showDisplay(); }      // by default shown while sitting on the object
     if (dispOn) adi(objs[cam.st.obj]);
     mini();
     svHash.write(slider.value, cam.st);
@@ -467,10 +468,10 @@ if (!webgl()) {
   const adiCv = $("adi"), ac = adiCv.getContext("2d");
   /* P9: the flight display of the object the camera is on (the app draws the same): the attitude indicator,
      a ground-speed tape on its left, an altitude tape (and the height above ground) on its right, the heading */
-  let dispOn = false;                                  // off by default, as in the app (it would cover the view's middle)
+  let dispOn = false, dispSet = false;                 // as in the app: shown while sitting on the object, or by its toggle
   function showDisplay() { $("adi").hidden = !dispOn; $("disp").setAttribute("aria-pressed", String(dispOn)); }
   $("disp").textContent = S.display; $("disp").title = S.displayHint;
-  $("disp").onclick = () => { dispOn = !dispOn; showDisplay(); need(); };
+  $("disp").onclick = () => { dispSet = true; dispOn = !dispOn; showDisplay(); need(); };
   $("errs").textContent = S.errs; $("errs").title = S.errsHint;
   $("errs").onclick = () => { errOn = !errOn; need(); };
   const tape = (x, w, v, step, unit, label, sub) => {

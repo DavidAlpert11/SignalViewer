@@ -31,6 +31,7 @@
 .map-dock .geo-readout, .plot-canvas.geo .map-dock .geo-readout, .map-dock .geo-readout.g3-readout {
   position: static; inset: auto; transform: none; max-width: 100%; }
 .map-dock .track-keys { max-width: 100%; }
+.map-dock .g3-fd { pointer-events: none; }      /* a picture: the wheel and a drag over it go to the map */
 .map-dock .rel-panel { box-shadow: var(--shadow-md); border-radius: var(--r-card); max-width: 270px; }   /* its width before B6: wider, it covered the map's right edge */
 /* the camera's hint and the measure line sit under the bar (start-aligned), clear of the docks at the bottom */
 .g3-cam-hint, .geo-hint, .g3-measure { left: auto; right: auto; bottom: auto; transform: none;

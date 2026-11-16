@@ -102,6 +102,18 @@ export default function CommandPalette() {
           { id: "placeAdd", label: t("plCmdAdd"), group: t("plPanel"), icon: <Icon.Plus />, run: () => useApp.setState({ placeEdit: { plotId: mapId(), place: { kind: "point" } } }) },
         ];
       })(),
+      // the Map's camera (2026-11-16): Free, or on each object - the active plot when it is a Map, else the tab's first
+      ...(() => {
+        const tab = activeTab(st().ws), act = tab?.plots[tab.active ?? 0];
+        const isMap = (p?: typeof act): p is NonNullable<typeof act> => !!p && isMapPlot(p) && (p.objects?.length ?? 0) > 0;
+        const pl = isMap(act) ? act : tab?.plots.find(isMap);
+        if (!pl) return [];
+        return [
+          ...(pl.followObject ? [{ id: "camfree", label: t("cmdCamFree"), group: t("objects"), icon: <Icon.Globe />, keys: "F", run: () => actions.setMapCamera(pl.id, null) }] : []),
+          ...pl.objects!.filter((o) => !o.hidden && o.id !== pl.followObject).map((o) => ({ id: `camon-${o.id}`, label: t("cmdCamOn", { name: o.name }), group: t("objects"),
+            icon: <Icon.Globe />, run: () => actions.setMapCamera(pl.id, o.id) })),
+        ];
+      })(),
       // F22: every tab is reachable by name, however many there are
       // L10: the active plot to a new tab / to another tab
       ...(() => {

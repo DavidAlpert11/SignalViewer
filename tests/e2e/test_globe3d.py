@@ -256,6 +256,9 @@ def test_on_the_object_down_to_sitting_on_it(g3move):
     pg.wait_for_timeout(300)
     c = pg.evaluate(ON)
     assert 0.5 < c["d"] < 4 and c["centre"] > 0.99, c
+    # sitting on it: the flight display by default - a picture: the wheel goes through it to the map
+    pg.wait_for_selector(".g3-fd")
+    assert pg.evaluate("getComputedStyle(document.querySelector('.g3-fd')).pointerEvents") == "none"
     # a drag turns the look around it
     h0 = c["hdg"]
     pg.mouse.move(cx, cy)
@@ -432,6 +435,46 @@ def test_two_cameras(g3multi):
     pg.locator(".globe3d-bar .g3-cam-free").click()
     assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].followObject") is None
     assert "drag to move" in pg.locator(".g3-cam-hint").inner_text()
+
+
+def test_camera_keys_double_click_and_palette(g3multi):
+    """2026-11-16: the 3D view's keys (F on the object / Free, arrows look around it or move over the ground,
+    0 fits everything and sets Free), a double-click on an object puts the camera on it, Ctrl+K has the camera."""
+    pg = g3multi
+    P = "window.__sv.state().ws.tabs[0].plots[0]"
+    HD = "(() => { const c = window.__svGlobe.widget.camera; return [c.heading * 180 / Math.PI, c.positionCartographic.latitude * 180 / Math.PI]; })()"
+    pg.locator(".globe3d").focus()
+    pg.keyboard.press("f")
+    assert pg.evaluate(f"{P}.followObject") == "A"
+    pg.wait_for_function(f"(() => {{ const c = {CAM}; return c.a > 0.999; }})()", timeout=20000)
+    pg.wait_for_timeout(1500)                                                   # the flight there has ended
+    h0 = pg.evaluate(HD)[0]
+    pg.keyboard.press("ArrowLeft")                                              # look 10° to the left, still on A
+    pg.wait_for_function(f"(() => {{ const d = ((({HD})[0] - {h0}) % 360 + 540) % 360 - 180; return Math.abs(d + 10) < 1.5; }})()", timeout=5000)
+    assert pg.evaluate(CAM)["a"] > 0.999
+    pg.keyboard.press("0")                                                      # Fit everything: Free
+    assert pg.evaluate(f"{P}.followObject") is None
+    pg.wait_for_timeout(2000)
+    lat0 = pg.evaluate(HD)[1]
+    pg.keyboard.press("ArrowUp")                                                # Free: forward over the ground
+    pg.wait_for_function(f"Math.abs(({HD})[1] - {lat0}) > 1e-5", timeout=5000)
+    # a double-click on C: the camera on C
+    for _ in range(5):
+        xy = pg.evaluate("""(() => { const { widget: w, Cesium: C } = window.__svGlobe;
+            const p = C.SceneTransforms.worldToWindowCoordinates(w.scene, C.Cartesian3.fromDegrees(34.5, 32.51, 300));
+            const b = w.scene.canvas.getBoundingClientRect(); return p ? [b.left + p.x, b.top + p.y] : null; })()""")
+        pg.mouse.dblclick(xy[0], xy[1])
+        try:
+            pg.wait_for_function(f"{P}.followObject === 'C'", timeout=4000)
+            break
+        except Exception:
+            continue
+    assert pg.evaluate(f"{P}.followObject") == "C"
+    # Ctrl+K: the camera on B, then Free
+    pg.keyboard.press("Control+k"); pg.fill(".palette-input", "Map camera: on B"); pg.keyboard.press("Enter")
+    pg.wait_for_function(f"{P}.followObject === 'B'")
+    pg.keyboard.press("Control+k"); pg.fill(".palette-input", "Map camera: Free"); pg.keyboard.press("Enter")
+    pg.wait_for_function(f"{P}.followObject === null")
 
 
 def test_primary_secondary_in_3d(g3multi):

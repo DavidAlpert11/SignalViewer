@@ -167,8 +167,12 @@ are told apart by them.
   replay moves it; drag to turn around it, the wheel (or + / −) goes nearer or further - always towards the
   object itself, all the way in to sitting on it (its own model is hidden there) and looking where you turned.
   Every change flies there; a session saved with one of the earlier cameras (From above, Around it, Behind
-  it, Cockpit, Look at) opens Free, or On the object when it followed one. *Display* shows the flight display of the
-  object the camera is on (attitude, ground speed, altitude, heading);
+  it, Cockpit, Look at) opens Free, or On the object when it followed one. A **double-click on an object** puts the
+  camera on it (elsewhere: Fit everything, Free); Ctrl+K has *Map camera: on …* / *Free*. With the 3D view clicked,
+  the keys: **F** on the object / Free, **arrows** look around the object (Free: move over the ground), **+ / −**
+  zoom, **0** fits everything. *Display* shows the flight display of the
+  object the camera is on (attitude, ground speed, altitude, heading; shown by default while sitting on it - the
+  wheel and drags go through it);
   a mini-map shows the whole flight while the camera is near an object (a click flies there). When the
   reference and the compared object are one vehicle (truth and a navigation solution), an **error
   surface** between their tracks shows where the solution left the truth (its scale and toggle are in the
