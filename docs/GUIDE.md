@@ -466,7 +466,7 @@ signalviewer-cli check examples/bench/pump_run_07.parquet --checks examples/benc
 ArduPilot and PX4 logs open with ready views (attitude, rates, vibration, battery, GPS, the map and
 the flight modes as coloured lanes; a setpoint such as DesRoll is drawn dashed beside its measured
 value) and a **health check** that points at what is worth a look - its findings wait beside the
-timeline (*3 findings*) and are ◆ marks on it; a click plots the signals behind one. *Checks* lists
+timeline (*3 to look at*) and are ◆ marks on it; a click plots the signals behind one. *Checks* lists
 the log's events, parameters and hardware too. On the map, an object's *Track colour* can follow the
 flight mode (or a value such as the altitude), with a key, and *Arrows along the path* can show the
 log's estimated wind.

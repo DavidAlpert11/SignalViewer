@@ -53,7 +53,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Opening a file that is already open reads it again from the disk (*Open another copy* on request)
 - Several files opened together: the start card suggests Compare open files
 - The timeline maps the recording: the active plot's first line drawn faintly along it, and what the plots show as a window on it - drag it to move along the recording, pull an edge to zoom, double-click it for everything; Backspace undoes a move (1.25)
-- A flight log's health check findings, once the view is open, wait beside the timeline as *N findings* (they no longer cover a plot; a click opens the list, × puts it away) and each is a ◆ mark on the timeline - a click plots its signals in a new tab (findings close together: one mark, a list)
+- A flight log's health check findings, once the view is open, wait beside the timeline as *N to look at* (they no longer cover a plot; a click opens the list, × puts it away) and each is a ◆ mark on the timeline - a click plots its signals in a new tab (findings close together: one mark, a list)
 - *New folder* in the dialog (saving: straight into it); on a file or folder *Rename* (F2) and *Delete* (Del: asked, then to the recycle bin - Windows, macOS, the freedesktop trash on Linux); only in the user's own folders (home, data drives), never a file open in the app
 - Places beside the folder: the folders of the open files, favourite folders (★ next to the path; drag to reorder), recent folders, home / Desktop / Documents / Downloads and the drives
 - Ctrl+P: quick open of recent files and folders
@@ -581,7 +581,7 @@ overshoot, energy...), with a second, finer sweep to merge. The same answer on t
 
 ### A Sweeps table from recordings
 
-- The **Runs matrix** (Investigate › *Runs matrix*; Sweeps › Data › *From recordings…*): a row per open run with
+- The **Runs matrix** (Investigate › *Runs matrix*; Sweeps › Data › *From the open recordings…*; a folder: *From a folder of recordings…*): a row per open run with
   its **measures** - a signal by name and max / min / mean / RMS / std / range / first / final / the value at a time /
   time of max or min / overshoot / settling time, optionally only where a condition holds - the values shown at
   once for every open run (define them on one run, see them right), **parameters from the file names**

@@ -163,7 +163,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   track). Stability round done: quick_check green; the whole e2e suite (4 workers, xdist) - 2 timing failures under
   load, both green alone (one wait made state-based); UI built. (Released as 1.27.0 - see R above.)
 - **2026-11-16 · main is not stable (owner): Out of Memory, the 3D map's "Fragment shader failed to compile", slow
-  maps.** Findings, numbers and plan: `docs/dev/PLAN_2026-11-16.md`. Found: every closed 3D map kept its WebGL
+  maps.** Findings, numbers and plan: `docs/dev/PLAN_2026-11-16.md` (removed in the 1.28.0 cleanup: `git show c44fbbb:docs/dev/PLAN_2026-11-16.md`). Found: every closed 3D map kept its WebGL
   context alive (Cesium's static index-buffer cache) up to 16 - fixed in `Globe3D.tsx` (contexts released, render
   error -> light mode -> flat map). Guard `tests/e2e/test_map_memory.py`; measuring `tools/measure_maps.py`,
   `tools/measure_e2e_memory.py`. Waiting for: the owner's numbers on Windows with a GPU (`measure_maps.py --gpu`);
@@ -272,7 +272,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-15 · The owner moved the 28 release tags onto the rewritten history from his computer and deleted the old
   branches (the session's proxy refuses tag and branch-delete pushes); checked here: every tag equals the rewrite, every
   commit and tag by David Alpert, only `main` left. GitHub's API counts one contributor (its sidebar is a cache).
-- 2026-11-16 · Out of Memory / render error (PLAN_2026-11-16.md): measured v1.26.0, 08f7fbd and main, light and full
+- 2026-11-16 · Out of Memory / render error (PLAN_2026-11-16.md, in git: `git show c44fbbb:docs/dev/PLAN_2026-11-16.md`): measured v1.26.0, 08f7fbd and main, light and full
   mode, 20 openings each; fixed the leaked WebGL contexts (0 alive after closing, browser memory flat at ~1.23 GB
   instead of 2.05-2.2 GB), the render-error fallback, the W9 listener and the click handler. e2e: test_map_memory (new,
   3 green); the map files - see the next line.
