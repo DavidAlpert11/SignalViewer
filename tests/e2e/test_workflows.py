@@ -240,7 +240,7 @@ def test_open_the_ardupilot_example(page, server):
     # U2: the findings do not cover the plots - docked beside the timeline, marks on it
     dock = page.locator(".findings-dock")
     dock.wait_for(timeout=20000)
-    assert "warning" in dock.get_attribute("class") and "3 findings" in dock.inner_text()
+    assert "warning" in dock.get_attribute("class") and "3 to look at" in dock.inner_text()
     assert page.locator(".start-card").count() == 0 and page.locator(".tl-finding").count() >= 1
     page.locator(".findings-btn").click()
     card = page.locator(".start-card")

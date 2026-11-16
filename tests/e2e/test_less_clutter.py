@@ -22,6 +22,8 @@ def test_fewer_buttons_and_clearer_words(pg):
     pg.wait_for_selector(".findings-dock")
     settled(pg)
     pg.evaluate("document.querySelectorAll('.toast button[aria-label]').forEach(b => b.click())")
+    # RV5's demo line (what to do next, its button and x) is the demo's, not the screen's: closed like the notices
+    pg.evaluate("document.querySelector('.demo-guide .iconbtn')?.click()")
     pg.mouse.move(5, 5)
     pg.wait_for_function("!document.querySelector('.toast')"); frames(pg)
     total, controls = pg.evaluate(COUNT, True), pg.evaluate(COUNT, False)

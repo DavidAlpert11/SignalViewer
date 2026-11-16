@@ -991,7 +991,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] RV4 Notices do not cover the data (place, life, the informational ones quieter)
 - [x] RV5 Each demo opens what its card promises, with one line saying what to do next (B4, B5, §4.4)
 - [-] RV6 Fleet counts airframes, one line per vehicle, no duplicate numbers (B2, B3, B10) - cancelled: the Fleet area is dropped (FL1, owner 2026-11-16)
-- [ ] RV7 One count of a log's findings (B6: pill / findings chip / report); the line of instructions above the plots shown once, not always (§4.2)
+- [x] RV7 One count of a log's findings (B6: pill / findings chip / report); the line of instructions above the plots shown once, not always (§4.2). Done 2026-11-16: the chip `findingsN` reads "{n} to look at" (the pill's word); `rpLog` names the log's own messages; OverviewStrip `hintShown` stores `ovHintSeen` once shown. test_workflows (chip text), test_less_clutter (closes RV5's demo line before counting: 57 -> 55 controls).
 - [ ] RV8 Report: one offline page instead of *Make a replay page…* and *Create interactive HTML* (§4.7)
 - [ ] RV9 Map bar: Camera, Fit, Story always; the rest under one ⋯ (no second row with the Inspector open) (§4.6)
 - [ ] RV10 Runs A / B colours further apart; a set point drawn above its measurement (§4.5)

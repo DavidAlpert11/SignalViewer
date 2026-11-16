@@ -90,7 +90,9 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   ready* + Open (openRecordings) - nothing opens by itself - and the rows are added to the study as another table
   (a layer) when they differ from the original. Per kind: run mode (one run per call) records the set's runs; a
   wrapper (round mode) gets the set's parameter files in one list.
-  Next: RV7 ... RV11 while the owner confirms SW2 (b)'s reading; then SW2 (b).
+  RV7 done: the findings chip says *n to look at* (the pill's word); the report's line names the log's own messages; the
+  strip's how-to line shown on the first file only (`ovHintSeen` set once shown).
+  Next: RV8 ... RV11 while the owner confirms SW2 (b)'s reading; then SW2 (b).
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
@@ -433,3 +435,5 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   Vitest green; e2e test_folder_of_recordings (new, 2), test_welcome_cards, test_navigation, test_file_help_menus,
   test_runs_matrix, test_sweeps_data_columns, test_sweeps_flow, test_sweeps_workspace, test_owner_notes_1_20 - all pass.
   Owner's answers for SW2 recorded (TASKS Current state, ROADMAP M33).
+- 2026-11-16 · RV7 done. e2e run: test_less_clutter (also closes the demo line before counting - RV5 added 2 controls,
+  it failed on main before RV7 too), test_workflows, test_flat_line_solo, test_features -k findings/health/report/strip.

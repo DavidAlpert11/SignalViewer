@@ -148,6 +148,10 @@ export default function OverviewStrip() {
     }
     return out;
   }, [ov]);
+  // RV7 (review §4.2): the how-to line is taught once - shown on the first file with something to click, then only
+  // in the tooltip (it stays for this view; the next file or start no longer shows it)
+  const hintShown = !hintSeen && (clusters.length > 0 || rows.length > 0);
+  useEffect(() => { if (hintShown && !getPrefValue<boolean>("ovHintSeen")) setPref("ovHintSeen", true); }, [hintShown]);
 
   // the selection's stretches: "or" within a row, "and" across rows
   const computeIv = (picks: Record<string, string[]>): [number, number][] => {
@@ -319,7 +323,7 @@ export default function OverviewStrip() {
             title={t("ovChecksHint")} onClick={() => useApp.setState({ panel: "log", checksRun: rid ?? null })}>
             {t(checks.bad ? "ovChecks" : checks.checked ? "ovChecksPassed" : "ovChecksNone", { bad: checks.bad, warn: checks.warn })}</button>
         )}
-        {!hintSeen && (clusters.length > 0 || rows.length > 0) && <span className="ov-hint muted">{t("ovPickHint")}</span>}
+        {hintShown && <span className="ov-hint muted">{t("ovPickHint")}</span>}
         <button className="iconbtn sm ov-add" aria-label={t("ovAdd")} title={t("ovAdd")} onClick={addMenu}>+</button>
         <button className="iconbtn sm ov-hide" aria-label={t("ovHide")} title={t("ovHide")} onClick={() => { setPref("overviewOff", true); setHidden(true); }}>×</button>
       </div>
