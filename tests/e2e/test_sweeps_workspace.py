@@ -348,7 +348,8 @@ def test_runs_first_round_one_then_round_two(pg):
     pg.wait_for_function("window.__svSweeps.doc() && window.__svSweeps.doc().columns.some((c) => c.name === 'a' && c.role === 'param')")
     _idle(pg)
     roles = {c["name"]: c["role"] for c in pg.evaluate("window.__svSweeps.doc().columns")}
-    assert roles["b"] == "param" and roles["wind"] == "hold" and roles["err"] == "output"
+    assert roles["b"] == "param" and roles["wind"] == "hold" and roles["err"] == "output" and roles["run_id"] == "id"
+    pg.wait_for_function("document.querySelector('.sw-step-btn[data-flow=columns]').innerText.includes('2 parameters')")   # its counts follow
     pg.wait_for_selector(".sw-nav [data-nav=round][data-round='1'].on")         # the round shown
     assert _study(pg, "s.tables[0].objective.expr") == ""
     _flow(pg, "next")

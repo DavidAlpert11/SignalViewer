@@ -219,9 +219,10 @@
 .nx-round1 { padding: var(--sp-3); gap: var(--sp-1); max-width: 640px; }
 /* SF1: Send runs - round 1's card stays in sight at the bottom of the form (the one thing to do next) */
 .su-send { position: sticky; bottom: calc(-1 * var(--sp-4)); z-index: 2; padding: var(--sp-3); box-shadow: var(--shadow-md);
-  background-color: var(--panel); }
-.su-send.ok { background-image: linear-gradient(var(--ok-soft), var(--ok-soft)); }
-.su-send.warn { background-image: linear-gradient(var(--warn-soft), var(--warn-soft)); }
+  background: var(--panel); }
+/* opaque over the form it covers: the card's soft colour laid on the panel's */
+.su-send.ok { background: linear-gradient(var(--ok-soft), var(--ok-soft)), var(--panel); }
+.su-send.warn { background: linear-gradient(var(--warn-soft), var(--warn-soft)), var(--panel); }
 .su-send .card-next { display: flex; flex-wrap: wrap; gap: var(--sp-1_5); margin-top: var(--sp-1); }
 .rc-goal { padding: var(--sp-3); gap: var(--sp-1); }
 .rc-goal .su-goal { flex: 1; min-width: 8em; }

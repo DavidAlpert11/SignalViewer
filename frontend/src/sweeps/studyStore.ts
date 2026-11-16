@@ -92,6 +92,7 @@ export function applyStudyTable(index: number, tableId: string): void {
   asRead.set(t.tableId, { question: JSON.stringify(question), goal: { constraints: spec.constraints, objective: spec.objective, aggregate: spec.aggregate, drop: spec.drop } });
   useSweeps.setState({ studies: st.studies.map((x, i) => (i === index
     ? { ...x, columns: x.columns.map((c) => (roles[c.name] && roles[c.name] !== c.role ? { ...c, role: roles[c.name] } : c)), question, studyTable: tableId } : x)) });
+  if (useSweeps.getState().active === index) useSweeps.getState().refreshSummary();     // Columns' counts follow the roles
   useSweeps.getState().evaluate();
 }
 

@@ -317,6 +317,8 @@ interface SweepsState {
   setAxes: (axes: string[]) => void;
   // the answer
   evaluate: () => void;
+  /** the active table's summary (its parameters / scenarios / outputs) asked again - after its roles were set from outside */
+  refreshSummary: () => void;
   exportRerun: (path: string) => Promise<{ path: string; rows: number }>;
 }
 
@@ -989,6 +991,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
       return { ...v, axes, axesOff: [...off, ...(v.axesOff ?? []).filter((a) => !axes.includes(a) && !off.includes(a))].slice(0, AXES_OFF_KEPT) };
     }),
 
+    refreshSummary: () => refreshSummary(),
     evaluate: () => {
       const s = get().studies[get().active];
       if (!s) return;
