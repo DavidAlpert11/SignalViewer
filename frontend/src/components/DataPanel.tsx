@@ -5,7 +5,7 @@ import { readAsItem } from "../readAs";
 import { laneMenuForSignal } from "../lanes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GROUP_MIN, HEURISTIC_SEPS, LOG_FORMATS, groupByPrefix, groupDerived, memberLabel, nameTree, subGroups, type TreeEntry } from "../signalGroups";
-import { unitOf } from "../units";
+import { unitOf, withoutUnit } from "../units";
 import { sparkPath, useSpark } from "../sparks";
 import type { RunInfo, SignalInfo, SignalQuality } from "../api";
 import { showFileTags, actions, activeTab, fileLabel, useApp } from "../store";
@@ -810,7 +810,7 @@ export default function DataPanel() {
 }
 
 /* ----------------------------------------------------------------- T22: unit, rate, picture */
-const nameOnly = (n: string) => { const u = unitOf(n); return u ? n.replace(/\s*[[(][^[\]()]*[\])]\s*$/, "") : n; };
+const nameOnly = withoutUnit;
 function fmtRate(hz: number, lang: "en" | "he"): string {
   if (hz >= 1000) return `${fmtNum(hz / 1000, lang, 2)} kHz`;
   return `${fmtNum(hz >= 10 ? Math.round(hz) : hz, lang, hz >= 10 ? 4 : 2)} Hz`;

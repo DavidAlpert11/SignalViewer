@@ -6,6 +6,7 @@
 - Changed: **at most two rows above the plots.** The automatic flags are drawn on the mode lane instead of on a row of their own, and a demo's line takes the place of the run-at-a-glance row until you act on it. Once its button was pressed the line goes (or says the next step) – it no longer keeps offering *Open Checks* after Checks is open.
 - Changed: the two cursors' time labels are written under the plot, in the time axis' margin, instead of on the curves – nothing covers the data between the cursors.
 - Fixed: a double-click on a signal in the list plots it once (it added the signal and removed it again). A single click adds or removes, as before.
+- Fixed: **one colour per file when runs are compared.** Wherever a plot holds the same signal from two or more files, each line has its file's colour – A blue, B rose – matching the A / B badges. *A simulation against its flight* coloured its lines by signal because the flight log writes a unit after the name (*ATT.Roll [deg]*); the plot from the Compare table did too. A colour you set by hand stays.
 
 ## 1.28.0 – 2026-11-16
 

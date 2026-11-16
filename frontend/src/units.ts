@@ -9,6 +9,11 @@ export function unitOf(name: string): string | null {
   return m ? m[1].trim() : null;
 }
 
+/** The name without the unit written after it: "ATT.Roll [deg]" -> "ATT.Roll" ("imu[1]" is left alone). */
+export function withoutUnit(name: string): string {
+  return UNIT.test(name) ? name.replace(UNIT, "") : name;
+}
+
 export function withUnit(text: string, unit: string | null): string {
   return unit ? `${text} ${unit}` : text;
 }

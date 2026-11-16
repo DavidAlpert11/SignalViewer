@@ -2,7 +2,7 @@
 import { newMapFields } from "../../mapDefaults";
 import { translate } from "../../i18n";
 import { clone, MAX_PLOTS, TRACE_COLORS, newPlot, uid, type MapObject, type Plot, type PlotMode, type PlotSignal, type Tab } from "../model";
-import { activeTab, colorByFile, emptyPlot, findPlot, fitLayout, forgetObjects, newPlotSignal, placePlot, signalName, tabFullMessage } from "../selectors";
+import { activeTab, colorByFile, sameSignalKey, fileMark, emptyPlot, findPlot, fitLayout, forgetObjects, newPlotSignal, placePlot, signalName, tabFullMessage } from "../selectors";
 import { useApp } from "../state";
 import { signalUnit } from "../../units";
 import { peersOf } from "../../peers";
@@ -15,9 +15,12 @@ import { setpointPairs } from "../../desired";
 /** T46 (owner): a signal joining the same-named signal of ANOTHER file in a plot is a comparison -
  *  that group is coloured by file, so "which line is which file" is the colour. */
 function sameNameByFile(plot: Plot, sig: string) {
-  const name = sig.slice(sig.indexOf("/") + 1), rid = sig.split("/")[0];
-  if (plot.signals.some((s) => s.sig !== sig && s.sig.slice(s.sig.indexOf("/") + 1) === name && s.sig.split("/")[0] !== rid))
-    colorByFile(plot, useApp.getState().runs);
+  const name = sameSignalKey(sig), rid = sig.split("/")[0];
+  if (plot.signals.some((s) => s.sig !== sig && sameSignalKey(s.sig) === name && s.sig.split("/")[0] !== rid)) {
+    // FR4: a colour set by hand (one the automatic palette would not give) stays when a namesake joins
+    const auto = new Set(TRACE_COLORS.map((c) => c.toUpperCase()));
+    colorByFile(plot, useApp.getState().runs, false, (s) => s.sig !== sig && !auto.has(s.color.toUpperCase()) && s.color.toUpperCase() !== fileMark(useApp.getState().runs, s.sig)?.color.toUpperCase());
+  }
 }
 
 /** T47: a signal in other units than the plot's lines (km/h and V) is a flat line on a shared axis -

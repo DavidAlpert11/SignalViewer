@@ -4,6 +4,7 @@ import type { RunInfo } from "../api";
 import { translate } from "../i18n";
 import { dataRuns, runLabels } from "../names";
 import { labelsOf } from "../values";
+import { withoutUnit } from "../units";
 import { MAX_PLOTS, TRACE_COLORS, type Plot, type PlotSignal, type Tab, type Workspace } from "./model";
 import { useApp } from "./state";
 import type { CursorState, PickerRequest, PlayMode, Range } from "./types";
@@ -75,6 +76,10 @@ export function fileMark(runs: RunInfo[], sigOrRun: string): { tag: string; colo
   return { tag: r.tag ?? "", color: r.color };
 }
 
+/** FR4: what makes two files' signals "the same signal" for the colour rule - the name without the file
+ *  and without a unit one file writes after it (a model's "ATT.Roll" and its log's "ATT.Roll [deg]"). */
+export const sameSignalKey = (sig: string) => withoutUnit(sig.slice(sig.indexOf("/") + 1));
+
 /** Tags are shown only when they tell files apart: two or more data files open. */
 export const showFileTags = (runs: RunInfo[]) => dataRuns(runs).length > 1;
 
@@ -90,11 +95,11 @@ export function shade(hex: string, k: number): string {
 /** T46: colour signals by their file - all of the plot's file signals (`all`), or only the groups
  *  where the same signal name comes from two or more files (a comparison). Several names from one
  *  file get shades of its colour. Mutates the plot (call inside commit). */
-export function colorByFile(plot: Plot, runs: RunInfo[], all = false) {
-  const nameOf = (s: string) => s.slice(s.indexOf("/") + 1);
+export function colorByFile(plot: Plot, runs: RunInfo[], all = false, keep: (s: PlotSignal) => boolean = () => false) {
+  const nameOf = sameSignalKey;
   const files = new Map<string, Set<string>>();
   plot.signals.forEach((s) => { if (fileMark(runs, s.sig)) files.set(nameOf(s.sig), (files.get(nameOf(s.sig)) ?? new Set()).add(s.sig.split("/")[0])); });
-  const chosen = plot.signals.filter((s) => fileMark(runs, s.sig) && (all || (files.get(nameOf(s.sig))?.size ?? 0) >= 2));
+  const chosen = plot.signals.filter((s) => !keep(s) && fileMark(runs, s.sig) && (all || (files.get(nameOf(s.sig))?.size ?? 0) >= 2));
   const names = [...new Set(chosen.map((s) => nameOf(s.sig)))];      // the same shade for a name in every file
   chosen.forEach((s) => { s.color = shade(fileMark(runs, s.sig)!.color, names.indexOf(nameOf(s.sig))); });
   return chosen.length;

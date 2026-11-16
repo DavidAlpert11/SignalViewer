@@ -1,7 +1,7 @@
 import { useEscape } from "./Overlays";
 import { useMemo, useState } from "react";
 import { api, type CompareAllRow } from "../api";
-import { activeTab, fileLabel, pickPath, styledSignal, placePlot, tabFullMessage, TRACE_COLORS, uid, useApp } from "../store";
+import { activeTab, colorByFile, fileLabel, pickPath, styledSignal, placePlot, tabFullMessage, TRACE_COLORS, uid, useApp } from "../store";
 import { fmtNum, translate, useT } from "../i18n";
 import { Icon } from "../icons";
 import { exactMatch } from "../fuzzy";
@@ -52,6 +52,7 @@ export default function CompareTable() {
     useApp.getState().commit((ws) => {
       const tab = activeTab(ws);
       const p = { id: uid("p"), title: x.name, signals: (x.runs ?? []).map((rid, i) => (styledSignal(`${rid}/${x.sigs?.[rid] ?? x.name}`, TRACE_COLORS[i % TRACE_COLORS.length]))) };
+      colorByFile(p, useApp.getState().runs, true);           // FR4: one line per file - each its file's colour
       const at = placePlot(tab, p);
       if (at < 0) { full = true; return ws; }
       tab.active = at;

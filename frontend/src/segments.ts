@@ -1,5 +1,5 @@
 import type { Plot } from "./store";
-import { placePlot, rangeKey, styledSignal, tabFullMessage, TRACE_COLORS, uid, useApp } from "./store";
+import { fileMark, placePlot, rangeKey, styledSignal, tabFullMessage, TRACE_COLORS, uid, useApp } from "./store";
 
 /** T10b: one segment (a value + occurrence of a state signal) found in each run. */
 export interface SegWindow { run: string; t0?: number; t1?: number; missing?: "signal" | "segment"; count?: number }
@@ -26,7 +26,7 @@ export function showSegmentPlot(name: string, runs: string[], seg: SegmentChoice
       newPlot = false;
     }
     ws.activeTab = tab.id;
-    const signals = ids.map((rid, i) => styledSignal(`${rid}/${sigs?.[rid] ?? name}`, colorOf?.(rid) ?? TRACE_COLORS[i % TRACE_COLORS.length],
+    const signals = ids.map((rid, i) => styledSignal(`${rid}/${sigs?.[rid] ?? name}`, colorOf?.(rid) ?? fileMark(useApp.getState().runs, rid)?.color ?? TRACE_COLORS[i % TRACE_COLORS.length],   // FR4: the file's colour
       { tOffset: -seg.windows[rid][0] }));
     let plot: Plot | undefined;
     if (newPlot) {
