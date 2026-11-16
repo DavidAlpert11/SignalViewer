@@ -30,7 +30,7 @@ function niceTicks(lo: number, hi: number, n = 4): number[] {
 }
 const fmt = (v: number) => {
   const a = Math.abs(v);
-  if (a !== 0 && (a < 1e-3 || a >= 1e6)) return v.toExponential(1).replace("e+", "e");
+  if (a !== 0 && (a < 1e-3 || a >= 1e6)) return (+v.toPrecision(4)).toExponential().replace("e+", "e");   // 1.25e-5, not 1.3e-5
   return String(+v.toPrecision(5));
 };
 /** Last sample at or before t (-1: none). */

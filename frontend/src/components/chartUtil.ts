@@ -131,13 +131,15 @@ function orderedLinesFrom(u: uPlot, si: number, i0: number, i1: number) {
   return { stroke, fill: null, clip, band: null, gaps: null, flags: 0 } as unknown as uPlot.Series.Paths;
 }
 
-/** Tick labels that stay readable on log axes (1e-5 instead of "0"). */
+/** Tick labels that stay readable on log axes (1e-5 instead of "0"). A small or large value keeps
+ *  every digit it needs (2.5e-4, not "3e-4": one digit made neighbouring ticks wrong or equal). */
 export function tickValues(_u: uPlot, splits: number[]): string[] {
   return splits.map((v) => {
     if (v === null || v === undefined || !Number.isFinite(v)) return "";
     const a = Math.abs(v);
-    if (a !== 0 && (a < 1e-3 || a >= 1e6)) return v.toExponential(0).replace("e+", "e");
-    return String(+v.toPrecision(6));
+    const r = +v.toPrecision(6);                 // drops float noise (3.0000000000000004e-4)
+    if (a !== 0 && (a < 1e-3 || a >= 1e6)) return r.toExponential().replace("e+", "e");
+    return String(r);
   });
 }
 

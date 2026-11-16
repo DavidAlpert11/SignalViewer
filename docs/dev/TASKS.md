@@ -369,3 +369,9 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   run: test_welcome_cards, test_features, test_first_minute, test_flat_line_solo, test_map_memory, test_object_templates,
   test_one_per_plot, test_overview_strip, test_study_common, test_study_demo, test_study_loop, test_sweeps_flow,
   test_sweeps_workspace, test_what_changed, test_workflows (254 green).
+- 2026-11-16 · (owner: a user saw values near 0 shown as 0) checked on this version with a CSV of 1e-9..1e-4 values and one
+  of 0.0002 next to 1000: cursor / legend values exact; the plots' value-axis ticks were rounded to one digit
+  (`chartUtil.tickValues` toExponential(0): 2.5e-4 -> "3e-4", 1.5e-4 -> "1e-4" = the 1e-4 tick) - fixed (all digits
+  needed; XYZChart likewise), Vitest chartUtil.test (+1). Not changed: the data is sent as float32 relative to the
+  window's middle (P3), so a value 1e-7 of the window's range (0.0002 beside 1000) is drawn ~1e-5 off - only visible
+  zoomed far into the values, and the readouts are exact.

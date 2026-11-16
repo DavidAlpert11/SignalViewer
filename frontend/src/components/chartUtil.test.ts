@@ -1,6 +1,6 @@
 // T1: ink() - every trace colour is drawn at >= 3:1 against the plot in both themes (26.U2)
 import { describe, expect, test } from "vitest";
-import { ink, PLOT_THEME } from "./chartUtil";
+import { ink, PLOT_THEME, tickValues } from "./chartUtil";
 import { TRACE_COLORS } from "../store";
 
 const lum = (hex: string) => {
@@ -37,5 +37,16 @@ describe("a drag zooms by its direction", () => {
     expect(dragAxes(300, 200)).toBe("xy");
     expect(dragAxes(150, 150)).toBe("xy");
     expect(dragAxes(8, 5)).toBe("x");           // tiny: the longer side
+  });
+});
+
+// a user saw values near zero read as 0: the small ticks were rounded to one digit (2.5e-4 -> "3e-4")
+describe("tickValues", () => {
+  const f = (xs: number[]) => tickValues(null as never, xs);
+  test("small and large ticks keep their digits, neighbours stay distinct", () => {
+    expect(f([0, 2.5e-4, 5e-4, 7.5e-4])).toEqual(["0", "2.5e-4", "5e-4", "7.5e-4"]);
+    expect(f([1e-4, 1.5e-4, 2e-4])).toEqual(["1e-4", "1.5e-4", "2e-4"]);
+    expect(f([-2.5e-7, 3.0000000000000004e-4, 1.25e6])).toEqual(["-2.5e-7", "3e-4", "1.25e6"]);
+    expect(f([0.5, 1, 2.5])).toEqual(["0.5", "1", "2.5"]);
   });
 });
