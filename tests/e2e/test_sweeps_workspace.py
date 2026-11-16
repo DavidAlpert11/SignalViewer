@@ -8,7 +8,7 @@ import re
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, goto_folder, pg  # noqa: E402,F401
+from test_features import env, goto_folder, pg, open_example  # noqa: E402,F401
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 EXAMPLES = os.path.join(ROOT, "examples", "sweeps")
@@ -435,7 +435,7 @@ def test_three_equal_starts_each_one_click(pg):
 def test_a_study_with_tables_does_not_need_a_table(pg):
     """FR6: steps 2 and 3 of a study with tables (none open) do not read "needs a table"; the status line counts
     its tables in good grammar."""
-    pg.locator(".ex-card[data-example='commonGains']").click()
+    open_example(pg, "commonGains")
     pg.wait_for_selector(".sw-steps .sw-step-btn[data-flow='columns']", timeout=60000)
     pg.wait_for_function("document.querySelector('footer.status').innerText.includes('Study:')")
     steps = pg.locator(".sw-steps").inner_text()

@@ -4,7 +4,7 @@ icon card; the pictures are files (not inlined), loaded lazily, their place rese
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, pg  # noqa: E402,F401
+from test_features import env, pg, open_example  # noqa: E402,F401
 
 
 def _cols(pg):
@@ -26,7 +26,7 @@ def test_cards_show_their_picture_in_each_theme(pg, theme):
     _pictures_loaded(pg)
     assert all(pg.eval_on_selector_all(".ex-card.pic img", "els => els.map((e) => e.loading === 'lazy' && !!e.alt)"))
     # the title stays real text in the button (the other e2e files click the cards by it)
-    assert pg.locator(".examples-line button", has_text="a drone flight").count() == 1
+    assert pg.locator(".examples-line button", has_text="Find out what went wrong").count() == 1
 
 
 def test_columns_follow_the_window(pg):
@@ -50,11 +50,11 @@ def test_hebrew_is_mirrored_and_pictures_stay(pg):
 
 
 def test_a_missing_picture_falls_back_to_the_icon_card(pg):
-    pg.route("**/examples/flight.*.webp", lambda r: r.fulfill(status=404, body=""))
+    pg.route("**/examples/twoFlights.*.webp", lambda r: r.fulfill(status=404, body=""))
     pg.reload()
-    pg.wait_for_selector(".ex-card[data-example='flight']")
-    pg.wait_for_selector(".ex-card[data-example='flight']:not(.pic) > svg")
-    assert pg.locator(".ex-card[data-example='car'].pic img").count() == 1
+    pg.wait_for_selector(".ex-card[data-example='twoFlights']")
+    pg.wait_for_selector(".ex-card[data-example='twoFlights']:not(.pic) > svg")
+    assert pg.locator(".ex-card[data-example='ardupilot'].pic img").count() == 1
 
 
 def test_the_picture_space_is_reserved(pg):
@@ -65,12 +65,17 @@ def test_the_picture_space_is_reserved(pg):
 
 def test_every_area_has_its_demo(pg):
     """Review (owner, 2026-11-13: a clear demo for everything): the cards grouped by area; the sweep card opens
-    the table with its question answered."""
+    the table with its question answered. FR11 (owner, 2026-11-16): six cards, one of them Sweeps'; the others in
+    Help -> Examples."""
     pg.wait_for_selector(".examples-group")
     groups = pg.locator(".examples-group").evaluate_all("els => els.map((g) => [...g.querySelectorAll('.ex-card')].map((c) => c.dataset.example))")
-    assert groups == [["flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "investigate", "folderOfFlights"],
-                      ["sweepTable", "commonGains", "smartSweepDemo"]], groups
-    pg.locator(".ex-card[data-example='sweepTable']").click()
+    assert groups == [["ardupilot", "investigate", "simVsFlight", "twoFlights", "folderOfFlights"], ["smartSweepDemo"]], groups
+    assert "Help → Examples" in pg.locator(".examples-more").inner_text()
+    pg.locator(".topbar .menubar-btn", has_text="Help").click()          # every example is there, the six too
+    pg.locator(".menu.ctx button", has_text="Examples").click()
+    assert pg.locator(".menu.ctx.sub button").count() == 11
+    pg.keyboard.press("Escape")
+    open_example(pg, "sweepTable")
     pg.wait_for_function("window.__sv.state().area === 'sweeps'")
     pg.wait_for_selector(".sw-step-btn[data-step='results']")
     pg.wait_for_function("window.__svSweeps.idle() && window.__svSweeps.doc()?.view.step === 'results'")
@@ -80,22 +85,22 @@ def test_every_area_has_its_demo(pg):
 def test_the_start_page_opens_over_open_files(pg):
     """Owner (2026-11-16): after one example was open there was no way back to the others. The brand (and Ctrl+K)
     opens the start page over the open files; Back returns to them; an example opened from it replaces the page."""
-    pg.locator(".ex-card[data-example='car']").click()
+    open_example(pg, "car")
     pg.wait_for_function("window.__sv.state().runs.length > 0")
     pg.wait_for_selector(".ex-card", state="detached")
     pg.click(".topbar .brand")
-    pg.wait_for_selector(".ex-card[data-example='flight']")
+    pg.wait_for_selector(".ex-card[data-example='ardupilot']")
     pg.click(".welcome-back")
     pg.wait_for_selector(".ex-card", state="detached")
     assert pg.evaluate("window.__sv.state().runs.length") > 0          # the files stayed open
     pg.click(".topbar .brand")
-    pg.locator(".ex-card[data-example='bench']").click()
+    open_example(pg, "bench")
     pg.wait_for_selector(".ex-card", state="detached")
     pg.wait_for_function("window.__sv.state().startOpen === false")
 
 
 def _open_demo(pg, ex):
-    pg.locator(f".ex-card[data-example='{ex}']").click()
+    open_example(pg, ex)
     pg.wait_for_selector(f".demo-guide[data-demo='{ex}']", timeout=30000)
 
 
@@ -136,4 +141,4 @@ def _close_all(pg):
     pg.evaluate("""async () => { for (const r of await (await fetch('/api/runs')).json())
       if (r.format !== 'derived') await fetch('/api/runs/' + r.id, { method: 'DELETE' });
       window.__sv.setState({ runs: [] }); }""")
-    pg.wait_for_selector(".ex-card[data-example='flight']")
+    pg.wait_for_selector(".ex-card[data-example='ardupilot']")

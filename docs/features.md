@@ -457,7 +457,7 @@ For any recording, not only flight logs (1.27: the Log panel became *Checks*).
 
 ### Test-bench example
 
-- *A pump on a test bench* on the welcome screen (`examples/bench/pump_run_07.parquet`): phases as a state, units, a 0.2 s pressure spike, a 2 s gap and a motor temperature that creeps over its limit. Its `checks.json` runs in CI: `signalviewer-cli check examples/bench/pump_run_07.parquet --checks examples/bench/checks.json` (2 of 4 checks fail, on purpose; exit code 1). The app runs the same file: a checks file beside a recording (`<name>.checks.json`, or `checks.json` in its folder) shows in Checks as its own card with the CLI's verdict, and counts in the *Checks* pill above the plots
+- *A pump on a test bench* in Help → Examples (`examples/bench/pump_run_07.parquet`): phases as a state, units, a 0.2 s pressure spike, a 2 s gap and a motor temperature that creeps over its limit. Its `checks.json` runs in CI: `signalviewer-cli check examples/bench/pump_run_07.parquet --checks examples/bench/checks.json` (2 of 4 checks fail, on purpose; exit code 1). The app runs the same file: a checks file beside a recording (`<name>.checks.json`, or `checks.json` in its folder) shows in Checks as its own card with the CLI's verdict, and counts in the *Checks* pill above the plots
 - An example whose data no built-in view fits opens with *Quick look*
 
 ## Flight logs { #flight }

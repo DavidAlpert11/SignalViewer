@@ -258,6 +258,21 @@ def flat_maps(pg):
     pg.evaluate("window.__sv.setState({ mapFlat: true })")
 
 
+# FR11: the examples off the welcome screen - in Help -> Examples, by their label there
+EXAMPLE_MENU = {"flight": "a drone flight", "car": "three car runs", "bench": "a pump on a test bench",
+                "sweepTable": "a sweep: which settings hold", "commonGains": "one gain set, three drones"}
+
+
+def open_example(pg, ex):
+    """An example as a user opens it: its welcome card when it is one of the six there, else Help -> Examples."""
+    if ex not in EXAMPLE_MENU:
+        pg.locator(f".ex-card[data-example='{ex}']").click()
+        return
+    pg.locator(".topbar .menubar-btn", has_text="Help").click()
+    pg.locator(".menu.ctx button", has_text="Examples").click()
+    pg.locator(".menu.ctx.sub button", has_text=EXAMPLE_MENU[ex]).click()
+
+
 def menu_item(pg, label):
     pg.locator(".menu.ctx button", has_text=label).first.click()
 

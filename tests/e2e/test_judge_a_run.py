@@ -9,11 +9,11 @@ import pytest
 
 pytest.importorskip("playwright.sync_api")
 from test_template_tabs import pg  # noqa: E402,F401
-from test_features import clear_everything, goto_folder  # noqa: E402
+from test_features import clear_everything, goto_folder, open_example  # noqa: E402
 
 
 def test_golden_run_proposed_judged_and_reported(pg):
-    pg.locator(".examples-line button", has_text="three car runs").click()
+    open_example(pg, "car")
     pg.wait_for_function("document.querySelectorAll('.run-head').length === 3")
     pg.click("[aria-label='Compare runs']")
     pg.wait_for_selector(".sim-row", timeout=30000)

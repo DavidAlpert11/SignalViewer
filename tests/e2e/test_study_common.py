@@ -7,13 +7,13 @@ import shutil
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, pg, save_as  # noqa: E402,F401
+from test_features import env, pg, save_as, open_example  # noqa: E402,F401
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 def _open_card(pg):
-    pg.locator(".ex-card[data-example='commonGains']").click()
+    open_example(pg, "commonGains")
     pg.wait_for_selector("[data-shot='study'][data-settled='1']", timeout=60000)
 
 

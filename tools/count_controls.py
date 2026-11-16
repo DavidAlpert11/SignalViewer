@@ -37,7 +37,9 @@ def main() -> int:
             ctx, pg = M.page(b, app)
             pg.wait_for_selector(".examples-line button")
             out["welcome"] = pg.evaluate(COUNT)
-            pg.locator(".examples-line button", has_text="a drone flight").click()
+            pg.locator(".topbar .menubar-btn", has_text="Help").click()          # FR11: in Help -> Examples
+            pg.locator(".menu.ctx button", has_text="Examples").click()
+            pg.locator(".menu.ctx.sub button", has_text="a drone flight").click()
             pg.wait_for_function("window.__sv.state().busy === 0 && window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length || (p.objects || []).length))", timeout=60000)
             pg.wait_for_timeout(1500)
             M.no_toasts(pg)

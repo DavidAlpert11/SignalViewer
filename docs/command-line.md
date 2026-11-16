@@ -79,7 +79,7 @@ Each failure says how many times the signal left its limits, when first, and the
 Exit code **0** all passed, **1** a check failed, **2** a check could not be made (a missing file,
 signal or state value - never a silent pass). `--junit` writes results CI systems show as tests.
 
-**A test-bench example** (`examples/bench`, also a card on the welcome screen): a pump run recorded as
+**A test-bench example** (`examples/bench`, also in Help → Examples): a pump run recorded as
 Parquet - phases as a state (`Phase`), units, a 0.2 s pressure spike, a 2 s gap and a motor temperature
 that creeps over its limit - with its `checks.json` (one check only while the state is `STEADY`):
 

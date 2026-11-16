@@ -7,7 +7,7 @@ import os
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, goto_folder, pg, save_as  # noqa: E402,F401
+from test_features import env, goto_folder, pg, save_as, open_example  # noqa: E402,F401
 
 # the four steps (2026-11-01 redesign); "clean" is part of the columns, "report" and "run" are tools
 STEP = {"raw": 0, "clean": 1, "roles": 1, "goals": 2, "results": 3, "report": 3}
@@ -1047,7 +1047,7 @@ def test_four_steps_five_tabs_and_the_goal_as_one_table(pg):
 def test_all_runs_shows_the_scenarios(pg):
     """Owner (2026-11-13): in All runs each scenario column is an axis (how the runs spread over each scenario),
     after the parameters; Parameter sets has none (a set holds over all of them)."""
-    pg.locator(".ex-card[data-example='sweepTable']").click()
+    open_example(pg, "sweepTable")
     pg.wait_for_function("window.__svSweeps.idle() && window.__svSweeps.doc()?.view.step === 'results'")
     sets = pg.evaluate("window.__svAxes()")
     assert not any(a.startswith("scenario_") for a in sets), sets

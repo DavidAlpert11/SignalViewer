@@ -636,9 +636,20 @@ def img_30_sweeps_pareto(b, app):
 
 
 # ----------------------------------------------------------------------------- 1.28: the tutorials' pictures
+# the examples off the welcome screen (FR11), by their label in Help -> Examples
+MENU_LABEL = {"flight": "a drone flight", "car": "three car runs", "bench": "a pump on a test bench",
+              "sweepTable": "a sweep: which settings hold", "commonGains": "one gain set, three drones"}
+
+
 def _example(pg, ex, ready, settle=1200):
     """Open a welcome-screen example as a new user does, and wait until it is drawn."""
-    pg.locator(f".ex-card[data-example='{ex}']").first.click()
+    card = pg.locator(f".ex-card[data-example='{ex}']")
+    if card.count():
+        card.first.click()
+    else:                                         # FR11: not one of the six cards - Help -> Examples
+        pg.locator(".topbar .menubar-btn", has_text="Help").click()
+        pg.locator(".menu.ctx button", has_text="Examples").click()
+        pg.locator(".menu.ctx.sub button", has_text=MENU_LABEL[ex]).click()
     pg.wait_for_selector(ready, timeout=120000)
     pg.wait_for_function("window.__sv.state().busy === 0 && !document.querySelector('.job')", timeout=120000)
     pg.wait_for_timeout(settle)

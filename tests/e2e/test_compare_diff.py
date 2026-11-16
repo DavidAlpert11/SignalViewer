@@ -5,12 +5,14 @@ time with the tolerance band, the stretches outside it in red and listed (a clic
 """
 import pytest
 
+from test_features import open_example  # noqa: E402
+
 pytest.importorskip("playwright.sync_api")
 from test_template_tabs import pg  # noqa: E402,F401
 
 
 def test_where_and_why_a_signal_fails(pg):
-    pg.locator(".examples-line button", has_text="three car runs").click()
+    open_example(pg, "car")
     pg.wait_for_function("document.querySelectorAll('.run-head').length === 3")
     pg.click("[aria-label='Compare runs']")
     pg.wait_for_selector(".sim-row", timeout=30000)

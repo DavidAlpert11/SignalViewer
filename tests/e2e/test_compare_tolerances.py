@@ -6,6 +6,8 @@ import json
 
 import pytest
 
+from test_features import open_example  # noqa: E402
+
 pytest.importorskip("playwright.sync_api")
 from test_template_tabs import pg  # noqa: E402,F401
 
@@ -15,7 +17,7 @@ def _row(pg, name):
 
 
 def test_a_signal_has_its_own_tolerance_saved_for_the_cli(pg, tmp_path):
-    pg.locator(".examples-line button", has_text="three car runs").click()
+    open_example(pg, "car")
     pg.wait_for_function("document.querySelectorAll('.run-head').length === 3")
     pg.click("[aria-label='Compare runs']")
     pg.wait_for_selector(".sim-row", timeout=30000)

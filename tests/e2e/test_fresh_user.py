@@ -78,10 +78,12 @@ def test_first_run(fresh):
     pg.wait_for_function("document.documentElement.dir === 'ltr'")
 
 
-@pytest.mark.parametrize("example", ["a drone flight", "the same mission flown twice", "three car runs to compare", "an ArduPilot flight log"])
+@pytest.mark.parametrize("example", ["flight", "twoFlights", "car", "ardupilot"])
 def test_each_example_opens_ready(fresh, example):
-    """T48: an example opens with its view applied - for a new user too."""
+    """T48: an example opens with its view applied - for a new user too (FR11: from its card, or Help -> Examples)."""
+    from test_features import open_example
     pg, _ = fresh
-    pg.locator(".examples-line button", has_text=example).click()
+    pg.wait_for_selector(".ex-card")
+    open_example(pg, example)
     pg.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length || (p.objects || []).length))",
                          timeout=30000)

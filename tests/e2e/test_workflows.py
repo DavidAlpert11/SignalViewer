@@ -217,7 +217,8 @@ def test_file_browser_autocomplete(page, server):
 
 def test_open_an_example_from_the_welcome_screen(page, server):
     """T09: one click on the welcome screen opens the three car runs."""
-    page.locator(".examples-line button", has_text="three car runs").click()
+    from test_features import open_example                         # FR11: in Help -> Examples
+    open_example(page, "car")
     page.wait_for_function("document.querySelectorAll('.run-head').length === 3")
     assert page.locator(".run-head", has_text="run_013").count() == 1
     # T48: it opens ready to look at - Compare open files, each run in its colour

@@ -451,7 +451,7 @@ signal list (☆ beside the search box). The built-in ArduPilot, MAVLink and PX4
 template you save keeps yours, so a test bench or a simulation gets its own. A *Checks: n failed · m to
 look at* chip opens Checks on that run.
 
-**A test bench, pass / fail in CI.** The welcome screen's *pump on a test bench* (`examples/bench`) is a
+**A test bench, pass / fail in CI.** *A pump on a test bench* (Help → Examples; `examples/bench`) is a
 run recorded as Parquet - phases as a state, units, a 0.2 s pressure spike, a 2 s gap and a motor
 temperature that creeps over its limit. Its `checks.json` holds the same limits for the command line:
 
@@ -595,9 +595,12 @@ both back. A single table opened with *I have results* is saved as its own `.svs
 
 ## Start from an example
 
-The welcome screen shows each example as a card with a picture of what it opens. *One gain set, three drones*
-and *Smart sweep demo* open in the Sweeps area (see *One parameter set for many systems* and *The smart-sweep
-demo*); the others open their recordings with the view that suits them.
+The welcome screen shows six examples as cards with a picture of what each opens - an ArduPilot log, *Find out
+what went wrong*, a simulation against its flight, the same mission flown twice, a folder of recordings and the
+smart-sweep demo; **Help → Examples** lists every example (also a drone flight, three car runs, a pump on a test
+bench, a sweep's results table and *One gain set, three drones*). The Sweeps ones open in the Sweeps area (see
+*One parameter set for many systems* and *The smart-sweep demo*); the others open their recordings with the view
+that suits them.
 
 ## The first minute
 

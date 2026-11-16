@@ -123,3 +123,4 @@ inside your lane's block.
 - `test_folder_of_recordings.py` – FR5: the demo reads as recordings (4 steps, no Send / Next runs, no "sets", status counts recordings, en + he), *Show X8-A* ticks its six flights on top; a results table keeps its 5 steps and Send runs.
 - `test_study_demo.py` – FR6: *Run until converged* writes Kp / Ki / Kd = … and the value (en / he).
 - `test_sweeps_workspace.py` – FR6: three equal starts, one click each, examples under them; a study with tables does not need a table, "3 tables" in the status; `_new_study` through Open ▾. `test_calm_screen.py`, `test_sweeps_flow.py` follow the new labels.
+- FR11: `test_features.open_example(pg, id)` - a welcome card, else Help → Examples; the files that opened a moved example use it; `test_welcome_cards` checks the six and the 11 in Help.

@@ -12,7 +12,7 @@ import time
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env  # noqa: E402,F401
+from test_features import env, open_example  # noqa: E402,F401
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "tools"))
 from measure_maps import HARDWARE_GL, PROBE  # noqa: E402
@@ -33,7 +33,7 @@ def _page(env, gl_browser, full):
     errors = []
     pg.on("pageerror", lambda e: errors.append(str(e)))
     pg.goto(env["url"])
-    pg.wait_for_selector(".ex-card[data-example='flight']")
+    pg.wait_for_selector(".ex-card")
     return ctx, pg, errors
 
 
@@ -41,12 +41,12 @@ def _close_files(pg):
     pg.evaluate("""async () => { for (const r of await (await fetch('/api/runs')).json())
       if (r.format !== 'derived') await fetch('/api/runs/' + r.id, { method: 'DELETE' });
       window.__sv.setState({ runs: [] }); }""")
-    pg.wait_for_selector(".ex-card[data-example='flight']")
+    pg.wait_for_selector(".ex-card")
 
 
 def _open_map(pg, ex):
     t0 = time.time()
-    pg.locator(f".ex-card[data-example='{ex}']").click()
+    open_example(pg, ex)
     pg.wait_for_function("() => { const g = window.__svGlobe; return !!g && !g.widget.isDestroyed() && g.widget.scene.globe.tilesLoaded; }",
                          timeout=DRAW_BUDGET_S * 1000, polling=200)
     return time.time() - t0

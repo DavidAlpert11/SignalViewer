@@ -16,6 +16,10 @@ export const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoF
 const EXAMPLE_DESC = { flight: "exampleFlightDesc", twoFlights: "exampleTwoFlightsDesc", car: "exampleCarDesc", bench: "exampleBenchDesc", ardupilot: "exampleArdupilotDesc", simVsFlight: "exampleSimVsFlightDesc", investigate: "exampleInvestigateDesc", folderOfFlights: "exampleFolderOfFlightsDesc", commonGains: "exampleCommonGainsDesc", smartSweepDemo: "exampleSmartSweepDemoDesc", sweepTable: "exampleSweepTableDesc" } as const satisfies Record<ExampleId, string>;
 const EXAMPLE_ICON = { flight: Icon.Globe, twoFlights: Icon.Compare, car: Icon.Table, bench: Icon.Analysis, ardupilot: Icon.Log, simVsFlight: Icon.Analysis, investigate: Icon.Search, folderOfFlights: Icon.Table, commonGains: Icon.Merge, smartSweepDemo: Icon.Reload, sweepTable: Icon.Table } satisfies Record<ExampleId, unknown>;
 
+/** FR11 (owner, 2026-11-16): six cards on the welcome screen, one of them a Sweeps example; every example (these
+ *  and the others) is in Help -> Examples. */
+export const FEATURED: ExampleId[] = ["ardupilot", "investigate", "simVsFlight", "twoFlights", "folderOfFlights", "smartSweepDemo"];
+
 const EXAMPLE_GROUPS = [
   { area: "recordings", label: "areaRecordings", hint: "exampleGroupRecordings" },
   { area: "sweeps", label: "areaSweeps", hint: "exampleGroupSweeps" },
@@ -126,7 +130,8 @@ export default function Welcome() {
             <h2 className="examples-title eyebrow">{t("startFromExample")}</h2>
             {/* review (owner, 2026-11-13: a clear demo for everything): grouped by the area each one shows */}
             {EXAMPLE_GROUPS.map((g) => {
-              const xs = examples.filter((ex) => ex.id in EXAMPLE_LABEL && (ex.open === "sweep" || ex.open === "study" ? "sweeps" : "recordings") === g.area);
+              const xs = examples.filter((ex) => FEATURED.includes(ex.id) && (ex.open === "sweep" || ex.open === "study" ? "sweeps" : "recordings") === g.area)
+                .sort((a, b) => FEATURED.indexOf(a.id) - FEATURED.indexOf(b.id));
               return xs.length > 0 && (
                 <section key={g.area} className="examples-group" aria-label={t(g.label)}>
                   <h3 className="examples-group-title"><span className="eyebrow">{t(g.label)}</span><span className="hint">{t(g.hint)}</span></h3>
@@ -134,6 +139,7 @@ export default function Welcome() {
                 </section>
               );
             })}
+            <p className="hint examples-more">{t("examplesMore")}</p>
           </>
         )}
       </div>

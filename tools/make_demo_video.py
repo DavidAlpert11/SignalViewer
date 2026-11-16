@@ -98,7 +98,7 @@ def fresh(film, app) -> None:
     """Behind a chapter card: close everything (server side) and reload to the welcome screen."""
     reset(app)
     film.pg.reload()
-    film.pg.wait_for_selector(".ex-card[data-example='commonGains']", timeout=30000)
+    film.pg.wait_for_selector(".ex-card", timeout=30000)
     film.pg.evaluate("window.__sv.setState({ theme: 'dark' })")
     film.overlay()
 
@@ -191,7 +191,10 @@ def record(b, app, tmp) -> tuple:
     fresh(film, app)
     film.title("One set for every system", "Three different drones – which gains hold for all of them?", "Sweeps · common parameters", hold=2.6)
     film.title()
-    film.glide(pg.locator(".ex-card[data-example='commonGains']").first)
+    # FR11: the three drones are in Help -> Examples (six cards on the welcome screen)
+    film.glide(pg.locator(".topbar .menubar-btn", has_text="Help"))
+    film.glide(pg.locator(".menu.ctx button", has_text="Examples"))
+    film.glide(pg.locator(".menu.ctx.sub button", has_text="one gain set, three drones"))
     pg.wait_for_selector("[data-shot][data-settled='1']", timeout=120000)
     pg.wait_for_timeout(1500)
     film.cap("The sets that hold for all three, ranked together", "And why the others fail – per drone, per scenario", hold=4.2)

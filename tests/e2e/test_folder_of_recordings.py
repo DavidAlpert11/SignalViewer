@@ -8,7 +8,7 @@ import shutil
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, goto_folder, pg  # noqa: E402,F401
+from test_features import env, goto_folder, pg, open_example  # noqa: E402,F401
 
 EXAMPLE = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "folder_of_flights")
 
@@ -95,7 +95,7 @@ def test_a_folder_of_recordings_reads_as_recordings(pg, lang):
 
 
 def test_a_results_table_still_has_its_five_steps(pg):
-    pg.locator(".ex-card[data-example='sweepTable']").click()
+    open_example(pg, "sweepTable")
     pg.wait_for_function("document.querySelectorAll('.sw-steps .sw-step-btn').length === 5", timeout=60000)
     pg.click(".sw-step-btn[data-flow='data']")                              # the tables list (Data): Send runs, as before
     pg.wait_for_selector(".sw-nav [data-nav='setup']", timeout=30000)
