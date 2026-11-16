@@ -7,7 +7,10 @@ study** in five steps, whether you start from results or from nothing, with **on
 and **the loop** that runs your program or your farm until it converges, fast on a million runs; a map with its
 background in one place, offline areas and your own maps; every analysis tool working on any data (flight, vehicle,
 bench, simulation), not only flight logs; **a demo for every part of the app** on the welcome screen; and every
-report opens with the process in brief. (Versions 1.27.0 and 1.28.0 were written up separately but never released:
+report opens with the process in brief. Also new: **export a part of a recording** (signals, a stretch, a rate –
+CSV, Parquet, MAT, HDF5); **a Sweeps table from recordings** – measures defined on one run, applied to the open runs
+or a whole folder; a Sweeps run **opens its recording** by its number; Sweeps columns with conditions and text, and
+the table's own tools; **the commanded / measured pairs** plotted in one click. (Versions 1.27.0 and 1.28.0 were written up separately but never released:
 this release holds both.)
 
 ### The look – a quiet frame, the data speaks
