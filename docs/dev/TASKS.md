@@ -13,6 +13,14 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 
 ## Current state
 
+- **2026-11-16 · The 3D Cockpit's *Look freely* (owner: "on the object with a free camera") - done (M7).** Cockpit
+  locked the view to the object's attitude, so it gained a toggle instead of a sixth camera (one way to do a thing):
+  the camera at the object along the replay, a drag turns the look (a drag in the Cockpit also turns it on), the
+  wheel / + − zoom the field of view (15-100°). The direction is kept **from north**, not from the nose: what is
+  watched (a runway, a target, the other vehicle) stays on screen while the object turns, rolls or its heading is
+  noisy; looking along the nose is the Cockpit without it. Saved as `plot.lookFree` {hdg, pitch, fov?} (optional;
+  one Undo step a drag / a wheel pause). `freeLook.ts` (+ Vitest), Globe3D.tsx (Cesium's own inputs off in the
+  Cockpit), MapBar `freeLook` slot. Not in the offline 3D page (report_assets) - ask the owner if wanted.
 - **2026-11-16 · PLAN_2026-11-17 (the owner approved it) - in progress.** Order R, S1, S2, E1, M1, M3, M2 (plan §6).
   R done: the unreleased 1.27.0 and 1.28.0 are one release, **1.27.0** (CHANGELOG merged under `1.27.0 – unreleased`,
   the version files at 1.27.0, the docs' "1.28" -> "1.27"; history not rewritten). The owner tags v1.27.0 once the
@@ -274,3 +282,6 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-16 · **1.27.0 released by the owner** (tag v1.27.0 = c249489, with the Python package). CHANGELOG: 1.27.0 dated,
   a "Next – unreleased" section above it (the satellite no-data fix, 9ab4914). Next: the 3D view's free camera on
   the object (owner's request) - in a new session.
+- 2026-11-16 · M7 the Cockpit's *Look freely* (see Current state). Tests: freeLook.test.ts (3), e2e
+  test_globe3d::test_cockpit_free_look (new); e2e run: test_globe3d, test_map_smooth, test_live_report (26 green);
+  quick_check green. CHANGELOG (Next), features.md, ROADMAP M7.

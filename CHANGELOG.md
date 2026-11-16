@@ -2,6 +2,7 @@
 
 ## Next – unreleased
 
+- New: **Look freely** from the object in the 3D map. Choose *Cockpit* and turn on *Look freely* (or just drag in the Cockpit): the camera stays on the object as the replay moves it and looks wherever you turn it – drag to turn, the wheel (or + / −) to zoom the view. The direction is kept relative to north, so what you watch stays on screen however the object turns or rolls; turn it off to look where the object points again. Saved with the session.
 - Fixed: zoomed in on the satellite map (2D and 3D), places without imagery at that zoom showed grey *"Map data not yet available"* squares. Such tiles are no longer shown or kept: the closest zoom that has a picture is enlarged instead, and tiles already cached that way are put right the first time they are shown.
 
 ## 1.27.0 – 2026-11-16

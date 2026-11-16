@@ -46,6 +46,10 @@ export interface Plot {
    *  as before), "chase" (behind and above it, along its heading) or "lookat" (from it towards the
    *  first related object) */
   camera?: "chase" | "lookat" | "top" | "free" | "cockpit";   // P4: "top" = From above, "free" = General (absent on a 2D-era map: "top"); P9: "cockpit"
+  /** 2026-11-16: the Cockpit's free look - present: the camera stays at the object and looks where the user
+   *  turned it (degrees: heading from north, pitch + up; the field of view), whatever the object's attitude;
+   *  absent / null: it looks where the object points (the Cockpit as before) */
+  lookFree?: { hdg: number; pitch: number; fov?: number } | null;
   /** N6: the 2D map's "up" - north (absent) or the heading of the followed object (else the primary, else
    *  the first): "track" */
   mapUp?: "track";

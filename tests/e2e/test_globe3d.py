@@ -227,6 +227,60 @@ def at_lat(pg, lat, timeout=10000):
     pg.wait_for_function(f"Math.abs({MODEL_LAT} - {lat}) < 2e-6", timeout=timeout)
 
 
+LOOK = """(() => { const { widget: w, Cesium: C } = window.__svGlobe; let m = null;
+  for (let i = 0; i < w.scene.primitives.length; i++) { const p = w.scene.primitives.get(i); if (p instanceof C.Model) m = p; }
+  const at = C.Matrix4.getTranslation(m.modelMatrix, new C.Cartesian3());
+  return { d: C.Cartesian3.distance(w.camera.positionWC, at), hdg: C.Math.toDegrees(w.camera.heading), pitch: C.Math.toDegrees(w.camera.pitch),
+           lat: C.Math.toDegrees(w.camera.positionCartographic.latitude), fov: C.Math.toDegrees(w.camera.frustum.fov) }; })()"""
+PLOT = "window.__sv.state().ws.tabs[0].plots[0]"
+
+
+def test_cockpit_free_look(g3move):
+    """2026-11-16 (owner): on the object with a free camera - the Cockpit's Look freely: the camera at the object
+    while the replay moves it, a drag turns the look (kept from north as it moves), the wheel zooms the view, one
+    Undo step a drag; off again: where the object points."""
+    pg = g3move
+    at_lat(pg, 32.0 + 20 * 1e-4)
+    pg.locator(".globe3d-bar .g3-cam-cockpit").click()
+    assert pg.evaluate(f"[{PLOT}.camera, {PLOT}.followObject, {PLOT}.lookFree ?? null]") == ["cockpit", "m", None]
+    toggle = pg.locator(".globe3d-bar .g3-look-free")
+    assert toggle.get_attribute("aria-pressed") == "false"
+    assert "drag to look around" in pg.locator(".g3-cam-hint").inner_text()
+    pg.wait_for_function(f"(() => {{ const c = {LOOK}; return c.d < 1 && (Math.abs(c.hdg) < 2 || Math.abs(c.hdg - 360) < 2); }})()", timeout=20000)  # at it, its nose (north)
+    # a drag turns free look on, from where it pointed: the scene moves with the mouse (drag left - look right)
+    b = pg.locator(".globe3d-host").bounding_box()
+    cx, cy = b["x"] + b["width"] / 2, b["y"] + b["height"] / 2
+    pg.mouse.move(cx, cy)
+    pg.mouse.down()
+    pg.mouse.move(cx - 150, cy + 60, steps=8)
+    pg.mouse.up()
+    look = pg.evaluate(f"{PLOT}.lookFree")
+    k = 70 / pg.evaluate("document.querySelector('.globe3d-host').clientHeight")
+    assert abs(look["hdg"] - 150 * k) < 1.5 and abs(look["pitch"] - 60 * k) < 1.5, look
+    assert toggle.get_attribute("aria-pressed") == "true"
+    assert "the direction stays" in pg.locator(".g3-cam-hint").inner_text()
+    pg.wait_for_function(f"(() => {{ const c = {LOOK}; return c.d < 1 && Math.abs(c.hdg - {look['hdg']}) < 0.5 && Math.abs(c.pitch - {look['pitch']}) < 0.5; }})()", timeout=20000)
+    # the replay moves the object: the camera goes with it, still looking the same way
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, t1: 80 } })")
+    at_lat(pg, 32.0 + 80 * 1e-4)
+    pg.wait_for_function(f"(() => {{ const c = {LOOK}; return c.d < 1 && Math.abs(c.lat - {32.0 + 80 * 1e-4}) < 1e-5; }})()", timeout=20000)
+    c = pg.evaluate(LOOK)
+    assert abs(c["hdg"] - look["hdg"]) < 0.5 and abs(c["pitch"] - look["pitch"]) < 0.5, c
+    # the wheel zooms the view (narrower), kept in the plot when the wheel rests
+    pg.mouse.move(cx, cy)
+    pg.mouse.wheel(0, -300)
+    pg.wait_for_function(f"({PLOT}.lookFree.fov ?? 70) < 60", timeout=5000)
+    pg.wait_for_function(f"{LOOK}.fov < 60", timeout=10000)
+    assert pg.evaluate(LOOK)["d"] < 1                                          # it zooms the view, the camera stays
+    # one drag is one Undo step
+    pg.keyboard.press("Control+z")
+    pg.wait_for_function(f"({PLOT}.lookFree.fov ?? 70) === 70")
+    # off: where the object points again (north)
+    toggle.click()
+    assert pg.evaluate(f"{PLOT}.lookFree") is None
+    pg.wait_for_function(f"(() => {{ const c = {LOOK}; return c.d < 1 && (Math.abs(c.hdg) < 2 || Math.abs(c.hdg - 360) < 2); }})()", timeout=20000)
+
+
 def test_own_time_is_independent_of_the_timeline(g3move):
     pg = g3move
     at_lat(pg, 32.0 + 20 * 1e-4)
