@@ -30,6 +30,22 @@ export const conversionScale = (id: string): number => {
 export const conversionOf = (scale: number): string =>
   CONVERSIONS.find((c) => Math.abs(conversionScale(c.id) / scale - 1) < 1e-9)?.id ?? "";
 
+/** FR1: the unit a file's time is in now - what its column's name says (seconds when it says nothing), through
+ *  the conversion set in the Time axis dialog; "" when the scale is a number that names no unit. */
+export function runTimeUnit(r: RunInfo): string {
+  const from = r.timeAxis?.columnUnit && r.timeAxis.columnUnit in UNIT_SECONDS ? r.timeAxis.columnUnit : "s";
+  const scale = r.timeAxis?.scale ?? 1;
+  if (Math.abs(scale - 1) < 1e-9) return from;
+  return CONVERSIONS.find((c) => c.from === from && Math.abs(conversionScale(c.id) / scale - 1) < 1e-9)?.to ?? "";
+}
+/** The time unit of the files these signals come from: the one they all share, else "". Derived signals follow their sources. */
+export function timeUnitOf(runs: RunInfo[], sigs: string[]): string {
+  const ids = new Set(sigs.map((s) => s.split("/")[0]));
+  const own = dataRuns(runs).filter((r) => ids.has(r.id));
+  const units = new Set((own.length ? own : dataRuns(runs)).map(runTimeUnit));
+  return units.size === 1 ? [...units][0] : "";
+}
+
 /** Data files (not the derived-signals pseudo-file). */
 const dataRuns = (runs: RunInfo[]) => runs.filter((r) => r.format !== DERIVED);
 

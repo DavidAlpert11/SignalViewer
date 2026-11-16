@@ -1,5 +1,5 @@
 // T1: ink() - every trace colour is drawn at >= 3:1 against the plot in both themes (26.U2)
-import { describe, expect, test } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import { ink, PLOT_THEME, tickValues } from "./chartUtil";
 import { TRACE_COLORS } from "../store";
 
@@ -48,5 +48,26 @@ describe("tickValues", () => {
     expect(f([1e-4, 1.5e-4, 2e-4])).toEqual(["1e-4", "1.5e-4", "2e-4"]);
     expect(f([-2.5e-7, 3.0000000000000004e-4, 1.25e6])).toEqual(["-2.5e-7", "3e-4", "1.25e6"]);
     expect(f([0.5, 1, 2.5])).toEqual(["0.5", "1", "2.5"]);
+  });
+});
+
+describe("FR1: the time axis says its unit", () => {
+  it("the last number carries the unit, the others stay bare", async () => {
+    const { timeTicks } = await import("./chartUtil");
+    expect(timeTicks([0, 20, 40], "s")).toEqual(["0", "20", "40 s"]);
+    expect(timeTicks([0, 0.5], "")).toEqual(["0", "0.5"]);
+    expect(timeTicks([], "s")).toEqual([]);
+  });
+  it("the unit comes from the files' time axis", async () => {
+    const { timeUnitOf } = await import("../timeAxis");
+    const run = (id: string, columnUnit: string | null, scale: number, format = "csv") =>
+      ({ id, format, timeAxis: { columnUnit, scale } }) as unknown as import("../api").RunInfo;
+    expect(timeUnitOf([run("a", null, 1)], ["a/x"])).toBe("s");
+    expect(timeUnitOf([run("a", "ms", 1)], ["a/x"])).toBe("ms");              // a t_ms column shown as it is
+    expect(timeUnitOf([run("a", "ms", 0.001)], ["a/x"])).toBe("s");           // ... converted to seconds
+    expect(timeUnitOf([run("a", null, 1 / 60)], ["a/x"])).toBe("min");
+    expect(timeUnitOf([run("a", null, 0.37)], ["a/x"])).toBe("");             // a scale that names no unit
+    expect(timeUnitOf([run("a", null, 1), run("b", "ms", 1)], ["a/x", "b/y"])).toBe("");   // two units: none written
+    expect(timeUnitOf([run("a", null, 1), run("b", "ms", 1)], ["a/x"])).toBe("s");
   });
 });

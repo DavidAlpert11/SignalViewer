@@ -143,6 +143,16 @@ export function tickValues(_u: uPlot, splits: number[]): string[] {
   });
 }
 
+/** FR1: the height of a time axis - its tick marks, a gap and one line of numbers (they scale with the text size). */
+export const xAxisSize = () => Math.round(10 * uiScale()) + 12;
+const axisNum = new Intl.NumberFormat(undefined, { maximumFractionDigits: 9 });
+/** FR1: the time axis' numbers, the last one with the unit ("220  240 s") - no line of its own for it. */
+export function timeTicks(splits: number[], unit: string): string[] {
+  const out = splits.map((v) => (v === null || v === undefined || !Number.isFinite(v) ? "" : axisNum.format(+v.toPrecision(12))));
+  if (unit && out.length) out[out.length - 1] += ` ${unit}`;
+  return out;
+}
+
 
 /* F24: with linked time the plots of a column must start and end at the same x, or the same moment
    sits at different places (a value axis with a unit or long labels is wider). Each chart reports

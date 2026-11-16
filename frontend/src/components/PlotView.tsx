@@ -200,6 +200,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     ...(geoPicksHidden ? [{ label: t("geoTrackShow"), run: () => setGeoPicks(true) }, { label: "", run: () => {}, sep: true }] : []),
     // review (owner, 2026-11-13: tidy the menus): every way to save or export this plot in one submenu - it was
     // six to nine lines at the top of the menu; Copy image (the everyday one) stays a line of its own
+    // FR1: the title is not shown while it would only repeat the plot's one line - its rename is here then
+    ...(plot.signals.length === 1 && !editingTitle ? [{ label: t("plotRename"), run: () => setEditingTitle(true) }] : []),
     { label: t("plotSaveExport"), run: () => {}, items: saveExportItems() },
     { label: t("copyImage"), run: copyImage, disabled: !plot.signals.length },
     // P7: the Places panel, docked in this Map
@@ -491,8 +493,10 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             );
             };
   const title = plot.title || t("plotTitle", { n: index + 1 });
-  const several = tab.plots.length > 1;
-  const eyebrowName = plot.title ? t("plotTitle", { n: index + 1 }) : "";
+  // FR1: a plot with one line says its name once - in the chip; a title that only repeats it (or the bare
+  // "Plot n") is left out. A title the user gave stays. Rename from the plot's menu while it is hidden.
+  const lone = plot.signals.length === 1 && legendAt === "top" ? plot.signals[0] : null;
+  const titleShown = !lone || (!!plot.title && plot.title !== (lone.label || signalName(runs, lone.sig)) && plot.title !== signalName(runs, lone.sig, false));
   const nLines = plot.signals.length;
   const metaText = nLines >= 2 && mode !== "geo" && mode !== "3d"
     ? [t("plotMetaLines", { n: nLines }), mode === "time" && plot.signals.some((s) => s.axis === "right" && !s.state) ? t("plotMetaTwoY") : ""].filter(Boolean).join(" · ")
@@ -525,16 +529,11 @@ export default function PlotView({ tab, plot, index, active }: Props) {
         <span className="plot-grip" draggable role="button" tabIndex={-1} aria-label={t("plotMoveGrip")} title={`${t("plotMoveGrip")} · ${t("plotMoveHint")}`}
           onDragStart={(e) => { e.dataTransfer.setData(PLOT_MIME, String(index)); e.dataTransfer.setData(PLOT_ID_MIME, plot.id); e.dataTransfer.effectAllowed = "copyMove"; useApp.setState({ plotDrag: plot.id }); }}
           onDragEnd={() => useApp.setState({ plotDrag: null })}>⠿</span>
-        {/* B1: the card's eyebrow - which plot (when it has its own title) and whether it is the active one */}
-        {/* "Active" keeps its place on every plot of the tab (hidden when not active): a mousedown on another plot's
-            head makes it active - had the head grown then, its buttons moved under the pointer and the click missed */}
-        {(eyebrowName || several) && <span className="eyebrow plot-eyebrow" data-active={active || undefined}>{eyebrowName}
-          {several && <span className="pe-active" aria-hidden={!active || undefined}>{eyebrowName ? " · " : ""}{t("plotActive")}</span>}</span>}
         {editingTitle ? (
           <input className="plot-title" autoFocus defaultValue={plot.title} placeholder={title}
             onBlur={(e) => { actions.renamePlot(plot.id, e.target.value.trim()); setEditingTitle(false); }}
             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingTitle(false); }} />
-        ) : (
+        ) : titleShown && (
           <button className="plot-title" onDoubleClick={() => setEditingTitle(true)} title={title}>{title}</button>
         )}
         {/* B1: the card's meta - how many lines and whether a second value axis is used (muted) */}
@@ -647,8 +646,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             </select>
           </span>
         )}
-        {/* B1: the legend has a line of its own under the head (with the two cursors' bar at its end) */}
-        {plot.signals.length > 0 && legendAt === "top" && <span className="head-break" aria-hidden="true" />}
+        {/* FR1: the legend shares the head's row when it fits, else it takes a line of its own (CSS: its
+            natural width decides); the two cursors' bar at its end */}
         {legendAt === "top" && <div className="legend">{plot.signals.map((s) => entry(s, false))}</div>}
         {legendAt !== "top" && plot.signals.length > 0 && (
           <button className="legend-hidden" onClick={() => actions.updatePlot(plot.id, { legend: legendAt === "off" ? undefined : "top" })}

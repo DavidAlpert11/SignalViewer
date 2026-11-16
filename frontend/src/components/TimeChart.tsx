@@ -8,8 +8,9 @@ import { actions, activeTab, DEFAULT_LINE_WIDTH, rangeKey, shownSpan, yRangeKey,
 import { inkOn, labelsOf, labelText, stateColor, runsDataKey } from "../values";
 import { fmtNum, translate } from "../i18n";
 import { signalUnit } from "../units";
+import { timeUnitOf } from "../timeAxis";
 import { DASH, fade, lineLook, setpointsIn } from "../desired";
-import { axisStyle, tickValues, dpr, DRAG_UNI_MIN, dragUni, flag, ink, PLOT_THEME, PREVIEW_DASH, publishXView, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
+import { axisStyle, tickValues, timeTicks, xAxisSize, dpr, DRAG_UNI_MIN, dragUni, flag, ink, PLOT_THEME, PREVIEW_DASH, publishXView, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
 
 interface Props {
   tab: Tab; plot: Plot; index: number; onLoading: (b: boolean) => void;
@@ -594,6 +595,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     const hasRight = sigs.some(onRight);
     const unitOfSig = (s: PlotSignal) => signalUnit(runsRef.current, s.sig, s.label);   // a converted signal: its new unit
     const units = sigs.filter((s) => !onRight(s) && !(hasRight && s.state)).map(unitOfSig);
+    const xUnit = timeUnitOf(runsRef.current, sigs.map((x) => x.sig));
     const commonUnit = units.length && units.every((x) => x && x === units[0]) ? units[0] : null;
     const rUnits = sigs.filter(onRight).map(unitOfSig);
     const rightUnit = rUnits.length && rUnits.every((x) => x && x === rUnits[0]) ? rUnits[0] : null;
@@ -606,7 +608,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     const longest = axisLabels ? Math.max(...Object.values(axisLabels).map((v) => v.length)) : 0;
     const laneFrac = () => {                     // share of the plot height the bottom lanes take
       if (!stateSigs.length || onlyStates) return 0;
-      const plotH = Math.max(60, size.h - 50);
+      const plotH = Math.max(60, size.h - 16 - xAxisSize());
       return Math.min(0.6, (stateSigs.length * (laneCss(plotH, stateSigs.length) + 2) + 4) / plotH);
     };
     // T50: a short plot (many plots in a small window) kept one value label ("0"): the labels may
@@ -618,10 +620,11 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         ? { ...axis, size: Math.min(150, 18 + longest * 7.2),
             splits: (_u, _i, mn, mx) => axisCodes.filter((c) => c >= mn && c <= mx),
             values: (_u, splits) => splits.map((v) => axisLabels[String(v)] ?? String(v)) }
-        : { ...axis, size: commonUnit ? 64 : 56, values: tickValues, space: valueSpace, ...(commonUnit ? { label: commonUnit, labelSize: 14, labelGap: 0 } : {}) };
+        // FR1: short tick marks close to their numbers - 8 px of every plot's width back (the numbers' room is unchanged)
+        : { ...axis, size: commonUnit ? 56 : 48, gap: 3, ticks: { ...axis.ticks, size: 4 }, values: tickValues, space: valueSpace, ...(commonUnit ? { label: commonUnit, labelSize: 14, labelGap: 0 } : {}) };
     // F24: the column's plots share the room left and right of the plot area, so their time axes line up
     // (uPlot puts an axis label's labelSize next to the axis size: both count)
-    const rightSize = hasRight ? (rightUnit ? 64 : 56) : 0, rightLabel = hasRight && rightUnit ? 14 : 0;
+    const rightSize = hasRight ? (rightUnit ? 56 : 48) : 0, rightLabel = hasRight && rightUnit ? 14 : 0;
     const leftLabel = yAxis.label ? (yAxis.labelSize ?? 0) : 0;
     const natL = 4 + (yAxis.size as number) + leftLabel, natR = 12 + rightSize + rightLabel;
     if (!previewOnly) reportGutter(plot.id, natL, natR);
@@ -630,7 +633,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     const opts: uPlot.Options = {
       width: size.w,
       height: size.h,
-      padding: [8, useR - rightSize - rightLabel, 0, 4],
+      padding: [6, useR - rightSize - rightLabel, 0, 4],
       legend: { show: false },
       // a legend entry under the pointer: its line in front, the others faint (setSeries below)
       focus: { alpha: 0.18 },
@@ -674,8 +677,9 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
           },
         } : {}),
       },
-      axes: [{ ...axis, size: 34 }, yAxis,
-        ...(hasRight ? [{ ...axis, scale: "y2", side: 1, size: rightSize, values: tickValues, space: valueSpace, grid: { show: false },
+      // FR1: the time axis is as low as its numbers (was 34 px) and says its unit after the last of them
+      axes: [{ ...axis, size: xAxisSize(), gap: 2, ticks: { ...axis.ticks, size: 4 }, values: (_u, splits) => timeTicks(splits, xUnit) }, yAxis,
+        ...(hasRight ? [{ ...axis, scale: "y2", side: 1, size: rightSize, gap: 3, ticks: { ...axis.ticks, size: 4 }, values: tickValues, space: valueSpace, grid: { show: false },
           ...(rightUnit ? { label: rightUnit, labelSize: 14, labelGap: 0 } : {}) } as uPlot.Axis] : [])],
       series: [
         {},

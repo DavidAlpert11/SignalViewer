@@ -33,15 +33,14 @@
 /* ---- Lane L3 of the 2026-11-14 redesign (plan §5.3). Tokens from index.css only. ---- */
 
 /* B1: the plot card - a card radius, the active plot a thin neutral ink ring (amber is only the cursor and time,
-   decision 4); the head: an eyebrow (which plot / active), the title, a muted meta, then the plot's actions;
-   the legend on a line of its own under it */
+   decision 4); the head: the title, a muted meta, then the plot's actions and the legend (FR1) */
 .plot { border-radius: var(--r-card); }                     /* the active ring: --select (index.css, A1) */
-.plot-eyebrow { flex: none; white-space: nowrap; }          /* the look: .eyebrow (A4) */
-.plot-eyebrow[data-active] { color: var(--ink-strong); }
-.plot-eyebrow:not([data-active]) .pe-active { visibility: hidden; }   /* its room kept: the head does not move on activation */
 .plot-meta { flex: none; font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
-.plot-head .head-break { order: 3; flex-basis: 100%; height: 0; margin-block-start: -4px; }   /* its own line of no height: one row gap, not two */
-.plot-head .legend { order: 4; flex: 1 1 0; }
+/* FR1: the legend beside the title and the type when its chips fit in one row there (flex-basis auto = their
+   natural width), else on a line of its own, wrapping inside it. The head is one row of 28 px. */
+.plot-head .legend { order: 4; flex: 1 1 auto; }
+.plot-head { padding-block: 3px 1px; min-height: 28px; }
+.plot-head > .plot-more { top: 3px; }
 
 /* B2: the legend carries the cursor's values - numbers in the mono face, in ink (amber is the cursor's own),
    the unit muted after them; Δ between the two cursors a quiet tag */

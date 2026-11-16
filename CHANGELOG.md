@@ -2,6 +2,8 @@
 
 ## Next – unreleased
 
+- Changed: **the plots take more of the window.** A plot's title, type and legend share one row when they fit (the legend takes its own line only when it does not); *PLOT 1 · ACTIVE* is gone – the ring around the plot says which one is active; a plot with a single line no longer shows its name twice (rename it from the plot's ⋯ menu); the time axis is lower and says its unit after the last number (*240 s*).
+
 ## 1.28.0 – 2026-11-16
 
 **Highlights:** clear to a newcomer. **A folder of recordings becomes one table in Sweeps** – a row per recording,
