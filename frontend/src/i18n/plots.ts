@@ -6,6 +6,10 @@ export const en = {
   setLines: "New lines", setLinesHint: "The width and style of every line added from now on (lines already drawn keep theirs).",
   setLineWidth: "Width", setLineStyle: "Style",
   setLinesApply: "Apply to all open plots", setLinesApplied: "{n} lines restyled.", setLinesNone: "No lines to restyle.",
+  // P: commanded / measured pairs in one click
+  spPairs: "Plot the commanded / measured pairs", spPairsTab: "Commanded / measured",
+  spPairsNone: "No commanded / measured pairs in {what}: a pair is two names that differ by a word such as des, cmd, sp, target or ref (DesRoll / Roll, roll_sp / roll).",
+  spPairsAll: "the open files",
   // N2: moving plots
   plotMoveGrip: "Drag to another plot to swap places (Ctrl+Shift+arrows)",
   plotMoveTo: "Move to…",
@@ -254,6 +258,10 @@ export const he: typeof en = {
   setLines: "קווים חדשים", setLinesHint: "העובי והסגנון של כל קו שיתווסף מעכשיו (קווים שכבר מצוירים נשארים כמו שהם).",
   setLineWidth: "עובי", setLineStyle: "סגנון",
   setLinesApply: "החל על כל הגרפים הפתוחים", setLinesApplied: "{n} קווים עוצבו מחדש.", setLinesNone: "אין קווים לעצב.",
+  // P: commanded / measured pairs in one click
+  spPairs: "גרף לכל זוג פקודה / מדידה", spPairsTab: "פקודה / מדידה",
+  spPairsNone: "אין זוגות פקודה / מדידה ב{what}: זוג הוא שני שמות שנבדלים במילה כמו des, cmd, sp, target או ref (DesRoll / Roll, roll_sp / roll).",
+  spPairsAll: "קבצים הפתוחים",
   // N2: moving plots
   plotMoveGrip: "גרירה לגרף אחר מחליפה ביניהם מקום (Ctrl+Shift+חיצים)",
   plotMoveTo: "העבר אל…",

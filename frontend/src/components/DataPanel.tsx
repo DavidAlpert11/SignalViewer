@@ -145,6 +145,7 @@ export default function DataPanel() {
           ? [{ label: t("syncCursorMenu", { s: (c.t1 - c.t2).toFixed(3) }), run: () => { applySyncOffset(run.id, (run.timeOffset ?? 0) + (c.t1! - c.t2!)); } }]
           : [];
       })()),
+      { label: t("spPairs"), run: () => { actions.plotSetpointPairs(run.id); } },
       { label: "", run: () => {}, sep: true },
       { label: t("dqMenu"), run: () => useApp.setState({ qualityFor: run.id }) },
       { label: t("sameWorkMenu"), run: () => useApp.setState({ sameWorkFor: run.id }) },

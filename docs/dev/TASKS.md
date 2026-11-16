@@ -23,8 +23,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   `svcore/subset.py` also writes the plot's Export CSV and `cli.py export`). M1 + M2 done (Runs matrix: measures per
   run + parameters from the names -> Open in Sweeps; Summarize a folder -> Sweeps as a background job, one file at a
   time - memory measured flat; `cli.py summarize`). M3 done (a set's runs -> their recordings by a folder + a name
-  from the row; the fetch command dropped as heavy). Next: P (setpoint pairs, plan §8), then cleanup (§9), full e2e,
-  propose the release.
+  from the row; the fetch command dropped as heavy). P done (Plot the commanded / measured pairs, one detector in
+  desired.ts). Next: cleanup (§9), then full e2e, build, propose the release.
 - **2026-11-16 · Sweeps as one flow (PLAN_2026-11-16 §7a) - done.** Done: one stepper for every study (Data ·
   Columns · Goal · Results · Next runs; `sweeps/flow.ts`, `FlowNav.tsx`); the tables' column (Navigator) only in Data,
   resizable, a labelled *Remove from the study* with Undo; Next runs = the proposal + *Run from the app* (`NextStep.tsx`,
@@ -225,3 +225,11 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   details (*About this study* is a demo-only page). The fetch command (launcher.fetch) dropped - a new process to
   wait on, heavy for little. Tests: pytest test_sweep::test_recordings_found_from_the_row (new), e2e
   test_sweeps_flow -k recording (3, +1 test_a_runs_recording_found_by_its_number) green.
+- 2026-11-16 · P done (plan §8): `desired.ts` - actualNames generalized to the owner's words (des desired dem demand
+  cmd command commanded sp setpoint set target tgt ref reference; prefix / suffix, separator or camel case; ArduPlane
+  TECS `hdem` / `h`; PX4 `<topic>_<word>.x`), `setpointPairs(ids)` the one detector (same file), `setpointsIn` built on
+  it (the dashed look follows the wider words). Action `plotSetpointPairs(runId?)` (actions/plots.ts, through
+  plotTabs: a new tab, a plot per pair measured + setpoint, one commit; none: a toast, no step). Entry points: the
+  file's menu in the signal list (that file) and Ctrl+K (every open file) - no new button. copter_flight.bin: 6 pairs
+  (ATT 3, RATE 3; CTUN.DAlt is not one of the words - left out). Tests: Vitest desired.test.ts (5, new: real
+  ArduPilot names, PX4 / word forms, look-alikes rejected, one Undo), e2e test_setpoint_pairs.py (new) green.

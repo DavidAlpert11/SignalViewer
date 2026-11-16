@@ -164,6 +164,7 @@ export default function CommandPalette() {
       { id: "reset", label: t("resetZoom"), group: t("plot"), icon: <Icon.Reset />, run: actions.resetZoom, keys: "R" },
       { id: "link", label: t("linkX"), group: t("plot"), icon: <Icon.Link />, run: actions.toggleLinkX },
       { id: "linky", label: t("linkY"), group: t("plot"), icon: <Icon.Link />, run: actions.toggleLinkY },
+      { id: "sppairs", label: t("spPairs"), group: t("plot"), icon: <Icon.Layout />, run: () => { actions.plotSetpointPairs(); } },
       ...(["left", "right", "up", "down"] as const).map((d) => ({ id: `moveplot-${d}`, label: t(`plotMove_${d}`), group: t("plot"),
         run: () => { actions.moveActivePlot(d); }, keys: `Ctrl ⇧ ${{ left: "←", right: "→", up: "↑", down: "↓" }[d]}` })),
       { id: "undo", label: t("undo"), group: t("undo"), icon: <Icon.Undo />, run: () => st().undo(), keys: "Ctrl Z" },

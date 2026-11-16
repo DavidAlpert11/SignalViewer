@@ -10,6 +10,7 @@ import { contrastColor, pairWithPlots } from "../../pairing";
 import { applyLook, type LineLook, type LineRef } from "../../styleLines";
 import { api } from "../../api";
 import { flatOnSharedAxis, rangeOf } from "../../flatLine";
+import { setpointPairs } from "../../desired";
 
 /** T46 (owner): a signal joining the same-named signal of ANOTHER file in a plot is a comparison -
  *  that group is coloured by file, so "which line is which file" is the colour. */
@@ -633,6 +634,20 @@ export const plotActions = {
       }
       return ws;
     });
+  },
+  /** P (owner, 2026-11-16): a plot per commanded / measured pair of a file (or of every open file) in a new tab,
+   *  the measured value first, the setpoint dashed by itself (desired.ts); one Undo. None found: said, no step. */
+  plotSetpointPairs(runId?: string): number {
+    const st = useApp.getState();
+    const files = st.runs.filter((r) => r.format !== "derived" && (!runId || r.id === runId));
+    const pairs = setpointPairs(files.flatMap((r) => r.signals.map((s) => s.id)));
+    const t = (k: Parameters<typeof translate>[1], v?: Record<string, string | number>) => translate(st.lang, k, v);
+    if (!pairs.length) {
+      st.toast({ kind: "info", text: t("spPairsNone", { what: files.length === 1 ? files[0].name : t("spPairsAll") }) });
+      return 0;
+    }
+    plotActions.plotTabs([{ name: t("spPairsTab"), plots: pairs.map((p) => ({ title: signalName(st.runs, p.measured), ids: [p.measured, p.setpoint] })) }]);
+    return pairs.length;
   },
   /** A new tab with one plot of these signals (health check, log panel). */
   plotSignalsInNewTab(ids: string[], title: string) {
