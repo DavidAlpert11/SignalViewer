@@ -7,7 +7,7 @@
 import { api, type HealthFinding } from "./api";
 import { actions, activeTab, fileLabel, rangeKey, useApp } from "./store";
 import { ensureLogs } from "./logs";
-import { fmtNum, translate, type TKey } from "./i18n";
+import { translate, type TKey } from "./i18n";
 import { findingText } from "./components/HealthRow";
 
 export type EvKind = "mode" | "event" | "error" | "msg" | "finding" | "condition" | "limit";
@@ -93,6 +93,3 @@ export async function stepEvent(dir: 1 | -1) {
   actions.goToTime(e.t);
   useApp.setState({ eventAt: { text: `${translate(lang, `evKind_${e.kind}` as TKey)} · ${e.text}`, t: e.t, n: k + 1, of: all.length, level: e.level } });
 }
-
-/** The time as the event list writes it. */
-export const evTime = (t: number, lang: "en" | "he") => fmtNum(t, lang, Math.abs(t) >= 1000 ? 7 : 5);

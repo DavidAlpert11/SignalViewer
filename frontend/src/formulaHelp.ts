@@ -72,25 +72,6 @@ export function callAt(text: string, caret: number): { name: string; arg: number
   return null;
 }
 
-/** Names in an expression that are neither functions (followed by "(") nor allowed variables.
- *  Text inside {…} is skipped (signal references); "1e5" is a number, not the name e5. */
-export function unknownNames(text: string, allowed: Set<string>): string[] {
-  const out: string[] = [];
-  const re = /\{[^}]*\}|"[^"]*"|[A-Za-z_\u0590-\u05FF][\w.\u0590-\u05FF[\]]*/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text))) {
-    const w = m[0];
-    if (w.startsWith("{") || w.startsWith('"')) continue;
-    const before = text[m.index - 1];
-    if (before && /[\d.]/.test(before)) continue;                 // exponent of a number: 1e5, 2.5e-3
-    const after = text.slice(m.index + w.length).trimStart();
-    if (after.startsWith("(") && (FUNC_INFO[w] || w === "param")) continue;
-    if (allowed.has(w)) continue;
-    if (!out.includes(w)) out.push(w);
-  }
-  return out;
-}
-
 /** Unbalanced parentheses: a message key, or null when fine. */
 export function parenProblem(text: string): "fxParenOpen" | "fxParenClose" | null {
   let d = 0;

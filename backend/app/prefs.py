@@ -11,7 +11,7 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-from app.atomic import atomic_open
+from svcore.atomic import atomic_open
 
 log = logging.getLogger("signalviewer").getChild(__name__)
 

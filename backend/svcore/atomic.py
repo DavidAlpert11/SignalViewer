@@ -5,9 +5,9 @@ template or report where the good one was. Here the content goes to a temporary 
 folder (same disk, so the rename is atomic), is flushed to the disk, and only then replaces the
 target with os.replace. On any error the temporary file is removed and the old file is untouched.
 
-Used through app.common (atomic_write / atomic_open / atomic_path). The body lives here, with no
-imports from the app, because app.prefs (settings, templates) and app.userreaders need it too and
-app.common imports them.
+Used through app.common (atomic_write / atomic_open / atomic_path) and directly by svcore (a study, the
+launcher's records, exported files) - one way to write a file whole. No imports from the app: app.prefs and
+app.userreaders need it too and app.common imports them.
 """
 import os
 import shutil

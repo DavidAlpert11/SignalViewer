@@ -10,7 +10,7 @@ import numpy as np
 from fastapi import HTTPException
 
 from app import prefs
-from app.atomic import atomic_open, atomic_path, atomic_write  # noqa: F401  (O3: every save goes through these)
+from svcore.atomic import atomic_open, atomic_path, atomic_write  # noqa: F401  (O3: every save goes through these)
 from app.store import LoadedRun, LoadError, _stat, store
 from svcore.bin_loader import bin_signal_names
 

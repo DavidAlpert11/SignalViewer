@@ -10,7 +10,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app import report as reports
-from app.atomic import write_text as _write_text
+from svcore.atomic import write_text as _write_text
 from app.common import atomic_open, atomic_path, atomic_write, fail
 from app.store import store
 

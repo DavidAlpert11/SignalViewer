@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from app import prefs
-from app.atomic import atomic_write
+from svcore.atomic import atomic_write
 from app.subproc import Worker, WorkerGone
 from svcore import analysis, pyworker
 from svcore.analysis import OpError

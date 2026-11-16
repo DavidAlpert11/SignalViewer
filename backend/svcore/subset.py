@@ -18,6 +18,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import numpy as np
 
 from svcore.analysis import align_to, hold_to
+from svcore.atomic import atomic_path
 
 FORMATS = (".csv", ".parquet", ".mat", ".h5")
 MAX_ROWS = 50_000_000          # a typo in the rate (1e6 Hz over an hour) is said, not written
@@ -145,7 +146,7 @@ def _header(name: str, unit: str) -> str:
     return (f"{name} [{unit}]" if unit and "[" not in name else name).replace(",", " ")
 
 
-def _mat_name(name: str, taken: set) -> str:
+def mat_name(name: str, taken: set) -> str:
     """A valid, unique MATLAB variable name for a signal ("ATT.Roll [deg]" -> "ATT_Roll_deg")."""
     v = re.sub(r"[^0-9A-Za-z_]+", "_", name).strip("_") or "signal"
     if not v[0].isalpha():
@@ -168,8 +169,7 @@ def write(path: str, sub: Subset, meta: Optional[dict] = None, sidecar: bool = T
         raise SubsetError(f"Unknown format {ext or '(none)'} - use {', '.join(FORMATS)}.")
     names = list(sub.cols)
     extra = {"Segment": sub.segment} if sub.segment is not None else {}
-    tmp = f"{path}.part"
-    try:
+    with atomic_path(path) as tmp:
         if ext == ".csv":
             header = ["Time"] + [_header(n, sub.units.get(n, "")) for n in names] + list(extra)
             with open(tmp, "w", encoding="utf-8-sig", newline="") as f:
@@ -188,7 +188,7 @@ def write(path: str, sub: Subset, meta: Optional[dict] = None, sidecar: bool = T
         elif ext == ".mat":
             from scipy.io import savemat
             taken = {"Time", "Segment"}
-            data = {"Time": sub.t, **{_mat_name(n, taken): v for n, v in sub.cols.items()}, **extra}
+            data = {"Time": sub.t, **{mat_name(n, taken): v for n, v in sub.cols.items()}, **extra}
             with open(tmp, "wb") as f:
                 savemat(f, data, do_compression=True)
         else:
@@ -199,10 +199,6 @@ def write(path: str, sub: Subset, meta: Optional[dict] = None, sidecar: bool = T
                     d = f.create_dataset(n.replace("/", "_"), data=v, compression="gzip")
                     if n in sub.units:
                         d.attrs["unit"] = sub.units[n]
-        os.replace(tmp, path)
-    finally:
-        if os.path.exists(tmp):
-            os.remove(tmp)
     if sidecar:
         side = {**(meta or {}), **sub.info, "signals": [{"name": n, **({"unit": sub.units[n]} if n in sub.units else {})} for n in names]}
         with open(os.path.splitext(path)[0] + ".export.json", "w", encoding="utf-8") as f:

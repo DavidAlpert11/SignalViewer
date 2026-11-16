@@ -32,9 +32,6 @@
 .sw-tag { padding: 2px 9px; border-radius: 12px; background: var(--raised); }
 .sw-left select, .sw-left input[type="number"], .sw-left input:not([type]), .sw-center select, .sw-axis-menu input {
   height: 28px; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 6px; padding: 0 6px; min-width: 0; }
-.sw-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.sw-hold { padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); display: flex; flex-direction: column; gap: 6px; }
-.sw-hold-name { font-weight: 500; }
 .sw-hold-values { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .sw-cond { padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); display: flex; flex-direction: column; gap: 6px; }
 .sw-cond-line { display: flex; gap: 6px; align-items: center; }
@@ -59,7 +56,6 @@
 .sw-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; flex: 1 1 300px; }
 .sw-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 4px 0 6px; border: 1px solid var(--line-strong); border-radius: 12px; font-size: 0.846rem; cursor: grab; background: var(--panel); }
 .sw-chip.dragging { opacity: .4; }
-.sw-chip .grip { color: var(--muted); letter-spacing: -2px; }
 .sw-chip button { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 3px; }
 .sw-ramp { width: 70px; height: 8px; border-radius: 4px; }
 .sw-count { margin-inline-start: auto; white-space: nowrap; }
@@ -162,8 +158,8 @@
 .sw-kind { display: flex; gap: 8px; align-items: flex-start; }
 .sw-next-main { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 
-/* health, compare, scatter */
-.sw-health, .sw-compare, .sw-scatter { display: flex; flex-direction: column; gap: 10px; }
+/* scatter */
+.sw-scatter { display: flex; flex-direction: column; gap: 10px; }
 .sw-scatter canvas { background: var(--plot-bg); border: 1px solid var(--line); border-radius: 8px; }
 
 /* banners over the middle: the file changed, a template fits, nothing to ask yet */
@@ -216,9 +212,6 @@
 /* in a narrow panel the two buttons go one under the other instead of over each other */
 .sw-step-foot .btn { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sw-step-foot .btn.primary { margin-inline-start: auto; }
-.sw-facts { margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.sw-facts div { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
-.sw-facts dt { font-size: 0.769rem; color: var(--muted); } .sw-facts dd { margin: 0; font-weight: 600; }
 .sw-raw { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 .sw-table th { cursor: default; }
 .sw-raw .sw-table th { cursor: pointer; }
@@ -245,7 +238,6 @@
 .sw-goal-tab.on { border-color: var(--select); background: var(--select-soft); }
 .sw-goal-tab button[role="tab"] { height: 26px; padding: 0 4px 0 10px; border: 0; background: none; color: var(--ink); font: inherit; cursor: pointer; }
 .sw-goal-tab.on button[role="tab"] { font-weight: 600; }
-.sw-close-table { align-self: flex-start; }
 .sw-what-line { margin: -2px 0 0; }
 
 /* messages (Toasts, the app's one place for them) at the lower corner of the area */
@@ -318,11 +310,9 @@
 .sw-journal ol, .sw-journal ul { margin: 0; padding-inline-start: 20px; font-size: .78rem; display: flex; flex-direction: column; gap: 3px; }
 .sw-journal li { overflow-wrap: anywhere; }
 
-/* a narrow window (S09): the bar's long labels give way to short ones */
-.sw-narrow { display: none; }
+/* a narrow window (S09): the bar's long labels give way */
 @media (max-width: 1180px) {
   .sw-wide { display: none; }
-  .sw-narrow { display: inline; }
 }
 .sw-map-key { margin: 2px 0 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 /* fixed colour on purpose: a star that shows on every cell colour */
@@ -363,14 +353,6 @@
 .sw-journal-acts { display: flex; gap: 2px; opacity: .35; }
 .sw-journal-lines li:hover .sw-journal-acts, .sw-journal-acts:focus-within { opacity: 1; }
 .sw-journal-acts .iconbtn { width: 22px; height: 22px; font-size: .85rem; }
-/* S23: the controls on one side, the lines and the table of what is left on the other */
-.sw-explore { container-type: inline-size; }
-/* by Explore's own width (the side panels take a varying share): side by side while the lines keep room */
-@container (max-width: 600px) {
-  .sw-explore-body { grid-template-columns: minmax(0, 1fr); }
-}
-/* a range slider runs right to left in Hebrew: its strip of where the sets are, too */
-[dir="rtl"] .sw-strip { transform: scaleX(-1); }
 
 /* MF00: groups of sets */
 .sw-groups { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
@@ -427,9 +409,6 @@
 .sw-compare-sets tr.differs td { color: var(--info); font-weight: 600; }
 .sw-compare-sets th { text-align: start; }
 
-/* M23: three areas, the steps of the area under them */
-.sw-areas-bar { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; margin-inline-end: 8px; flex: none; align-self: center; }
-@media (max-width: 900px) { .sw-model-grid { grid-template-columns: 1fr; } }
 
 /* MF09 the sets' shape */
 .sw-shape { display: flex; flex-direction: column; gap: 6px; }
@@ -488,9 +467,6 @@
 .sw-merge .sw-row { flex-wrap: wrap; }
 .sw-source-name { width: 9em; margin-inline-start: 6px; }
 .sw-merge-preview { margin: 0; }
-.sw-continue { align-items: flex-end; }
-.sw-continue-pick { display: flex; flex-direction: column; gap: 3px; flex: 1 1 140px; min-width: 0; font-size: 0.846rem; color: var(--muted); }
-.sw-continue-pick select { width: 100%; }
 .sw-tabs-name { margin-inline-start: auto; align-self: center; max-width: 45%; color: var(--muted); padding-inline: 8px; }
 .sw-table tr.sw-picked-row { background: color-mix(in srgb, var(--focus) 18%, transparent); outline: 1px solid var(--focus); }
 .sw-run-values { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 8px 10px; border: 1px solid var(--focus); border-radius: 8px; background: var(--panel); }

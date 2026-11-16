@@ -132,7 +132,7 @@ button, input, select { font: inherit; color: inherit; }
 /* A2 (plan §3.4 rule 4): numbers are instruments - values, readouts, clocks, ticks and number columns in
    the mono face. Only elements that hold a number; a line of text keeps the sans face. */
 .chip .val, .chip .dlt, .lrow .val, .status .ct, .ctime input, .tl-clock, .g3-own-clock, .pval, .log-t,
-.sim-pct, .sim-err, .fleet-val, .fleet-ytick, .fleet-date, .diff-tick, .cmpobj-stats td.num, .geo-readout, .spec-read,
+.sim-pct, .fleet-val, .fleet-ytick, .fleet-date, .diff-tick, .cmpobj-stats td.num, .geo-readout, .spec-read,
 .run-ftime, .fs-row .mtime, .seg-list .seg-time, .seg-list .seg-dur, .seg-wins .when, .rel-row > bdi, .job-pct,
 .sig .sig-rate, .tabs-count, .gridpick-label { font-family: var(--mono); }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -243,7 +243,6 @@ button, input, select { font: inherit; color: inherit; }
 .btn.ghost:hover { color: var(--ink); background: none; }
 .btn.danger { color: var(--danger); }
 .btn.primary.danger { background: var(--danger); border-color: var(--danger); color: var(--on-color); }
-.iconbtn.danger-hover:hover { color: var(--danger); }
 .iconbtn[aria-pressed="true"], .btn[aria-pressed="true"] { background: var(--select-soft); color: var(--ink-strong); box-shadow: inset 0 0 0 1px var(--line-strong); }
 /* amber is reserved for the measurement cursor and time (A1: selection uses --select) */
 .btn.cursor-btn[aria-pressed="true"] { background: var(--amber-soft); color: var(--amber); box-shadow: none; }
@@ -652,7 +651,6 @@ table.vals.stats tbody + tbody tr.name-row td { border-top: 1px solid var(--line
    so Latin names inside the Hebrew UI keep their order ("50 Hz", "f(x) (2)"). */
 .nm, .run-name, .dsig-name, .dsig-formula, .chip .val, table.vals td:first-child,
 .ctime input, .status .ct, .plot-title { unicode-bidi: plaintext; }
-select.sigsel { direction: ltr; text-align: left; }
 .savename { display: flex; align-items: center; gap: var(--sp-2); flex: 1; color: var(--muted); direction: ltr; }
 .savename input { flex: 1; height: 30px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-m); padding: 0 8px; color: var(--ink); }
 .arow { display: flex; gap: var(--sp-2); }
@@ -862,10 +860,7 @@ table.cmp-sub tr.base td { color: var(--muted); }
 .legend-hidden { order: 4; font-size: var(--fs-s); color: var(--muted); border: 1px dashed var(--line); border-radius: var(--r-s); padding: 0 6px; background: none; cursor: pointer; }
 .legend-hidden:hover { color: var(--ink); border-color: var(--line-strong); }
 .tpl-list { padding: 4px 0 10px; }
-.tpl-row { display: flex; align-items: center; gap: var(--sp-2_5); padding: 8px 14px; border-bottom: 1px solid var(--line); }
 .tpl-main { flex: 1; min-width: 0; }
-.tpl-name { font-weight: 600; color: var(--ink-strong); }
-.tpl-meta { color: var(--muted); font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
 /* ---- compare: similarity list ---- */
 .cmp-panel .acheck .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
 .run-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; border: 1px solid var(--line-strong); display: inline-block; margin-inline-end: 4px; }
@@ -913,7 +908,6 @@ table.cmp-sub tr.base td { color: var(--muted); }
 .sim-bar span { display: block; height: 100%; border-radius: var(--r-xs); }
 .spark { grid-area: spark; width: 64px; height: 14px; }
 .spark polyline { fill: none; stroke: currentColor; stroke-width: 1.4; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
-.sim-err { grid-area: err; text-align: end; font-size: var(--fs-s); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 52px; }
 /* similarity colours: NOT amber (reserved for the measurement cursor); AA as text in both themes */
 :root, [data-theme="dark"] { --sim-same: #4cc38a; --sim-close: #e3c344; --sim-diff: var(--danger); }
 [data-theme="light"] { --sim-same: #1d7a4c; --sim-close: #7a6200; --sim-diff: var(--danger); }
@@ -931,7 +925,6 @@ table.cmp-sub tr.base td { color: var(--muted); }
 .msp-count { font-weight: 600; color: var(--ink-strong); }
 .msp-top .linklike { font-size: var(--fs-sm); }
 .msp-filter { margin: 0 0 4px; }
-.msp-all { padding: 4px 2px; border-bottom: 1px solid var(--line); margin-bottom: 2px; font-weight: 500; }
 .msp-list { max-height: 220px; overflow: auto; }
 .msp-item { padding: 2px; margin-bottom: 0; }
 .msp-item .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
@@ -941,7 +934,7 @@ table.cmp-sub tr.base td { color: var(--muted); }
 .plot-error code { font-size: var(--fs-s); color: var(--danger); direction: ltr; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* File names are shown as one left-to-right unit ("בדיקת ריצה 12.svsession", not "svsession.12 …"),
    aligned to the reading side of the interface. */
-.recent-name, .run-head .run-name, .fs-row > span:first-of-type, .tpl-meta { direction: ltr; unicode-bidi: isolate; }
+.recent-name, .run-head .run-name, .fs-row > span:first-of-type { direction: ltr; unicode-bidi: isolate; }
 [dir="rtl"] .recent-name, [dir="rtl"] .run-head .run-name, [dir="rtl"] .fs-row > span:first-of-type { text-align: right; }
 /* picking variables from the search results */
 .pick-bar { display: flex; align-items: center; gap: var(--sp-2_5); flex-wrap: wrap; margin: 0 10px 6px; font-size: var(--fs-m); color: var(--muted); }
@@ -1156,9 +1149,7 @@ input.fx-input { width: 100%; }
 .sync-manual { margin-top: 4px; }
 .sync-manual-body { display: flex; flex-direction: column; gap: var(--sp-1_5); margin-top: 6px; }
 .tpl-group { margin: 6px 4px 4px; font-size: var(--fs-s); color: var(--faint); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-.log-views { margin: 0 10px 8px; }
 .log-actions { display: flex; gap: var(--sp-1_5); margin: 0 10px 8px; } .log-actions .btn { flex: 1; justify-content: center; }
-.tpl-pair { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 2px 4px 8px; } .tpl-pair label { display: flex; gap: var(--sp-1_5); align-items: center; color: var(--muted); }
 .sync-manual-head { margin: 6px 0 6px; font-weight: 600; color: var(--ink-strong); }
 .sync-ways { width: 100%; display: flex !important; }
 .sync-ways button { flex: 1; }
@@ -1209,8 +1200,6 @@ input.fx-input { width: 100%; }
 .tpl-actions { display: flex; gap: var(--sp-2); margin-top: 18px; flex-wrap: wrap; }
 /* review R8: the main action stays in sight on a short screen (the tab list scrolls under it) */
 .tpl-main .tpl-actions { position: sticky; bottom: -14px; z-index: 1; padding: 10px 0 14px; margin-bottom: -14px; background: var(--raised); border-top: 1px solid var(--line); }
-.fmt-chips { display: flex; gap: var(--sp-1); }
-.fmt-chips .chipbtn { height: 22px; padding: 0 6px; font-size: var(--fs-2xs); }
 .tpl-edit-tab { display: flex; gap: var(--sp-1_5); align-items: center; padding: 3px 0; }
 .tpl-edit-tab input { flex: 1; }
 .tpl-edit-plots { list-style: none; margin: 2px 0 8px; padding: 6px 10px; background: var(--panel-2); border-radius: var(--r-m); }
@@ -1268,7 +1257,6 @@ input.fx-input { width: 100%; }
 .tpl-strip-save { align-self: flex-start; }
 .tpl-menu-btn { margin-inline-start: 6px; flex: none; }
 .tpl-menu-btn svg:last-child { opacity: 0.7; }
-.tpl-slot.edit .tpl-slot-from { grid-column: 1 / -1; margin-top: -6px; font-size: var(--fs-s); direction: auto; }
 /* template: the files it uses (editor, read only) and how each was matched when opening */
 .tpl-used-files { list-style: none; margin: 4px 0 8px; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
 .tpl-used-files li { display: flex; align-items: center; gap: var(--sp-2); }
@@ -1364,7 +1352,6 @@ input.fx-input { width: 100%; }
 .rel-row > span { color: var(--muted); }
 .rel-row > bdi { font-variant-numeric: tabular-nums; text-align: end; }
 .rel-actions { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-top: var(--sp-1); align-items: center; }
-.rel-compare { display: inline-flex; gap: var(--sp-0_5); }
 .rel-actions select { font-size: var(--fs-xs); }
 /* N5: the objects found in a recording */
 .obj-suggest { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1); padding: var(--sp-1) var(--sp-2); border-top: 1px solid var(--line); background: var(--panel-2); font-size: var(--fs-xs); }
@@ -1442,8 +1429,6 @@ input.fx-input { width: 100%; }
 .g3-measure { position: absolute; left: 50%; transform: translateX(-50%); top: 52px; padding: 5px 12px; border-radius: var(--r-l);
   background: rgba(242, 210, 59, .95); color: var(--amber-ink); font-size: var(--fs-m); font-weight: 600; }
 .globe3d.own-time .g3-measure { top: 52px; }
-.g3-remove { order: 99; margin-inline-start: auto; }        /* last in the bar */
-.g3-remove:hover { background: var(--danger); border-color: var(--danger); color: var(--on-color); }
 
 /* T10: segments of a state signal (Inspector) */
 .segments { margin: 0 0 10px; }
@@ -1472,8 +1457,6 @@ input.fx-input { width: 100%; }
 .env-canvas { flex: 1; min-height: 0; }
 .env-caption { padding: 2px 10px 4px; font-size: var(--fs-s); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .env-caption .env-out { color: var(--danger); font-weight: 600; }
-/* the 3D view without WebGL: the note sits above the controls hint and wraps */
-.g3-nowebgl { top: 8px; bottom: auto; max-width: min(60%, 520px); white-space: normal; pointer-events: auto; }
 
 /* T12 live MAVLink: status pill next to Live, and its section in the Live popover */
 .mav-pill { height: 26px; gap: var(--sp-1_5); padding-inline: 8px; font-size: var(--fs-sm); color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -1506,9 +1489,6 @@ input.fx-input { width: 100%; }
 .start-health .health-list { margin: 0 0 6px; }
 /* T30: conversions suggested by the signal names (Create signals > Frames) */
 .frame-sugs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 0 0 8px; font-size: var(--fs-sm); color: var(--muted); }
-.frame-sugs .chip-btn { border: 1px solid var(--line-strong); background: var(--bg); color: var(--ink); border-radius: var(--r-round); padding: 2px 9px;
-  font: inherit; cursor: pointer; direction: ltr; }
-.frame-sugs .chip-btn.on { border-color: var(--select); background: var(--select-soft); color: var(--ink-strong); }
 /* T20 / T19: one layout button and one zoom button, their popovers */
 .layout-btn { gap: var(--sp-1_5); font-variant-numeric: tabular-nums; }
 .gridpick-quick { display: flex; flex-wrap: wrap; gap: var(--sp-0_5); padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
@@ -1697,8 +1677,6 @@ input.fx-input { width: 100%; }
 .wc-head h3 { margin: 0; font-size: var(--fs-m); }
 .wc-warn { margin: 0; padding: 4px 6px; border-radius: var(--r-s); background: var(--warn-soft); font-size: var(--fs-s); }
 .wc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-0_5); }
-.wc-group { border-inline-start: 2px solid var(--amber); padding-inline-start: 4px; }
-.wc-together { font-size: var(--fs-xs); opacity: 0.75; }
 /* a row: the name on its own line (names are long: IMU[0].GyrY [rad/s]), its numbers under it */
 .wc-row { display: grid; grid-template-columns: 16px 56px auto auto 1fr 18px; gap: 0 6px; align-items: center; font-size: var(--fs-s); padding: 2px 0; }
 .wc-row > input { grid-column: 1; grid-row: 1; }
@@ -1712,7 +1690,6 @@ input.fx-input { width: 100%; }
 .wc-filter { flex: 1; min-width: 0; font-size: var(--fs-s); }
 .wc-count { font-size: var(--fs-2xs); white-space: nowrap; }
 .wc-ghead { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-1); font-size: var(--fs-xs); }
-.wc-gtoggle { text-align: start; }
 .wc-more, .wc-unhide { align-self: flex-start; font-size: var(--fs-xs); }
 .wc-row.picked { background: var(--select-soft); }
 .wc-row .wc-rate { font-size: var(--fs-2xs); white-space: nowrap; }
@@ -1921,11 +1898,6 @@ input.fx-input { width: 100%; }
 /* U7: the plot type shows on the plot in use (or under the pointer), or when it is not a time plot */
 .plot:not(.active):not(:hover) .mode-btn.is-time { visibility: hidden; }
 
-/* O1: the sign that map tiles come from the internet - small, amber, beside the layer menu */
-.net-badge { display: inline-flex; align-items: center; gap: var(--sp-1); padding: 0 6px; border-radius: var(--r-s); border: 1px solid var(--warn);
-  background: var(--warn-soft); color: var(--warn); font-size: var(--fs-s); line-height: 1.6; white-space: nowrap; cursor: help; }
-.net-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
-
 /* L8: Compare objects… */
 .dialog.cmpobj { width: min(760px, 96vw); }
 /* the body had no side padding: labels sat on the dialog's edge and the selects ran into the other one */
@@ -1992,9 +1964,7 @@ input.fx-input { width: 100%; }
 .tl-edge { position: absolute; top: -1px; bottom: -1px; width: 7px; cursor: ew-resize; }
 .tl-edge.a { left: -4px; } .tl-edge.b { right: -4px; }
 .tl-edge::after { content: ""; position: absolute; top: 7px; bottom: 7px; left: 2px; width: 3px; border-radius: var(--r-xs); background: var(--amber); }
-/* the map's 2D | 3D switch (one Map, two views) */
-.seg.map-view { margin-inline-start: 4px; }
-.seg.map-view button { padding: 1px 7px; }
+
 /* 1.26: the relation box's show / hide - the same button on the 2D map and in the 3D view */
 .rel-toggle { border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: var(--r-s); padding: 1px 8px; font-size: var(--fs-xs); cursor: pointer; }
 .rel-toggle.on { color: var(--ink-strong); border-color: var(--select); }

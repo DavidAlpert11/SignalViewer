@@ -11,7 +11,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.atomic import atomic_open, atomic_path, atomic_write  # noqa: E402
+from svcore.atomic import atomic_open, atomic_path, atomic_write  # noqa: E402
 from app.main import app  # noqa: E402
 
 client = TestClient(app)

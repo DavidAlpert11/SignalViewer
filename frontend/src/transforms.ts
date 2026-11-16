@@ -132,8 +132,3 @@ export async function deleteAllDerived() {
       useApp.getState().commit(() => structuredClone(wsBefore));
     } } });
 }
-
-/** A unit conversion as an in-place step (rad -> deg: x·57.2958, unit "deg"). */
-export function conversionStep(c: { to: string; scale: number; offset?: number }): Step {
-  return { scale: c.scale, offset: c.offset ?? 0, unit: c.to };
-}

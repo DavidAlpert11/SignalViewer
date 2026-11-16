@@ -31,6 +31,8 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
+from svcore.atomic import atomic_write
+
 STUDY_VERSION = 1
 STUDY_SUFFIX = ".svstudy.json"
 ROLES = ("shared", "scenario", "local", "output", "ignore")
@@ -331,10 +333,6 @@ def save(s: Study, path: Optional[str] = None) -> str:
     target = os.path.abspath(path or s.path)
     if not target:
         raise ValueError("No path to save the study to.")
-    tmp = target + ".tmp"
-    os.makedirs(os.path.dirname(target), exist_ok=True)
-    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
-        f.write(dumps(s))
-    os.replace(tmp, target)
+    atomic_write(target, dumps(s), newline="\n")
     s.path = target
     return target

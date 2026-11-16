@@ -5,10 +5,10 @@ reader and opening the file again is enough - no restart, no Reload button neede
 """
 import os
 import threading
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from app import prefs
-from app.atomic import atomic_open, atomic_write
+from svcore.atomic import atomic_open, atomic_write
 from app.subproc import Worker, WorkerGone
 from svcore import icd, readerworker
 from svcore import readers as rd
@@ -44,20 +44,6 @@ def default_dir() -> str:
 def folder() -> str:
     chosen = prefs._read("settings.json", {}).get("readersDir")
     return chosen if isinstance(chosen, str) and chosen.strip() else default_dir()
-
-
-def set_folder(path: Optional[str]) -> str:
-    new = os.path.abspath(os.path.expanduser(path)) if path else None
-    if new and not os.path.isdir(new):
-        raise ValueError(f"Not a folder: {new}")
-    with prefs._lock:
-        s = prefs._read("settings.json", {})
-        if new:
-            s["readersDir"] = new
-        else:
-            s.pop("readersDir", None)
-        prefs._write("settings.json", s)
-    return folder()
 
 
 def _key(d: str):

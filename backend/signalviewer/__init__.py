@@ -209,13 +209,13 @@ class Comparison:
 
     def to_mat(self, path: str) -> str:
         """errors, values and stats in one .mat (scipy): each column a variable, names made MATLAB-safe."""
-        import re as _re
         from scipy.io import savemat
-        safe = lambda k: (_re.sub(r"\W", "_", k).strip("_") or "x")[:63]
+        from svcore.subset import mat_name
         d = {}
+        taken = {"stats_rms", "stats_names"}
         for part, df in (("err", self.errors()), ("val", self.values())):
             for k in df.columns:
-                d[safe(f"{part}_{k}")] = df[k].to_numpy()
+                d[mat_name(f"{part}_{k}", taken)] = df[k].to_numpy()
         st = self.stats()
         d["stats_rms"] = st["rms"].to_numpy(dtype=float)
         d["stats_names"] = np.array([f"{o}.{c}" for o, c in zip(st["object"], st["comp"])], dtype=object)

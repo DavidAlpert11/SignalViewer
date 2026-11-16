@@ -195,6 +195,23 @@ def _missing(*vs) -> np.ndarray:
     return out
 
 
+def bool_op(parts: Sequence[np.ndarray], missing: Optional[Sequence[np.ndarray]], is_and: bool) -> np.ndarray:
+    """and / or of truth arrays (1.0 / 0.0). With `missing` (one mask per part) it is Kleene's: unknown (NaN) unless
+    a known side decides - a known false for and, a true for or. Shared by the signal formulas and the Sweeps columns."""
+    out = parts[0]
+    for p in parts[1:]:
+        out = (out & p) if is_and else (out | p)
+    res = np.asarray(out, dtype=np.float64)
+    if missing is None:
+        return res
+    unknown = np.zeros((), dtype=bool)
+    decided = np.zeros((), dtype=bool)
+    for p, m in zip(parts, missing):
+        unknown = unknown | m
+        decided = decided | ((~m & ~p) if is_and else p)
+    return np.where(unknown & ~decided, np.nan, res)
+
+
 def evaluate(expr: str, signals: List[Tuple[np.ndarray, np.ndarray]], align,
              holds: Optional[Sequence[bool]] = None, nan: str = "propagate",
              report: Optional[Dict] = None) -> Tuple[np.ndarray, np.ndarray]:
@@ -248,23 +265,7 @@ def evaluate(expr: str, signals: List[Tuple[np.ndarray, np.ndarray]], align,
             return -v if isinstance(node.op, ast.USub) else v
         if isinstance(node, ast.BoolOp):
             vals = [ev(x) for x in node.values]
-            parts = [_truth(v) for v in vals]
-            out = parts[0]
-            for p in parts[1:]:
-                out = np.logical_and(out, p) if isinstance(node.op, ast.And) else np.logical_or(out, p)
-            res = np.asarray(out, dtype=np.float64)
-            if strict:                                   # Kleene: unknown unless a known side decides
-                unknown = _missing(*vals)
-                if isinstance(node.op, ast.And):
-                    decided = np.zeros((), dtype=bool)
-                    for v, p in zip(vals, parts):
-                        decided = decided | (~_missing(v) & ~p)      # a known false
-                else:
-                    decided = np.zeros((), dtype=bool)
-                    for p in parts:
-                        decided = decided | p                        # a known true
-                res = np.where(unknown & ~decided, np.nan, res)
-            return res
+            return bool_op([_truth(v) for v in vals], [_missing(v) for v in vals] if strict else None, isinstance(node.op, ast.And))
         if isinstance(node, ast.BinOp):
             return _BIN[type(node.op)](ev(node.left), ev(node.right))
         if isinstance(node, ast.Compare):

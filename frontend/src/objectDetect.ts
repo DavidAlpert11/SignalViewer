@@ -18,7 +18,6 @@ export type ObjClass = "truth" | "navigation" | "receiver" | "other";
 export type PosKind = "lla" | "ned" | "enu" | "ecef";
 /** px / py / pz: a position in metres (north / east / down for NED, east / north / up for ENU, x / y / z for ECEF). */
 export type DetRole = Role | "px" | "py" | "pz" | "vn" | "ve" | "vd";
-export const POS_ROLES: DetRole[] = ["lat", "lon", "alt"];
 export const VEC_ROLES: DetRole[] = ["px", "py", "pz"];
 export const ATT_ROLES: DetRole[] = ["roll", "pitch", "yaw"];
 export const QUAT: DetRole[] = ["qw", "qx", "qy", "qz"];

@@ -16,6 +16,7 @@ import re
 from typing import Dict, List, Sequence
 
 from svcore.acmi import MODELS, AcmiObject, _num, acmi_color, sample
+from svcore.atomic import atomic_write
 
 
 def _safe(name: str) -> str:
@@ -52,9 +53,6 @@ def write_csvs(objects: Sequence[AcmiObject], folder: str, rate: float = 10.0,
                 if r["att"] is not None:
                     cells += [_num(((ang[i] + 180) % 360) - 180 if q < 2 else ang[i], 2) for q, ang in enumerate(r["att"])]
                 lines.append(",".join(cells))
-        tmp = path + ".part"
-        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
-            f.write("\n".join(lines) + "\n")
-        os.replace(tmp, path)
+        atomic_write(path, "\n".join(lines) + "\n", newline="\n")
         paths.append(path)
     return paths

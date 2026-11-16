@@ -124,11 +124,6 @@ export async function setupFromOpenTable(): Promise<boolean> {
   return true;
 }
 
-export function newStudy(): void {
-  const study: Study = { version: 1, name: "", tables: [], shared: [], combine: { mode: "auto" }, search: { params: {} }, next: { batch: 20 } };
-  set({ ...EMPTY, open: true, study, saved: "" });
-}
-
 /** One edit of the study: a step of the area's one Undo; the answer asked again. */
 export function editStudy(f: (s: Study) => Study): void {
   const s = get();

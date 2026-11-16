@@ -696,7 +696,7 @@ def test_next_runs_written_as_json_matlab_python(tmp_path):
 
 
 def test_a_save_in_progress_is_not_listed_as_a_template(tmp_path, monkeypatch):
-    """A template being saved is written to a hidden ".<name>.<pid>.tmp.json" first (app/atomic.py); a listing at
+    """A template being saved is written to a hidden ".<name>.<pid>.tmp.json" first (svcore/atomic.py); a listing at
     that moment showed the template twice (the e2e templates test failed 2 runs in 10)."""
     from fastapi.testclient import TestClient
     from app.main import app

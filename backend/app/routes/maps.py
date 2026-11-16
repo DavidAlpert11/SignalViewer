@@ -283,7 +283,7 @@ def export_places(req: PlacesFile):
     """Places as one .kml file (Google Earth opens it)."""
     import os
 
-    from app.atomic import atomic_open
+    from svcore.atomic import atomic_open
     from svcore.kml import write_kml
     from svcore.places import clean_all
     path = os.path.abspath(os.path.expanduser(req.path or ""))

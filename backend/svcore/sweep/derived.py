@@ -22,15 +22,12 @@ from typing import Any, Callable, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from svcore.formula import _BIN, _CMP, bool_op
+
 
 class DerivedError(ValueError):
     pass
 
-
-_BIN = {ast.Add: np.add, ast.Sub: np.subtract, ast.Mult: np.multiply, ast.Div: np.divide,
-        ast.Pow: np.power, ast.Mod: np.mod}
-_CMP = {ast.Gt: np.greater, ast.Lt: np.less, ast.GtE: np.greater_equal, ast.LtE: np.less_equal,
-        ast.Eq: np.equal, ast.NotEq: np.not_equal}
 _FUN: Dict[str, Callable[..., Any]] = {"abs": np.abs, "sqrt": np.sqrt, "exp": np.exp, "log": np.log, "log10": np.log10,
         "sin": np.sin, "cos": np.cos, "tan": np.tan, "atan2": np.arctan2, "sign": np.sign,
         "floor": np.floor, "ceil": np.ceil, "round": np.round, "min": np.fmin, "max": np.fmax,
@@ -253,18 +250,7 @@ def row_formula(df: pd.DataFrame, expr: str) -> np.ndarray:
         if isinstance(nd, ast.BoolOp):
             # Kleene, as the signal formulas: missing unless a known side decides
             vals = [ev(v) for v in nd.values]
-            parts = [truth(v) for v in vals]
-            miss = [missing(v) for v in vals]
-            is_and = isinstance(nd.op, ast.And)
-            r = parts[0]
-            for p in parts[1:]:
-                r = (r & p) if is_and else (r | p)
-            unknown = np.zeros((), dtype=bool)
-            decided = np.zeros((), dtype=bool)
-            for p, m in zip(parts, miss):
-                unknown = unknown | m
-                decided = decided | ((~m & ~p) if is_and else p)
-            return np.where(unknown & ~decided, np.nan, r.astype(float))
+            return bool_op([truth(v) for v in vals], [missing(v) for v in vals], isinstance(nd.op, ast.And))
         if isinstance(nd, ast.Call) and isinstance(nd.func, ast.Name) and not nd.keywords:
             return call(nd.func.id, nd.args)
         raise DerivedError("Only numbers, \"text\", columns, + - * / ** %, comparisons, and / or / not, if() "

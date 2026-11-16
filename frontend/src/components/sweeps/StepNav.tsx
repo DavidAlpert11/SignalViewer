@@ -1,12 +1,9 @@
 /* Back / Next at the foot of a table's step panels (the steps themselves: FlowNav, PLAN 2026-11-16 §7a - Data,
    Columns, Goal, Results, Next runs). */
-import { useT, type TFn, type TKey } from "../../i18n";
-import { type Step } from "../../sweeps/model";
+import { useT } from "../../i18n";
 import { FLOW, flowStep } from "../../sweeps/flow";
 import type { Study } from "../../sweeps/state";
 import { flowTitle, goFlow } from "./FlowNav";
-
-const TITLE: Record<Step, TKey> = { raw: "swStepData", clean: "swStepColumns", roles: "swStepColumns", goals: "swStepGoal", results: "swStepResults", report: "swStepResults", run: "swStepResults" };
 
 /** Back / Next at the foot of a step's side panel. */
 export function StepFoot({ study, next }: { study: Study; next?: string }) {
@@ -20,5 +17,3 @@ export function StepFoot({ study, next }: { study: Study; next?: string }) {
     </div>
   );
 }
-
-export const stepTitle = (t: TFn, s: Step) => t(TITLE[s]);

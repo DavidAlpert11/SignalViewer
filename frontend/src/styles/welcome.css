@@ -9,7 +9,6 @@
 .welcome-card .tagline { color: var(--ink); font-size: var(--fs-xl); margin-bottom: 6px; }
 /* section titles are eyebrows (.eyebrow in index.css): small, quiet, the same over every group */
 .welcome-card .examples-title { margin: 28px 0 0; }
-.welcome-section-title { display: block; margin: 0 0 var(--sp-2); text-align: start; }
 
 /* D11: where you left off - before the examples (a returning user's first need), each list a card */
 .recent { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--sp-3); margin-top: var(--sp-6); text-align: start; }

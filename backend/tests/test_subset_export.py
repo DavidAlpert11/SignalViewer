@@ -101,3 +101,12 @@ def test_mistakes_are_said():
         build([Column("a", t, t)], timing="rate", rate=0)
     with pytest.raises(SubsetError, match="rows"):
         build([Column("a", t, t)], timing="rate", rate=1e9)
+
+
+def test_mat_names_valid_and_unique():
+    """One MATLAB-name maker (the export and the Python package's Comparison.to_mat)."""
+    from svcore.subset import mat_name
+    taken = set()
+    names = [mat_name(n, taken) for n in ("ATT.Roll [deg]", "ATT Roll deg", "1st", "", "x" * 80)]
+    assert names[:4] == ["ATT_Roll_deg", "ATT_Roll_deg_2", "s_1st", "signal"]
+    assert len(names[4]) <= 60 and len(set(names)) == 5

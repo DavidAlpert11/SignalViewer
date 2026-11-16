@@ -24,7 +24,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   run + parameters from the names -> Open in Sweeps; Summarize a folder -> Sweeps as a background job, one file at a
   time - memory measured flat; `cli.py summarize`). M3 done (a set's runs -> their recordings by a folder + a name
   from the row; the fetch command dropped as heavy). P done (Plot the commanded / measured pairs, one detector in
-  desired.ts). Next: cleanup (§9), then full e2e, build, propose the release.
+  desired.ts). Cleanup (§9) done. Next: the whole e2e suite, mkdocs, `npm run build` once, propose the tag v1.27.0.
 - **2026-11-16 · Sweeps as one flow (PLAN_2026-11-16 §7a) - done.** Done: one stepper for every study (Data ·
   Columns · Goal · Results · Next runs; `sweeps/flow.ts`, `FlowNav.tsx`); the tables' column (Navigator) only in Data,
   resizable, a labelled *Remove from the study* with Undo; Next runs = the proposal + *Run from the app* (`NextStep.tsx`,
@@ -233,3 +233,19 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   file's menu in the signal list (that file) and Ctrl+K (every open file) - no new button. copter_flight.bin: 6 pairs
   (ATT 3, RATE 3; CTUN.DAlt is not one of the words - left out). Tests: Vitest desired.test.ts (5, new: real
   ArduPilot names, PX4 / word forms, look-alikes rejected, one Undo), e2e test_setpoint_pairs.py (new) green.
+- 2026-11-16 · Cleanup (plan §9) done. Removed: 8 unused TS exports (api NO_TOLERANCES, sweeps ShapeStats +
+  StepNav's stepTitle / TITLE, events evTime, formulaHelp unknownNames, objectDetect POS_ROLES, studyStore newStudy,
+  transforms conversionStep); 22 i18n keys no code uses (en + he; dynamic `prefix_${x}` keys and the keys the
+  backend's builtin_templates.json names kept); 50 CSS selectors of components that are gone (sw-explore, sw-facts,
+  sw-continue, tpl-row / tpl-pair, net-badge, g3-remove, map-view, wc-group…; dynamic class prefixes kept); the
+  routes /api/readers/folder and /api/readers/example and userreaders.set_folder (no UI; the CLI writes the example
+  itself). Merged: formula.bool_op - the one Kleene and / or for the signal formulas and the Sweeps columns (derived.py
+  now imports _BIN / _CMP / bool_op from svcore/formula.py); app/atomic.py -> svcore/atomic.py, used also by
+  study.save, the launcher's submit record and collected CSVs, tacview_csv and subset.write (they had their own
+  tmp + replace - now with fsync and the Windows retry); svcore.subset.mat_name is also the Python package's
+  Comparison.to_mat name maker (unique names now). Sizes (vite, gzip -9): main index.js 718,009 B / 230,962 gz
+  (unchanged - dead exports were already tree-shaken), shared chunk 482,165 -> 480,242 B (157,245 -> 156,719 gz),
+  CSS 279,092 -> 276,812 B (45,430 -> 45,026 gz); dist 11,093,597 -> 11,088,196 B. A bigger win left for later: the
+  Hebrew dictionary (about half of the shared chunk) loaded only when Hebrew is chosen - it changes `translate`'s
+  sync contract, so not before a release. Tests: test_subset_export::test_mat_names_valid_and_unique (new);
+  quick_check green.

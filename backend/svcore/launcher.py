@@ -47,6 +47,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 import pandas as pd
 
 from svcore import placeholders as ph
+from svcore.atomic import atomic_path, atomic_write
 from svcore import study as studies
 
 SUBMIT_JSON = "submit.json"
@@ -264,10 +265,7 @@ def submit(s: studies.Study, k: Optional[int] = None, wait: bool = False, extra:
 
 
 def _write_record(rdir: str, rec: Dict[str, Any]) -> None:
-    tmp = os.path.join(rdir, SUBMIT_JSON + ".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(rec, f)
-    os.replace(tmp, os.path.join(rdir, SUBMIT_JSON))
+    atomic_write(os.path.join(rdir, SUBMIT_JSON), json.dumps(rec))
 
 
 def _read_record(rdir: str) -> Dict[str, Any]:
@@ -456,9 +454,8 @@ def _collect(s: studies.Study, r: studies.Round, rdir: str, rows: Dict[str, List
             out.append({**{k: v for k, v in outputs.items() if k not in echo}, **p.values, "run_id": p.run_id})
         df = pd.DataFrame(out)
         path = os.path.join(rdir, f"collected_{tid}.csv")
-        tmp = path + ".tmp"
-        df.to_csv(tmp, index=False, lineterminator="\n")
-        os.replace(tmp, path)
+        with atomic_path(path) as tmp:
+            df.to_csv(tmp, index=False, lineterminator="\n")
 
 
 def wait(s: studies.Study, k: Optional[int] = None, timeout: Optional[float] = None, poll: float = 0.5,

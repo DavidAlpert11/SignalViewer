@@ -142,7 +142,6 @@ export interface RunQuality { signals: SignalQuality[]; count: Record<"missing" 
  *  name) and keys of later versions are kept as written */
 export interface TolEntry { abs?: number; pct?: number; time?: number; outside_pct?: number; skip?: boolean; [key: string]: unknown }
 export interface Tolerances { default: TolEntry; signals: Record<string, TolEntry> }
-export const NO_TOLERANCES: Tolerances = { default: {}, signals: {} };
 export interface DiffTrace { t: number[]; d: (number | null)[]; lo?: (number | null)[]; hi?: (number | null)[]; out: [number, number][] }
 export interface CompareRow { id: string; valid: boolean; matchPct?: number; samples?: number; rmsDiff?: number; maxAbsDiff?: number; meanDiff?: number; rmsPct?: number; correlation?: number; withinPct?: number; pass?: boolean; outsidePct?: number; trace?: DiffTrace }
 export interface CompareFileStats { run: string; mean: number | null; std: number | null; min: number | null; max: number | null; rms: number | null }

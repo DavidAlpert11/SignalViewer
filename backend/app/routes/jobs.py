@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app import report as reports
-from app.atomic import write_text as _write_text
+from svcore.atomic import write_text as _write_text
 from app.common import atomic_path, fail, open_paths
 from app.jobs import JobCancelled, jobs
 from app.routes.compare import CompareAllRequest, _tolerances, compare_table
