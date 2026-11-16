@@ -529,7 +529,7 @@ For any recording, not only flight logs (1.27: the Log panel became *Checks*).
 - **My maps** (*Add a map…*): a raster MBTiles file (fully offline) or an XYZ / TMS tile server of your own, in 2D, 3D, exported pictures and offline map pages; *Never use the network* blocks a server on the internet, not one on this PC or a private address
 - **Keep this area offline…**: an area's tiles at chosen zooms, the size estimated first, progress, Stop, the kept areas with their size and Delete - only where the map's terms allow it (ground heights, your own servers); OpenStreetMap, Esri and OpenTopoMap forbid bulk downloads and the dialog says so
 - A quieter offline map in both themes (land and water a step off the app's colours, softer relief, roads muted by their order); the camera bar is one glass bar in the top corner, the data box at the bottom corner, nothing covers anything else
-- **Height profile** (*Profile* in the map's bar): the object's height and the ground under it along the distance, for any recording with positions; the cursor's moment marked, a click moves the cursor; coarse ground data is said, with how to get finer (`.hgt`, or keep the area offline)
+- **Height profile** (*Profile* under the map bar's ⋯): the object's height and the ground under it along the distance, for any recording with positions; the cursor's moment marked, a click moves the cursor; coarse ground data is said, with how to get finer (`.hgt`, or keep the area offline)
 - **Arrows along the path**: any two signals (north and east components - a wind, a velocity, a force) drawn as arrows along an object's track on the map and in 3D; the file's own pair is offered (an ArduPilot log's estimated wind, a CSV's velocity)
 
 ## Sweeps: a run envelope's results { #sweeps }

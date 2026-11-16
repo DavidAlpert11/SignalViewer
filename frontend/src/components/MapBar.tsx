@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { actions, type MapObject, type Plot } from "../store";
 import { useT, type TKey } from "../i18n";
 import { pairOf } from "../relation";
@@ -18,11 +18,25 @@ function CamIcon({ m }: { m: "free" | "object" }) {
    + / − / fit, the relation box shown or hidden; each view's own extras after them (2D: north / track up,
    back to the object; 3D: a third object, data, events, measure, its own time). The same
    saved fields in both views (followObject, camera), so a switch between 2D and 3D keeps the camera.
-   The offline pages (report_assets/relation.js svToolbar) have the same bar. */
-export default function MapBar({ plot, objects, onZoom, onFit, className, objectHint, children }: {
-  plot: Plot; objects: MapObject[]; onZoom: (dir: 1 | -1) => void; onFit: () => void; className: string; objectHint: TKey; children?: ReactNode;
+   The offline pages (report_assets/relation.js svToolbar) have the same bar.
+   RV9 (review §4.6): the camera, + − fit and Story stay on the bar; the rest (profile, relation, each view's
+   `extras`) is under one ⋯ - the bar no longer wraps to a second row over the map with the Inspector open.
+   `children` stay on the bar: what applies only now (2D: north / track up, back to the object). */
+export default function MapBar({ plot, objects, onZoom, onFit, className, objectHint, children, extras }: {
+  plot: Plot; objects: MapObject[]; onZoom: (dir: 1 | -1) => void; onFit: () => void; className: string; objectHint: TKey;
+  children?: ReactNode; extras?: ReactNode;
 }) {
   const t = useT();
+  const [more, setMore] = useState(false);
+  const moreRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!more) return;
+    const away = (e: MouseEvent) => { if (!moreRef.current?.contains(e.target as Node)) setMore(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setMore(false); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [more]);
   // the data box sits under the bar, however many rows the bar takes (Hebrew, a narrow plot: three) - it
   // was at a fixed 84 px and covered the bar's last row
   const barRef = useRef<HTMLDivElement>(null);
@@ -61,12 +75,22 @@ export default function MapBar({ plot, objects, onZoom, onFit, className, object
         <button className="geo-fit" onClick={onFit} title={`${t("mapFitAll")} (0)`} aria-label={t("mapFitAll")}>
           <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" /></svg></button>
       </span>
-      {/* F5: the height profile under the map, of the primary object */}
-      <button className={`g3-toggle map-profile${plot.showProfile ? " on" : ""}`} aria-pressed={!!plot.showProfile} title={t("hpToggleHint")}
-        onClick={() => actions.updatePlot(plot.id, { showProfile: !plot.showProfile })}>{t("hpToggle")}</button>
-      <RelationToggle plot={plot} objects={objects} />
       <MapStory plot={plot} objects={objects} />
       {children}
+      <span ref={moreRef} className="map-more">
+        <button className="g3-toggle map-more-btn" aria-expanded={more} aria-haspopup="true" title={t("mapMore")} aria-label={t("mapMore")}
+          onClick={() => setMore(!more)}>
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.4" /><circle cx="8" cy="8" r="1.4" /><circle cx="13" cy="8" r="1.4" /></svg></button>
+        {more && (
+          <div className="map-more-pop" role="group" aria-label={t("mapMore")}>
+            {/* F5: the height profile under the map, of the primary object */}
+            <button className={`g3-toggle map-profile${plot.showProfile ? " on" : ""}`} aria-pressed={!!plot.showProfile} title={t("hpToggleHint")}
+              onClick={() => actions.updatePlot(plot.id, { showProfile: !plot.showProfile })}>{t("hpToggle")}</button>
+            <RelationToggle plot={plot} objects={objects} />
+            {extras}
+          </div>
+        )}
+      </span>
     </div>
   );
 }

@@ -14,6 +14,12 @@ from test_features import S, env, flat_maps, open_files, pg  # noqa: E402,F401
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+def more(pg, bar=".map-bar"):
+    """RV9: the map bar's rest is under one ⋯ - open it (once) before using what is there."""
+    if not pg.locator(f"{bar} .map-more-pop").count():
+        pg.locator(f"{bar} .map-more-btn").first.click()
+
+
 @pytest.fixture()
 def mapped(pg):
     shutil.copy(os.path.join(ROOT, "examples", "three_objects.csv"), pg.env["data"])
@@ -28,7 +34,7 @@ def test_profile_of_the_primary_object(mapped):
     pg = mapped
     plot = "s.ws.tabs[0].plots.find((p) => (p.mode === 'geo' || p.mode === '3d'))"
     pg.locator(".plot-canvas.geo").hover()
-    pg.locator(".map-bar .map-profile").click()
+    more(pg); pg.locator(".map-bar .map-profile").click()
     assert S(pg, f"{plot}.showProfile") is True                          # saved with the plot (Undo too)
     pg.wait_for_selector(".hprof[data-points]")
     assert int(pg.locator(".hprof").get_attribute("data-points")) > 50
@@ -40,5 +46,5 @@ def test_profile_of_the_primary_object(mapped):
     pg.wait_for_function("window.__sv.state().cursor.on && window.__sv.state().cursor.t1 > 1")
     pg.wait_for_selector(".hprof .hprof-cursor", state="attached")              # a vertical line: no width to be "visible"
     assert "height" in pg.locator(".hprof-read").inner_text() and "ground" in pg.locator(".hprof-read").inner_text()
-    pg.locator(".map-bar .map-profile").click()
+    more(pg); pg.locator(".map-bar .map-profile").click()
     pg.wait_for_selector(".hprof", state="detached")

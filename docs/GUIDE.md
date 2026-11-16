@@ -206,7 +206,7 @@ are told apart by them.
     field - the size is estimated first, with progress, Stop, and the kept areas listed with their size and
     Delete. Only where the map's terms allow it (the ground heights and your own servers); OpenStreetMap,
     Esri and OpenTopoMap forbid bulk downloads and the dialog says so - places you look at are still kept.
-- **Height profile:** *Profile* in the map's bar shows, under the map, the object's height and the ground
+- **Height profile:** *Profile* under the map bar's ⋯ shows, under the map, the object's height and the ground
   under it along the distance, for any recording with positions. The cursor's moment is marked; a click in
   the profile moves the cursor. Where the ground data is coarse it says so and how to get finer ground
   (`.hgt` files, or *Keep this area offline…*).

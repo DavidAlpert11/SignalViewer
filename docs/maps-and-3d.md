@@ -58,7 +58,7 @@ places you look at are still kept in the cache as before. The list lives in `~/.
 
 ## Height profile and arrows along the path (1.27)
 
-**Height profile** (*Profile* in the map's bar): under the map, the object's height and the ground under it
+**Height profile** (*Profile* under the map bar's ⋯): under the map, the object's height and the ground under it
 along the distance flown, for any recording with positions (`/api/profile`, the ground from the same heights
 as the 3D terrain). The cursor's moment is marked; a click in the profile moves the cursor. Where the ground
 data is coarse (outside the detailed areas) the profile says so and how to get finer ground: `.hgt` files

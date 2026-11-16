@@ -17,6 +17,16 @@
 .map-bar .g3-seg-label { color: color-mix(in srgb, var(--overlay-ink) 65%, transparent); font-size: var(--fs-xs); }
 /* the groups read as groups: a hairline between the camera, the zoom and the view's own buttons */
 .map-bar > .map-zoom, .map-bar > .rel-toggle { padding-inline-start: var(--sp-2); border-inline-start: 1px solid color-mix(in srgb, var(--overlay-ink) 18%, transparent); }
+/* RV9: the rest of the bar under one ⋯ - a glass column under it, the same look as the bar */
+.map-bar .map-more { position: relative; display: inline-flex; }
+.map-bar .map-more-btn { min-width: 26px; display: inline-flex; align-items: center; justify-content: center; }
+.map-bar .map-more-pop { position: absolute; top: calc(100% + var(--sp-1_5)); inset-inline-start: 0; z-index: 5;
+  display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-1); padding: var(--sp-1_5); width: max-content; max-width: 280px;
+  border-radius: var(--r-card); border: 1px solid color-mix(in srgb, var(--overlay-ink) 14%, transparent);
+  background: var(--overlay-bg); color: var(--overlay-ink); box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px) saturate(1.2); -webkit-backdrop-filter: blur(8px) saturate(1.2); }
+.map-bar .map-more-pop > button, .map-bar .map-more-pop > label { text-align: start; justify-content: flex-start; }
+.map-bar .map-more-pop .g3-seg { flex-wrap: wrap; }
 
 /* the docks */
 .map-dock { position: absolute; bottom: var(--sp-5); z-index: 2; display: flex; flex-direction: column; gap: var(--sp-1_5);

@@ -15,6 +15,12 @@ pytest.importorskip("playwright.sync_api")
 from test_features import env, frames  # noqa: E402,F401
 
 
+def more(pg, bar=".map-bar"):
+    """RV9: the map bar's rest is under one ⋯ - open it (once) before using what is there."""
+    if not pg.locator(f"{bar} .map-more-pop").count():
+        pg.locator(f"{bar} .map-more-btn").first.click()
+
+
 @pytest.fixture
 def g3(env, gl_browser):
     d = env["data"]
@@ -144,7 +150,7 @@ def test_related_objects_distance_line_and_box(g3multi):
     assert pg.locator(".globe3d-readout b").inner_text() == "A"                # the first object is the primary
     # 1.26: the pair is chosen in the relation box, as on the 2D map; the compared object's numbers are there
     pg.locator(".globe3d .rel-panel select[aria-label='Compared with']").select_option("B")
-    pg.locator(".globe3d-bar select[aria-label='Third']").select_option("C")
+    more(pg, ".globe3d-bar"); pg.locator(".globe3d-bar select[aria-label='Third']").select_option("C")
     # A -> B on the WGS84 ellipsoid: 0.01 deg of longitude at 32.5 N = N cos(lat) dlon = 940 m; 200 m higher;
     # slant sqrt(940^2 + 200^2) = 961 m; bearing east
     pg.wait_for_function("(document.querySelector('.globe3d .rel-panel .rel-body') || {}).innerText?.includes('961')")
@@ -158,7 +164,7 @@ def test_related_objects_distance_line_and_box(g3multi):
       for (let i = 0; i < w.scene.primitives.length; i++) { const p = w.scene.primitives.get(i);
         if (p instanceof C.PolylineCollection) for (let k = 0; k < p.length; k++) if (p.get(k).material.type === 'PolylineDash') n++; } return n; })()""")
     assert lines == 2                                                           # a dashed line to each
-    pg.locator(".globe3d-bar button", has_text="Data").click()                 # the box can be hidden
+    more(pg, ".globe3d-bar"); pg.locator(".globe3d-bar button", has_text="Data").click()                 # the box can be hidden
     pg.wait_for_selector(".globe3d-readout", state="detached")
     assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].showReadout") is False
 
@@ -285,7 +291,7 @@ def test_own_time_is_independent_of_the_timeline(g3move):
     pg = g3move
     at_lat(pg, 32.0 + 20 * 1e-4)
     assert abs(pg.evaluate(MODEL_LAT) - (32.0 + 20 * 1e-4)) < 2e-6                # shared: at the timeline's t = 20
-    pg.locator(".globe3d-bar button", has_text="Own time").click()
+    more(pg, ".globe3d-bar"); pg.locator(".globe3d-bar button", has_text="Own time").click()
     pg.wait_for_selector(".g3-own")
     assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].ownTime") == 20     # starts where the timeline was
     # the timeline moves: this view does not
@@ -307,7 +313,7 @@ def test_own_time_is_independent_of_the_timeline(g3move):
     at_lat(pg, 32.0)
     assert abs(pg.evaluate(MODEL_LAT) - 32.0) < 2e-6
     # shared again: back on the timeline's time
-    pg.locator(".globe3d-bar button", has_text="Shared").click()
+    more(pg, ".globe3d-bar"); pg.locator(".globe3d-bar button", has_text="Shared").click()
     pg.wait_for_selector(".g3-own", state="detached")
     at_lat(pg, 32.0 + 80 * 1e-4)
     assert abs(pg.evaluate(MODEL_LAT) - (32.0 + 80 * 1e-4)) < 2e-6
@@ -320,7 +326,7 @@ def test_measure_two_points_on_the_ground(g3multi):
     # mountains and a click lands on that (a globe measures what it shows)
     pg.wait_for_function("(() => { const w = window.__svGlobe.widget; w.scene.requestRender(); return w.scene.globe.tilesLoaded; })()",
                          timeout=90000, polling=500)
-    pg.locator(".globe3d-bar button", has_text="Measure").click()
+    more(pg, ".globe3d-bar"); pg.locator(".globe3d-bar button", has_text="Measure").click()
     pg.wait_for_selector(".g3-measure:has-text('first point')")
     # where two known places are on the screen: 32.5 N and 32.51 N at 34.5 E (sea: height 0).
     # They must BE on the screen: how much the camera shows depends on the view's shape (e.g. the
@@ -361,12 +367,12 @@ def test_log_events_on_the_track_and_image(g3multi):
     pg.evaluate(f"""window.__sv.setState({{ logs: {{ ...window.__sv.state().logs, '{rid}': {{ timeOffset: 0, params: [], events: [
         {{ t: 10, kind: 'error', text: 'GPS glitch', level: 'error' }}, {{ t: 30, kind: 'mode', text: 'LOITER', level: 'info' }},
         {{ t: 40, kind: 'msg', text: 'just info', level: 'info' }}] }} }} }})""")
-    pg.locator(".globe3d-bar button", has_text="Events").wait_for()
+    more(pg, ".globe3d-bar"); pg.locator(".globe3d-bar button", has_text="Events").wait_for()
     count = """(() => { const { widget: w, Cesium: C } = window.__svGlobe; let n = 0;
       for (let i = 0; i < w.scene.primitives.length; i++) { const p = w.scene.primitives.get(i); if (p instanceof C.LabelCollection)
         for (let k = 0; k < p.length; k++) if (['GPS glitch', 'LOITER'].includes(p.get(k).text)) n++; } return n; })()"""
     pg.wait_for_function(count + " === 2")                        # the error and the mode change; not the plain message
-    pg.locator(".globe3d-bar button", has_text="Events").click()
+    more(pg, ".globe3d-bar"); pg.locator(".globe3d-bar button", has_text="Events").click()
     pg.wait_for_function(count + " === 0")
     # the view as a PNG file
     # F36: a folder of its own, given as a full path in the name box (the dialog takes a full path

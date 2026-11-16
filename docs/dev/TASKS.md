@@ -94,7 +94,13 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   strip's how-to line shown on the first file only (`ovHintSeen` set once shown).
   RV8 done: the Report panel's one offline page (*Save the page (HTML)…* at the top = the HTML report with its replay and
   brand line); Ctrl+K's compact tab page kept.
-  Next: RV9 ... RV11 while the owner confirms SW2 (b)'s reading; then SW2 (b).
+  RV9 done: the Map's bar - camera, + − fit, Story; the rest under one ⋯ (MapBar `extras`).
+  **BR1 - the owner's idea (2026-11-16): brand the tool as one process.** Proposed (in Hebrew to him): "Signal Viewer -
+  from one run to a whole sweep, in one place, offline": 1. a run (open, look, find what went wrong); 2. runs (a folder
+  of recordings or simulations -> one table, a row each, back to the recording); 3. a sweep (which parameters hold in
+  every scenario, the next runs, a re-run with recording for the interesting ones). Waits for his yes; then README,
+  docs/index.md and the welcome screen's groups.
+  Next: RV10, RV11 while the owner confirms SW2 (b)'s reading and BR1; then SW2 (b).
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
@@ -441,3 +447,5 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   it failed on main before RV7 too), test_workflows, test_flat_line_solo, test_features -k findings/health/report/strip.
 - 2026-11-16 · RV8 done. Tests: backend test_replay (+1); e2e test_replay (scrolls to the plot - the report's text is
   above it now), test_live_report, test_workflows, test_features -k report/replay/html.
+- 2026-11-16 · RV9 done. e2e: test_globe3d, test_height_profile, test_live_report, test_map_objects. Owner's idea BR1
+  (brand as one process) noted, proposal sent.

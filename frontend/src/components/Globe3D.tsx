@@ -1254,7 +1254,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
       {/* the camera, the primary object and the related ones, the data box */}
       {cz && objects.length > 0 && (
         <MapBar plot={plot} objects={objects} className="globe3d-bar" objectHint="g3CamObjectHint" onZoom={zoom3d}
-          onFit={fitFree}>
+          onFit={fitFree} extras={<>
           {objects.length > 2 && (() => {
             // a third object: a second dashed line from the reference (the compared one is chosen in the picker)
             const sec = pairOf(plot).secondary;
@@ -1280,7 +1280,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
             <button role="radio" aria-checked={!detached} className={!detached ? "on" : ""} onClick={attach} title={t("g3TimeSharedHint")}>{t("g3TimeShared")}</button>
             <button role="radio" aria-checked={detached} className={detached ? "on" : ""} onClick={() => { if (!detached) detach(); }} title={t("g3TimeOwnHint")}>{t("g3TimeOwn")}</button>
           </span>
-        </MapBar>
+          </>} />
       )}
       {cz && objects.length > 0 && !measuring && !detached && (
         (() => {   /* keyed by its text: a camera change shows it again (it fades after a few seconds - map.css) */

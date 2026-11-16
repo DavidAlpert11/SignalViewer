@@ -14,6 +14,12 @@ pw = pytest.importorskip("playwright.sync_api")
 from test_features import S, env, open_files, pg, save_as, set_layout, sig  # noqa: E402,F401
 
 
+def more(pg, bar=".map-bar"):
+    """RV9: the map bar's rest is under one ⋯ - open it (once) before using what is there."""
+    if not pg.locator(f"{bar} .map-more-pop").count():
+        pg.locator(f"{bar} .map-more-btn").first.click()
+
+
 def map_and_line(pg):
     open_files(pg, "geo.csv")
     set_layout(pg, 2, 1)
@@ -37,7 +43,7 @@ def test_one_map(pg):
     # 1.26: the relation box in 3D as on the 2D map; the same Relation button hides / shows it in both
     pg.wait_for_selector(".plot .rel-panel")
     geo.hover()                                       # review R3: a map plot's bar shows on the plot being used (selector change)
-    geo.locator(".rel-toggle").click()
+    more(geo); geo.locator(".rel-toggle").click()
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[1].relHidden === true")
     assert pg.locator(".plot .rel-panel").count() == 0
     geo.locator(".mode-btn").click()
@@ -46,7 +52,7 @@ def test_one_map(pg):
     assert not any(i.strip() == "3D" for i in items)                                 # no second "3D" kind
     pg.keyboard.press("Escape")
     geo.hover()
-    geo.locator(".rel-toggle").click()
+    more(geo); geo.locator(".rel-toggle").click()
     pg.wait_for_selector(".plot .rel-panel")
 
 
@@ -60,7 +66,7 @@ def test_one_bar(pg):
     def bar():
         b = geo.locator(".map-bar")
         b.locator(".g3-seg").first.locator("button").first.wait_for()
-        return [b.locator(".g3-seg").first.locator("button").all_inner_texts(), b.locator(".geo-zoom-in, .geo-zoom-out, .geo-fit, .rel-toggle").count(),
+        return [b.locator(".g3-seg").first.locator("button").all_inner_texts(), b.locator(".geo-zoom-in, .geo-zoom-out, .geo-fit, .map-more-btn").count(),
                 b.locator("select.geo-follow option").all_inner_texts()]
     two = bar()
     # the object picker shows with the camera on an object
