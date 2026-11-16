@@ -49,8 +49,9 @@ DERIVED_ID = "derived"
 WIDE = 300          # files with more signals than this skip per-signal work at load
 
 
-# T46: file colours - the same palette as the traces (frontend TRACE_COLORS), in the same order
-FILE_COLORS = ["#3D8BFD", "#2FBF9F", "#E5677A", "#9B7BFF", "#7CC35A", "#F07B3F", "#4FC3E8", "#D08CE8", "#B8A33A", "#FF8FB1"]
+# T46: file colours. RV10 (review §4.5): A and B far apart - blue and rose (B was teal-green, hard to tell from the
+# blue at line width where the runs overlap); the greens after them. A file's chosen colour is kept as it was.
+FILE_COLORS = ["#3D8BFD", "#E5677A", "#2FBF9F", "#9B7BFF", "#7CC35A", "#F07B3F", "#4FC3E8", "#D08CE8", "#B8A33A", "#FF8FB1"]
 MAX_TAG = 4
 
 

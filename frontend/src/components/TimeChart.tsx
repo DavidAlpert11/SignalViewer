@@ -164,6 +164,9 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     const ok = plot.signals
       .map((ps) => ({ ps, s: series.find((x) => x.id === ps.sig) }))
       .filter((v): v is { ps: typeof v.ps; s: Series } => !!v.s && !v.s.missing && v.s.n > 0);
+    // RV10 (review §4.5): a setpoint is drawn after (above) the other lines - under its measured value it was hidden
+    const sp = setpointsIn(ok.map((v) => v.ps));
+    if (sp.size) ok.sort((a, b) => (sp.has(a.ps.sig) ? 1 : 0) - (sp.has(b.ps.sig) ? 1 : 0));
     const pv = preview?.lines.filter((l) => l.x.length) ?? [];
     if (!ok.length && !pv.length) return null;           // an empty plot still shows a preview
     const tables = ok.map(({ ps, s }) => {
@@ -1064,8 +1067,9 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     if (!u) return;
     const w = b - a;
     const xs = u.data[0] as number[];
-    const k = plot.signals.findIndex((x) => !x.state);
-    const ps = plot.signals[k];
+    const drawn = alignedRef.current?.sigs ?? [];          // the drawn order (setpoints last), as u.data
+    const k = drawn.findIndex((x) => !x.state);
+    const ps = drawn[k];
     const draft: { name?: string; text?: string } = {};
     if (ps) {
       const ys = u.data[k + 1] as (number | null)[];

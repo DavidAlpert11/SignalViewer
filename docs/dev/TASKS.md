@@ -100,7 +100,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   of recordings or simulations -> one table, a row each, back to the recording); 3. a sweep (which parameters hold in
   every scenario, the next runs, a re-run with recording for the interesting ones). Waits for his yes; then README,
   docs/index.md and the welcome screen's groups.
-  Next: RV10, RV11 while the owner confirms SW2 (b)'s reading and BR1; then SW2 (b).
+  RV10 done: file B rose (was teal-green next to A's blue); setpoints drawn above their measurement.
+  Next: RV11 while the owner confirms SW2 (b)'s reading and BR1; then SW2 (b).
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
@@ -449,3 +450,6 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   above it now), test_live_report, test_workflows, test_features -k report/replay/html.
 - 2026-11-16 · RV9 done. e2e: test_globe3d, test_height_profile, test_live_report, test_map_objects. Owner's idea BR1
   (brand as one process) noted, proposal sent.
+- 2026-11-16 · RV10 done. backend test_file_marks; e2e test_setpoint_pairs, test_setpoint_style, test_plot_style,
+  test_plot_polish, test_tab_band, test_what_changed, test_round_1112, test_release_1_21, test_compare_diff,
+  test_runs_matrix.
