@@ -317,3 +317,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-16 · The black flashes of the 3D map (the terrain provider replaced on each new terrain version) fixed; e2e
   test_globe3d (+1, checked to fail before the fix), test_offline_map, test_map_memory; quick_check.
 - 2026-11-16 · The owner: the black flashes are gone. Next: a fresh review of the whole app (report only, no code changes) - handed to a new session (session_0146GPW261MFvWRxQrGUomSU); output docs/dev/REVIEW_2026-11-16.md + a Hebrew page.
+- 2026-11-16 · Fresh-eyes review of the whole app (owner): `docs/dev/REVIEW_2026-11-16.md` + screenshots in
+  `docs/dev/review_2026-11-16/`. No app code changed. Severe: the pump demo shows *Checks: 0 failed* while its
+  checks.json fails 2 of 4 in the CLI. Bugs B1-B10 (file name squeezed away, Fleet "1 vehicle", demo cards that
+  promise more than opens...), clarity issues, and a prioritised list for the owner to choose from. Checks run:
+  quick_check green, `tools/benchmark.py --synthetic --samples 2000000 --check 3` all met; no e2e (review only).
