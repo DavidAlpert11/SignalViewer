@@ -81,6 +81,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   (RerunList: today only Export) - not a third place. en + he, RTL; backend tests for the contract, e2e for the demo.
   **SW2 status:** (a) done by FL1 (the Sweeps data table's ticks + *Open n in Recordings*). **The owner's answers (2026-11-16, chat) for (b):** (1) which runs record is a **rule set in advance**, default *no recording*; (2) a simulation file takes **one run**, the wrapper **a parameter set** - choose accordingly; (3) the re-runs are **chained**, then a notice says a run is **ready to load** (not opened by itself); (4) a re-run whose summary row differs from the original is **loaded as another layer of results**.
   **SF1 - NEXT (owner, 2026-11-16): Sweeps - one flow, runs sent from a side panel.** Before SW2 (SW2 builds on it).
+  **Part of 1.28.0** (owner: the same unreleased version): its CHANGELOG lines in the 1.28.0 section; at the end the
+  release round again - Sweeps pictures, mkdocs, `npm run build`, the whole e2e suite, quick_check.
   The flow stays the five steps: 1 Data (load result tables; merge, split...) -> 2 Columns (which table goes on, the
   roles) -> 3 Goal -> 4 Results -> 5 Next runs (proposals from the data). What was mixed in: *Define the problem* (Set up:
   what varies, scenarios, outputs + goal, how to run) beside the steps, and round 1 shown "not ready" until outputs and
@@ -138,7 +140,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   CHANGELOG section with highlights; docs checked against it (install file name, findings wording, From a folder in
   Sweeps' Open ▾); pictures 32, 33, 38 and the training film retaken (no Fleet); validation.md regenerated;
   finished plans removed; `frontend/dist` built. The whole e2e suite (482 passed, 1 failed -> fixed: W16 keeps folders
-  in Open ▾, the FL1 button moved there), quick_check and mkdocs --strict green. **Waiting for the owner to tag v1.28.0.**
+  in Open ▾, the FL1 button moved there), quick_check and mkdocs --strict green. **Not tagged: SF1 goes into 1.28.0 first (owner).**
   Next: SW2 once the owner says yes to the spec above (do not implement before); BR1 waits for his yes.
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
