@@ -91,7 +91,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   goal - so a goal-less round 1 is sent only from Send runs); SweepsArea's Clear › Everything (closes the study file
   too, one Undo); NewStudy unchanged (its hint text). Old studies: outputs / goal stay in the file; the goal is shown in
   Next runs. Docs: GUIDE en + he, features, common-gains, smart-sweep-demo en + he, launcher en + he. Not done: the
-  Sweeps pictures and the release round (below, "Releasing") - next.
+  Sweeps pictures and the release round - done (1.28.0 ready, above).
   The original spec, kept for the record:
   **Part of 1.28.0** (owner: the same unreleased version): its CHANGELOG lines in the 1.28.0 section; at the end the
   release round again - Sweeps pictures, mkdocs, `npm run build`, the whole e2e suite, quick_check.
@@ -153,7 +153,9 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   Sweeps' Open ▾); pictures 32, 33, 38 and the training film retaken (no Fleet); validation.md regenerated;
   finished plans removed; `frontend/dist` built. The whole e2e suite (482 passed, 1 failed -> fixed: W16 keeps folders
   in Open ▾, the FL1 button moved there), quick_check and mkdocs --strict green. **Not tagged: SF1 goes into 1.28.0 first (owner).** SF1 done (code, tests, docs);
-  the release round again is next (Sweeps pictures, mkdocs, `npm run build`, the whole e2e suite, quick_check).
+  **1.28.0 ready - waiting for the owner's tag** (release round after SF1 done: Sweeps pictures 23 25 26 30 38-41 and
+  the example cards retaken, mkdocs --strict, `frontend/dist` built, the whole e2e suite 482 passed / 1 timeout in
+  test_map_objects::test_follow_and_remove_with_its_file - passes alone, not Sweeps).
   Next: SW2 once the owner says yes to the spec above (do not implement before); BR1 waits for his yes.
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
@@ -516,3 +518,6 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   goal in its Goal step -> round 2 -> Clear everything + Undo; one flow; the Open ▾ list now has FL1's *From a folder of
   recordings…* - it failed on main before SF1), test_study_loop (How to run in Send runs). Run: test_sweeps_*,
   test_study_*, test_calm_screen, test_folder_of_recordings, test_owner_notes_1_20.
+- 2026-11-16 · 1.28.0 release round after SF1: pictures (make_readme_media --only 23 25 26 30 39 40 41 38, examples),
+  mkdocs --strict, npm run build; whole e2e suite: 482 passed, 1 failed (test_map_objects follow_and_remove - a
+  30 s timeout under load; passes alone). 1.28.0 ready - waiting for the owner's tag.
