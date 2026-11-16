@@ -262,3 +262,6 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   checks the freedesktop bin on every platform (to_trash patched) and _mac on its own; (3) `study submit` without
   --yes on Windows: NUL reads as a terminal, input() met EOF - an EOF is now "no" with the same message; (4) the demo's
   one-minute bound is 120 s on CI (a 3-CPU macOS runner took 64 s; the saving 64x held). quick_check green.
+- 2026-11-16 · CI Windows: test_elevation_sources::test_terrarium_is_fetched_in_the_background_and_then_used flaked
+  (green on the run before) - a race in the test: the faked fetch can finish before the test read terrain_version();
+  it now reads the version before the ask. Not a change of the app.

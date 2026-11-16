@@ -62,9 +62,9 @@ def test_step_at_with_nothing_but_the_bundled_grids(sandbox):
 
 def test_terrarium_is_fetched_in_the_background_and_then_used(sandbox):
     lat, lon = np.array([FAR[0]]), np.array([FAR[1]])
+    v0 = basemap.terrain_version()                              # before the ask: the faked fetch can finish at once
     first = basemap.ground_at(lat, lon)
     assert abs(float(first[0]) - 1234.0) > 1                    # the first answer: what is there (the world grid)
-    v0 = basemap.terrain_version()
     basemap.wait_terrain()
     assert sandbox and "terrarium/12/" in sandbox[0]
     assert basemap.terrain_version() > v0
