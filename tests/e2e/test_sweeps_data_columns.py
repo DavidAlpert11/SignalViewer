@@ -173,7 +173,7 @@ def test_table_tools_keep_runs_name_unit_drop_unused_and_undo(pg):
     tools.locator("input[aria-label='Shown as']").fill("energy")
     tools.locator("input[aria-label='Unit']").fill("Wh")
     tools.locator(".btn", has_text="Apply").first.click()
-    tools.locator(".sw-derived", has_text="energy [Wh]").wait_for()
+    tools.locator(".sw-tt-item", has_text="energy [Wh]").wait_for()
     # every Not used column out, then back
     drop = tools.locator(".btn", has_text="Drop every Not used")
     if drop.is_enabled():

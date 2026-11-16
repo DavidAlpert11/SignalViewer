@@ -585,3 +585,6 @@
 .sw-table-tools .sw-row { flex-wrap: wrap; }
 .sw-table-tools .sw-row input, .sw-table-tools .sw-row select { min-width: 0; flex: 1 1 70px; }
 .sw-tt-group { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.sw-table-tools .sw-row > select { flex-basis: 100%; }
+.sw-table-tools .sw-row > .btn { flex: 0 0 auto; }
+.sw-tt-item { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 0.846rem; }

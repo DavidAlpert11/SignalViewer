@@ -60,7 +60,7 @@ export default function TableTools({ study }: { study: Study }) {
           <button className="btn" disabled={!col} onClick={() => st.editTable({ labels: without(q.labels, col, label), units: without(q.units, col, unit) })}>{t("swApply")}</button>
         </div>
         {named.map((c) => (
-          <div key={c} className="sw-derived"><span className="sw-ellipsis">{c} → <b>{q.labels?.[c] || c}{q.units?.[c] ? ` [${q.units[c]}]` : ""}</b></span>
+          <div key={c} className="sw-tt-item"><span className="sw-ellipsis">{c} → <b>{q.labels?.[c] || c}{q.units?.[c] ? ` [${q.units[c]}]` : ""}</b></span>
             <button className="iconbtn sm" aria-label={t("swUndoName", { n: c })} title={t("swUndoName", { n: c })}
               onClick={() => st.editTable({ labels: without(q.labels, c, ""), units: without(q.units, c, "") })}><Icon.X width={12} height={12} /></button></div>
         ))}
@@ -75,7 +75,7 @@ export default function TableTools({ study }: { study: Study }) {
           <button className="btn" onClick={addCell}>{t("swApply")}</button>
         </div>
         {cells.map((c) => (
-          <div key={`${c.row}/${c.column}`} className="sw-derived"><span className="sw-ellipsis">#{c.row} · {c.column} = <b>{c.value === null ? "–" : String(c.value)}</b></span>
+          <div key={`${c.row}/${c.column}`} className="sw-tt-item"><span className="sw-ellipsis">#{c.row} · {c.column} = <b>{c.value === null ? "–" : String(c.value)}</b></span>
             <button className="iconbtn sm" aria-label={t("swUndoFix", { n: c.row })} title={t("swUndoFix", { n: c.row })}
               onClick={() => st.editTable({ cells: cells.filter((x) => x !== c) })}><Icon.X width={12} height={12} /></button></div>
         ))}
