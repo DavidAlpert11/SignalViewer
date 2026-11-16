@@ -24,7 +24,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   run + parameters from the names -> Open in Sweeps; Summarize a folder -> Sweeps as a background job, one file at a
   time - memory measured flat; `cli.py summarize`). M3 done (a set's runs -> their recordings by a folder + a name
   from the row; the fetch command dropped as heavy). P done (Plot the commanded / measured pairs, one detector in
-  desired.ts). Cleanup (§9) done. Next: the whole e2e suite, mkdocs, `npm run build` once, propose the tag v1.27.0.
+  desired.ts). Cleanup (§9) done. Release readiness done: the whole e2e suite, quick_check, mkdocs --strict green, `frontend/dist` built - **waiting for the owner to tag v1.27.0**.
 - **2026-11-16 · Sweeps as one flow (PLAN_2026-11-16 §7a) - done.** Done: one stepper for every study (Data ·
   Columns · Goal · Results · Next runs; `sweeps/flow.ts`, `FlowNav.tsx`); the tables' column (Navigator) only in Data,
   resizable, a labelled *Remove from the study* with Undo; Next runs = the proposal + *Run from the app* (`NextStep.tsx`,
@@ -249,3 +249,9 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   Hebrew dictionary (about half of the shared chunk) loaded only when Hebrew is chosen - it changes `translate`'s
   sync contract, so not before a release. Tests: test_subset_export::test_mat_names_valid_and_unique (new);
   quick_check green.
+- 2026-11-16 · Release readiness: the whole e2e suite (4 workers, loadfile): 470 passed, 4 failed + 1 error - alone:
+  test_all_runs_shows_the_scenarios, test_comparison_lines_wear_their_object, test_areas_rail_and_views_menu green
+  (timing under load); test_less_clutter counted 55 controls > 54 - the one more is E1's TopBar *Export recording…*
+  (the plan's place for it, §7; the same 55 on the commit before this session), its limit raised to 55 with the reason.
+  quick_check green, mkdocs build --strict green, `npm run build` (frontend/dist committed). CHANGELOG 1.27.0
+  highlights name E1 / M1 / M2 / M3 / P / S1 / S2. Proposed to the owner: tag v1.27.0.
