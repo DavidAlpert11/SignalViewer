@@ -9,7 +9,15 @@ is installed by `pip install signalviewer`; from the source folder it is `python
 signalviewer-cli info flight.bin                       # the signals, their samples and time span
 signalviewer-cli export flight.bin --signals "ATT.Roll,ATT.Pitch" --out roll.csv --t0 10 --t1 60
 signalviewer-cli export run.csv --out run.mat           # one MATLAB variable per signal + Time
+signalviewer-cli export flight.bin --signals "ATT.Roll,MODE.Mode" --rate 50 --where "ATT.Roll > 20" \
+    --margin 2 --out part.parquet                       # a part of it at 50 Hz, only where the condition holds
 ```
+
+`--out` names the format: `.csv`, `.parquet`, `.mat` or `.h5`. Without `--rate` the first signal's samples are the
+time base; with `--rate` one time base at that rate - values linear, states (modes, gears) held, and a low-pass
+first when the rate goes down (`--no-antialias` to skip it). `--where` keeps only the stretches where a condition
+holds (Investigate's language; a `Segment` column numbers them), `--from-zero` starts the time at 0. With
+`--rate` or `--where`, `<file>.export.json` beside it says what was taken. It is the app's *Export recording…*.
 
 Signal names may be written without their unit and in any case (`ATT.Roll` for *ATT.Roll [deg]*)
 when that is one signal; a name that is not there gets the closest names.

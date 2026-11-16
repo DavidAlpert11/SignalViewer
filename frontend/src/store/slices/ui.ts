@@ -73,6 +73,7 @@ export interface UiSlice {
   sameWorkFor: string | null;              // Q87: "add a run with the same work" as this run
   /** N4: Style lines dialog - a group's signals (the scope picks the lines) or the legend selection (`lines`) */
   styleDialog: { name: string; sigs: string[]; lines?: { plotId: string; sig: string }[] } | null;
+  exportRecOpen: boolean;                  // E1: the Export recording… dialog
   timeAxisFor: string | null;              // the Time axis dialog of this file (column, unit, offset)
   /** Named conditions: their stretches per file (computed, never saved), the one in focus (shaded
    *  full height, ] / [ step through it), and the editor (a condition's id, or "new" with a draft). */
@@ -189,6 +190,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   retarget: null,
   sameWorkFor: null,
   styleDialog: null,
+  exportRecOpen: false,
   timeAxisFor: null,
   condResults: {},
   condFocus: null,

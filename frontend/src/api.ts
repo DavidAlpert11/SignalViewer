@@ -482,6 +482,10 @@ export const api = {
   /** P1: the objects (and places) as one KML file for Google Earth */
   exportKml: (path: string, title: string, objects: object[], rate = 10, places: object[] = []) =>
     call<FlightExport>("/api/export/kml", { path, title, objects, rate, places }),
+  /** E1: a part of a recording as a new file (svcore/subset.py); the path's extension is the format. */
+  exportRecording: (body: { path: string; signals: { id: string; label: string; unit?: string }[]; t0?: number | null; t1?: number | null;
+    where?: string; margin?: number; rate?: number | null; antialias?: boolean; fromZero?: boolean; source?: string }) =>
+    call<{ path: string; rows: number }>("/api/export/recording", body),
   exportCsv: (path: string, signals: { id: string; label: string; scale: number; offset: number; tOffset?: number }[], t0: number | null, t1: number | null) =>
     call<{ path: string; rows: number }>("/api/export/csv", { path, signals, t0, t1 }),
   report: (body: Record<string, unknown>) => call<{ path: string; size: number }>("/api/report", body),

@@ -975,6 +975,11 @@ table.cmp-sub tr.base td { color: var(--muted); }
 .fs-row .mtime { color: var(--muted); font-size: var(--fs-s); font-variant-numeric: tabular-nums; white-space: nowrap; margin-inline-start: auto; direction: ltr; }
 .fs-row .size { min-width: 64px; text-align: end; }
 .rt-dialog { width: min(760px, 96vw); }
+/* E1: Export recording… - a short form: fields as wide as their content */
+.rt-dialog.xr-dialog { width: min(520px, 96vw); }
+.xr-dialog .xr-hz, .xr-dialog .xr-margin { width: 6em; }
+.xr-dialog .xr-where { display: flex; flex-direction: column; gap: 6px; margin-inline-start: 22px; }
+.xr-dialog .xr-cond { width: 100%; }
 .rt-dialog .dialog-head h2 .muted { color: var(--muted); font-weight: 400; font-size: var(--fs-ml); }
 .rt-lead { margin: 0; padding: 0 16px 10px; font-size: var(--fs-m); }
 .rt-rows { padding: 0 16px; }

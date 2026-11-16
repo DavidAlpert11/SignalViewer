@@ -51,6 +51,18 @@ def test_cli_export_csv_and_mat(tmp_path, capsys):
     assert np.allclose(m["RPM"].ravel()[:3], sv.load(os.path.join(EX, "run_012.csv")).signal("RPM")[1][:3])
 
 
+def test_cli_export_rate_where_parquet(tmp_path, capsys):
+    """E1: a chosen rate, only where a condition holds, Parquet - as the app's Export recording…"""
+    import pandas as pd
+    out = tmp_path / "part.parquet"
+    assert main(["export", os.path.join(EX, "run_012.csv"), "--signals", "RPM,Gear", "--rate", "20",
+                 "--where", "Gear >= 3", "--out", str(out)]) == 0
+    df = pd.read_parquet(out)
+    assert list(df.columns) == ["Time", "RPM", "Gear", "Segment"] and (df["Gear"] >= 3).mean() > 0.9
+    assert np.allclose(np.diff(df["Time"])[:5], 0.05)
+    assert (tmp_path / "part.export.json").exists()
+
+
 def test_cli_errors_exit_1(tmp_path, capsys):
     assert main(["info", str(tmp_path / "missing.csv")]) == 1
     assert "not found" in capsys.readouterr().err.lower()

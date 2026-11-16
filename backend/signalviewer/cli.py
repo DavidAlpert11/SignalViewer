@@ -3,6 +3,7 @@
     python cli.py info  flight.bin [--json]
     python cli.py export flight.bin --signals "ATT.Roll,ATT.Pitch" --out roll.csv [--t0 10 --t1 60]
     python cli.py export run.csv --out run.mat            # .mat: one variable per signal + Time
+    python cli.py export flight.bin --signals "ATT.Roll,MODE.Mode" --rate 50 --where "ATT.Roll > 20" --out part.parquet
     python cli.py report --template "ArduPilot · Full review" --out reports/ logs/*.bin [--format pdf]
     python cli.py templates                                # the templates --template can name
     python cli.py check runs/*.csv --checks checks.json [--junit results.xml]   # pass / fail (CI)
@@ -34,19 +35,6 @@ import numpy as np
 from . import load     # sends the readers' progress to stderr: stdout stays for results (--json, MATLAB jsondecode)
 
 
-def _mat_name(name: str, taken: set) -> str:
-    """A valid, unique MATLAB variable name for a signal ("ATT.Roll [deg]" -> "ATT_Roll_deg")."""
-    v = re.sub(r"[^0-9A-Za-z_]+", "_", name).strip("_") or "signal"
-    if not v[0].isalpha():
-        v = "s_" + v
-    v = v[:60]
-    base, k = v, 2
-    while v in taken:
-        v = f"{base[:56]}_{k}"; k += 1
-    taken.add(v)
-    return v
-
-
 def cmd_info(a) -> int:
     rec = load(a.file)
     rows = []
@@ -65,23 +53,19 @@ def cmd_info(a) -> int:
 
 
 def cmd_export(a) -> int:
+    """E1: the same export as the app's Export recording… (svcore/subset.py)."""
+    from svcore import subset
+    from svcore.naming import resolve_signal_name
     rec = load(a.file)
-    names = [s.strip() for s in a.signals.split(",") if s.strip()] if a.signals else None
-    t, cols = rec.table(names, a.t0, a.t1, a.alignment)
-    out = a.out
-    if out.lower().endswith(".mat"):
-        from scipy.io import savemat
-        taken = {"Time"}
-        data = {"Time": t, **{_mat_name(n, taken): v for n, v in cols.items()}}
-        savemat(out, data, do_compression=True)
-    elif out.lower().endswith(".csv"):
-        header = ["Time"] + [n.replace(",", " ") for n in cols]
-        with open(out, "w", encoding="utf-8-sig", newline="") as f:
-            f.write(",".join(header) + "\n")
-            np.savetxt(f, np.column_stack([t, *cols.values()]), delimiter=",", fmt="%.10g")
-    else:
-        raise ValueError("--out must end with .csv or .mat")
-    print(f"{out}: {len(t)} rows, {len(cols)} signals")
+    names = [s.strip() for s in a.signals.split(",") if s.strip()] if a.signals else rec.signals
+    sigs = [{"id": f"{rec._id}/{resolve_signal_name(rec.signals, n, rec.name)}", "label": n} for n in names]
+    if not a.out.lower().endswith((*subset.FORMATS, ".hdf5")):
+        raise ValueError(f"--out must end with {', '.join(subset.FORMATS)}")
+    sub = subset.from_store(rec._store, sigs, where=a.where or "", margin=a.margin,
+                            timing="rate" if a.rate else "first", rate=a.rate, t0=a.t0, t1=a.t1,
+                            antialias=not a.no_antialias, from_zero=a.from_zero, alignment=a.alignment)
+    subset.write(a.out, sub, {"source": rec.path}, sidecar=a.rate is not None or bool(a.where))
+    print(f"{a.out}: {len(sub.t)} rows, {len(sub.cols)} signals")
     return 0
 
 
@@ -478,10 +462,15 @@ def main(argv=None) -> int:
     p = sub.add_parser("info", help="list the signals of a file")
     p.add_argument("file"); p.add_argument("--json", action="store_true", help="machine-readable output")
     p.set_defaults(fn=cmd_info)
-    p = sub.add_parser("export", help="write signals to .csv or .mat on one time base")
-    p.add_argument("file"); p.add_argument("--out", required=True, help="target .csv or .mat")
-    p.add_argument("--signals", help="comma-separated names (default: all); the first sets the time base")
+    p = sub.add_parser("export", help="a part of a recording as .csv / .parquet / .mat / .h5 on one time base")
+    p.add_argument("file"); p.add_argument("--out", required=True, help="target .csv, .parquet, .mat or .h5")
+    p.add_argument("--signals", help="comma-separated names (default: all); without --rate the first sets the time base")
     p.add_argument("--t0", type=float); p.add_argument("--t1", type=float)
+    p.add_argument("--rate", type=float, help="one time base at this rate (Hz): values linear, states held, anti-aliased going down")
+    p.add_argument("--no-antialias", action="store_true", help="with --rate: no low-pass before a lower rate")
+    p.add_argument("--where", help='only where this condition holds, e.g. "Mode == 1" (a Segment column numbers the stretches)')
+    p.add_argument("--margin", type=float, default=0.0, help="with --where: seconds kept before and after each stretch")
+    p.add_argument("--from-zero", action="store_true", help="time from 0 at the first row")
     p.add_argument("--alignment", default="linear", choices=["linear", "nearest"], help="how other signals meet the time base (as in the app)")
     p.set_defaults(fn=cmd_export)
     p = sub.add_parser("report", help="one report per file from a template (batch)")

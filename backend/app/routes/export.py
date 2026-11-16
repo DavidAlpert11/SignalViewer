@@ -13,7 +13,6 @@ from app import report as reports
 from app.atomic import write_text as _write_text
 from app.common import atomic_open, atomic_path, atomic_write, fail
 from app.store import store
-from svcore.analysis import align_to
 
 router = APIRouter()
 
@@ -48,37 +47,57 @@ class ExportCsvRequest(BaseModel):
 
 @router.post("/api/export/csv")
 async def export_csv(req: ExportCsvRequest):
-    """Signals on the first signal's time base, inside [t0, t1], full resolution."""
+    """The plot's quick Export CSV: its signals on the first signal's time base, inside [t0, t1], full
+    resolution (E1: written by svcore.subset, as Export recording… is)."""
+    from svcore import subset
     path = _check_target(req.path, ".csv")
 
     def work():
-        if not req.signals:
-            raise ValueError("No signals to export.")
-        t_base, _ = store.signal(req.signals[0]["id"])
-        if req.signals[0].get("tOffset"):          # work in the displayed (shifted) time
-            t_base = np.asarray(t_base, dtype=np.float64) + float(req.signals[0]["tOffset"])
-        i0 = 0 if req.t0 is None else int(np.searchsorted(t_base, min(req.t0, req.t1), "left"))
-        i1 = len(t_base) if req.t1 is None else int(np.searchsorted(t_base, max(req.t0, req.t1), "right"))
-        t = np.asarray(t_base[i0:i1], dtype=np.float64)
-        cols, header = [t], ["Time"]
-        for s in req.signals:
-            ts, ys = store.signal(s["id"])
-            if s.get("tOffset"):
-                ts = np.asarray(ts, dtype=np.float64) + float(s["tOffset"])
-            y = align_to(t, ts, ys, req.alignment) if s is not req.signals[0] else np.asarray(ys[i0:i1], dtype=np.float64)
-            cols.append(y * float(s.get("scale", 1) or 1) + float(s.get("offset", 0) or 0))
-            header.append(str(s.get("label") or s["id"].split("/", 1)[-1]).replace(",", " "))
-        with atomic_open(path, "w", "utf-8-sig", "") as f:
-            f.write(",".join(header) + "\n")
-            np.savetxt(f, np.column_stack(cols), delimiter=",", fmt="%.10g")
-        return len(t)
+        sub = subset.from_store(store, req.signals, timing="first", t0=req.t0, t1=req.t1, alignment=req.alignment)
+        subset.write(path, sub, sidecar=False)
+        return len(sub.t)
+    return await _run_subset(work, path)
+
+
+async def _run_subset(work, path: str) -> dict:
+    from svcore.subset import SubsetError
     try:
         rows = await asyncio.to_thread(work)
     except KeyError:
         fail(404, "One of the signals is no longer open.")
-    except ValueError as e:
+    except (SubsetError, ValueError) as e:
         fail(400, str(e))
     return {"path": path, "rows": rows}
+
+
+class ExportRecordingRequest(BaseModel):
+    path: str                         # its extension is the format: .csv .parquet .mat .h5
+    signals: List[dict]               # [{id, label, unit, scale, offset, tOffset}] - one run's
+    t0: Optional[float] = None
+    t1: Optional[float] = None
+    where: str = ""                   # only where this condition holds (Investigate's language)
+    margin: float = 0.0               # s kept before and after each stretch
+    rate: Optional[float] = None      # Hz: one time base; None: as recorded (the fastest signal's samples)
+    antialias: bool = True
+    fromZero: bool = False
+    source: str = ""                  # the recording's file, for the sidecar
+
+
+@router.post("/api/export/recording")
+async def export_recording(req: ExportRecordingRequest):
+    """E1: a part of a recording as a new file (svcore/subset.py) and `<file>.export.json` beside it."""
+    from app.version import __version__
+    from svcore import subset
+    ext = os.path.splitext(req.path)[1].lower()
+    path = _check_target(req.path, ext if ext in (*subset.FORMATS, ".hdf5") else ".csv")
+
+    def work():
+        sub = subset.from_store(store, req.signals, where=req.where, margin=req.margin,
+                                timing="rate" if req.rate else "fastest", rate=req.rate, t0=req.t0, t1=req.t1,
+                                antialias=req.antialias, from_zero=req.fromZero)
+        subset.write(path, sub, {"recorder": f"Signal Viewer {__version__}", "source": req.source})
+        return len(sub.t)
+    return await _run_subset(work, path)
 
 
 

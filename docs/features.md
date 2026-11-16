@@ -580,6 +580,17 @@ overshoot, energy...), with a second, finer sweep to merge. The same answer on t
 - Word
 - Per-plot captions, include/exclude, report language
 
+### Export a part of a recording
+
+- **Export recording…** (the top bar's ⤓ beside Save; Ctrl+K): the signals in the plots on screen or every signal
+  of the file; all the time, what the plots show, between the cursors, or **only where a condition holds** (with
+  seconds before and after; a `Segment` column numbers the stretches); as recorded (the fastest signal's samples)
+  or **one time base at a chosen rate** - values linear, states held, a low-pass first when the rate goes down
+  (anti-alias, can be turned off); time from 0 if wanted. CSV, Parquet, MATLAB .mat or HDF5 (by the name's
+  extension), units in the header / attributes, and `<file>.export.json` beside it saying what was taken. Every
+  file opens again in the app. One file, or one per open file (the same signals by name). The plot's *Export
+  data (CSV)* and `cli.py export` write through the same code.
+
 ### Batch reports
 
 - `python cli.py report --template T --out DIR files…` – one report per file (HTML, PDF or Word, English or Hebrew) with the same template matching and drawing as the app (the matching lives in one place, `backend/svcore/templates.py`); files that cannot be read or have none of the template's signals are skipped and named; `--template` takes a name, an id or a template `.json`

@@ -134,11 +134,14 @@ function RecordingsTools() {
   const past = useApp((s) => s.past.length);
   const future = useApp((s) => s.future.length);
   const inspectorOpen = useApp((s) => s.inspectorOpen);
+  const hasRuns = useApp((s) => s.runs.some((r) => r.format !== "derived"));
   const at = menuAt;
   return (
     <span className="area-tools" role="toolbar" aria-label={t(areaDef("recordings").label)}>
       <button className="iconbtn" onClick={() => openSession()} title={`${t("openSession")}… (Ctrl+Shift+O)`} aria-label={t("openSession")}><Icon.Open /></button>
       <button className="iconbtn" onClick={saveSession} title={`${t("saveSession")} (Ctrl+S)`} aria-label={t("saveSession")}><Icon.Save /></button>
+      {/* E1: a part of a recording as a new file - a file action, beside Save */}
+      {hasRuns && <button className="iconbtn export-rec-btn" onClick={() => useApp.setState({ exportRecOpen: true })} title={t("xrMenu")} aria-label={t("xrMenu")}><Icon.Download /></button>}
       <button className="btn tpl-menu-btn" aria-haspopup="menu" aria-label={t("tplMenu")} title={t("tplMenu")}
         onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
           openMenu({ clientX: document.documentElement.dir === "rtl" ? Math.max(8, r.right - 240) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent, templateMenuItems(t)); }}>

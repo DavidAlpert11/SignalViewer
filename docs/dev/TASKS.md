@@ -18,7 +18,10 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   the version files at 1.27.0, the docs' "1.28" -> "1.27"; history not rewritten). The owner tags v1.27.0 once the
   round is stable. S1 done (formula: if / compare / text / bins / rank / pct, a text column is a scenario, share per
   set). S2 done (Table tools: drop Not used, keep runs where, name / unit, fixed values; export CSV / Parquet /
-  Excel as edited + recipe). Next: E1 (export a subset of a recording). Then M1, M3, M2, P (setpoint pairs, plan §8), cleanup (§9), full e2e.
+  Excel as edited + recipe). E1 done (Export recording…: signals on screen / all, all / view / cursors / where a
+  condition holds, as recorded / a rate with linear + held + anti-alias, CSV / Parquet / MAT / HDF5 + .export.json;
+  `svcore/subset.py` also writes the plot's Export CSV and `cli.py export`). Next: M1 (summarize runs defined on one
+  open run + Runs matrix "Open as a Sweeps table"). Then M3, M2, P (setpoint pairs, plan §8), cleanup (§9), full e2e.
 - **2026-11-16 · Sweeps as one flow (PLAN_2026-11-16 §7a) - done.** Done: one stepper for every study (Data ·
   Columns · Goal · Results · Next runs; `sweeps/flow.ts`, `FlowNav.tsx`); the tables' column (Navigator) only in Data,
   resizable, a labelled *Remove from the study* with Undo; Next runs = the proposal + *Run from the app* (`NextStep.tsx`,
@@ -181,3 +184,16 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   colLabel shows the name + unit; the save dialog keeps another allowed extension typed. pytest
   test_sweep_table_tools (6, new); e2e every test_sweeps_* + test_file_browser_edit + test_templates_recent_badfiles
   (73) green; quick_check green.
+- 2026-11-16 · E1 done (plan §4): **Export recording…** - `svcore/subset.py` (build: timing first / fastest / rate,
+  ranges + margin -> a Segment column, states held (`hold_to`), anti-alias = 4th-order Butterworth sosfiltfilt at
+  0.4 x the new rate when the source is > 1.25 x faster, MAX_ROWS guard; write: .csv / .parquet (field metadata
+  unit) / .mat (valid names) / .h5 (attr unit), via `<path>.part` then replace, `<stem>.export.json`; from_store:
+  scale / offset / tOffset, a condition via `store.evaluate_condition` in the first signal's run). Routes:
+  `/api/export/recording` (new), `/api/export/csv` now through subset (states held instead of interpolated). CLI
+  `export`: --rate --where --margin --no-antialias --from-zero, .parquet / .h5 too (the duplicate `_mat_name` removed
+  from cli.py). UI: `ExportRecordingDialog.tsx` (TopBar ⤓ beside Save when a file is open, Ctrl+K "Export
+  recording…"; one file or one per open file, the same signals by name), ui slice `exportRecOpen`, strings in
+  i18n/files.ts. MAT / HDF5 kept (scipy and h5py are already the readers' dependencies - no new dependency).
+  Tests: pytest test_subset_export (8: round trip per format through the app's readers, where, as recorded + from
+  zero, anti-alias, mistakes), test_cli_api (+1); e2e test_export_recording (new) + test_features -k N06 green;
+  quick_check green; mkdocs --strict green.
