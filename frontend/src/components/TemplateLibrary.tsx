@@ -242,7 +242,7 @@ function Details({ tpl, all, runs, prefer, onEdit, onCopy, onDeleted, onOpened }
     catch (err) { useApp.getState().toast({ kind: "error", text: String((err as Error).message) }); return; }
     const st = useApp.getState();
     if (!r.tabs) { st.toast({ kind: "error", text: t("tplNothing2", { names: r.missing.slice(0, 5).join(", ") }), ms: 12000 }); return; }
-    st.toast({ kind: "info", ms: r.dropped.length ? 12000 : 4000, text: t("tplOpened", openedCounts(tpl.name, r, lang))
+    st.toast({ kind: "info", ms: r.dropped.length ? 12000 : 2500, text: t("tplOpened", openedCounts(tpl.name, r, lang))
       + (r.dropped.length ? " " + t("tplLeftOut", { list: r.dropped.slice(0, 4).join(", ") + (r.dropped.length > 4 ? "…" : "") }) : "")
       + (r.conditions ? " " + t("tplCondsAdded", { n: r.conditions }) : "") });
     onOpened();

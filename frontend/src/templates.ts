@@ -393,7 +393,7 @@ export function announceOpened(t: Template, res: ApplyResult, undo = false) {
   const st = useApp.getState();
   const L = st.lang;
   if (!res.tabs) { st.toast({ kind: "error", text: translate(L, "tplNothing2", { names: res.missing.slice(0, 5).join(", ") }), ms: 12000 }); return; }
-  st.toast({ kind: "info", ms: res.dropped.length ? 12000 : undo ? 5000 : 4000, text: translate(L, "tplOpened", openedCounts(t.name, res, L))
+  st.toast({ kind: "info", ms: res.dropped.length ? 12000 : undo ? 5000 : 2500, text: translate(L, "tplOpened", openedCounts(t.name, res, L))
     + (res.dropped.length ? " " + translate(L, "tplLeftOut", { list: res.dropped.slice(0, 4).join(", ") + (res.dropped.length > 4 ? "…" : "") }) : "")
     + (res.conditions ? " " + translate(L, "tplCondsAdded", { n: res.conditions }) : "")
     + (res.objects?.length ? " " + addedSummary(res.objects, L) : ""),

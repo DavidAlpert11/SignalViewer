@@ -31,6 +31,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   RV3 done: `.run-name` min-width min(9ch, 45%); the row's reload / ⋯ in `.run-acts` (width 0 until hover - an
   overlay hid the amber *newer* time under them); `.badge-fmt` hidden below a 380 px list (container query); the
   header count reads *n signals* (the word hidden below 330 px). DataPanel.tsx, index.css, i18n signals.
+  RV4 done: the *text read as states* notice dropped (files.ts; `textColsRead` removed); a template's *opened* notice
+  2.5 s (templates.ts, TemplateLibrary.tsx). The dock's place (bottom-left, with the start card) unchanged.
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
@@ -351,3 +353,5 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-16 · M33 RV3 (a file's name keeps its room; *n signals*). e2e test_name_tree (the header count), run:
   test_name_tree, test_data_quality, test_refresh_feedback, test_templates_recent_badfiles, test_compare_params,
   test_judge_a_run, test_workflows, test_trust_badges.
+- 2026-11-16 · M33 RV4 (fewer notices). e2e test_features::test_D04 (no states notice); run: test_features -k
+  D04/template/toast, test_template_tabs, test_welcome_cards, test_first_minute, test_fresh_user.

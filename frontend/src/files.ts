@@ -171,7 +171,7 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
       const rep = o.report || {};
       const parts: string[] = [];
       if (rep.skippedColumns?.length) parts.push(translate(lang, "skippedCols", { n: rep.skippedColumns.length }) + ` (${rep.skippedColumns.slice(0, 3).join(", ")}${rep.skippedColumns.length > 3 ? "…" : ""})`);
-      if (rep.textColumns?.length) parts.push(translate(lang, "textColsRead", { list: rep.textColumns.slice(0, 3).join(", ") + (rep.textColumns.length > 3 ? ` (+${rep.textColumns.length - 3})` : "") }));
+      // RV4: text columns read as states are no news (the list marks them Aa) - only what was lost is told
       if (rep.tooManyTexts?.length) parts.push(translate(lang, "textColsTooMany", { n: rep.tooManyTexts.length }) + ` (${rep.tooManyTexts.slice(0, 3).join(", ")}${rep.tooManyTexts.length > 3 ? "…" : ""})`);
       // O2: a ULog reports only THAT it was damaged (pyulog gives no count) - not "1 damaged bytes"
       if (rep.corruptBytes) parts.push(rep.damaged ? translate(lang, "damagedFile") : translate(lang, "corruptBytes", { n: rep.corruptBytes }));
