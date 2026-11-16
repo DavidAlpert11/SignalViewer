@@ -80,16 +80,26 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   (one per scenario, compared). One home for the button: the set's details (SetDetail) and the re-run list
   (RerunList: today only Export) - not a third place. en + he, RTL; backend tests for the contract, e2e for the demo.
   **SW2 status:** (a) done by FL1 (the Sweeps data table's ticks + *Open n in Recordings*). **The owner's answers (2026-11-16, chat) for (b):** (1) which runs record is a **rule set in advance**, default *no recording*; (2) a simulation file takes **one run**, the wrapper **a parameter set** - choose accordingly; (3) the re-runs are **chained**, then a notice says a run is **ready to load** (not opened by itself); (4) a re-run whose summary row differs from the original is **loaded as another layer of results**.
-  **SW2 (b) - the reading of the answers (asked to confirm, 2026-11-16), code points found:** a study setting
-  `launcher.record` (new optional field, "" = no recording): which runs record, e.g. *the best set* after each round.
-  After a round ends (`launcher.submit` on_done / `loop.run_round`), the rule's sets are run again as a *record round*
-  (`Round.extra.kind = "record"`, proposals copied with new run_ids, `extra.record = round_dir/records/<run_id>.csv`);
-  `write_params` passes `{{record}}` (a JSON template without it gets `"record"` added; xml / raw: say to add it);
-  sim.py writes its time series there; the wrapper passes it through and takes `--record DIR` for hand runs. Its rows
-  are collected apart (`recorded_<table>.csv`, not the round's table); when done a notice *Recordings of <set> are
-  ready* + Open (openRecordings) - nothing opens by itself - and the rows are added to the study as another table
-  (a layer) when they differ from the original. Per kind: run mode (one run per call) records the set's runs; a
-  wrapper (round mode) gets the set's parameter files in one list.
+  **SW2 spec - agreed answers, waiting for the owner's final yes (2026-11-16):**
+  - A run = one row (inputs + summary outputs); a recording = its full time series. Default: **no recording**.
+  - **When to record = a rule set in advance** (Set up, beside *How to run*): none (default) / a rule on inputs or
+    outputs (`wind >= 10`, `overshoot > 8`, *every failed run*) / always. Runs the rule picks are **chained**: after the
+    summary run they run again with recording by themselves.
+  - **What is sent:** the same inputs + `"record": "<path>"`. A simulation file takes **one run** per call; a wrapper takes
+    **a parameter set** (its runs in one list). Through the study's own way to run (this PC / wrapper / farm).
+  - **Files (the owner's contract):** each run writes `statistic_<id>` (its summary row) and `record_<id>` (its
+    recording); one common prefix per kind; both in one folder or each in its own (configurable). At the end the
+    wrapper merges every `statistic_<id>` into ONE statistics table - deleting the single-row files by default (an
+    option keeps them). Today's results glob (`results/{{table}}/{{run_id}}.csv`) and the demo keep working.
+  - **When done:** a notice *N recordings ready* with *Open* - nothing opens by itself; each recording is linked to its
+    row (same inputs), a row with a recording shows an icon; rows -> *Open in Recordings* together (FL1's ticks).
+  - **A re-run's summary row that differs from the original** (noise, another sim version) is **loaded as another layer
+    of results** (rounds already accumulate as layers: next/round_*/collected_<table>.csv) - the original kept.
+  - Also by hand: rows / a group / a set (scenarios removable in its details) into the existing re-run list (RerunList),
+    which shows the count, an estimate and where the files go - not a new place.
+  Touches: study.Launcher (+ optional `record` rule, statistic / record prefixes and folders, keep singles), launcher.py
+  (write_params `{{record}}`, chained record round, merge), sweep_wrapper.py (`--record DIR`, the merge), sim.py (a time
+  series when asked), SetDetail / RerunList / Set up UI, README, docs/launcher.md.
   RV7 done: the findings chip says *n to look at* (the pill's word); the report's line names the log's own messages; the
   strip's how-to line shown on the first file only (`ovHintSeen` set once shown).
   RV8 done: the Report panel's one offline page (*Save the page (HTML)…* at the top = the HTML report with its replay and
@@ -103,7 +113,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   RV10 done: file B rose (was teal-green next to A's blue); setpoints drawn above their measurement.
   RV11 done: Space after a toolbar click = the cursor (keyup kept from the focused button), P plays in pages too;
   formula syntax errors at their place in the typed text, unknown functions named; camera following under Map.
-  Next: SW2 (b) once the owner confirms its reading (asked); BR1 waits for his yes; then the full e2e and the report.
+  Next: SW2 once the owner says yes to the spec above (do not implement before); BR1 waits for his yes.
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
