@@ -58,7 +58,7 @@ no cloud, no telemetry, no internet needed.
 Install, start, and pick a card on the welcome screen. **Every part of the app has a demo with a known
 answer** – nothing to prepare, nothing leaves your PC.
 
-<p align="center"><img src="docs/images/38_welcome_cards.png" alt="The welcome screen: the examples grouped by area - Recordings, Sweeps and Fleet - each with a picture of what it opens" width="100%"></p>
+<p align="center"><img src="docs/images/38_welcome_cards.png" alt="The welcome screen: the examples grouped by area - Recordings and Sweeps - each with a picture of what it opens" width="100%"></p>
 
 | Demo | What it shows |
 |---|---|
@@ -69,7 +69,7 @@ answer** – nothing to prepare, nothing leaves your PC.
 | **A drone flight** · **An ArduPilot log** | The path on a map and in 3D, played back; a real `.bin` log with its health check |
 | **A sweep: which settings hold** | 810 runs of a controller sweep – the settings that hold in every scenario, and the best one |
 | **One gain set, three systems** · **Smart sweep** | One parameter set for several systems; the next runs chosen for you until it converges – about 64× fewer runs than the full grid |
-| **A fleet** | Ten recordings of two machines – the one whose vibration grows, run after run |
+| **A folder of recordings** | Ten flights of two copters, one row each in Sweeps – the one whose vibration grows, flight after flight |
 
 ## What it does for you
 
@@ -118,9 +118,11 @@ tile server, and areas kept for the field are opt-in; offline is the default.
 
 <p align="center"><img src="docs/images/05_map_and_3d.png" alt="A flight on the offline map and in 3D side by side: the camera bar, the data box as an instrument, the modes on the timeline" width="100%"></p>
 
-### Watch the fleet, send the answer
+### Every recording of a folder, send the answer
 
-Point it at folders of recordings: every one checked the same way, trends over weeks. Then send one HTML
+Point it at a folder of recordings: the same numbers measured in each (the highest vibration, the lowest
+battery voltage…) and parameters read from the file names, one row per recording in Sweeps – trends over
+weeks, the one that needs a look, opened with a click. Then send one HTML
 file that **opens with the process in brief** – the data, what was checked, what it shows, the conclusion –
 with plots, map and 3D on one time bar. Any browser, no install. PDF and Word too.
 
@@ -154,7 +156,7 @@ df = rec.to_dataframe(["Pressure", "MotorTemp"], t0=100, t1=500)
 |---|---|---|
 | stream ROS topics live | PlotJuggler, Foxglove | recorded runs compared and judged, pass / fail in CI, offline reports |
 | work in MATLAB / Simulink | Simulation Data Inspector | no licence; test data, logs and CAN beside the `.mat`; sweeps of runs |
-| review one flight log online | UAV Log Viewer, PX4 Flight Review | offline, many runs side by side, a fleet, your own limits |
+| review one flight log online | UAV Log Viewer, PX4 Flight Review | offline, many runs side by side, a folder of logs at once, your own limits |
 
 ## בעברית בקצרה
 

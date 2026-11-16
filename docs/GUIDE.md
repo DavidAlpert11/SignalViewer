@@ -34,7 +34,7 @@ are told apart by them.
 ## 3. The screen
 
 - **Top:** one row - the work areas as one switch (*Recordings* - your files and plots, *Sweeps* - a run
-  envelope's results table, *Fleet* - every flight log in a folder), then the Recordings tools (open /
+  envelope's results table), then the Recordings tools (open /
   save, templates, live, undo / redo, clear, Inspector), Ctrl+K, Settings, the theme, the language and Help.
 - **Left:** the panels – *Data* (the open files and their signals), *Create signals*, *Compare runs*,
   *Investigate*, *Report* and *Checks* (the verdict, structure and parameters of any file - section 10).
@@ -469,9 +469,20 @@ the log's events, parameters and hardware too. On the map, an object's *Track co
 flight mode (or a value such as the altitude), with a key, and *Arrows along the path* can show the
 log's estimated wind.
 
-**Fleet** (the top bar: *Recordings · Sweeps · Fleet*) runs the same checks on every log in a folder: follow a number over weeks
-(a motor wearing out), find the first flight over a limit, list the flights with a finding. *Try the
-example fleet* shows how - the [Fleet tutorial](fleet-tutorial.md) walks through it.
+### A folder of recordings { #folder }
+
+Many recordings of the same kind - every flight of two copters, a test run a day - are summed up one row per
+recording: **Sweeps ▸ Data ▸ *From a folder of recordings…*** (or *Investigate ▸ Runs matrix ▸ Summarize a
+folder*). Each recording gets the same **measures** (the highest `VIBE[0].VibeZ`, the lowest `BAT[0].Volt`,
+the last `BAT[0].CurrTot`…) and parameters read from its name (`{vehicle}_{date}` reads `X8-A_2026-09-02.bin`
+as vehicle X8-A, date 2026-09-02). The folder is read one file at a time, so hundreds of files of any format
+are fine. A `measures.json` beside the recordings (the Runs matrix's *Save measures*) is used at once;
+without one, the folder's first recording opens with the Runs matrix to define them on it.
+
+In Sweeps each row keeps a link to its recording (the *recording* column): tick the rows that need a look and
+*Open in Recordings* opens them together, their signals side by side. The welcome card *A folder of
+recordings* shows it on ten flights of two copters: X8-A's vibration grows flight after flight (18 → 67),
+X8-B's battery drops on its last flight.
 
 ## 12. Live data
 

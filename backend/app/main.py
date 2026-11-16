@@ -25,7 +25,6 @@ from app.routes import (
     data,
     export,
     files,
-    fleet,
     fs,
     jobs,
     live,
@@ -154,7 +153,6 @@ async def _unexpected_error(request: Request, exc: Exception):
 # =============================================================================
 
 app.include_router(files.router)
-app.include_router(fleet.router)
 app.include_router(sweep.router)
 app.include_router(sweeps_common.router)    # W14 / W15
 app.include_router(sweeps_farm.router)      # W17 / W18

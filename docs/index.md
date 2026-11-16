@@ -29,9 +29,9 @@ ROS 2 and CAN recordings, parameter sweeps – on your own machine, with every c
 
 Every part of the app has a demo with a known answer on the welcome screen – a flight, a flight log's
 health check, a simulation against its flight, a fault to find, a parameter sweep, the loop that picks the
-next runs, a fleet of flights, and a pump on a test bench with its pass / fail checks. One click each; nothing to prepare.
+next runs, a folder of flights summed up in one table, and a pump on a test bench with its pass / fail checks. One click each; nothing to prepare.
 
-![The welcome screen: the examples grouped by area - Recordings, Sweeps and Fleet - each with a picture of what it opens](images/38_welcome_cards.png){ .sv-shot }
+![The welcome screen: the examples grouped by area - Recordings and Sweeps - each with a picture of what it opens](images/38_welcome_cards.png){ .sv-shot }
 
 ## What you do with it
 
@@ -73,14 +73,14 @@ next runs, a fleet of flights, and a pump on a test bench with its pass / fail c
 
     [:octicons-arrow-right-24: The smart-sweep demo](smart-sweep-demo.md)
 
--   :material-folder-multiple:{ .lg } **Watch the whole fleet**
+-   :material-folder-multiple:{ .lg } **A whole folder of recordings**
 
     ---
 
-    Every flight of your folders checked the same way: which had errors, which number is growing over the
-    weeks – and open the one that needs a look.
+    The same numbers measured in every recording of a folder, one row each in Sweeps: which number is
+    growing over the weeks – and open the ones that need a look, together.
 
-    [:octicons-arrow-right-24: Tutorial: what the Fleet is for](fleet-tutorial.md)
+    [:octicons-arrow-right-24: A folder of recordings](GUIDE.md#folder)
 
 -   :material-file-chart:{ .lg } **Send the answer**
 

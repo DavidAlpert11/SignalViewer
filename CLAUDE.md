@@ -39,7 +39,7 @@ when you stop in the middle of a task.
 - The app works fully offline and listens only on 127.0.0.1.
 - Formulas are evaluated with the AST whitelist in `svcore/formula.py` — never `eval`.
 - English and Hebrew (RTL): every user-visible string goes through `frontend/src/i18n/` - one file per
-  area (templates, flightlog, investigate, compare, mapsAnd3d, files, liveAndFleet, app, signals, plots,
+  area (templates, flightlog, investigate, compare, mapsAnd3d, files, live, app, signals, plots,
   common, welcome, study; the Sweeps area's own in `sweeps/i18n.ts`), each with `en` and `he: typeof en` (tsc enforces both); `i18n/index.ts` merges them and
   holds `translate` / `useT`. A new key goes into its area's file. Check RTL layout of anything new.
 - Light and dark themes: use the CSS variables in `index.css`, no hard-coded colours.

@@ -1,5 +1,8 @@
 # Navigation: areas, view tabs and the rail (U8, design only)
 
+> **FL1 (owner, 2026-11-16):** the Fleet area described below was dropped - a folder of recordings is summed up
+> in Sweeps instead (*Sweeps ▸ Data ▸ From a folder of recordings…*). This page is kept as the record of the U9 decision.
+
 Owner's request (2026-11-07): sketches for unifying the Recordings / Sweeps tabs, the view tabs and the
 left rail - no code. This note is for choosing; nothing here is built.
 

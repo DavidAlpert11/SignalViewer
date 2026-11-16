@@ -12,7 +12,7 @@ import tempfile  # noqa: E402
 
 os.environ.setdefault("SV_LOG_DIR", tempfile.mkdtemp(prefix="sv-test-logs-"))
 
-# F15: every app file (recent.json, autosave.json, uploads, push.json, fleet.sqlite, templates...)
+# F15: every app file (recent.json, autosave.json, uploads, push.json, templates...)
 # goes to a temporary home, not the developer's real ~/.signalviewer. The app folder is computed
 # from the home at import, so this must run before any test imports the app. (The e2e servers get
 # a home of their own the same way.)

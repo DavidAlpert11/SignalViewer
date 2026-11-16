@@ -54,20 +54,6 @@
 .wc-oaxis { justify-content: flex-end; }
 .wc-oaxis span:first-child { position: absolute; transform: translateX(-50%); }   /* the span's start (0); the end on the right */
 
-/* Fleet (owner, 2026-11-13): the questions it answers, the fleet at a glance, the trend's verdict */
-.fleet-questions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1_5); margin-bottom: var(--sp-2); }
-.fleet-summary { border: 1px solid var(--line); border-radius: var(--r-l); background: var(--panel); padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-2); }
-.fleet-tiles { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); }
-.fleet-tiles span { display: flex; align-items: baseline; gap: var(--sp-1); color: var(--muted); font-size: var(--fs-sm); }
-.fleet-tiles b { font-size: var(--fs-2xl); color: var(--ink-strong); font-variant-numeric: tabular-nums; }
-.fleet-tiles .err b { color: var(--danger); } .fleet-tiles .warn b { color: var(--warn); }
-.fleet-strip { position: relative; height: 22px; margin: var(--sp-2) 6px 0; border-bottom: 1px solid var(--line); }
-.fleet-dot { position: absolute; top: 5px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; border: 2px solid var(--panel); padding: 0; cursor: pointer; }
-.fleet-dot.ok { background: var(--ok); } .fleet-dot.warn { background: var(--warn); } .fleet-dot.err { background: var(--danger); }
-.fleet-dot:hover, .fleet-dot:focus-visible { transform: scale(1.3); }
-.fleet-trend-axis { display: flex; justify-content: space-between; font-size: var(--fs-2xs); margin: 2px 6px 0 11.5%; }   /* 11.5% = the chart's value column (30 of 260) */
-.fleet-first { margin: var(--sp-1) 0 0; font-size: var(--fs-sm); color: var(--ink); }
-.fleet-dot.out { opacity: .25; }   /* not an answer to the question asked */
 .inv-start { margin: 0 0 var(--sp-3); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-m); background: var(--panel-2); }
 .inv-start h3 { margin: 0 0 var(--sp-1); font-size: var(--fs-m); color: var(--ink-strong); }
 .inv-start .hint { margin: 0 0 var(--sp-2); }

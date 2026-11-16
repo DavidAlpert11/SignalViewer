@@ -1,9 +1,9 @@
-/* Review (owner, 2026-11-13: a clear demo for everything): the welcome screen's cards for the Sweeps single
-   table and the Fleet open their area on its example. The area takes the request when it shows (it is lazy:
+/* Review (owner, 2026-11-13: a clear demo for everything): the welcome screen's card for the Sweeps single
+   table opens its area on its example. The area takes the request when it shows (it is lazy:
    it may not be mounted yet) - the same hand-over as sweeps/studyOpen.ts. */
 import { useApp } from "./store";
 
-type Req = { area: "sweeps" | "fleet"; path: string };
+type Req = { area: "sweeps"; path: string };
 let pending: Req | null = null;
 const listeners = new Set<() => void>();
 

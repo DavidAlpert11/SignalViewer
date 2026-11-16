@@ -132,7 +132,7 @@ button, input, select { font: inherit; color: inherit; }
 /* A2 (plan §3.4 rule 4): numbers are instruments - values, readouts, clocks, ticks and number columns in
    the mono face. Only elements that hold a number; a line of text keeps the sans face. */
 .chip .val, .chip .dlt, .lrow .val, .status .ct, .ctime input, .tl-clock, .g3-own-clock, .pval, .log-t,
-.sim-pct, .fleet-val, .fleet-ytick, .fleet-date, .diff-tick, .cmpobj-stats td.num, .geo-readout, .spec-read,
+.sim-pct, .diff-tick, .cmpobj-stats td.num, .geo-readout, .spec-read,
 .run-ftime, .fs-row .mtime, .seg-list .seg-time, .seg-list .seg-dur, .seg-wins .when, .rel-row > bdi, .job-pct,
 .sig .sig-rate, .tabs-count, .gridpick-label { font-family: var(--mono); }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -175,16 +175,6 @@ button, input, select { font: inherit; color: inherit; }
 .areas .area-btn.on { background: var(--select); color: var(--select-ink); border-color: var(--select); font-weight: 600; }
 .areas .area-btn.on + .area-btn { border-inline-start-color: var(--select); }
 .rail button:disabled { opacity: 0.35; cursor: default; }
-/* U9: the Fleet area - the folders, search and trend on one side, the flights on the other */
-.fleet-bar { gap: var(--sp-3); }
-.fleet-bar h2 { margin: 0 0 0 4px; font-size: var(--fs-base); }
-.fleet-bar .hint { color: var(--muted); font-size: var(--fs-s); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.fleet-area { position: relative; min-height: 0; overflow: auto; background: var(--bg); }
-.fleet-notices { position: fixed; bottom: 40px; }
-.fleet-area .fleet-body { display: grid; grid-template-columns: minmax(280px, 420px) minmax(0, 1fr); gap: 16px 24px; align-items: start;
-  max-width: 1280px; margin: 0 auto; padding: 16px; overflow: visible; }
-.fleet-area .fleet-side, .fleet-area .fleet-main { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
-@media (max-width: 760px) { .fleet-area .fleet-body { grid-template-columns: 1fr; } }
 .areabar { display: flex; align-items: center; gap: var(--sp-1); padding-inline: 8px; min-width: 0;
   background: var(--panel); border-bottom: 1px solid var(--line); }
 .areabar > :not(.tabs-wrap):not(.spacer) { flex-shrink: 0; }
@@ -1553,42 +1543,6 @@ input.fx-input { width: 100%; }
 .pyops-push pre { margin: 0; padding: 6px 8px; border-radius: var(--r-m); background: var(--raised); font-size: var(--fs-xs); overflow-x: auto; text-align: left; }
 .pyops-push .btn { align-self: flex-start; }
 
-/* T41 fleet */
-.fleet-body { flex: 1; min-height: 0; overflow: auto; padding: 8px 12px 16px; display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--fs-sm); }
-.fleet-body .hint { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
-.fleet-folder { display: flex; align-items: center; gap: var(--sp-1_5); }
-.fleet-folder bdi { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fleet-btns, .fleet-row { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
-.fleet-search { display: flex; flex-direction: column; gap: var(--sp-1); }
-.fleet-row select { flex: 1; min-width: 0; }
-.fleet-limit { width: 80px; }
-.fleet-count { font-size: var(--fs-xs); }
-.fleet-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.fleet-log { border-bottom: 1px solid var(--line); }
-.fleet-line { width: 100%; display: flex; align-items: center; gap: var(--sp-1_5); padding: 5px 2px; background: none; border: 0; color: var(--ink); cursor: pointer; text-align: start; font: inherit; }
-.fleet-line:hover { background: var(--raised); }
-.fleet-date { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.fleet-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fleet-log.bad .fleet-name { color: var(--muted); text-decoration: line-through; }
-.fleet-badge { min-width: 18px; padding: 0 5px; border-radius: var(--r-l); font-size: var(--fs-2xs); text-align: center; color: var(--on-color); }
-.fleet-badge.err { background: var(--danger); }
-.fleet-badge.warn { background: var(--warn); color: var(--bg); }
-.fleet-val { font-variant-numeric: tabular-nums; color: var(--ink-strong); }
-.fleet-detail { padding: 4px 4px 8px; display: flex; flex-direction: column; gap: var(--sp-1); }
-.fleet-detail p { margin: 0; font-size: var(--fs-xs); }
-.fleet-findings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
-.fleet-findings li { display: flex; align-items: center; gap: var(--sp-1_5); font-size: var(--fs-xs); }
-.fleet-findings li span { flex: 1; }
-.fleet-findings li.error span { color: var(--danger); }
-.fleet-trend { margin: 0; }
-.fleet-trend figcaption { font-size: var(--fs-xs); }
-.fleet-trend svg { width: 100%; height: auto; background: var(--raised); border-radius: var(--r-m); }
-.fleet-trendline { fill: none; stroke: var(--muted); stroke-width: 1; }
-.fleet-trend circle { fill: var(--ink); cursor: pointer; }
-.fleet-trend circle.over { fill: var(--danger); }
-.fleet-ytick { fill: var(--muted); font-variant-numeric: tabular-nums; }
-.fleet-ytick.limit { fill: var(--amber); }
-.fleet-limitline { stroke: var(--amber); stroke-dasharray: 4 3; }
 /* T46: a file's tag - in the legend chips, the file list and pickers */
 .file-tag { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--r-s);
   font-size: var(--fs-3xs); font-weight: 700; line-height: 1; color: var(--on-color); background: var(--tag, var(--muted)); flex: none; letter-spacing: 0; direction: ltr; }
@@ -1821,9 +1775,6 @@ input.fx-input { width: 100%; }
 .track-key .tk-ramp { display: flex; align-items: center; gap: var(--sp-1_5); margin-top: 2px; }
 .track-key .tk-ramp i { width: 120px; height: 6px; }
 
-/* the Fleet's example: what it is for, and a button to try it */
-.fleet-example { border: 1px dashed var(--line-strong); border-radius: var(--r-l); padding: 8px 10px; margin: 6px 0 10px; background: var(--panel-2); }
-.fleet-example p { margin: 0 0 6px; font-size: var(--fs-m); color: var(--ink); }
 
 /* 1.21: Log panel, Hardware */
 .log-tabs { flex-wrap: wrap; }

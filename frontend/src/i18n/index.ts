@@ -6,7 +6,7 @@ import * as investigate from "./investigate";
 import * as compare from "./compare";
 import * as mapsAnd3d from "./mapsAnd3d";
 import * as files from "./files";
-import * as liveAndFleet from "./liveAndFleet";
+import * as live from "./live";
 import * as app from "./app";
 import * as signals from "./signals";
 import * as plots from "./plots";
@@ -19,9 +19,9 @@ export type Lang = "en" | "he";
 
 /* A2: the texts live by area in i18n/*.ts (each with en and he); here they are merged - the Sweeps
    area's own (sweeps/i18n.ts) first, as before. */
-const en = { ...swEn, ...templates.en, ...flightlog.en, ...investigate.en, ...compare.en, ...mapsAnd3d.en, ...files.en, ...liveAndFleet.en, ...app.en, ...signals.en, ...plots.en, ...common.en,
+const en = { ...swEn, ...templates.en, ...flightlog.en, ...investigate.en, ...compare.en, ...mapsAnd3d.en, ...files.en, ...live.en, ...app.en, ...signals.en, ...plots.en, ...common.en,
   ...welcome.en, ...study.en };
-const he: typeof en = { ...swHe, ...templates.he, ...flightlog.he, ...investigate.he, ...compare.he, ...mapsAnd3d.he, ...files.he, ...liveAndFleet.he, ...app.he, ...signals.he, ...plots.he, ...common.he,
+const he: typeof en = { ...swHe, ...templates.he, ...flightlog.he, ...investigate.he, ...compare.he, ...mapsAnd3d.he, ...files.he, ...live.he, ...app.he, ...signals.he, ...plots.he, ...common.he,
   ...welcome.he, ...study.he };
 
 export const dictionaries = { en, he };

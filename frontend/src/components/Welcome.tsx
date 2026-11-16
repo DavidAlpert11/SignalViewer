@@ -11,24 +11,22 @@ import { requestStudy } from "../sweeps/studyOpen";
 import { requestAreaExample } from "../areaExample";
 import { startDemoGuide } from "../demoGuide";
 
-export const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", bench: "exampleBench", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate", commonGains: "exampleCommonGains", smartSweepDemo: "exampleSmartSweepDemo", sweepTable: "exampleSweepTable", fleet: "exampleFleet" } as const satisfies Record<ExampleId, string>;
-const EXAMPLE_DESC = { flight: "exampleFlightDesc", twoFlights: "exampleTwoFlightsDesc", car: "exampleCarDesc", bench: "exampleBenchDesc", ardupilot: "exampleArdupilotDesc", simVsFlight: "exampleSimVsFlightDesc", investigate: "exampleInvestigateDesc", commonGains: "exampleCommonGainsDesc", smartSweepDemo: "exampleSmartSweepDemoDesc", sweepTable: "exampleSweepTableDesc", fleet: "exampleFleetDesc" } as const satisfies Record<ExampleId, string>;
-const EXAMPLE_ICON = { flight: Icon.Globe, twoFlights: Icon.Compare, car: Icon.Table, bench: Icon.Analysis, ardupilot: Icon.Log, simVsFlight: Icon.Analysis, investigate: Icon.Search, commonGains: Icon.Merge, smartSweepDemo: Icon.Reload, sweepTable: Icon.Table, fleet: Icon.Fleet } satisfies Record<ExampleId, unknown>;
+export const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", bench: "exampleBench", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate", commonGains: "exampleCommonGains", smartSweepDemo: "exampleSmartSweepDemo", sweepTable: "exampleSweepTable" } as const satisfies Record<ExampleId, string>;
+const EXAMPLE_DESC = { flight: "exampleFlightDesc", twoFlights: "exampleTwoFlightsDesc", car: "exampleCarDesc", bench: "exampleBenchDesc", ardupilot: "exampleArdupilotDesc", simVsFlight: "exampleSimVsFlightDesc", investigate: "exampleInvestigateDesc", commonGains: "exampleCommonGainsDesc", smartSweepDemo: "exampleSmartSweepDemoDesc", sweepTable: "exampleSweepTableDesc" } as const satisfies Record<ExampleId, string>;
+const EXAMPLE_ICON = { flight: Icon.Globe, twoFlights: Icon.Compare, car: Icon.Table, bench: Icon.Analysis, ardupilot: Icon.Log, simVsFlight: Icon.Analysis, investigate: Icon.Search, commonGains: Icon.Merge, smartSweepDemo: Icon.Reload, sweepTable: Icon.Table } satisfies Record<ExampleId, unknown>;
 
 const EXAMPLE_GROUPS = [
   { area: "recordings", label: "areaRecordings", hint: "exampleGroupRecordings" },
   { area: "sweeps", label: "areaSweeps", hint: "exampleGroupSweeps" },
-  { area: "fleet", label: "areaFleet", hint: "exampleGroupFleet" },
 ] as const;
 
-type Example = { id: ExampleId; paths: string[]; open?: "study" | "sweep" | "fleet" };
+type Example = { id: ExampleId; paths: string[]; open?: "study" | "sweep" };
 
 /** An example opened as a new user would: recordings with their suggested view, a study in Sweeps. */
 export function openExample(ex: Example): void {
   useApp.setState({ startOpen: false, demoGuide: null });
   if (ex.open === "study") requestStudy(ex.paths[ex.paths.length - 1], ex.id === "smartSweepDemo");
   else if (ex.open === "sweep") requestAreaExample("sweeps", ex.paths[ex.paths.length - 1]);   // its .svsweep: the table and its question
-  else if (ex.open === "fleet") requestAreaExample("fleet", ex.paths[0]);
   // RV5: once its view is open, the demo's own setup and its line of what to do next
   else void openPaths(ex.paths, undefined, { autoView: true }).then((ids) => startDemoGuide(ex.id, ids));
 }
@@ -125,7 +123,7 @@ export default function Welcome() {
             <h2 className="examples-title eyebrow">{t("startFromExample")}</h2>
             {/* review (owner, 2026-11-13: a clear demo for everything): grouped by the area each one shows */}
             {EXAMPLE_GROUPS.map((g) => {
-              const xs = examples.filter((ex) => ex.id in EXAMPLE_LABEL && (ex.open === "sweep" || ex.open === "study" ? "sweeps" : ex.open === "fleet" ? "fleet" : "recordings") === g.area);
+              const xs = examples.filter((ex) => ex.id in EXAMPLE_LABEL && (ex.open === "sweep" || ex.open === "study" ? "sweeps" : "recordings") === g.area);
               return xs.length > 0 && (
                 <section key={g.area} className="examples-group" aria-label={t(g.label)}>
                   <h3 className="examples-group-title"><span className="eyebrow">{t(g.label)}</span><span className="hint">{t(g.hint)}</span></h3>

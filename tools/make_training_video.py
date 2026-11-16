@@ -126,7 +126,7 @@ def open_example(film, ex, ready, glide=True):
 # ----------------------------------------------------------------------------- the chapters
 def ch_workspace(f, app):
     pg = f.pg
-    f.cap("The welcome screen: a demo with a known answer for every area", "Recordings · Sweeps · Fleet – pick one to start", hold=3.2)
+    f.cap("The welcome screen: a demo with a known answer for every area", "Recordings · Sweeps – pick one to start", hold=3.2)
     pg.mouse.wheel(0, 500); pg.wait_for_timeout(1400); pg.mouse.wheel(0, -500); pg.wait_for_timeout(800)
     f.cap("Open a file – or drop it on the window", "Here: three test runs of a car, as CSV")
     open_example(f, "car", ".grid canvas")

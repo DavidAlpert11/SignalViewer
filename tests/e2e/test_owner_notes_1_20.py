@@ -1,6 +1,6 @@
 """The owner's notes of 2026-11-03 (1.20): a legend that neither jumps nor fills the plot, made
 signals managed in the signal list, named nested groups, a map track coloured by the flight mode,
-the Fleet's example, and in Sweeps the runs' tab, several objectives (Pareto) and Clear.
+and in Sweeps the runs' tab, several objectives (Pareto) and Clear.
 
     python -m pytest tests/e2e/test_owner_notes_1_20.py -q
 """
@@ -116,17 +116,6 @@ def test_map_track_coloured_by_the_flight_mode(pg):
     # the object's dialog: the choice and its signal
     pg.locator(".obj-chip-main").first.click()
     assert pg.locator(".obj-trackcolor select").input_value() == "state"
-
-
-def test_fleet_example(pg):
-    pg.click(".areas .area-btn:has-text('Fleet')")                                  # U9: an area
-    pg.locator(".fleet-example .btn").click()
-    pg.wait_for_selector(".fleet-trend circle", timeout=60000)
-    pg.wait_for_function("document.querySelectorAll('.fleet-log').length === 1")   # vibration above 30: one flight
-    assert "X8-A_2026-10-07" in pg.locator(".fleet-log").inner_text()
-    assert pg.locator(".fleet-trend circle").count() == 10
-    pg.fill(".fleet-search input[type=search]", "X8-A")
-    pg.wait_for_function("document.querySelectorAll('.fleet-trend circle').length === 6")
 
 
 def test_sweeps_runs_tab_pareto_and_clear(pg):

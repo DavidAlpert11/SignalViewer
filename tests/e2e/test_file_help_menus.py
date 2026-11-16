@@ -31,7 +31,7 @@ def test_file_and_help_menus(pg):
         assert pg.locator(f".area-tools [aria-label='{label}']").count() == 1, label
     # Live follows the open files: it is the Recordings area's (owner, 2026-11-02) - in its tools, gone in another area
     assert pg.locator(".topbar .live-btn").count() == 1 and pg.locator(".area-tools .live-btn").count() == 1
-    pg.evaluate("window.__sv.setState({ area: 'fleet' })")
+    pg.evaluate("window.__sv.setState({ area: 'sweeps' })")
     pg.wait_for_selector(".area-tools", state="detached")
     assert pg.locator(".topbar .live-btn").count() == 0
     pg.evaluate("window.__sv.setState({ area: 'recordings' })")

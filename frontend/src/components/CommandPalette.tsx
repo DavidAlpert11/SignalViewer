@@ -77,7 +77,6 @@ export default function CommandPalette() {
       { id: "compare", label: t("compare"), group: t("compare"), icon: <Icon.Compare />, run: () => useApp.setState({ panel: "compare" }) },
       { id: "report", label: t("report"), group: t("report"), icon: <Icon.Report />, run: () => useApp.setState({ panel: "report" }) },
       { id: "replay", label: t("replayCmd"), group: t("report"), icon: <Icon.Send />, run: () => { makeReplay(); } },
-      { id: "fleet", label: t("fleet"), group: t("fleet"), icon: <Icon.Fleet />, run: () => useApp.setState({ area: "fleet" }) },
       { id: "analysis", label: t("analysis"), group: t("analysis"), icon: <Icon.Analysis />, run: () => useApp.setState({ panel: "analysis" }) },
       { id: "settings", label: t("settings"), group: t("hHelp"), icon: <Icon.Globe />, run: () => useApp.setState({ settingsOpen: true }), keys: "Ctrl ," },
       { id: "startpage", label: t("startPage"), group: t("hHelp"), run: () => useApp.setState({ area: "recordings", startOpen: true }) },

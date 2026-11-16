@@ -40,7 +40,6 @@ import type { AreaId } from "./areas";
 import StageBar from "./components/StageBar";
 import DataPanel from "./components/DataPanel";
 const AnalysisPanel = lazyPreload(() => import("./components/AnalysisPanel"));
-const FleetArea = lazyPreload(() => import("./components/FleetPanel"));
 const InvestigatePanel = lazyPreload(() => import("./components/InvestigatePanel"));
 const ComparePanel = lazyPreload(() => import("./components/ComparePanel"));
 const ReportPanel = lazyPreload(() => import("./components/ReportPanel"));
@@ -386,10 +385,9 @@ export default function App() {
       </div>
       </>,
       sweeps: <Suspense fallback={<><div className="areabar" /><div /></>}><SweepsScreen /></Suspense>,
-      fleet: <Suspense fallback={<><div className="areabar" /><div /></>}><FleetArea /></Suspense>,
       } satisfies Record<AreaId, React.ReactNode>)[area]}
       {area === "sweeps" ? <Suspense fallback={<footer className="status" />}><SweepsStatus /></Suspense>
-        : area === "recordings" ? <StatusBar /> : <footer className="status" />}
+        : <StatusBar />}
       <CursorValues />
       <CommandPalette />
       <FileBrowser />

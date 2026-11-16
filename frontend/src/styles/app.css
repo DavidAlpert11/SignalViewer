@@ -21,7 +21,7 @@
 .pin-chip { display: inline-flex; align-items: center; }
 
 /* D1 (decision 5): one top row - in Recordings it holds the area's tools (.area-tools) and the area has no bar of
-   its own (the plots get its 40 px); the plot tabs open the stage bar. Sweeps / Fleet keep their bars. */
+   its own (the plots get its 40 px); the plot tabs open the stage bar. Sweeps keeps its bar. */
 .app:not(:has(> .areabar)) { grid-template-rows: 44px 1fr 26px; }
 .area-tools { display: flex; align-items: center; gap: var(--sp-1); flex-shrink: 0; }
 .stage-bar > .tabs-wrap { height: 28px; flex: 0 1 auto; min-width: 120px; }

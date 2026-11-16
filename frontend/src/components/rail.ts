@@ -3,7 +3,7 @@ import type { Icon } from "../icons";
 import type { PanelId } from "../store";
 import type { TKey } from "../i18n";
 
-/** the tool rail's width: an icon with its short name under it (the names made Investigate and Fleet findable) */
+/** the tool rail's width: an icon with its short name under it (the names made Investigate findable) */
 export const RAIL_W = 64;
 export const RAIL: { id: PanelId; icon: keyof typeof Icon; key: "data" | "analysis" | "compare" | "report" | "chkTitle" | "investigate"; short: TKey }[] = [
   { id: "data", icon: "Data", key: "data", short: "railData" },

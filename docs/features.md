@@ -225,7 +225,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Top bar
 
-- One top row, the same in every work area: the areas as one switch (*Recordings · Sweeps · Fleet*), then the Recordings tools (no File menu, F35): open / save session, Templates ▾ (save a template, a new collection), **Live ▾** (it follows the open files and MAVLink, so it is the Recordings area's), undo / redo, Clear ▾ (what to clear, see *Start over*) and the Inspector; Ctrl+K, Settings, day / night (one click), language and the Help menu. The plot tabs, with **+** (a new tab) and **▾** (the views menu: a new tab, a template or collection, the tabs a template left out), are in the stage bar above the plots (1.27: the plots gained 40 pixels of height) - opening files is in the file list (Ctrl+O), recent files Ctrl+P; Settings (theme, text size, time as seconds or a clock; kept between starts, not changed by sessions; the disk space the app uses for speed - CSV cache and log indexes, copies of files dropped into a browser, map tiles - each with its size and *Clear*; and the results kept in memory to be fast - changed and derived signals, spectra, plot summaries, statistics - with its limit, `SV_MEMCACHE_MB`, default 1024) and Help menu (keyboard shortcuts, the examples, copy error details, about)
+- One top row, the same in every work area: the areas as one switch (*Recordings · Sweeps*), then the Recordings tools (no File menu, F35): open / save session, Templates ▾ (save a template, a new collection), **Live ▾** (it follows the open files and MAVLink, so it is the Recordings area's), undo / redo, Clear ▾ (what to clear, see *Start over*) and the Inspector; Ctrl+K, Settings, day / night (one click), language and the Help menu. The plot tabs, with **+** (a new tab) and **▾** (the views menu: a new tab, a template or collection, the tabs a template left out), are in the stage bar above the plots (1.27: the plots gained 40 pixels of height) - opening files is in the file list (Ctrl+O), recent files Ctrl+P; Settings (theme, text size, time as seconds or a clock; kept between starts, not changed by sessions; the disk space the app uses for speed - CSV cache and log indexes, copies of files dropped into a browser, map tiles - each with its size and *Clear*; and the results kept in memory to be fast - changed and derived signals, spectra, plot summaries, statistics - with its limit, `SV_MEMCACHE_MB`, default 1024) and Help menu (keyboard shortcuts, the examples, copy error details, about)
 
 ### Zoom
 
@@ -490,14 +490,12 @@ For any recording, not only flight logs (1.27: the Log panel became *Checks*).
 - Only listens by default; *Ask the vehicle to send data* acts as a minimal ground station (heartbeat + one request for all streams)
 - A pill next to Live shows messages per second and turns red when the link goes quiet
 
-### Fleet
+### A folder of recordings
 
-- The **Fleet** area (beside Recordings and Sweeps in the top bar; it was a panel of the rail): add folders of flight logs (.bin / .tlog / .ulg, sub-folders too) – each log is read once into a local index (`~/.signalviewer/fleet.sqlite`; Update reads only new and changed logs, drops removed ones, lists unreadable ones with the reason)
-- Search all flights at once: name / vehicle / firmware, a finding at a level (error, warning or error), a number above / below a limit (every number the health check measures: vibration max, clipping count, battery min, EKF max…, and the duration)
-- The chosen number's trend over the flights' dates, the limit drawn, flights over it in red, click a point to open that flight
-- Per flight: vehicle, firmware, duration, time in each flight mode, its findings with Open here (opens the log, cursor at the finding, *Checks*)
-- *Try the example fleet* (`examples/fleet`, ten flights of two copters: a motor wearing out, poor GPS, a worn battery) - opens on the vibration trend; see the [Fleet tutorial](fleet-tutorial.md). The trend follows the typed search (a vehicle's name: its flights alone)
-- The date comes from the log's GPS time (current ArduPilot firmware too, since 1.6.0 – an older index reads those logs again once), else the file's date (marked *)
+- **Sweeps ▸ Data ▸ *From a folder of recordings…*** (also *Investigate ▸ Runs matrix ▸ Summarize a folder*): one row per recording of a folder - the same measures in each (max / min / mean / rms / final… of a signal, optionally only *where* a condition holds) and parameters from the file name (`{vehicle}_{date}`); read one file at a time (memory: one file's), any format, sub-folders not included
+- A `measures.json` beside the recordings (the Runs matrix's *Save measures*: `{"measures": [...], "pattern": "..."}`) is used at once; without one, the folder's first recording opens with the Runs matrix to define the measures on it, and its *Summarize a folder* remembers the folder. The same file runs from the command line: `signalviewer-cli summarize <folder> --measures measures.json`
+- The table opens in Sweeps with a *recording* column: tick rows and *Open in Recordings* opens them together (Compare-ready); a set's detail opens its runs' recordings
+- The welcome card *A folder of recordings* (`examples/folder_of_flights`, ten flights of two copters with its `measures.json`): X8-A's vibration grows flight after flight (18 → 67), X8-B's battery drops on its last flight
 
 ## Map and 3D { #map }
 

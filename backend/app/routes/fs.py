@@ -68,8 +68,8 @@ EXAMPLE_SETS = [
                                      "sim_vs_flight/flight_attitude_doublets.bin"]},
     {"id": "investigate", "files": ["investigate/heavy_payload.csv",                  # the Investigate tools,
                                     "investigate/light_payload.csv"]},                # with a known answer
-    # review (owner, 2026-11-13: a clear demo for everything): the single results table opens in Sweeps,
-    # the fleet folder in the Fleet area - "open" says where; the first file is what the area opens
+    # review (owner, 2026-11-13: a clear demo for everything): the single results table opens in Sweeps -
+    # "open" says where; the last file is what the area opens
     {"id": "sweepTable", "open": "sweep", "files": ["sweeps/drone_tuning.csv", "sweeps/drone_tuning.svsweep"]},
     # --- lane W0 --- the 2026-11-13 round's two sets: "open": "study" = the card opens the study file
     # (the last file) in the Sweeps panel, not the tables as recordings.
@@ -77,7 +77,6 @@ EXAMPLE_SETS = [
      "files": ["drones/drone_a.csv", "drones/drone_b.csv", "drones/drone_c.csv", "drones/drones.svstudy.json"]},
     {"id": "smartSweepDemo", "open": "study",                                         # W18: converge on your PC
      "files": ["smart_sweep_demo/sim.py", "smart_sweep_demo/demo.svstudy.json"]},
-    {"id": "fleet", "open": "fleet", "files": ["fleet/X8-A_2026-09-02.bin", "fleet/X8-B_2026-09-05.bin"]},
 ]
 
 

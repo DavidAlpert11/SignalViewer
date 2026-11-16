@@ -65,19 +65,3 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 .instruments .ins-missing { opacity: .7; }
 .instruments .ins-add select { width: 100%; }
 .instruments .empty-state { padding-inline: 0; }
-
-/* D10 Fleet in the new look - the app's components (index.css) placed; the area's own layout stays in index.css */
-.fleet-area .eyebrow { margin: 0; }
-.fleet-summary { border-radius: var(--r-card); }
-.fleet-tiles.kpis { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
-.fleet-tiles .kpi.err .kpi-value { color: var(--danger); }
-.fleet-tiles .kpi.warn .kpi-value { color: var(--warn); }
-.fleet-questions .eyebrow { margin-inline-end: var(--sp-1); }
-.fleet-findings li.hrow { align-items: center; }
-.fleet-findings li.hrow span { color: var(--ink); }
-.fleet-trend.card { padding: var(--sp-2); }
-.fleet-trend.card svg { background: none; }
-/* a limit is a threshold, not the time: the danger colour (amber is the cursor's / the time's alone) */
-.fleet-limitline { stroke: var(--danger); }
-.fleet-ytick.limit { fill: var(--danger); }
-.fleet-first { font-weight: 500; }
