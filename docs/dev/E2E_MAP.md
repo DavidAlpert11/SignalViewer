@@ -1,5 +1,11 @@
 # E2E map
 
+**Files renamed (FR12, 2026-11-16)** - the lines below keep the names of their time:
+`test_release_1_21.py` -> `test_tuning_tools.py`; `test_round_1112.py` -> `test_map_places_story_export.py`;
+`test_owner_notes_1_20.py` split by feature - its legend test into `test_plot_polish.py`, made signals in the list into
+`test_name_tree.py`, the mode-coloured track into `test_map_objects.py`, Sweeps' runs tab / Pareto / Clear into
+`test_sweeps_flow.py`.
+
 ## Round of 2026-11-14 (the redesign; plan §7.0 – one block per lane, add lines only inside yours)
 
 <!-- 1114 lane L1 -->
@@ -124,3 +130,4 @@ inside your lane's block.
 - `test_study_demo.py` – FR6: *Run until converged* writes Kp / Ki / Kd = … and the value (en / he).
 - `test_sweeps_workspace.py` – FR6: three equal starts, one click each, examples under them; a study with tables does not need a table, "3 tables" in the status; `_new_study` through Open ▾. `test_calm_screen.py`, `test_sweeps_flow.py` follow the new labels.
 - FR11: `test_features.open_example(pg, id)` - a welcome card, else Help → Examples; the files that opened a moved example use it; `test_welcome_cards` checks the six and the 11 in Help.
+- FR12: the round-named files renamed / split by feature (see the top of this file); the six files involved ran green.

@@ -7,7 +7,7 @@ import os
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, goto_folder, pg, save_as, open_example  # noqa: E402,F401
+from test_features import env, goto_folder, menu_item, pg, save_as, open_example  # noqa: E402,F401
 
 # the four steps (2026-11-01 redesign); "clean" is part of the columns, "report" and "run" are tools
 STEP = {"raw": 0, "clean": 1, "roles": 1, "goals": 2, "results": 3, "report": 3}
@@ -1057,3 +1057,28 @@ def test_all_runs_shows_the_scenarios(pg):
     assert runs[3:6] == ["scenario_wind_mps", "scenario_payload_kg", "scenario_gusts"], runs
     pg.locator("[role=tab]", has_text="Parameter sets").first.click()
     pg.wait_for_function("!window.__svAxes().includes('scenario_gusts')")
+
+
+# FR12: from the owner's notes of 2026-11-03 (1.20; the file was test_owner_notes_1_20.py)
+def test_sweeps_runs_tab_pareto_and_clear(pg):
+    pg.locator(".areas .area-btn", has_text="Sweeps").click()
+    pg.locator(".sw-welcome .btn", has_text="Try an example").click()
+    pg.wait_for_selector(".sw-steps")
+    pg.locator(".sw-step-btn[data-step='goals']").click()
+    pg.locator("select[aria-label='Optimize energy_wh']").select_option("min")
+    pg.wait_for_selector("text=More than one to optimize?")
+    pg.locator("select[aria-label='Optimize roll_error_deg']").select_option("min")
+    pg.locator(".sw-rankby select").select_option("pareto")
+    pg.wait_for_selector(".sw-optimize-now:has-text('Pareto front of')")
+    pg.locator(".sw-rankby .btn").click()
+    pg.wait_for_selector(".sw-pane select >> nth=0")
+    assert pg.locator(".sw-pane").first.locator("select").first.input_value() == "pareto"
+    tabs = pg.locator(".sw-center-tabs button").all_inner_texts()
+    assert tabs[0] == "Parameter sets · 45" and tabs[1] == "All runs · 810"
+    # Clear > everything: closed, the notice's Undo opens it again
+    pg.locator(".sw-clear-btn").click()
+    menu_item(pg, "Everything")
+    pg.locator(".dialog-foot .btn").last.click()
+    pg.wait_for_selector(".sw-welcome")
+    pg.locator(".toast button:has-text('Undo')").click()
+    pg.wait_for_selector(".sw-steps")

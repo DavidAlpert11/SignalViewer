@@ -1,9 +1,11 @@
 """L7 (2026-11-13): W7 the two cursors' bar in the plot's head, W9 the views badge / a flight log's dimmed
 message part, W13.2 the first draw-in (once per tab), T49 item 10 the cursors next to the zoom."""
+import numpy as np
+import os
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, open_files, pg, sig  # noqa: E402,F401
+from test_features import S, _csv, env, menu_item, open_files, pg, sig  # noqa: E402,F401
 
 
 def test_two_cursors_bar_sits_in_the_plot_head(pg):
@@ -133,3 +135,54 @@ def test_the_run_at_a_glance_shows_its_numbers_and_the_checks(pg):
     gls.nth(1).locator(".ov-gl-more").click()
     menu_item(pg, "Unpin")
     pg.wait_for_function("(window.__sv.state().ws.glance || []).length === 1")
+
+
+# FR12: from the owner's notes of 2026-11-03 (1.20; the file was test_owner_notes_1_20.py)
+def _many(pg, n):
+    p = os.path.join(pg.env["data"], f"many{n}.csv")
+    if not os.path.exists(p):
+        t = np.arange(0, 20, 0.02)
+        # values whose printed length changes as the cursor moves (1.5, -0.25, 123.456...)
+        _csv(p, ["Time"] + [f"Channel_{i:02d}_measured" for i in range(n)],
+             [t] + [np.sin(t * (1 + i / 7)) * 10 ** (i % 4) for i in range(n)])
+    return os.path.basename(p)
+
+
+def _plot_all(pg, prefix, n):
+    pg.evaluate("""([prefix, n]) => { const st = window.__sv.state(); const r = st.runs.find((x) => x.signals.some((y) => y.name.startsWith(prefix)));
+        const sigs = r.signals.filter((y) => y.name.startsWith(prefix)).slice(0, n)
+          .map((y, i) => ({ sig: y.id, color: ['#3D8BFD', '#F07B3F', '#2FBF9F'][i % 3], width: 1.5, scale: 1, offset: 0 }));
+        st.commit((ws) => { ws.tabs[0].plots[0].signals = sigs; return ws; }); }""", [prefix, n])
+    pg.wait_for_function(f"window.__sv.state().ws.tabs[0].plots[0].signals.length === {n}")
+
+
+def test_legend_beside_when_many_and_still_while_hovering(pg):
+    open_files(pg, _many(pg, 30))
+    _plot_all(pg, "Channel_", 30)
+    # many: a column beside the plot, the header one line
+    pg.wait_for_selector(".legend-side .lrow")
+    assert pg.locator(".legend-side .lrow").count() == 30
+    assert pg.locator(".plot-head").first.bounding_box()["height"] < 40
+    # the filter, and the line under the pointer in front
+    pg.fill(".legend-filter", "Channel_07")
+    assert pg.locator(".legend-side .lrow").count() == 1
+    pg.locator(".legend-side .lrow").first.hover()
+    assert S(pg, "s.legendFocus && s.legendFocus.sig.endsWith('Channel_07_measured')")
+    pg.fill(".legend-filter", "")
+    # above the plot (the menu), a few signals: the header never gets lower while the pointer moves
+    pg.locator(".plot-more").first.click()
+    pg.locator(".menu.ctx button", has_text="Legend").first.hover()
+    menu_item(pg, "Above the plot")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].legend === 'top'")
+    pg.evaluate("""() => { const st = window.__sv.state(); st.commit((ws) => { ws.tabs[0].plots[0].signals = ws.tabs[0].plots[0].signals.slice(0, 6); return ws; }); }""")
+    box = pg.locator(".plot-body").first.bounding_box()
+    hs = []
+    for i in range(40):
+        pg.mouse.move(box["x"] + 20 + i * (box["width"] - 40) / 40, box["y"] + box["height"] / 2)
+        hs.append(round(pg.locator(".plot-head").first.bounding_box()["height"]))
+    assert all(b >= a for a, b in zip(hs, hs[1:])), hs           # grows at most, never jumps back
+    assert pg.locator(".plot-body .hover-t").count() == 1           # the time in the plot's corner
+    # hidden: a button says how many and shows it again
+    pg.evaluate("() => window.__sv.state().commit((ws) => { ws.tabs[0].plots[0].legend = 'off'; return ws; })")
+    pg.locator(".legend-hidden").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].legend === undefined")

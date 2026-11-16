@@ -10,7 +10,7 @@ import shutil
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, open_files, pg, S  # noqa: E402,F401
+from test_features import env, menu_item, open_files, pg, S, settled, sig  # noqa: E402,F401
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -123,3 +123,39 @@ def test_pinned_searches_as_chips(pg):
     pg.evaluate("document.activeElement.blur()")
     pg.keyboard.press("Control+z")                                   # through commit: Undo brings it back
     pg.wait_for_function("window.__sv.state().ws.searches?.some((x) => x.q === 'nav')")
+
+
+# FR12: from the owner's notes of 2026-11-03 (1.20; the file was test_owner_notes_1_20.py)
+def test_made_signal_renamed_deleted_and_grouped_from_the_list(pg):
+    open_files(pg, "run_a.csv")
+    rid = S(pg, "s.runs[0].id")
+    r = pg.evaluate("""async (rid) => { const r = await fetch('/api/derived', {method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({op: 'expr', sources: [rid + '/Speed'], params: {expr: '2*v0', text: '2*{Speed}'}, name: 'twice'})}); return r.status; }""", rid)
+    assert r == 200
+    pg.evaluate("""async () => { const r = await fetch('/api/derived', {method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({op: 'expr', sources: ['derived/twice'], params: {expr: 'v0+1', text: '{twice}+1'}, name: 'plus'})}); }""")
+    pg.reload(); pg.wait_for_selector(".app")
+    pg.wait_for_function("window.__sv.state().runs.some((r) => r.format === 'derived') && !!window.__sv.state().ws.tabs[0].plots[0]")
+    settled(pg)                                                    # the session put back first
+    pg.evaluate("() => window.__sv.state().commit((ws) => { ws.tabs[0].plots[0].signals = [{sig: 'derived/twice', color: '#3D8BFD', width: 1.5, scale: 1, offset: 0}]; return ws; })")
+    # rename: the plot follows
+    sig(pg, "twice").click(button="right")
+    menu_item(pg, "Rename")
+    pg.locator(".dialog input").first.fill("doubled"); pg.keyboard.press("Enter")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals[0].sig === 'derived/doubled'")
+    # a group, nested by its name
+    sig(pg, "doubled").click(button="right")
+    pg.locator(".menu.ctx button", has_text="Add to a group").first.hover()
+    menu_item(pg, "New group")
+    pg.locator(".dialog input").first.fill("Speeds/Made"); pg.keyboard.press("Enter")
+    pg.wait_for_selector(".ugroups-head")
+    assert [x.split("\n")[0] for x in pg.locator(".grp-head.ugroup").all_inner_texts()] == ["Speeds", "Made"]
+    # delete with Del: what was made from it is asked about, both go, one Undo puts them back
+    sig(pg, "doubled").focus(); pg.keyboard.press("Delete")
+    pg.wait_for_selector(".dialog:has-text('plus')")
+    pg.locator(".dialog-foot .btn").last.click()
+    pg.wait_for_function("!window.__sv.state().runs.some((r) => r.format === 'derived' && r.signals.length)")
+    assert S(pg, "s.ws.tabs[0].plots[0].signals.length") == 0
+    pg.locator(".toast button:has-text('Undo')").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
+    assert S(pg, "s.runs.find((r) => r.format === 'derived').signals.map((x) => x.name).join()") == "doubled,plus"

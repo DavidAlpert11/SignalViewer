@@ -3,7 +3,7 @@ The live HTML page (a replay page sent to a colleague) on a flight around Mount 
 solution that drifts, a GPS): the plots, the 2D map and the 3D view on one time, its Story, and the 3D view
 alone. Made from the code itself (signalviewer's Python API + app/report.py), shot in Chromium with software
 WebGL; no app window, no network (the offline basemap and terrain are bundled). Use it to check the page's look
-after a change to `backend/app/report_assets/`; `flight_csv` is also the test flight of test_story / test_round_1112.
+after a change to `backend/app/report_assets/`; `flight_csv` is also the test flight of test_story / test_map_places_story_export.
 
     python tools/make_live_report_media.py [OUT_DIR]   # live_page.png, story.png, live_3d.png, map_3d.png (default: a temp folder)
 """

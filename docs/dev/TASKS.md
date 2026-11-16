@@ -22,7 +22,7 @@ What is open, in order (the finished history is in the Log and in git: `git show
 | M34 FR9 - quick_check + the short e2e list in CI on every push | owner: not now | - |
 | M34 FR10 - `frontend/dist` and `site/` out of git, built in the release job | done (owner: yes) | - |
 | M34 FR11 - welcome cards 11 -> 6, the rest under Help -> Examples | done (owner: yes, one Sweeps) | retake picture 38_welcome_cards with the release |
-| M34 FR12 - e2e files named by feature, not by round | asks the owner | his yes / no (`test_release_1_21`, `test_round_1112`, `test_owner_notes_1_20`) |
+| M34 FR12 - e2e files named by feature, not by round | done (owner: yes) | - |
 | Release 1.28.0 (with SF1; M34 is "Next - unreleased") | ready, not tagged | the owner tags; the version is not updated here |
 | SW2 (b) - Run again with recording | spec agreed in parts | the owner's final yes on "Open specs" below - do not implement before |
 | BR1 - the app as one process (README, docs home, welcome groups) | proposed | the owner's yes on the wording below |
@@ -387,3 +387,4 @@ What is open, in order (the finished history is in the Log and in git: `git show
 - 2026-11-16 · The owner on FR9-FR12: FR9 not now; FR10 yes; FR11 six cards, one of them a Sweeps example; FR12 yes.
 - 2026-11-16 · FR10: frontend/dist and site/ out of git; run.py builds the UI on the first start and when the sources changed (one stamp rule, no git history); build.bat / build.sh / the portable build it when missing; CLAUDE.md and the docs follow. Backend tests green (test_launcher rewritten), quick_check green; a fresh-clone start checked by hand. No e2e change (the suite serves the same UI).
 - 2026-11-16 · FR11: six welcome cards (one Sweeps: the smart-sweep demo), every example in Help → Examples; tests through `open_example`. e2e ran: test_welcome_cards, test_map_memory, test_compare_diff, test_compare_params, test_compare_tolerances, test_folder_of_recordings, test_judge_a_run, test_study_common, test_sweeps_flow, test_sweeps_workspace, test_file_help_menus, test_workflows, test_first_minute, test_fresh_user, test_calm_screen, test_tour, test_plot_room, test_cursor_labels, test_file_colours, test_study_demo - 136 green (test_fresh_user's examples moved to open_example).
+- 2026-11-16 · FR12: test_release_1_21 -> test_tuning_tools, test_round_1112 -> test_map_places_story_export, test_owner_notes_1_20 split into test_plot_polish / test_name_tree / test_map_objects / test_sweeps_flow; E2E_MAP says so at its top. e2e ran: those six files - 72 green.

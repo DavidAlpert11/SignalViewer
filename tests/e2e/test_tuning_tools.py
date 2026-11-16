@@ -1,7 +1,8 @@
-"""1.21: Filter review (the IMU batch sampler, the harmonic notches and the gyro low-pass on an FFT
-plot), the Step response plot, the Log panel's Hardware tab and the Compare panel's time tolerance.
+"""Tuning tools (since 1.21): Filter review (the IMU batch sampler, the harmonic notches and the gyro low-pass on an
+FFT plot), the Step response plot, the Log panel's Hardware tab and the Compare panel's time tolerance (a step's
+timing). (FR12: was test_release_1_21.py.)
 
-    python -m pytest tests/e2e/test_release_1_21.py -q
+    python -m pytest tests/e2e/test_tuning_tools.py -q
 """
 import os
 import sys

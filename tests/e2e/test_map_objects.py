@@ -5,6 +5,7 @@ file), drawn at the timeline's time pointing where they head, followed, removed 
 """
 import os
 
+import shutil
 import pytest
 
 pytest.importorskip("playwright.sync_api")
@@ -240,3 +241,24 @@ def test_export_the_objects_for_tacview(pg):
     assert [x.split(",CallSign=")[1].split(",")[0] for x in named] == ["phys", "nav", "gps"]
     assert all(",Name=C172," in x for x in named)
     assert all(len(x.split(",")[1][2:].split("|")) == 6 for x in named)       # position and attitude each
+
+
+# FR12: from the owner's notes of 2026-11-03 (1.20; the file was test_owner_notes_1_20.py)
+ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
+
+
+def test_map_track_coloured_by_the_flight_mode(pg):
+    src = os.path.join(ROOT, "examples", "copter_flight.bin")
+    shutil.copy(src, os.path.join(pg.env["data"], "copter_flight.bin"))
+    open_files(pg, "copter_flight.bin")
+    rid = S(pg, "s.runs[0].id")
+    obj = {"id": "o1", "name": "Copter", "kind": "drone", "color": "#E5677A", "lat": f"{rid}/GPS[0].Lat [deg]",
+           "lon": f"{rid}/GPS[0].Lng [deg]", "trail": True, "trackColor": "state", "colorSig": f"{rid}/MODE.Mode"}
+    pg.evaluate("""(o) => window.__sv.state().commit((ws) => { const p = ws.tabs[0].plots[0];
+        p.mode = 'geo'; p.xSignal = o.lon; p.signals = [{sig: o.lat, color: '#3D8BFD', width: 1.5, scale: 1, offset: 0}]; p.objects = [o]; return ws; })""", obj)
+    pg.wait_for_selector(".track-key", timeout=30000)
+    txt = pg.locator(".track-key").inner_text()
+    assert "MODE.Mode" in txt and "AUTO" in txt and "LOITER" in txt
+    # the object's dialog: the choice and its signal
+    pg.locator(".obj-chip-main").first.click()
+    assert pg.locator(".obj-trackcolor select").input_value() == "state"

@@ -1,8 +1,9 @@
-"""Round of 2026-11-12: the map's "Export the flight" submenu writes each of its three outputs
-(Tacview .acmi, Tacview CSV files in a folder, Google Earth .kml), and an object with no position
-(0, 0 for the whole file) is not added by *Add all*.
+"""The Map's flight, end to end (FR12: was test_round_1112.py, the round of 2026-11-12): *Export the flight* writes its
+three outputs (Tacview .acmi, Tacview CSV files in a folder, Google Earth .kml); objects hidden on the map and in the
+page's legend; the flat map without WebGL; places (add, fly to, on the page); a new object's icon from Settings; the
+3D page; the story - in the live page and in the app, keeping a chosen camera.
 
-    python -m pytest tests/e2e/test_round_1112.py -q
+    python -m pytest tests/e2e/test_map_places_story_export.py -q
 """
 import os
 import shutil
