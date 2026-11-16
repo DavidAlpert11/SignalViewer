@@ -20,6 +20,7 @@ hidden = (
     + collect_submodules("svcore")
     + collect_submodules("signalviewer")       # W17 / W18: `SignalViewer.exe study ...` (run.py imports it inside main)
     + ["scipy.io.matlab", "h5py", "docx", "bidi", "bidi.algorithm", "multipart", "python_multipart",
+       "openpyxl",   # pandas imports it by name for .xlsx
        "matplotlib.backends.backend_agg", "matplotlib.backends.backend_pdf", "matplotlib.backends.backend_svg",
        # live MAVLink (T12): imported inside functions / by name, PyInstaller cannot see them
        "pymavlink.mavutil", "pymavlink.dialects.v20.ardupilotmega", "serial", "serial.tools.list_ports"]

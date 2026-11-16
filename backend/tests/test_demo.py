@@ -124,7 +124,8 @@ def test_the_demo_converges_in_a_minute_with_10x_fewer_runs(tmp_path, monkeypatc
     print(f"demo: {took:.1f} s on {os.cpu_count()} CPUs, {len(p['points'])} rounds, reached at {hit and hit['runs']} runs, "
           f"saving {p['saving']}x; {out[-1]}")
     assert code in (0, 3)
-    assert hit is not None and p["saving"] >= 10 and took < 60
+    # a minute on a developer's machine; a shared CI runner (3 CPUs, macOS) is slower - the guard is for a regression
+    assert hit is not None and p["saving"] >= 10 and took < (120 if os.environ.get("CI") else 60)
     assert out[-1].startswith("Found the full-grid optimum within 0.5 %")
     # determinism: the same rounds again
     capsys.readouterr()

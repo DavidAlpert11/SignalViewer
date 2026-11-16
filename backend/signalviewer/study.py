@@ -139,8 +139,12 @@ def cmd_submit(a: argparse.Namespace) -> int:
         if not a.yes:
             if not sys.stdin.isatty():
                 return _err("Not run: add --yes to run the command without asking (it comes from the study file).")
-            if input("Run it? [y/N] ").strip().lower() not in ("y", "yes"):
-                return _err("Not run.")
+            try:
+                answer = input("Run it? [y/N] ")
+            except EOFError:                 # no one to answer (Windows' NUL reads as a terminal)
+                answer = ""
+            if answer.strip().lower() not in ("y", "yes"):
+                return _err("Not run: add --yes to run the command without asking (it comes from the study file).")
         r = L.submit(studies_load(a.study), a.round, wait=False)
     except L.LauncherError as e:
         return _err(str(e))

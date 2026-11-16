@@ -255,3 +255,10 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   (the plan's place for it, §7; the same 55 on the commit before this session), its limit raised to 55 with the reason.
   quick_check green, mkdocs build --strict green, `npm run build` (frontend/dist committed). CHANGELOG 1.27.0
   highlights name E1 / M1 / M2 / M3 / P / S1 / S2. Proposed to the owner: tag v1.27.0.
+- 2026-11-16 · CI (the owner's run, Linux / macOS / Windows) found 4 backend failures, fixed: (1) Excel export (S2)
+  needed openpyxl, which was in no requirements - added to requirements.txt (MIT, pure Python), the .spec's hidden
+  imports, svcore/extras.py "excel" for the lite package, and a plain 400 when it is missing; (2) test_fs_edit sent a
+  file to the CI machine's real bin on Windows / ~/.Trash on macOS while checking the freedesktop one - the test now
+  checks the freedesktop bin on every platform (to_trash patched) and _mac on its own; (3) `study submit` without
+  --yes on Windows: NUL reads as a terminal, input() met EOF - an EOF is now "no" with the same message; (4) the demo's
+  one-minute bound is 120 s on CI (a 3-CPU macOS runner took 64 s; the saving 64x held). quick_check green.

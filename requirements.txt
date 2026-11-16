@@ -18,3 +18,4 @@ mcap>=1.1             # ROS 2 / Foxglove recordings (.mcap, T27): MIT, Foxglove,
 mcap-ros2-support>=0.5   # decodes ROS 2 messages from the file's own definitions (no ROS install); MIT
 lz4>=4.0              # compressed MCAP chunks (used by mcap)
 zstandard>=0.21       # compressed MCAP chunks (used by mcap)
+openpyxl>=3.1         # Sweeps: export the table as Excel (.xlsx, S2) and read .xlsx tables; MIT, pure Python

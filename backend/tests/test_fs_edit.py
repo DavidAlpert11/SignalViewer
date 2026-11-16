@@ -20,7 +20,18 @@ def home(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(h))
     monkeypatch.setenv("USERPROFILE", str(h))
     monkeypatch.setenv("XDG_DATA_HOME", str(h / ".local" / "share"))
+    # every platform checks the freedesktop bin here: on Windows the real Recycle Bin would be the CI machine's own
+    from app import trash
+    monkeypatch.setattr(trash, "to_trash", lambda p: trash._freedesktop(os.path.abspath(p)))
     return h
+
+
+def test_the_mac_bin_keeps_both_of_one_name(home):
+    from app import trash
+    for text in ("one", "two"):
+        (home / "data" / "x.csv").write_text(text)
+        trash._mac(str(home / "data" / "x.csv"))
+    assert (home / ".Trash" / "x.csv").read_text() == "one" and (home / ".Trash" / "x 2.csv").read_text() == "two"
 
 
 def test_new_folder_rename_and_delete_to_the_bin(home):

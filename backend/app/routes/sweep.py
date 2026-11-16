@@ -949,6 +949,11 @@ def sweep_export_table(req: ExportTableReq):
             fail(400, str(e))
     if req.format == "xlsx" and len(df) > 1_048_575:
         fail(400, f"Excel holds at most 1,048,575 rows; this table has {len(df):,} - export it as CSV or Parquet.")
+    if req.format == "xlsx":
+        try:
+            import openpyxl  # noqa: F401
+        except ImportError:
+            fail(400, "Excel export needs the openpyxl package (pip install openpyxl) - or export the table as CSV or Parquet.")
     try:
         if req.format != "html":
             with atomic_path(path) as tmp:

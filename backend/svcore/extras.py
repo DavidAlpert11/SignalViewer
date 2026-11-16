@@ -14,6 +14,7 @@ EXTRAS = {
     "px4": ["pyulog"],                                        # .ulg
     "ros": ["mcap", "mcap-ros2-support", "lz4", "zstandard"],  # .mcap
     "reports": ["matplotlib", "python-docx", "python-bidi"],  # PDF / Word reports, images
+    "excel": ["openpyxl"],                                    # Sweeps tables as .xlsx (export, open)
     "desktop": ["pywebview"],                                 # its own window instead of the browser
 }
 # extras that stay optional in the full package too (heavy, or need system parts)
