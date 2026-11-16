@@ -42,7 +42,7 @@ Cyprus) and the app uses every pack in that folder - copy a pack folder there on
 from the app itself (Natural Earth 1:50m, simplified to about 3 km - good for seeing which country,
 not for a border's exact line): *Borders*, in the *Map* background picker. The street maps draw their own.
 
-## My maps and keeping an area offline (1.28)
+## My maps and keeping an area offline (1.27)
 
 **My maps** (*Map* picker → *Add a map…*): a raster **MBTiles** file (read on this PC, fully offline) or a
 tile server of your own (XYZ, or TMS with its y axis flipped - for example a server on the local network).
@@ -56,7 +56,7 @@ another kept area also covers stays). Only where the map's terms allow bulk down
 (open data) and your own servers. OpenStreetMap, Esri and OpenTopoMap forbid it - the dialog says so; the
 places you look at are still kept in the cache as before. The list lives in `~/.signalviewer/kept_areas.json`.
 
-## Height profile and arrows along the path (1.28)
+## Height profile and arrows along the path (1.27)
 
 **Height profile** (*Profile* in the map's bar): under the map, the object's height and the ground under it
 along the distance flown, for any recording with positions (`/api/profile`, the ground from the same heights
@@ -140,7 +140,7 @@ with it hidden and their legend rows are buttons (`svLegend` in `report_assets/r
 One Map, and it is the 3D view; "2D" is its camera *From above*. Saved values do not change: `mode: "geo"`
 **with objects** is drawn by the 3D view (`isMapPlot`, `mapObjects.ts`) with the camera From above
 (`Plot.camera` absent on such a plot = `"top"`; `mapCamera`); `mode: "3d"` as before (absent = Free, or
-Around it with a followed object); new maps are `"3d"`. Free writes `camera: "free"`. 1.28 renamed the
+Around it with a followed object); new maps are `"3d"`. Free writes `camera: "free"`. 1.27 renamed the
 cameras on screen only - *Free* (`"free"`), *From above* (`"top"`), *Around it* (absent with a followed
 object), *Behind it* (`"chase"`), *Cockpit* (`"cockpit"`) - the saved values are unchanged, so a session opens
 with the same camera as before. A 1.25 build
@@ -160,7 +160,7 @@ the 3D page's frame for a browser without WebGL is **not done** (the page shows 
 | 2D feature | where it was (GeoChart.tsx) | where it is now |
 |---|---|---|
 | the mouse's position | `.geo-readout` (lat / lon) | `Globe3D.tsx` `.g3-readout`: lat / lon (decimals by the camera's height), ground height, distance / bearing from the reference (`scene.globe.pick`, one update a frame) - e2e `test_the_map_from_above_and_the_mouse_readout` |
-| north up / track up | `mapUp` | From above: north up; *Behind it* keeps the chosen object's heading up (1.28: the separate *Track up* button is gone; the N turns a turned map back north) |
+| north up / track up | `mapUp` | From above: north up; *Behind it* keeps the chosen object's heading up (1.27: the separate *Track up* button is gone; the N turns a turned map back north) |
 | ring tooltips | `ringTip` | the 3D rings and their hover (1.26, existing) |
 | relation lines and distance | relation layer | existing in 3D (`relLines`) - `test_globe3d` related-objects test |
 | track colouring by a value | `trackColors` | existing in 3D (`objColors`) |

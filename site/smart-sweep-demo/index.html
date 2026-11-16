@@ -1538,12 +1538,12 @@ smart_sweep_demo</code>, never in the installed examples.</p>
 <li>it ranks every value tried so far and proposes again – until the best has not changed for two rounds, nothing
    is left to try, or the round limit. <em>Stop</em> stops after the running round; the loop can be started again later.</li>
 </ol>
-<p>The Run column shows what the next round will run, the exact command, the runs done / running / failed, the best
-so far and the convergence; each round is listed under its table in the study's navigator (new ones marked) and
+<p>The demo opens on <strong>Next runs</strong>: it shows what the next round will run, the exact command, the runs done / running / failed, the best
+so far and the convergence; each round is listed under its table in the Data step (new ones marked) and
 opens as that table.</p>
 <h2 id="make-it-yours">Make it yours<a class="headerlink" href="#make-it-yours" title="Permanent link">&para;</a></h2>
-<p>In the demo, <em>About this study</em> (in the navigator) → <em>Copy the demo to a folder…</em> copies the study and <code>sim.py</code>
-into a new folder and opens it as a study, nothing run yet. There, in its <strong>Set up</strong> → <em>How to run</em>:</p>
+<p>In the demo, <em>About this study</em> (in the Data step) → <em>Copy the demo to a folder…</em> copies the study and <code>sim.py</code>
+into a new folder and opens it as a study, nothing run yet. There, in <strong>Next runs</strong> → <em>How to run</em>:</p>
 <ul>
 <li><strong>The command for one run</strong> – one argument per line, run without a shell, e.g.
   <code>python</code> · <code>{{study_dir}}/my_sim.py</code> · <code>{{params_file}}</code> (<code>{{study_dir}}</code> is the study's folder; the command runs in
@@ -1553,7 +1553,7 @@ into a new folder and opens it as a study, nothing run yet. There, in its <stron
 <li><strong>Results</strong> – where a run's result file appears;</li>
 <li>each table's <strong>parameters file</strong> – a template with <code>{{column}}</code> placeholders.</li>
 </ul>
-<p>Then <em>Next round</em> or <em>Run until converged</em> in the Run column. If no run of a round gives a result, the loop stops and shows the end of the command's output.</p>
+<p>Then <em>Next round</em> or <em>Run until converged</em> beside it. If no run of a round gives a result, the loop stops and shows the end of the command's output.</p>
 <h2 id="your-own-program">Your own program<a class="headerlink" href="#your-own-program" title="Permanent link">&para;</a></h2>
 <p>Keep the contract – read the parameters file, write one CSV row (inputs, outputs, <code>run_id</code>) where <code>out</code> says –
 and change the study's <code>launcher.submit</code> to run it, e.g. <code>["python", "my_sim.py", "{{params_file}}"]</code>. To run the

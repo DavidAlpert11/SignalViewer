@@ -6,7 +6,7 @@ body { display: flex; flex-direction: column; }
 header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
 header h1 { font-size: 14px; margin: 0; flex: 1; min-width: 6em; }
 button, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
-/* selected: the app's neutral ink (amber is the cursor and time only, as in the app since 1.28) */
+/* selected: the app's neutral ink (amber is the cursor and time only, as in the app since 1.27) */
 button.on, button[aria-pressed="true"] { background: var(--select); border-color: var(--select); color: var(--select-ink); }
 .seg { display: inline-flex; align-items: center; gap: 0; }
 .seg > span { color: var(--muted); margin-inline-end: 4px; }

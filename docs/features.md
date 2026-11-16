@@ -196,7 +196,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Legend place
 
-- **Statistics of the shown window** (1.28; a plot's menu ▸ *Legend*): the lowest, mean and highest value of each line over the time on screen, beside it in the legend, recomputed with every pan and zoom - fast on signals of tens of millions of samples. The mean is the plain mean of the samples in the window, not weighted by time.
+- **Statistics of the shown window** (1.27; a plot's menu ▸ *Legend*): the lowest, mean and highest value of each line over the time on screen, beside it in the legend, recomputed with every pan and zoom - fast on signals of tens of millions of samples. The mean is the plain mean of the samples in the window, not weighted by time.
 - A plot's menu ▸ *Legend*: *Automatic* (above while it fits in two rows, else a column beside the plot), *Above the plot*, *Beside the plot*, *Hidden* (a button says how many signals and shows it again)
 - Beside the plot: a row per signal, the values in one aligned column, a filter above 8 signals, the width dragged (double-click: as it was)
 - The values never move the legend: each keeps a place as wide as the widest it had, and the header does not get lower while the pointer is in the plot; the time under the pointer is in the plot's corner; a name that says its unit (`Roll [deg]`) does not repeat it after the value
@@ -224,7 +224,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Top bar
 
-- One top row, the same in every work area: the areas as one switch (*Recordings · Sweeps · Fleet*), then the Recordings tools (no File menu, F35): open / save session, Templates ▾ (save a template, a new collection), **Live ▾** (it follows the open files and MAVLink, so it is the Recordings area's), undo / redo, Clear ▾ (what to clear, see *Start over*) and the Inspector; Ctrl+K, Settings, day / night (one click), language and the Help menu. The plot tabs, with **+** (a new tab) and **▾** (the views menu: a new tab, a template or collection, the tabs a template left out), are in the stage bar above the plots (1.28: the plots gained 40 pixels of height) - opening files is in the file list (Ctrl+O), recent files Ctrl+P; Settings (theme, text size, time as seconds or a clock; kept between starts, not changed by sessions; the disk space the app uses for speed - CSV cache and log indexes, copies of files dropped into a browser, map tiles - each with its size and *Clear*; and the results kept in memory to be fast - changed and derived signals, spectra, plot summaries, statistics - with its limit, `SV_MEMCACHE_MB`, default 1024) and Help menu (keyboard shortcuts, the examples, copy error details, about)
+- One top row, the same in every work area: the areas as one switch (*Recordings · Sweeps · Fleet*), then the Recordings tools (no File menu, F35): open / save session, Templates ▾ (save a template, a new collection), **Live ▾** (it follows the open files and MAVLink, so it is the Recordings area's), undo / redo, Clear ▾ (what to clear, see *Start over*) and the Inspector; Ctrl+K, Settings, day / night (one click), language and the Help menu. The plot tabs, with **+** (a new tab) and **▾** (the views menu: a new tab, a template or collection, the tabs a template left out), are in the stage bar above the plots (1.27: the plots gained 40 pixels of height) - opening files is in the file list (Ctrl+O), recent files Ctrl+P; Settings (theme, text size, time as seconds or a clock; kept between starts, not changed by sessions; the disk space the app uses for speed - CSV cache and log indexes, copies of files dropped into a browser, map tiles - each with its size and *Clear*; and the results kept in memory to be fast - changed and derived signals, spectra, plot summaries, statistics - with its limit, `SV_MEMCACHE_MB`, default 1024) and Help menu (keyboard shortcuts, the examples, copy error details, about)
 
 ### Zoom
 
@@ -429,7 +429,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ## Checks and the file { #checks }
 
-For any recording, not only flight logs (1.28: the Log panel became *Checks*).
+For any recording, not only flight logs (1.27: the Log panel became *Checks*).
 
 ### Checks
 
@@ -504,7 +504,7 @@ For any recording, not only flight logs (1.28: the Log panel became *Checks*).
 
 ### Map
 
-- One **Map** (1.26): the earth with its terrain; its bar's camera *Free · From above · Around it · Behind it · Cockpit* on a chosen object (1.28: named by what they do, each with a small picture; *Behind it* is what *Track up* did, and a saved session opens with the same camera), + / − / fit, *Relation*, *Display*, *▶ Story*; the mouse's latitude / longitude, ground height and distance from the reference (and from the nearest place) in a corner. Without graphics acceleration it is drawn flat and says so. *3D (XYZ)* is the other plot type - any three signals on plain 3D axes, not a map.
+- One **Map** (1.26): the earth with its terrain; its bar's camera *Free · From above · Around it · Behind it · Cockpit* on a chosen object (1.27: named by what they do, each with a small picture; *Behind it* is what *Track up* did, and a saved session opens with the same camera), + / − / fit, *Relation*, *Display*, *▶ Story*; the mouse's latitude / longitude, ground height and distance from the reference (and from the nearest place) in a corner. Without graphics acceleration it is drawn flat and says so. *3D (XYZ)* is the other plot type - any three signals on plain 3D axes, not a map.
 - **Places** (1.26): points (with an icon), lines and areas on every Map, and saved camera views - *Places of this session* and *My places* (`~/.signalviewer/places.json`); right-click *Add a place here…*, typed positions (decimal or degrees-minutes-seconds), *Mark this spot*, import `.kml` / `.kmz` / `.geojson` / `.csv`, export `.kml`; a click flies there; in the pages, pictures, KML and ACMI (stationary waypoints).
 - **The wow** (1.26): the sun where it was, sky, soft shadows near the objects, drop lines and discs, the last 10 s brighter, camera flights, Cockpit, the flight display (attitude, ground speed and altitude tapes), a mini-map, and the error surface between truth and a navigation solution (green → red at the 95th percentile; the flat drawing colours the track). Off in the light mode.
 - **Story mode** (1.26): the moments that matter (the log's marks, takeoff / landing, highest, fastest, steepest bank, passing a place, the largest error or closest / farthest) played as a guided film in the live page and the app; PDF / Word "The flight in N moments".
@@ -524,7 +524,7 @@ For any recording, not only flight logs (1.28: the Log panel became *Checks*).
 - A map leaves the app (since 1.25): *Save image (PNG)* (this view or all the tracks), *Save as HTML (opens offline)* - one file with the tracks, a time slider and values on hover - and maps inside reports (PDF, Word, HTML)
 - The whole process from a script (since 1.25): `rec.objects()`, `sv.compare_objects(…)`, `sv.similar(…)`, `sv.map_image / map_html`, `sv.report`; `signalviewer-cli objects | compare-objects | compare-similar | map` (with `--tolerance` for pass / fail and JUnit); `POST /api/objects/detect | compare | similar` - the same numbers as the dialog. See [Scripting API](api.md) and [Command line](command-line.md)
 
-### Map backgrounds, height profile, arrows (1.28)
+### Map backgrounds, height profile, arrows (1.27)
 
 - **The *Map* background picker** in the corner of every map (2D and 3D): each background as a picture of the place on screen - Offline (the default), the online maps marked ☁ (greyed out with the reason when *Never use the network* is on), *Borders*, *Satellite + roads* (Esri satellite photos with the roads and their names) and your own maps; opening it downloads nothing
 - **My maps** (*Add a map…*): a raster MBTiles file (fully offline) or an XYZ / TMS tile server of your own, in 2D, 3D, exported pictures and offline map pages; *Never use the network* blocks a server on the internet, not one on this PC or a private address

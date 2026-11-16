@@ -1,10 +1,14 @@
 # Changelog
 
-## 1.28.0 – 2026-11-15
+## 1.27.0 – unreleased
 
-**Highlights:** a redesign – a calmer look where the data speaks; Sweeps as one study whether you start from results or
-from nothing; plots that read like instruments; a map with its background in one place, offline areas and your own maps;
-and every analysis tool working on any data (flight, vehicle, bench, simulation), not only flight logs.
+**Highlights:** a redesign – a calmer look where the data speaks, plots that read like instruments; **Sweeps as one
+study** in five steps, whether you start from results or from nothing, with **one set of parameters for many systems**
+and **the loop** that runs your program or your farm until it converges, fast on a million runs; a map with its
+background in one place, offline areas and your own maps; every analysis tool working on any data (flight, vehicle,
+bench, simulation), not only flight logs; **a demo for every part of the app** on the welcome screen; and every
+report opens with the process in brief. (Versions 1.27.0 and 1.28.0 were written up separately but never released:
+this release holds both.)
 
 ### The look – a quiet frame, the data speaks
 
@@ -110,10 +114,6 @@ and every analysis tool working on any data (flight, vehicle, bench, simulation)
 - **The file dialog works like a file manager**: *New folder* (to save into it at once), and on each file or folder *Rename* (F2) and *Delete* (Del) – asked first, then moved to the system's recycle bin, so it can be restored from there. Only in your own folders (the home folder and data drives); a file open in Signal Viewer is not deleted until you close it.
 - **The start page is always one click away**: the app's name at the top-left (or Ctrl+K › *Start page*) shows the examples and your recent files again while your files stay open; *Back to your open files* returns to them.
 - If the 3D map cannot draw on this computer (the graphics driver fails), it no longer stops with an error dialog: it draws again in its light mode, and if that fails too, as the flat map, with a note. The error goes to the app's log (Help › Copy error details).
-
-## 1.27.0 – 2026-11-13
-
-Highlights: **a demo for every part of the app** on the welcome screen, grouped by area; **one set of parameters for many systems** – the gains that hold for all of them, the next runs, and **the loop** that runs your program or your farm until it converges (the smart-sweep demo shows it against the whole grid); **Sweeps fast on a million runs**; **every report opens with the process in brief**; and a cleaner, calmer screen.
 
 ### Welcome
 - **The examples show what they are**: each card has a picture of the example's view (light and dark, the same

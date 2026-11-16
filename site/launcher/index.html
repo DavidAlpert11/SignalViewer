@@ -1435,7 +1435,7 @@ in one place (your laptop with the Portable, or one management machine) and spea
    <code>reduce</code> (<code>{"overshoot": "max(roll)"}</code>), JSON with <code>json_keys</code> (<code>{"overshoot": "out.os"}</code>), any file the app
    reads (<code>loader</code>), or a <code>converter</code> command that prints one CSV row. A result is found by <code>run_id</code>, else by the
    run's input values.</li>
-<li><strong>Run a round of 3</strong> (set <code>next.batch</code> to 3), the Run column's <em>Run them</em>, and check that every run turns <em>done</em>.</li>
+<li><strong>Run a round of 3</strong> (set <code>next.batch</code> to 3), <em>Run them</em> in the Next runs step, and check that every run turns <em>done</em>.</li>
 </ol>
 <p>What comes back is collected into <code>next/round_&lt;k&gt;/collected_&lt;table&gt;.csv</code>: add <code>next/round_*/collected_&lt;table&gt;.csv</code>
 to each table's paths and every round's results join the ranking.</p>

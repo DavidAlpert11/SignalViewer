@@ -1475,14 +1475,14 @@
 
 
 <h1 id="one-parameter-set-for-many-systems">One parameter set for many systems<a class="headerlink" href="#one-parameter-set-for-many-systems" title="Permanent link">&para;</a></h1>
-<p><em>Sweeps → Open ▾ → New study… → I have results</em>, then add each system's table (the study's navigator).
+<p><em>Sweeps → Open ▾ → New study… → I have results</em>, then add each system's table (<em>Add table</em> in the Data step).
 You have run a sweep for each of several systems - three drones, say - and they
 must all fly with <strong>the same gains</strong>. Each table has its own scenarios (wind, mass), its own limits and its own
 goal. Signal Viewer finds the values of the shared parameters that hold in <strong>every</strong> table, and ranks them -
-the navigator's <strong>Together</strong> item, shown when the study has two tables or more (a study with one table is
-ranked on its own).</p>
+the Results tab <strong>All systems together</strong>, shown when the study has two tables or more (a study with one table
+is ranked on its own).</p>
 <h2 id="the-question-in-a-study-file">The question, in a study file<a class="headerlink" href="#the-question-in-a-study-file" title="Permanent link">&para;</a></h2>
-<p>A study (<code>&lt;name&gt;.svstudy.json</code>) is built in the app - its <em>Set up</em> in the navigator - and saved with <em>Study ▾ →
+<p>A study (<code>&lt;name&gt;.svstudy.json</code>) is built in the app - <em>Define the problem</em> in the Data step - and saved with <em>Study ▾ →
 Save</em>; <em>Open a saved study</em> opens it again, and the same file is read by the command line.</p>
 <table>
 <thead>
@@ -1532,7 +1532,7 @@ Save</em>; <em>Open a saved study</em> opens it again, and the same file is read
 <p>With the same goal in every table, the values are ranked by the <strong>worst table</strong>; with different goals they are
 ranked on the <strong>Pareto front</strong> (no other value is better in every table). A rejected value says which table,
 scenario and constraint failed, and by how much. Only values that were run are chosen - to try new ones, run
-the next round from the <strong>Run</strong> column. <em>Export CSV…</em> in Together writes the whole ranking; <em>Study ▾ → Report
+the next round from the <strong>Next runs</strong> step (<em>Run from the app</em>). <em>Export CSV…</em> in the systems together writes the whole ranking; <em>Study ▾ → Report
 of the study…</em> writes one HTML page of it (each table's goal and limits, the shared answer with each table's
 verdict, the rounds run).</p>
 <h2 id="next-runs-to-try">Next runs to try<a class="headerlink" href="#next-runs-to-try" title="Permanent link">&para;</a></h2>

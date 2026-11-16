@@ -2277,8 +2277,9 @@ outputs. It answers <em>which parameter sets hold in every scenario, and which o
    as lines - the wheel zooms, a click on a line shows that run), export (CSV, or HTML with its
    parallel plot as you left it) or close. <strong>Merge</strong> makes a new table from the ticked ones - the
    rows one under the other, or side by side on key columns (join) - with a source column if you
-   want it; the tables merged stay. In a study, the navigator on the left chooses the table the next
-   steps work on (see <em>Studies</em> below).</li>
+   want it; the tables merged stay. The tables' column on the left (only in Data; drag its edge to
+   widen it) chooses the table the next steps work on, and <em>Remove from the study</em> (×, with Undo) takes
+   one out (see <em>Studies</em> below).</li>
 <li><strong>Columns</strong> – check each column's role: parameter, output, condition (what you don't choose:
    wind, payload), identifier (a run id or a recording), not used. Above the table: undo, redo,
    <em>Reset to guessed roles</em>, <em>Template ▾</em> (save to a JSON file to share, load - it says what matched)
@@ -2318,18 +2319,22 @@ begin:</p>
   the scenarios, what your program writes and what is good, and the command that runs one run on this PC
   or your farm's launcher. Round 1 runs that grid; each next round is aimed by the results.</li>
 </ul>
-<p>The <strong>navigator</strong> on the left lists the study: its <em>Set up</em> (how many of its four parts are filled),
-<em>Together</em> when it has two systems (tables) or more – the values that hold for all of them – and its
-<em>Tables</em>: each table, the tables merged into it and each round the loop has run (new ones marked). One
-click opens any of them in the four steps; <em>About this study</em> explains it. The <strong>Run</strong> column on the right
-says what the next round will run (for round 1: sets × scenarios = runs) or what is still missing, with
-<strong>Run them</strong>, <em>Only write the files</em> (for a launcher of your own), the loop's <em>Next round</em>, <em>Run until
-converged</em> and <em>Stop</em>, its progress and how it converges; its arrow folds it away. <em>Study ▾</em> saves,
-undoes and closes the study, and <em>Report of the study…</em> writes one HTML page of the whole study. One
-Ctrl+Z undoes the last change anywhere in Sweeps.</p>
+<p>Every study goes through the same five steps: <strong>1 Data · 2 Columns · 3 Goal · 4 Results · 5 Next runs</strong>.
+<strong>Data</strong> defines the problem: on the left the study's tables – the layers of runs: each table, the tables
+merged into it and each round the loop has run (new ones marked); a click shows its data – and <em>Define the
+problem</em> (what varies, the scenarios, the outputs; how many of the three are filled). <em>About this study</em>
+explains a demo. When the study has two systems (tables) or more, <strong>Results</strong> has a tab <em>All systems
+together</em> – the values that hold for all of them. <strong>Next runs</strong> is the one place for the next parameter
+sets: the sets proposed from the results so far (export them to run outside the app) and <em>Run from the
+app</em> – what the next round will run (for round 1: sets × scenarios = runs) or what is still missing, <em>How
+to run</em> (this PC or the farm, the command), <strong>Run them</strong>, <em>Only write the files</em> (for a launcher of your
+own), the loop's <em>Next round</em>, <em>Run until converged</em> and <em>Stop</em>, its progress and how it converges.
+Finished rounds come back as new tables in Data. <em>Study ▾</em> saves, undoes and closes the study, and
+<em>Report of the study…</em> writes one HTML page of the whole study. One Ctrl+Z undoes the last change anywhere
+in Sweeps.</p>
 <p>The open tables are pills in the top row, beside the area names (a click shows one, its × closes it). A round
-stays marked <em>new</em> until you open it. A study table opened from the navigator <em>is</em> that table: change its
-goal in the four steps and the study's table changes too – <em>Together</em> ranks with it, and one Ctrl+Z takes
+stays marked <em>new</em> until you open it. A study table opened from Data <em>is</em> that table: change its goal in
+its Goal step and the study's table changes too – the systems together rank with it, and one Ctrl+Z takes
 both back. A single table opened with <em>I have results</em> is saved as its own <code>.svsweep</code>.</p>
 <h2 id="14-when-something-goes-wrong">14. When something goes wrong<a class="headerlink" href="#14-when-something-goes-wrong" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2360,8 +2365,8 @@ and off either way). The status bar says when a plot is drawn reduced (lowest an
 for the numbers.</p>
 <h2 id="one-parameter-set-for-many-systems-the-next-runs-the-farm-the-demo">One parameter set for many systems, the next runs, the farm, the demo<a class="headerlink" href="#one-parameter-set-for-many-systems-the-next-runs-the-farm-the-demo" title="Permanent link">&para;</a></h2>
 <p><em>Sweeps → Open ▾ → New study…</em>: a study of one or several sweep tables, saved as a <code>.svstudy.json</code>
-(section 13). The values ranked <em>Together</em>, why a value fails, the next runs and the Run column's
-<em>Run them</em> are explained in
+(section 13). The values ranked together, why a value fails, the next runs and <em>Run them</em>
+(in Next runs) are explained in
 <a href="../common-gains/">One parameter set for many systems</a> and <a href="../launcher/">Launcher mode</a>; the welcome screen's
 <em>Smart sweep demo</em> in <a href="../smart-sweep-demo/">The smart-sweep demo</a>.</p>
 <h2 id="closing-with-unsaved-work">Closing with unsaved work<a class="headerlink" href="#closing-with-unsaved-work" title="Permanent link">&para;</a></h2>

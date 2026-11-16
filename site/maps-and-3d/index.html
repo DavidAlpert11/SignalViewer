@@ -918,10 +918,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#my-maps-and-keeping-an-area-offline-128" class="md-nav__link">
+  <a href="#my-maps-and-keeping-an-area-offline-127" class="md-nav__link">
     <span class="md-ellipsis">
       
-        My maps and keeping an area offline (1.28)
+        My maps and keeping an area offline (1.27)
       
     </span>
   </a>
@@ -929,10 +929,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#height-profile-and-arrows-along-the-path-128" class="md-nav__link">
+  <a href="#height-profile-and-arrows-along-the-path-127" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Height profile and arrows along the path (1.28)
+        Height profile and arrows along the path (1.27)
       
     </span>
   </a>
@@ -1505,10 +1505,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#my-maps-and-keeping-an-area-offline-128" class="md-nav__link">
+  <a href="#my-maps-and-keeping-an-area-offline-127" class="md-nav__link">
     <span class="md-ellipsis">
       
-        My maps and keeping an area offline (1.28)
+        My maps and keeping an area offline (1.27)
       
     </span>
   </a>
@@ -1516,10 +1516,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#height-profile-and-arrows-along-the-path-128" class="md-nav__link">
+  <a href="#height-profile-and-arrows-along-the-path-127" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Height profile and arrows along the path (1.28)
+        Height profile and arrows along the path (1.27)
       
     </span>
   </a>
@@ -1685,7 +1685,7 @@ Cyprus) and the app uses every pack in that folder - copy a pack folder there on
 <p><strong>Country borders.</strong> The offline map and the satellite photos get the borders and the country names
 from the app itself (Natural Earth 1:50m, simplified to about 3 km - good for seeing which country,
 not for a border's exact line): <em>Borders</em>, in the <em>Map</em> background picker. The street maps draw their own.</p>
-<h2 id="my-maps-and-keeping-an-area-offline-128">My maps and keeping an area offline (1.28)<a class="headerlink" href="#my-maps-and-keeping-an-area-offline-128" title="Permanent link">&para;</a></h2>
+<h2 id="my-maps-and-keeping-an-area-offline-127">My maps and keeping an area offline (1.27)<a class="headerlink" href="#my-maps-and-keeping-an-area-offline-127" title="Permanent link">&para;</a></h2>
 <p><strong>My maps</strong> (<em>Map</em> picker → <em>Add a map…</em>): a raster <strong>MBTiles</strong> file (read on this PC, fully offline) or a
 tile server of your own (XYZ, or TMS with its y axis flipped - for example a server on the local network).
 It is a background like any other, in 2D, 3D, exported pictures and offline map pages. The list lives in
@@ -1696,7 +1696,7 @@ the background with progress and Stop; the kept areas are listed with their size
 another kept area also covers stays). Only where the map's terms allow bulk downloads: the ground heights
 (open data) and your own servers. OpenStreetMap, Esri and OpenTopoMap forbid it - the dialog says so; the
 places you look at are still kept in the cache as before. The list lives in <code>~/.signalviewer/kept_areas.json</code>.</p>
-<h2 id="height-profile-and-arrows-along-the-path-128">Height profile and arrows along the path (1.28)<a class="headerlink" href="#height-profile-and-arrows-along-the-path-128" title="Permanent link">&para;</a></h2>
+<h2 id="height-profile-and-arrows-along-the-path-127">Height profile and arrows along the path (1.27)<a class="headerlink" href="#height-profile-and-arrows-along-the-path-127" title="Permanent link">&para;</a></h2>
 <p><strong>Height profile</strong> (<em>Profile</em> in the map's bar): under the map, the object's height and the ground under it
 along the distance flown, for any recording with positions (<code>/api/profile</code>, the ground from the same heights
 as the 3D terrain). The cursor's moment is marked; a click in the profile moves the cursor. Where the ground
@@ -1766,7 +1766,7 @@ with it hidden and their legend rows are buttons (<code>svLegend</code> in <code
 <p>One Map, and it is the 3D view; "2D" is its camera <em>From above</em>. Saved values do not change: <code>mode: "geo"</code>
 <strong>with objects</strong> is drawn by the 3D view (<code>isMapPlot</code>, <code>mapObjects.ts</code>) with the camera From above
 (<code>Plot.camera</code> absent on such a plot = <code>"top"</code>; <code>mapCamera</code>); <code>mode: "3d"</code> as before (absent = Free, or
-Around it with a followed object); new maps are <code>"3d"</code>. Free writes <code>camera: "free"</code>. 1.28 renamed the
+Around it with a followed object); new maps are <code>"3d"</code>. Free writes <code>camera: "free"</code>. 1.27 renamed the
 cameras on screen only - <em>Free</em> (<code>"free"</code>), <em>From above</em> (<code>"top"</code>), <em>Around it</em> (absent with a followed
 object), <em>Behind it</em> (<code>"chase"</code>), <em>Cockpit</em> (<code>"cockpit"</code>) - the saved values are unchanged, so a session opens
 with the same camera as before. A 1.25 build
@@ -1797,7 +1797,7 @@ the 3D page's frame for a browser without WebGL is <strong>not done</strong> (th
 <tr>
 <td>north up / track up</td>
 <td><code>mapUp</code></td>
-<td>From above: north up; <em>Behind it</em> keeps the chosen object's heading up (1.28: the separate <em>Track up</em> button is gone; the N turns a turned map back north)</td>
+<td>From above: north up; <em>Behind it</em> keeps the chosen object's heading up (1.27: the separate <em>Track up</em> button is gone; the N turns a turned map back north)</td>
 </tr>
 <tr>
 <td>ring tooltips</td>
