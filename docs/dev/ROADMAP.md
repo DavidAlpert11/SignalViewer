@@ -989,7 +989,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] RV2 Checks says what was checked: "no limits set" instead of "0 failed"; the pump demo opens with its limits (S1)
 - [x] RV3 A file's name is never squeezed away by its badges (B1)
 - [x] RV4 Notices do not cover the data (place, life, the informational ones quieter)
-- [ ] RV5 Each demo opens what its card promises, with one line saying what to do next (B4, B5, §4.4)
+- [x] RV5 Each demo opens what its card promises, with one line saying what to do next (B4, B5, §4.4)
 - [ ] RV6 Fleet counts airframes, one line per vehicle, no duplicate numbers (B2, B3, B10)
 - [ ] RV7 One count of a log's findings (B6: pill / findings chip / report); the line of instructions above the plots shown once, not always (§4.2)
 - [ ] RV8 Report: one offline page instead of *Make a replay page…* and *Create interactive HTML* (§4.7)

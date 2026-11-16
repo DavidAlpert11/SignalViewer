@@ -260,6 +260,11 @@ button, input, select { font: inherit; color: inherit; }
 .linklike { border: 0; background: none; padding: 0; color: var(--accent, var(--ink-strong)); text-decoration: underline; cursor: pointer; font: inherit; }
 .linkbtn { border: 0; background: none; padding: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
 .start-next .linklike { font-weight: 600; }   /* a sentence's next action (W3) */
+/* RV5: a demo's one line of what to do next, above the plots */
+.demo-guide { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-1_5) var(--sp-3) 0; padding: 5px 6px; padding-inline-start: var(--sp-3);
+  border: 1px solid var(--info); border-radius: var(--r-m); background: var(--info-soft); color: var(--ink); font-size: var(--fs-base); }
+.demo-guide .demo-text { flex: 1; min-width: 0; }
+.demo-guide .btn { flex: none; }
 /* W13.7: a pressed state and a focus ring visible in both themes, for every button kind */
 .btn:focus-visible, .iconbtn:focus-visible, .chipbtn:focus-visible, .linkbtn:focus-visible, .linklike:focus-visible,
 .pill:focus-visible, .seg button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

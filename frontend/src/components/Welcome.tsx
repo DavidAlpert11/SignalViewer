@@ -9,6 +9,7 @@ import { addDataExts } from "../values";
 import { applyState, openPaths, startRetarget } from "../files";
 import { requestStudy } from "../sweeps/studyOpen";
 import { requestAreaExample } from "../areaExample";
+import { startDemoGuide } from "../demoGuide";
 
 export const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", bench: "exampleBench", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate", commonGains: "exampleCommonGains", smartSweepDemo: "exampleSmartSweepDemo", sweepTable: "exampleSweepTable", fleet: "exampleFleet" } as const satisfies Record<ExampleId, string>;
 const EXAMPLE_DESC = { flight: "exampleFlightDesc", twoFlights: "exampleTwoFlightsDesc", car: "exampleCarDesc", bench: "exampleBenchDesc", ardupilot: "exampleArdupilotDesc", simVsFlight: "exampleSimVsFlightDesc", investigate: "exampleInvestigateDesc", commonGains: "exampleCommonGainsDesc", smartSweepDemo: "exampleSmartSweepDemoDesc", sweepTable: "exampleSweepTableDesc", fleet: "exampleFleetDesc" } as const satisfies Record<ExampleId, string>;
@@ -24,11 +25,12 @@ type Example = { id: ExampleId; paths: string[]; open?: "study" | "sweep" | "fle
 
 /** An example opened as a new user would: recordings with their suggested view, a study in Sweeps. */
 export function openExample(ex: Example): void {
-  useApp.setState({ startOpen: false });
+  useApp.setState({ startOpen: false, demoGuide: null });
   if (ex.open === "study") requestStudy(ex.paths[ex.paths.length - 1], ex.id === "smartSweepDemo");
   else if (ex.open === "sweep") requestAreaExample("sweeps", ex.paths[ex.paths.length - 1]);   // its .svsweep: the table and its question
   else if (ex.open === "fleet") requestAreaExample("fleet", ex.paths[0]);
-  else openPaths(ex.paths, undefined, { autoView: true });
+  // RV5: once its view is open, the demo's own setup and its line of what to do next
+  else void openPaths(ex.paths, undefined, { autoView: true }).then((ids) => startDemoGuide(ex.id, ids));
 }
 
 /** W1: an example as a card with its picture (made by tools/make_readme_media.py --only examples, one per

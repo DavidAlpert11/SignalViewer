@@ -96,3 +96,48 @@ def test_the_start_page_opens_over_open_files(pg):
     pg.locator(".ex-card[data-example='bench']").click()
     pg.wait_for_selector(".ex-card", state="detached")
     pg.wait_for_function("window.__sv.state().startOpen === false")
+
+
+def _open_demo(pg, ex):
+    pg.locator(f".ex-card[data-example='{ex}']").click()
+    pg.wait_for_selector(f".demo-guide[data-demo='{ex}']", timeout=30000)
+
+
+def test_each_demo_opens_what_its_card_promises(pg):
+    """RV5 (review 2026-11-16, B4 / B5 / §4.4 / §4.8): each demo opens what its card says, with one line of what to do
+    next and the click that does it."""
+    # the plain CSV flight: its own position on the map, not a view made for another format's logs
+    _open_demo(pg, "flight")
+    tabs = pg.evaluate("window.__sv.state().ws.tabs.map((t) => t.name)")
+    assert not any("ArduPilot" in n for n in tabs), tabs
+    assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].mode") == "geo"
+    pg.click(".demo-guide button[aria-label='Close']")
+    assert pg.locator(".demo-guide").count() == 0
+    # two flights: both tracks on one map, the first tab; then Compare
+    _close_all(pg)
+    _open_demo(pg, "twoFlights")
+    first = pg.evaluate("(() => { const t = window.__sv.state().ws.tabs[0]; return { mode: t.plots[0].mode, n: (t.plots[0].objects || []).length,"
+                        " runs: [...new Set(t.plots[0].objects.map((o) => o.lat.split('/')[0]))].length }; })()")
+    assert first == {"mode": "geo", "n": 2, "runs": 2}, first
+    pg.click(".demo-guide .btn.primary")
+    pg.wait_for_function("window.__sv.state().panel === 'compare'")
+
+
+def test_sim_demo_aligns_in_one_click_and_investigate_puts_the_cursors(pg):
+    _open_demo(pg, "simVsFlight")
+    pg.click(".demo-guide .btn.primary")                        # Align time
+    pg.wait_for_function("window.__sv.state().runs.some((r) => Math.abs((r.timeOffset || 0) + 104.37) < 0.05)", timeout=30000)
+    pg.locator(".demo-guide", has_text="Aligned").wait_for()
+    _close_all(pg)
+    _open_demo(pg, "investigate")
+    pg.click(".demo-guide .btn.primary")                        # the cursors around the first bump
+    c = pg.evaluate("window.__sv.state().cursor")
+    assert c["on"] and c["dual"] and (c["t1"], c["t2"]) == (38.4, 39.3)
+    pg.locator(".inv-wc").wait_for()                            # What changed? is one click away
+
+
+def _close_all(pg):
+    pg.evaluate("""async () => { for (const r of await (await fetch('/api/runs')).json())
+      if (r.format !== 'derived') await fetch('/api/runs/' + r.id, { method: 'DELETE' });
+      window.__sv.setState({ runs: [] }); }""")
+    pg.wait_for_selector(".ex-card[data-example='flight']")

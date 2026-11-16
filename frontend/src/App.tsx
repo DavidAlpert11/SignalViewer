@@ -8,6 +8,7 @@ import PanelResizer from "./components/PanelResizer";
 import { usePanelWidth } from "./components/panelWidth";
 import PreviewPlots from "./components/PreviewPlots";
 import StartCard from "./components/StartCard";
+import DemoGuide from "./components/DemoGuide";
 import { mavlinkResume } from "./mavlink";
 import Timeline from "./components/Timeline";
 const SweepsScreen = lazyPreload(() => import("./components/sweeps/SweepsArea"));
@@ -369,6 +370,7 @@ export default function App() {
         </Suspense>
         <main className="stage">
           <StageBar />
+          {runs.length > 0 && !startOpen && <DemoGuide />}
           {runs.length > 0 && <OverviewStrip />}
           {runs.length > 0 && <TabBand />}
           {!runs.length || startOpen ? <div className="stage-body"><Welcome /></div> : (

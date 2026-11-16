@@ -110,8 +110,9 @@ export function loadErrorText(err: LoadErrorInfo, lang: Lang): string {
 
 /** Open files by path. Errors become actionable toasts. Nothing is plotted
  *  automatically: the user picks the signals. */
-export async function openPaths(paths: string[], settings?: Record<string, unknown>, opts: { copy?: boolean; autoView?: boolean; noStart?: boolean } = {}) {
-  if (!paths.length) return;
+/** Returns the ids of the files it opened; with `autoView`, once their suggested view is open too. */
+export async function openPaths(paths: string[], settings?: Record<string, unknown>, opts: { copy?: boolean; autoView?: boolean; noStart?: boolean } = {}): Promise<string[]> {
+  if (!paths.length) return [];
   const st = useApp.getState();
   const lang = st.lang;
   // F19: a file that is already open is read again from the disk instead of being added a second
@@ -136,23 +137,26 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
       } catch (e) {
         useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
       }
-      if (!paths.length) return;
+      if (!paths.length) return [];
     }
   }
   st.set({ busy: st.busy + 1 });
+  let opened: string[] = [];
+  let started: Promise<void> | null = null;
   const emptyStart = isEmptyStart();                    // T29: the first file(s) into an empty workspace
   try {
     const names = paths.map((p) => p.split(/[\\/]/).pop()).join(", ");
     const res = await runJob<{ opened: any[]; errors: LoadErrorInfo[] }>(
       "open", { paths, settings }, translate(lang, "openingFiles", { names }));
-    if (!res) return;   // cancelled
+    if (!res) return [];   // cancelled
     const runs = await api.listRuns();
     useApp.setState({ runs });
     const firstNew = res.opened.find((o) => o?.id)?.id;
     // F20: several files at once get a suggestion for several files (Compare), not for the first one
     // 26.U7: each file's data quality, checked in the background (a note when there is something to say)
     void checkQuality(res.opened.filter((o) => o?.id).map((o) => o.id as string));
-    if (emptyStart && firstNew && !opts.noStart) offerStart(firstNew, res.opened.filter((o) => o?.id).length, !!opts.autoView);   // in the background
+    opened = res.opened.filter((o) => o?.id).map((o) => o.id as string);
+    if (emptyStart && firstNew && !opts.noStart) started = offerStart(firstNew, opened.length, !!opts.autoView);   // in the background
     refreshRecent();
     for (const err of res.errors) {
       const name = err.path.split(/[\\/]/).pop() || err.path;
@@ -203,6 +207,8 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
   } finally {
     useApp.setState({ busy: Math.max(0, useApp.getState().busy - 1) });
   }
+  if (opts.autoView && started) await started.catch(() => {});
+  return opened;
 }
 
 export async function removeRun(id: string) {

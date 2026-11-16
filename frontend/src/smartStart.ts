@@ -42,7 +42,11 @@ export async function offerStart(runId: string, files = 1, auto = false) {
     const r = await api.templates();
     const all = [...r.builtin, ...r.templates];
     const fitOf = await fits(all, useApp.getState().runs);
-    const best = rankTemplates(all.filter((x) => !x.generator && (fitOf.get(x.id) ?? 0) >= FIT_MIN), fitOf, run.format)[0];
+    // RV5: a template made for other formats (an ArduPilot view for a .bin) is not the first thing a CSV
+    // with similar names is offered - its own position on the map, if it has one, is
+    const forMe = (x: Template) => x.slots.every((sl) => !sl.formats?.length || sl.formats.includes(run.format));
+    const best = rankTemplates(all.filter((x) => !x.generator && forMe(x) && (fitOf.get(x.id) ?? 0) >= FIT_MIN), fitOf, run.format)[0]
+      ?? r.builtin.find((x) => x.generator === "objects" && (fitOf.get(x.id) ?? 0) >= FIT_MIN);
     // nothing fits: no card - the empty plot itself offers Quick look and the views that fit (W3)
     if (best) template = { id: best.id, name: best.name, fit: fitOf.get(best.id) ?? 0 };
     // E4: an example opens ready to look at even when no view fits its data (a test bench, any custom

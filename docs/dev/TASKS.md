@@ -33,7 +33,16 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   header count reads *n signals* (the word hidden below 330 px). DataPanel.tsx, index.css, i18n signals.
   RV4 done: the *text read as states* notice dropped (files.ts; `textColsRead` removed); a template's *opened* notice
   2.5 s (templates.ts, TemplateLibrary.tsx). The dock's place (bottom-left, with the start card) unchanged.
-  Next: RV5, RV6, RV7 ... RV11 (ROADMAP M33) - handed to a new session at RV5 (context).
+  RV5 done: a demo's line above the plots (`demoGuide.ts` DEMO_STEPS + `DemoGuide.tsx`, UI state `demoGuide`; set by
+  `Welcome.openExample` once `openPaths` - which now returns the opened ids and, with autoView, waits for the view -
+  is done): text + one button per demo (sim: `syncSuggest` best offset -> `applySyncOffset`; investigate: cursors
+  38.4-39.3 + Investigate; Compare / Checks / Play). twoFlights: *Position on the map* over every file (the objects
+  generator bound to `*all` = a slot per file, objects named "<name> · <file>") as the first tab. The start card no
+  longer offers a template made for other formats (the CSV flight got "ArduPilot · Flight on the map") - its own
+  Position on the map instead. Card text of simVsFlight: "align their time in one click". Touches: templates.ts
+  (objectTabs takes files), smartStart.ts, files.ts (openPaths' return), Welcome.tsx, App.tsx, ui slice, i18n welcome /
+  templates, index.css.
+  Next: RV6, RV7 ... RV11 (ROADMAP M33).
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
@@ -356,3 +365,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   test_judge_a_run, test_workflows, test_trust_badges.
 - 2026-11-16 · M33 RV4 (fewer notices). e2e test_features::test_D04 (no states notice); run: test_features -k
   D04/template/toast, test_template_tabs, test_welcome_cards, test_first_minute, test_fresh_user.
+- 2026-11-16 · M33 RV5 (each demo: what its card promises + one line of what to do next). e2e test_welcome_cards (+2);
+  run: test_welcome_cards, test_features, test_first_minute, test_flat_line_solo, test_map_memory, test_object_templates,
+  test_one_per_plot, test_overview_strip, test_study_common, test_study_demo, test_study_loop, test_sweeps_flow,
+  test_sweeps_workspace, test_what_changed, test_workflows (254 green).

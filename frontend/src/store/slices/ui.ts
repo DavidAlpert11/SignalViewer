@@ -30,6 +30,8 @@ export interface UiSlice {
   newerOnDisk: Record<string, number>;
   menu: { x: number; y: number; items: MenuItem[] } | null;
   startCard: import("../../smartStart").StartCard | null;   // T29: suggestions after the first file (UI only)
+  /** RV5: a demo's one line of what to do next, above the plots (UI only) */
+  demoGuide: import("../../demoGuide").DemoGuide | null;
   /** U2: the start card's findings (no template left to offer) are docked as "N findings" beside the
    *  timeline; this opens them over the plots (UI only) */
   findingsOpen: boolean;
@@ -157,6 +159,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   newerOnDisk: {},
   menu: null,
   startCard: null,
+  demoGuide: null,
   findingsOpen: false,
   soloPlot: false,
   findingMarks: {},

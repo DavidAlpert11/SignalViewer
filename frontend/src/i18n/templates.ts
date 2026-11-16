@@ -197,7 +197,7 @@ export const en = {
   exampleCarDesc: "Every shared signal ranked by how different it is",
   exampleBenchDesc: "A Parquet run: phases, a gap and a spike - Checks finds them",
   exampleArdupilotDesc: "A real .bin log with an automatic health check",
-  exampleSimVsFlightDesc: "A model beside the real flight, aligned in time",
+  exampleSimVsFlightDesc: "A model beside the real flight - align their time in one click",
   exampleInvestigateDesc: "A known fault - find it with Investigate",
   // D14: a profile's run-at-a-glance numbers (the built-in templates' labels) and the statistics' words
   glMaxAlt: "Max altitude", glMaxSpeed: "Max speed", glBatUsed: "Battery used", glMinVolt: "Lowest voltage",
@@ -409,7 +409,7 @@ export const he: typeof en = {
   exampleCarDesc: "כל האותות המשותפים, מדורגים לפי מידת השוני",
   exampleBenchDesc: "הרצה בקובץ Parquet: שלבים, פער וקפיצה - הבדיקות מוצאות אותם",
   exampleArdupilotDesc: "לוג ‎.bin‎ אמיתי עם בדיקת תקינות אוטומטית",
-  exampleSimVsFlightDesc: "מודל לצד הטיסה האמיתית, מיושרים בזמן",
+  exampleSimVsFlightDesc: "מודל לצד הטיסה האמיתית - יישור הזמן בלחיצה אחת",
   exampleInvestigateDesc: "תקלה ידועה - מוצאים אותה בעזרת החקירה",
   glMaxAlt: "גובה מרבי", glMaxSpeed: "מהירות מרבית", glBatUsed: "צריכת סוללה", glMinVolt: "מתח נמוך ביותר",
   glMaxCurrent: "זרם מרבי", glMinSats: "מעט לוויינים ביותר", glMaxHdop: "HDOP גרוע ביותר", glMaxClimb: "טיפוס מהיר ביותר",

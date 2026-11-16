@@ -45,6 +45,22 @@ export const en = {
   // W13.5: empty states - one sentence and one action
   emptyFindingsText: "No findings: the health check found nothing worth a look in this log.",
   emptyFindingsAction: "Show every event of the log on the plots",
+  // RV5: a demo's one line of what to do next (above the plots) and its button
+  demoFlight: "A drone's flight on the map. Play it to watch the drone move with its data, or drag on the timeline below to jump to a moment.",
+  demoFlightAct: "Play",
+  demoTwoFlights: "The same mission flown twice (A calm, B windy): both tracks on the map, every shared signal in the Compare tabs. Next: rank where the two differ most.",
+  demoCompareAct: "Rank the differences",
+  demoCar: "Three runs of the same test, one colour each, on one time axis. Next: rank every shared signal by how much the runs differ.",
+  demoBench: "A pump run on a test bench, read from Parquet. Next: Checks lists the gap in the data and the limits this run broke.",
+  demoChecksAct: "Open Checks",
+  demoArdupilot: "A real flight log, checked as it opened: its flight modes in the band above, its findings marked on the timeline. Next: see what Checks found.",
+  demoSimVsFlight: "A simulation (A) and its real flight (B) were recorded on different clocks, so they sit side by side. Next: align their time to lay one on the other.",
+  demoAlignAct: "Align time",
+  demoSimVsFlightDone: "Aligned: the flight is now on the simulation's clock (Undo in the notice below). Where the two lines part, the model and the flight differ.",
+  demoInvestigate: "A heavy payload (A) against a light one (B). In A the roll leaves its set point three times, near 38, 63 and 91 s. Next: put two cursors around the first one and ask what changed.",
+  demoInvestigateAct: "Put the cursors there",
+  demoInvestigateDone: "The cursors are around 38.4–39.3 s. Next: press What changed? in Investigate, on the left - it lists what moved first.",
+  demoFailed: "That did not work - do it from the panel on the left",
 };
 
 export const he: typeof en = {
@@ -86,4 +102,20 @@ export const he: typeof en = {
   setClickCursorOff: "כבוי",
   emptyFindingsText: "אין ממצאים: בדיקת התקינות לא מצאה ביומן הזה משהו שכדאי לראות.",
   emptyFindingsAction: "הצג את כל אירועי היומן על הגרפים",
+  demoFlight: "טיסה של רחפן על המפה. הפעילו ניגון כדי לראות את הרחפן נע עם הנתונים, או גררו על ציר הזמן למטה כדי לקפוץ לרגע מסוים.",
+  demoFlightAct: "ניגון",
+  demoTwoFlights: "אותה משימה שהוטסה פעמיים (A רגועה, B ברוח): שני המסלולים על המפה, וכל אות משותף בלשוניות ההשוואה. הבא: לדרג איפה השתיים נבדלות הכי הרבה.",
+  demoCompareAct: "לדרג את ההבדלים",
+  demoCar: "שלוש ריצות של אותו ניסוי, צבע לכל אחת, על ציר זמן אחד. הבא: לדרג כל אות משותף לפי מידת השוני בין הריצות.",
+  demoBench: "ריצה של משאבה על עמדת ניסוי, נקראה מ־Parquet. הבא: הבדיקות מראות את הפער בנתונים ואת הגבולות שהריצה חצתה.",
+  demoChecksAct: "לפתוח את הבדיקות",
+  demoArdupilot: "לוג טיסה אמיתי, שנבדק כשנפתח: מצבי הטיסה ברצועה למעלה, הממצאים מסומנים על ציר הזמן. הבא: לראות מה הבדיקות מצאו.",
+  demoSimVsFlight: "סימולציה (A) והטיסה האמיתית שלה (B) הוקלטו בשעונים שונים, ולכן הן מוצגות זו לצד זו. הבא: ליישר את הזמן כדי להניח אחת על השנייה.",
+  demoAlignAct: "ליישר זמן",
+  demoSimVsFlightDone: "יושר: הטיסה עכשיו על השעון של הסימולציה (ביטול בהודעה למטה). איפה ששני הקווים נפרדים, המודל והטיסה שונים.",
+  demoInvestigate: "מטען כבד (A) מול מטען קל (B). ב־A הגלגול עוזב את ערך היעד שלוש פעמים, בסביבות 38, 63 ו־91 שניות. הבא: לשים שני סמנים סביב הראשונה ולשאול מה השתנה.",
+  demoInvestigateAct: "לשים שם את הסמנים",
+  demoInvestigateDone: "הסמנים סביב 38.4–39.3 שניות. הבא: ללחוץ על מה השתנה? בחלון החקירה - הוא מראה מה זז ראשון.",
+  demoFailed: "זה לא הצליח - עשו זאת מהחלון שבצד",
 };
+

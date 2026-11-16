@@ -213,20 +213,25 @@ const objectsFit = (t: Template, runs: RunInfo[]) =>
 /* --------------------------------------------------------------- generators (built-in, any file) */
 const PER_TAB = 4;
 /** "Position on the map": EVERY object of the file found by its names (N5: truth, navigation
- *  solutions, receivers - each from its own prefix), on a map and in the 3D view. */
-function objectTabs(run: RunInfo | undefined, slot: string, lang: "en" | "he", found?: Candidate[]): TplTab[] {
-  if (!run) return [];
-  const cands = detectObjects(run).candidates.filter((c) => c.pos === "lla");   // NED / ENU / ECEF need the dialog
-  if (!cands.length) return [];
-  found?.push(...cands);
+ *  solutions, receivers - each from its own prefix), on a map and in the 3D view. RV5: several files
+ *  (the slot bound to every file) share one map, each object named after its file and in its colour. */
+function objectTabs(files: { run: RunInfo; slot: string }[], lang: "en" | "he", found?: Candidate[]): TplTab[] {
   const bare = (id: string) => id.slice(id.indexOf("/") + 1);
-  const objs: TplObject[] = cands.map((c, i) => ({ name: c.name, kind: "aircraft", color: TRACE_COLORS[i % TRACE_COLORS.length], cls: c.cls,
-    ...(trackOfClass(c.cls) ? { track: trackOfClass(c.cls) } : {}), ...(c.attitude === "none" ? { attitudeSource: "motion" as const } : {}),
-    roles: Object.fromEntries(OBJ_ROLES.filter((k) => c.picks[k]).map((k) => [k, { name: bare(c.picks[k]!.id), slot }])) }));
-  const obj = objs;
+  const many = files.length > 1;
+  const all = useApp.getState().runs;
+  const objs: TplObject[] = [];
+  for (const { run, slot } of files) {
+    const cands = detectObjects(run).candidates.filter((c) => c.pos === "lla");   // NED / ENU / ECEF need the dialog
+    found?.push(...cands);
+    cands.forEach((c, i) => objs.push({ name: many ? `${c.name} · ${fileLabel(all, run.id)}` : c.name, kind: "aircraft",
+      color: (many && i === 0 ? fileMark(all, run.id)?.color : undefined) ?? TRACE_COLORS[objs.length % TRACE_COLORS.length], cls: c.cls,
+      ...(trackOfClass(c.cls) ? { track: trackOfClass(c.cls) } : {}), ...(c.attitude === "none" ? { attitudeSource: "motion" as const } : {}),
+      roles: Object.fromEntries(OBJ_ROLES.filter((k) => c.picks[k]).map((k) => [k, { name: bare(c.picks[k]!.id), slot }])) }));
+  }
+  if (!objs.length) return [];
   // one map: its cameras (From above … Cockpit) cover both views; the plot's kind menu turns it into the 3D globe
   return [{ name: translate(lang, "tplObjTab"), rows: 1, cols: 1, linkX: false, plots: [
-    { title: translate(lang, "modeGeo"), mode: "geo", signals: [], objects: obj }] }];
+    { title: translate(lang, "modeGeo"), mode: "geo", signals: [], objects: objs }] }];
 }
 
 function quickLookTabs(run: RunInfo | undefined, slot: string, lang: "en" | "he"): TplTab[] {
@@ -288,13 +293,21 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
   const rest = opts.rest ?? (chosen ? e.tabs.filter((_x, i) => !chosen.includes(i)).map((x) => x.name) : []);
   const extraTabs: TplTab[] = [];
   const found: Candidate[] = [];
+  const rbind = { ...bind };          // + a slot per file of an objects generator bound to every file
   for (const g of opts.rest ? [] : e.generators) {
     const slot = g.slots[0].id;
+    if (g.generator === "objects") {
+      // RV5: bound to every file - each file its own slot, so each object reads its own file's signals
+      const files = bind[slot] === "*all" ? dataRuns(st.runs).map((run) => ({ run, slot: `${slot}:${run.id}` }))
+        : st.runs.filter((r) => r.id === bind[slot]).map((run) => ({ run, slot }));
+      for (const f of files) rbind[f.slot] = f.run.id;
+      extraTabs.push(...objectTabs(files, L, found));
+      continue;
+    }
     extraTabs.push(...(g.generator === "quicklook" ? quickLookTabs(st.runs.find((r) => r.id === bind[slot]), slot, L)
-      : g.generator === "objects" ? objectTabs(st.runs.find((r) => r.id === bind[slot]), slot, L, found)
       : compareTabs(st.runs, slot, L)));
   }
-  const r = await api.resolveTemplate(t, all, bind, chosen ?? null, extraTabs);
+  const r = await api.resolveTemplate(t, all, rbind, chosen ?? null, extraTabs);
   const res: ApplyResult = { tabs: 0, plots: 0, dropped: r.dropped, missing: r.missing, conditions: 0, ...(found.length ? { objects: found } : {}) };
   let firstNew: string | null = null;
   st.commit((ws) => {
