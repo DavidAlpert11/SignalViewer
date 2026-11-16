@@ -265,3 +265,9 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-16 · CI Windows: test_elevation_sources::test_terrarium_is_fetched_in_the_background_and_then_used flaked
   (green on the run before) - a race in the test: the faked fetch can finish before the test read terrain_version();
   it now reads the version before the ask. Not a change of the app.
+- 2026-11-16 · Owner's report: satellite zoomed in showed grey "Map data not yet available" tiles (Esri's answer, a
+  200 JPEG, where World Imagery has nothing at that zoom). tiles.py: is_no_data (small file, >60 % flat #CCCCCC) for
+  the Esri pictures (satellite, esri, light, dark) - never kept, a `.nodata` marker beside the cache (a month), the
+  parent tile's quarter enlarged instead (_overzoom, recursive); a placeholder cached by an older version is put right
+  when read. One place for 2D, 3D, the exported picture and the composite *Satellite + roads*. Tests:
+  test_tiles_no_data.py (3, new); quick_check green.

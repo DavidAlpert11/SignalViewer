@@ -17,12 +17,16 @@ tile, so the 2D map, the 3D globe, the exported picture and the offline page all
 Terms: both layers are Esri ArcGIS Online basemaps - display in an application with the attribution
 shown is allowed; bulk download / offline packaging is not (Esri's terms of use), so neither may be
 "kept offline" in bulk (M3) - only what was seen stays in the cache.
+
+No imagery at that zoom: Esri's services answer with a grey "Map data not yet available" picture (an ordinary
+200 JPEG), common for satellite imagery zoomed in outside cities. Such a tile is never shown or kept: the
+parent tile, enlarged, is drawn instead (overzoom), and a small marker beside the cache saves asking again.
 """
 import os
 import threading
 import time
 import urllib.request
-from typing import Optional
+from typing import Dict, Optional
 
 from app.prefs import APP_DIR
 
@@ -90,6 +94,50 @@ def network_allowed() -> bool:
     return allowed
 
 
+# the Esri pictures that answer "Map data not yet available" where they have nothing at a zoom
+NO_DATA_SOURCES = ("satellite", "esri", "light", "dark")
+_NO_DATA_GREY = 204                     # #CCCCCC, the placeholder's background
+_checked: Dict[str, float] = {}         # cached tiles already seen to be real pictures: path -> mtime
+
+
+def is_no_data(data: bytes) -> bool:
+    """Esri's grey "Map data not yet available" tile: most of it one flat #CCCCCC (a real picture never is).
+    Only small files are decoded - the placeholder compresses well, a photo does not."""
+    if len(data) > 24_000:
+        return False
+    try:
+        import io
+
+        import numpy as np
+        from PIL import Image
+        a = np.asarray(Image.open(io.BytesIO(data)).convert("RGB"), dtype=np.int16)
+    except Exception:
+        return False
+    return bool((np.abs(a - _NO_DATA_GREY) <= 3).all(axis=2).mean() > 0.6)
+
+
+def _overzoom(src: str, z: int, x: int, y: int) -> Optional[tuple]:
+    """The parent tile's quarter, enlarged: what to draw where a source has no picture at this zoom."""
+    if z <= 0:
+        return None
+    parent = tile(src, z - 1, x // 2, y // 2)          # itself enlarged from further up when it has none
+    if not parent:
+        return None
+    try:
+        import io
+
+        from PIL import Image
+        img = Image.open(io.BytesIO(parent[0])).convert("RGB")
+        w, h = img.size
+        qx, qy = x % 2, y % 2
+        part = img.crop((qx * w // 2, qy * h // 2, (qx + 1) * w // 2, (qy + 1) * h // 2)).resize((w, h), Image.Resampling.BILINEAR)
+        buf = io.BytesIO()
+        part.save(buf, "JPEG", quality=88)
+        return buf.getvalue(), "image/jpeg"
+    except Exception:
+        return None
+
+
 def tile(src: str, z: int, x: int, y: int) -> Optional[tuple]:
     """(bytes, media type) of a tile, or None when it is not available (offline and not cached)."""
     global _offline_until
@@ -122,11 +170,23 @@ def tile(src: str, z: int, x: int, y: int) -> Optional[tuple]:
         return None
     path = os.path.join(CACHE, src, str(z), str(x), f"{y}.{s['ext']}")
     media = "image/jpeg" if s["ext"] == "jpg" else "image/png"
+    checks = src in NO_DATA_SOURCES
+    marker = path + ".nodata"
+    if checks and os.path.isfile(marker) and time.time() - os.path.getmtime(marker) < _MAX_AGE:
+        return _overzoom(src, z, x, y)                   # known: nothing at this zoom here
     cached = None
     allowed = network_allowed()
     if os.path.isfile(path):
         with open(path, "rb") as f:
             cached = f.read()
+        mtime = os.path.getmtime(path)
+        if checks and _checked.get(path) != mtime:
+            if is_no_data(cached):                       # kept by an older version: put right once
+                _mark_no_data(path, marker)
+                return _overzoom(src, z, x, y)
+            if len(_checked) > 20_000:
+                _checked.clear()
+            _checked[path] = mtime
         if not allowed or time.time() - os.path.getmtime(path) < _MAX_AGE or time.time() < _offline_until:
             return cached, media
     if not allowed or time.time() < _offline_until:
@@ -137,6 +197,9 @@ def tile(src: str, z: int, x: int, y: int) -> Optional[tuple]:
             data = r.read()
         if not data:
             raise OSError("empty tile")
+        if checks and is_no_data(data):
+            _mark_no_data(path, marker)
+            return _overzoom(src, z, x, y)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         tmp = path + ".part"
         with open(tmp, "wb") as f:
@@ -147,6 +210,17 @@ def tile(src: str, z: int, x: int, y: int) -> Optional[tuple]:
         with _lock:
             _offline_until = time.time() + 30          # no network: stop trying for half a minute
         return (cached, media) if cached else None
+
+
+def _mark_no_data(path: str, marker: str) -> None:
+    """Remember that a source has no picture here (the placeholder itself is not kept)."""
+    try:
+        if os.path.isfile(path):
+            os.remove(path)
+        os.makedirs(os.path.dirname(marker), exist_ok=True)
+        open(marker, "wb").close()
+    except OSError:
+        pass
 
 
 def compose(under: bytes, over: Optional[bytes]) -> bytes:

@@ -93,6 +93,7 @@ this release holds both.)
 - **Arrows along the path.** Any two signals - north and east components such as a wind or a velocity - drawn as arrows
   along an object's track, on the map and in 3D. The object's settings offer the file's own pair by themselves (an
   ArduPilot log's estimated wind, a CSV's velocity).
+- Fixed: zoomed in on the satellite map (2D and 3D), places without imagery at that zoom showed grey *"Map data not yet available"* squares. Such tiles are no longer shown or kept: the closest zoom that has a picture is enlarged instead, and tiles already cached that way are put right the first time they are shown.
 
 ### Any data: Checks, the file, parameters, live instruments
 
