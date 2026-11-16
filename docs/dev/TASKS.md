@@ -316,3 +316,4 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   test_map_objects, test_live_report, test_round_1112, test_calm_screen; quick_check green.
 - 2026-11-16 · The black flashes of the 3D map (the terrain provider replaced on each new terrain version) fixed; e2e
   test_globe3d (+1, checked to fail before the fix), test_offline_map, test_map_memory; quick_check.
+- 2026-11-16 · The owner: the black flashes are gone. Next: a fresh review of the whole app (report only, no code changes) - handed to a new session (session_0146GPW261MFvWRxQrGUomSU); output docs/dev/REVIEW_2026-11-16.md + a Hebrew page.
