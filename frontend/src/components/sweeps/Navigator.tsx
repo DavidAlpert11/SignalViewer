@@ -15,6 +15,7 @@ import { TABLE_EXTS } from "../../sweeps/studyFile";
 import { notifyError } from "../../sweeps/notify";
 import { confirmAsk } from "../Overlays";
 import { MergeBox, exportTable } from "./RawStep";
+import { fromFolder } from "../../folderSummary";
 
 const baseName = (p: string) => p.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? p;
 const stem = (n: string) => n.replace(/\.(svstudy\.json|svsweep|[^.]+)$/, "");
@@ -228,10 +229,13 @@ function AddTable({ first }: { first: boolean }) {
     const st = useSweeps.getState();
     (first ? st.open(p).then(() => showData(useSweeps.getState().active)) : st.addTable(p)).catch(notifyError);
   };
-  // M1: a table from the open recordings - defined in the Runs matrix (measures, parameters from the names)
-  const fromRecordings = () => useApp.setState({ area: "recordings", matrixOpen: true, panel: "investigate" });
+  // M1: a table from the open recordings - defined in the Runs matrix (measures, parameters from the names);
+  // FL1: or from a folder of recordings, read one at a time (its measures.json, else defined on its first file)
+  const hasRuns = useApp((s) => s.runs.length > 0);
+  const fromRecordings = () => useApp.setState({ area: "recordings", matrixOpen: true, panel: "investigate", matrixFolder: null });
   return <>
     <button className="btn ghost sm sw-nav-add" onClick={() => { void add(); }}><Icon.Plus width={14} height={14} /> {t("swAddTable")}</button>
-    <button className="btn ghost sm sw-nav-recordings" onClick={fromRecordings} title={t("swFromRecordingsHint")}>{t("swFromRecordings")}</button>
+    <button className="btn ghost sm sw-nav-folder" onClick={() => { void fromFolder(); }} title={t("swFromFolderHint")}>{t("swFromFolder")}</button>
+    {hasRuns && <button className="btn ghost sm sw-nav-recordings" onClick={fromRecordings} title={t("swFromRecordingsHint")}>{t("swFromRecordings")}</button>}
   </>;
 }

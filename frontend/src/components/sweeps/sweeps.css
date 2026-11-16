@@ -212,7 +212,7 @@
 /* in a narrow panel the two buttons go one under the other instead of over each other */
 .sw-step-foot .btn { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sw-step-foot .btn.primary { margin-inline-start: auto; }
-.sw-raw { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.sw-raw { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; }   /* the table fills the step (it scrolled in 200 px under an empty page) */
 .sw-table th { cursor: default; }
 .sw-raw .sw-table th { cursor: pointer; }
 .sw-warn-txt { color: var(--warn); }
@@ -469,6 +469,9 @@
 .sw-merge-preview { margin: 0; }
 .sw-tabs-name { margin-inline-start: auto; align-self: center; max-width: 45%; color: var(--muted); padding-inline: 8px; }
 .sw-table tr.sw-picked-row { background: color-mix(in srgb, var(--focus) 18%, transparent); outline: 1px solid var(--focus); }
+/* FL1: rows ticked to open their recordings together; the tick column stays narrow */
+.sw-table tr.sw-ticked-row { background: color-mix(in srgb, var(--focus) 10%, transparent); }
+.sw-table .sw-tick { width: 28px; text-align: center; padding-inline: 4px; }
 .sw-run-values { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 8px 10px; border: 1px solid var(--focus); border-radius: 8px; background: var(--panel); }
 .sw-run-values dl { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; flex-basis: 100%; }
 .sw-run-values dl div { display: flex; gap: 6px; min-width: 0; }

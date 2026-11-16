@@ -5,7 +5,7 @@ export type StorageKind = "cache" | "uploads" | "tiles" | "memory";
 /** memory (P2): not on disk - the results kept in memory to be fast, with its limit and per kind */
 export type StorageInfo = Record<StorageKind, { path: string; bytes: number; limit?: number; kinds?: Record<string, { bytes: number; entries: number }> }>;
 /** The welcome screen's examples (backend routes/fs.py EXAMPLE_SETS). */
-export type ExampleId = "flight" | "twoFlights" | "car" | "bench" | "ardupilot" | "simVsFlight" | "investigate" | "commonGains" | "smartSweepDemo" | "sweepTable";
+export type ExampleId = "flight" | "twoFlights" | "car" | "bench" | "ardupilot" | "simVsFlight" | "investigate" | "folderOfFlights" | "commonGains" | "smartSweepDemo" | "sweepTable";
 /** P1: what an export of a map's objects reports: the rate used (lowered for a long recording) and the
  *  objects left out because they have no position (P2). */
 export interface FlightExport { path: string; objects: number; size?: number; rate: number; lowered: boolean; leftOut: string[] }
@@ -423,7 +423,7 @@ export const api = {
   segments: (signal: string) => call<{ total: number;
     segments: { t0: number; t1: number; value: number; label: string | null }[];
     byValue: { value: number; label: string | null; duration: number; count: number }[] }>("/api/segments", { signal }),
-  examples: () => call<{ id: ExampleId; paths: string[]; open?: "study" | "sweep" }[]>("/api/examples"),   // open "study": the last path is a .svstudy.json (W14 / W18)
+  examples: () => call<{ id: ExampleId; paths: string[]; open?: "study" | "sweep" | "summary" }[]>("/api/examples"),   // open "study": the last path is a .svstudy.json (W14 / W18)
   completePath: (text: string, base: string | null, exts?: string[]) =>
     call<{ dir: string | null; items: { name: string; path: string; dir: boolean }[]; common: string }>("/api/fs/complete", { text, base, exts }),
   listDir: (path?: string | null, exts?: string[]) => call<{ path: string; parent: string | null; entries: FsEntry[]; hidden?: number }>("/api/fs/list", { path, exts }),
@@ -519,6 +519,10 @@ export const api = {
     call<{ id: string | null; name?: string; text?: string; up?: boolean }>("/api/condition/suggest", { a, b, sigs }),
   lag: (a: string, b: string, t0: number, t1: number) => call<LagResult>("/api/lag", { a, b, t0, t1 }),
   /** M1: per open run, the measures' values and the name pattern's parameters (svcore/summary.py). */
+  /** FL1: a folder of recordings before it is summarized - how many, the first, the measures.json kept with it */
+  summaryFolder: (path: string) => call<{ folder: string; files: number; first: string | null;
+    measures: { name: string; signal: string; op: string; where?: string; t?: number }[] | null; pattern: string | null }>(
+    `/api/summary/folder?path=${encodeURIComponent(path)}`),
   runSummary: (measures: { name: string; signal: string; op: string; where?: string; t?: number }[], pattern: string) =>
     call<{ rows: Record<string, { params: Record<string, number | string>; values: Record<string, number | null> }> }>("/api/runs/summary", { measures, pattern }),
   runParams: (runs?: string[]) => call<{ params: Record<string, Record<string, number>> }>("/api/runs/params", { runs }),

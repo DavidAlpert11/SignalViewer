@@ -68,6 +68,8 @@ EXAMPLE_SETS = [
                                      "sim_vs_flight/flight_attitude_doublets.bin"]},
     {"id": "investigate", "files": ["investigate/heavy_payload.csv",                  # the Investigate tools,
                                     "investigate/light_payload.csv"]},                # with a known answer
+    # FL1: "open": "summary" = the folder of the first file summed up with its measures.json, one row per recording in Sweeps
+    {"id": "folderOfFlights", "open": "summary", "files": ["folder_of_flights/measures.json", "folder_of_flights/X8-A_2026-09-02.bin"]},
     # review (owner, 2026-11-13: a clear demo for everything): the single results table opens in Sweeps -
     # "open" says where; the last file is what the area opens
     {"id": "sweepTable", "open": "sweep", "files": ["sweeps/drone_tuning.csv", "sweeps/drone_tuning.svsweep"]},

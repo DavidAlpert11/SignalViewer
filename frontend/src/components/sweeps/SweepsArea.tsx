@@ -60,6 +60,7 @@ import SetupView from "./SetupView";
 import { chooseNewStudy, closePanel, openStudyFile, redoStudy, undoStudy, useStudyPanel } from "../../sweeps/studyStore";
 import { onStudyRequest, requestStudy, takeStudy } from "../../sweeps/studyOpen";
 import { onAreaExample, takeAreaExample } from "../../areaExample";
+import { fromFolder } from "../../folderSummary";
 import { api } from "../../api";
 import "./sweeps.css";
 
@@ -395,6 +396,8 @@ function SweepsWelcome() {
           <p className="hint">{t("swModeOneHint")}</p>
         <div className="sw-welcome-actions">
           <button className="btn primary" disabled={busy} onClick={() => openTable(t("swOpenTable"))}><Icon.Open /> {t("swOpenTable")}</button>
+          {/* FL1: a table made from a folder of recordings, a row each */}
+          <button className="btn outline sw-from-folder" disabled={busy} title={t("swFromFolderHint")} onClick={() => { void fromFolder(); }}>{t("swFromFolder")}</button>
           {/* W16: a folder and a saved study are opened from Open ▾ (and the palette) - one way in here */}
           <button className="btn outline" disabled={busy} onClick={example}>{t("swTryExample")}</button>
           <button className="btn outline" disabled={busy} onClick={() => merged().catch(notifyError)}>{t("swTryMerged")}</button>

@@ -155,6 +155,32 @@ def summarize_run(st, rid: str, measures: Sequence[dict], pattern: str) -> dict:
 DATA_EXTS = (".csv", ".txt", ".tsv", ".mat", ".parquet", ".pq", ".h5", ".hdf5", ".bin", ".tlog", ".ulg", ".mcap")
 
 
+MEASURES_FILE = "measures.json"
+
+
+def read_measures(path: str) -> Tuple[List[dict], str]:
+    """A measures file -> (measures, name pattern): a JSON list of measures, or {"measures": [...], "pattern": "..."}
+    as the Runs matrix's *Save measures* writes it."""
+    import json
+    try:
+        with open(path, encoding="utf-8") as f:
+            spec = json.load(f)
+    except (OSError, ValueError) as e:
+        raise SummaryError(f"{os.path.basename(path)} cannot be read ({e}) - save the measures again from the Runs matrix.") from None
+    measures = spec.get("measures", []) if isinstance(spec, dict) else spec
+    pattern = str(spec.get("pattern") or "") if isinstance(spec, dict) else ""
+    if not isinstance(measures, list) or not all(isinstance(m, dict) for m in measures):
+        raise SummaryError(f"{os.path.basename(path)}: \"measures\" must be a list of {{name, signal, op}}.")
+    check(measures)
+    return measures, pattern
+
+
+def folder_measures(folder: str) -> Optional[Tuple[List[dict], str]]:
+    """FL1: the measures kept with a folder of recordings (its measures.json), or None - like checks.json beside a recording."""
+    p = os.path.join(folder, MEASURES_FILE)
+    return read_measures(p) if os.path.isfile(p) else None
+
+
 def folder_files(paths: Sequence[str]) -> List[str]:
     """Files, glob patterns or folders (their recordings, by name) -> the recordings, in order."""
     import glob

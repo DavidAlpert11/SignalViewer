@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-The Fleet example (owner, 2026-11-03: "it is not clear what the fleet is for"): ten flights of two
-quad-copters over six weeks, as real ArduPilot DataFlash logs, each with a story the Fleet finds.
+The folder-of-recordings example (FL1): ten flights of two quad-copters over six weeks, as real
+ArduPilot DataFlash logs, each with a story the folder's summary in Sweeps shows (measures.json beside them).
 
-    python tools/make_fleet_example.py [folder]     # default: examples/fleet
+    python tools/make_folder_example.py [folder]     # default: examples/folder_of_flights
 
   X8-A  a motor bearing wearing out: its vibration grows flight after flight (15 -> 37 m/s/s) until
-        the last flight crosses the limit with clipping - Fleet > Number "Vibration · max" shows
-        the trend, a search for the warning finds the flight, "Open here" opens it at the moment.
+        the last flight crosses the limit with clipping - the vibration_max column in Sweeps shows the
+        trend; tick that row and Open in Recordings to look at the flight.
   X8-B  healthy, but one flight with a stretch of poor GPS (5 satellites, HDOP 3.2) and one on a
         worn battery that sagged under the low-voltage limit.
 
@@ -36,7 +36,7 @@ FLIGHTS = [
 
 
 def main():
-    folder = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "examples", "fleet")
+    folder = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "examples", "folder_of_flights")
     os.makedirs(folder, exist_ok=True)
     for name, (y, m, d), seed, vib, loose, gps, mah in FLIGHTS:
         ex.main(os.path.join(folder, name), start=(y, m, d, 7, 10, 0), seed=seed, vib_scale=vib,

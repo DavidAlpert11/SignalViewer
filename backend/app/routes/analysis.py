@@ -790,6 +790,25 @@ def runs_summary(req: SummaryRequest):
                      for rid in (req.runs or list(store.order)) if rid in store.runs and rid != "derived"}}
 
 
+@router.get("/api/summary/folder")
+def summary_folder(path: str):
+    """FL1: what a folder of recordings holds before it is summarized - its recordings (how many, the first, to define
+    measures on) and the measures kept with it (measures.json), if any."""
+    import os
+
+    from svcore import summary
+    folder = os.path.abspath(os.path.expanduser(path))
+    if not os.path.isdir(folder):
+        fail(404, f"Folder not found: {folder}")
+    files = summary.folder_files([folder])
+    try:
+        kept = summary.folder_measures(folder)
+    except summary.SummaryError as e:
+        fail(400, str(e))
+    return {"folder": folder, "files": len(files), "first": files[0] if files else None,
+            "measures": kept[0] if kept else None, "pattern": kept[1] if kept else None}
+
+
 # F3: the parameters of a run (any format) and two runs compared - svcore/runinfo.py
 @router.get("/api/runs/{run_id}/parameters")
 def run_parameters(run_id: str):

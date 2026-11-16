@@ -101,15 +101,23 @@ def start_job(req: JobRequest):
     elif req.kind == "summarizeFolder":
         # M2: the Runs matrix's measures over a folder of recordings that are not open - each read into a store
         # of its own, measured and closed (memory: one file's); the rows go to Sweeps
+        # FL1: no measures given -> the folder's own measures.json (and its name pattern, unless one is given)
         from app.store import Store
         from svcore import summary
-        try:
-            summary.check(b.get("measures") or [])
-        except summary.SummaryError as e:
-            fail(400, str(e))
         folder = os.path.abspath(os.path.expanduser(str(b.get("folder") or "")))
         if not os.path.isdir(folder):
             fail(400, f"Folder not found: {folder}")
+        measures, pattern = b.get("measures") or [], str(b.get("pattern") or "")
+        try:
+            summary.check(measures)
+            kept = None if measures else summary.folder_measures(folder)
+        except summary.SummaryError as e:
+            fail(400, str(e))
+        if kept:
+            measures, pattern = kept[0], pattern or kept[1]
+        if not measures:
+            fail(400, f"No measures for {folder}: define them in Investigate > Runs matrix on one of its recordings, "
+                      f"or put a {summary.MEASURES_FILE} beside the recordings.")
         files = summary.folder_files([folder])
         if not files:
             fail(400, f"No recordings in {folder}.")
@@ -119,7 +127,7 @@ def start_job(req: JobRequest):
             return st, st.open_file(path).id
 
         def work(job):
-            cols, rows, skipped = summary.summarize_files(files, b.get("measures") or [], str(b.get("pattern") or ""), open_one,
+            cols, rows, skipped = summary.summarize_files(files, measures, pattern, open_one,
                                                           job.report, job.cancelled)
             if job.cancelled():
                 raise JobCancelled()

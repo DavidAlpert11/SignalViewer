@@ -85,3 +85,43 @@ def test_folder_job_reads_one_file_at_a_time(folder):
     assert set(store.order) == before                    # nothing opened in the app
     bad = client.post("/api/jobs", json={"kind": "summarizeFolder", "body": {"folder": str(folder / "nope"), "measures": MEASURES[:1]}})
     assert bad.status_code == 400
+
+
+def _wait(j):
+    import time
+    for _ in range(300):
+        j = client.get(f"/api/jobs/{j['id']}").json()
+        if j["state"] not in ("running", "queued"):
+            break
+        time.sleep(0.1)
+    return j
+
+
+def test_a_folder_keeps_its_measures(folder):
+    """FL1: a measures.json beside the recordings is used when no measures are given; the folder's info says so."""
+    info = client.get("/api/summary/folder", params={"path": str(folder)}).json()
+    assert info["files"] == 3 and info["first"].endswith(".csv") and info["measures"] is None
+    bad = client.post("/api/jobs", json={"kind": "summarizeFolder", "body": {"folder": str(folder)}})
+    assert bad.status_code == 400 and "Runs matrix" in bad.json()["detail"]
+    (folder / "measures.json").write_text(json.dumps({"measures": MEASURES[:1], "pattern": "kp_{kp}_wind_{wind}"}))
+    info = client.get("/api/summary/folder", params={"path": str(folder)}).json()
+    assert info["measures"] == MEASURES[:1] and info["pattern"] == "kp_{kp}_wind_{wind}" and info["files"] == 3
+    j = _wait(client.post("/api/jobs", json={"kind": "summarizeFolder", "body": {"folder": str(folder)}}).json())
+    assert j["state"] == "done" and j["result"]["columns"] == ["recording", "kp", "wind", "peak"]
+    (folder / "measures.json").write_text("{not json")
+    assert client.get("/api/summary/folder", params={"path": str(folder)}).status_code == 400
+    assert client.get("/api/summary/folder", params={"path": str(folder / "nope")}).status_code == 404
+
+
+def test_the_folder_example_tells_its_story():
+    """FL1: examples/folder_of_flights with its measures.json - X8-A's vibration grows to its last flight, X8-B's
+    battery drops on its last one."""
+    ex = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "folder_of_flights")
+    j = _wait(client.post("/api/jobs", json={"kind": "summarizeFolder", "body": {"folder": ex}}).json())
+    assert j["state"] == "done", j
+    cols, rows = j["result"]["columns"], j["result"]["rows"]
+    assert cols == ["recording", "vehicle", "date", "vibration_max", "battery_min_V"] and len(rows) == 10
+    a = [r[3] for r in rows if r[1] == "X8-A"]
+    assert a == sorted(a) and a[0] < 20 < 60 < a[-1]
+    b = [r[4] for r in rows if r[1] == "X8-B"]
+    assert min(b) == b[-1] < 14 < min(b[:-1])

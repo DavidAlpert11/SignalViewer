@@ -8,8 +8,8 @@ import { sweepApi, type SetDetail as Detail } from "../../sweeps/api";
 import type { Condition, RecordingsPlace } from "../../sweeps/model";
 import { fmtValue } from "../../sweeps/scales";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
-import { pickPath, useApp } from "../../store";
-import { openPaths } from "../../files";
+import { pickPath } from "../../store";
+import { openRecordings } from "../../folderSummary";
 
 const breaks = (c: Condition, v: unknown) => {
   if (typeof v !== "number" || !Number.isFinite(v)) return true;
@@ -40,10 +40,6 @@ export default function SetDetail({ study, set }: { study: Study; set: number })
   const col = (name: string) => study.answer?.sets.find((c) => c.name === name)?.values[set];
   const holds = col("#holds") === 1;
   const share = col("#neighbours"), tol = col("#tolerance");
-  const openRecordings = (paths: string[]) => {
-    useApp.setState({ area: "recordings" });
-    openPaths(paths, undefined, { autoView: true });
-  };
   const inRerun = inRerunNow(study, set);
   const conds = study.question.conditions;
   return (

@@ -87,6 +87,8 @@ export interface UiSlice {
   whatChanged: { a: number; b: number } | null;
   changeMarks: Record<string, number> | null;
   matrixOpen: boolean;                     // investigation step 5: runs x conditions
+  /** FL1: the folder whose first recording is open to define measures on - the Runs matrix's Summarize uses it */
+  matrixFolder: string | null;
   journal: JournalStep[];
   /** A selection made on the overview strip: per row the picked values (or "in" for a condition) -
    *  "or" within a row, "and" across rows - and its stretches in the strip's run (shaded on the plots). */
@@ -201,6 +203,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   whatChanged: null,
   changeMarks: null,
   matrixOpen: false,
+  matrixFolder: null,
   journal: [],
   stripSel: null,
   compareTable: null,

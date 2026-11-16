@@ -259,9 +259,8 @@ def cmd_summarize(a) -> int:
     pattern's parameters - one file at a time (svcore/summary.py): memory stays one file's."""
     import csv
     from svcore import summary
-    spec = json.load(open(a.measures, encoding="utf-8"))
-    measures = spec.get("measures", []) if isinstance(spec, dict) else spec
-    pattern = a.pattern if a.pattern is not None else (spec.get("pattern", "") if isinstance(spec, dict) else "")
+    measures, kept = summary.read_measures(a.measures)
+    pattern = a.pattern if a.pattern is not None else kept
     files = summary.folder_files(a.files)
 
     def open_file(path):

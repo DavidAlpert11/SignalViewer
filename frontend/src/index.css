@@ -1668,6 +1668,9 @@ input.fx-input { width: 100%; }
 .mx-dialog { width: min(1100px, 96vw); max-height: 90vh; display: flex; flex-direction: column; }
 .mx-tools { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; padding: 0 16px; }
 .mx-dialog > .hint { padding: 0 16px; }
+/* FL1: the step a folder of recordings waits on - defined on its first recording */
+.mx-folder-step { margin: 6px 16px 0; padding: var(--sp-1_5) var(--sp-2); border-inline-start: 3px solid var(--select); background: var(--panel-2);
+  border-radius: var(--r-m); font-size: var(--fs-sm); color: var(--ink); }
 /* M1: the measures row and the new measure's fields */
 .mx-measures, .mx-draft { padding-top: 6px; }
 .mx-measure-chip { display: inline-flex; gap: 4px; align-items: center; }

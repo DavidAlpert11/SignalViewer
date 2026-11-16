@@ -4,7 +4,8 @@ import { actions, fileLabel, MEASURE_OPS, pickPath, uid, useApp, type Condition,
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { useEscape } from "./Overlays";
-import { openPaths, runJob } from "../files";
+import { openPaths } from "../files";
+import { summarizeFolder as summarizeInSweeps } from "../folderSummary";
 import { copyText } from "../errorReport";
 
 const DATA_EXTS = [".csv", ".txt", ".mat", ".parquet", ".h5", ".hdf5"];
@@ -20,7 +21,7 @@ export default function RunsMatrix() {
   const runs = useApp((s) => s.runs);
   const conds = useApp((s) => s.ws.conditions) ?? [];
   const results = useApp((s) => s.condResults);
-  const close = () => useApp.setState({ matrixOpen: false });
+  const close = () => useApp.setState({ matrixOpen: false, matrixFolder: null });
   useEscape(close);
   const files = runs.filter((r) => r.format !== "derived");
   const [measure, setMeasure] = useState<"count" | "total">("count");
@@ -58,8 +59,12 @@ export default function RunsMatrix() {
     setDraft(null);
   };
   const signalNames = useMemo(() => [...new Set(files.flatMap((f) => f.signals.map((s) => s.name)))].slice(0, 2000), [files]);
+  // FL1: the folder being defined on (Sweeps > Data > From a folder) keeps its measures beside its recordings
+  const folder = useApp((s) => s.matrixFolder);
+  const folderLabel = folder?.split(/[\\/]/).filter(Boolean).pop() ?? "";
   const saveMeasures = async () => {
-    const path = await pickPath({ mode: "save", title: t("mxSaveMeasures"), exts: [".json"], defaultName: "measures.json" });
+    const path = folder ? `${folder}${folder.includes("\\") ? "\\" : "/"}measures.json`
+      : await pickPath({ mode: "save", title: t("mxSaveMeasures"), exts: [".json"], defaultName: "measures.json" });
     if (!path) return;
     const body = JSON.stringify({ measures: measures.map(({ id: _id, ...m }) => m), pattern }, null, 1);
     try { await api.saveText(path, body, ".json", false); useApp.getState().toast({ kind: "info", text: t("mxSavedMeasures", { path }) }); }
@@ -139,16 +144,8 @@ export default function RunsMatrix() {
   // M2: the measures over a folder of recordings that are NOT opened (the backend reads one at a time - the
   // memory of one file), straight into Sweeps
   const summarizeFolder = async () => {
-    const dir = await pickPath({ mode: "folder", title: t("mxSumFolderTitle") });
-    if (!dir) return;
-    const res = await runJob<{ columns: string[]; rows: (string | number | null)[][]; skipped: string[] }>(
-      "summarizeFolder", { folder: dir, measures, pattern }, t("mxSumFolderJob"));
-    if (!res) return;
-    if (res.skipped.length) useApp.getState().toast({ kind: "info", text: t("mxSumSkipped", { n: res.skipped.length, names: res.skipped.slice(0, 3).join("; ") }) });
-    if (!res.rows.length) return;
-    const { useSweeps } = await import("../sweeps/state");
-    useApp.setState({ matrixOpen: false, area: "sweeps" });
-    await useSweeps.getState().openRows(dir.split(/[\\/]/).filter(Boolean).pop() ?? t("mxTitle"), res.columns, res.rows);
+    const dir = folder ?? await pickPath({ mode: "folder", title: t("mxSumFolderTitle") });
+    if (dir) await summarizeInSweeps(dir, measures.map(({ id: _id, ...m }) => m), pattern);
   };
   // the same table in the Sweeps area: a row per run - its file, parameters and the conditions'
   // measures - where a goal, conditions over scenarios and the parallel plot apply
@@ -176,7 +173,7 @@ export default function RunsMatrix() {
           <button className="btn outline sm" onClick={toSweeps} title={t("mxToSweepsHint")}>{t("mxToSweeps")}</button>
           {busy && <span className="hint">{busy}</span>}
         </div>
-        <p className="hint">{t("mxHint")}</p>
+        {folder ? <p className="mx-folder-step">{t("mxDefineOn", { folder: folderLabel })}</p> : <p className="hint">{t("mxHint")}</p>}
         <div className="mx-tools mx-measures">
           <span>{t("mxMeasures")}</span>
           {measures.map((m) => (
@@ -184,7 +181,7 @@ export default function RunsMatrix() {
               <button className="linklike" aria-label={t("remove")} onClick={() => setMeasures(measures.filter((x) => x.id !== m.id))}>×</button></span>
           ))}
           {!draft && <button className="btn outline sm mx-add-measure" onClick={() => setDraft({ signal: "", op: "max", where: "", t: "0" })}>+ {t("mxAddMeasure")}</button>}
-          {measures.length > 0 && <button className="btn outline sm mx-sum-folder" onClick={summarizeFolder} title={t("mxSumFolderHint")}>{t("mxSumFolder")}</button>}
+          {measures.length > 0 && <button className="btn outline sm mx-sum-folder" onClick={summarizeFolder} title={t("mxSumFolderHint")}>{folder ? t("mxSumThisFolder", { folder: folderLabel }) : t("mxSumFolder")}</button>}
           {measures.length > 0 && <button className="btn outline sm" onClick={saveMeasures} title={t("mxSaveMeasuresHint")}>{t("mxSaveMeasures")}</button>}
           <label className="mx-pattern">{t("mxPattern")}{" "}
             <input dir="ltr" defaultValue={pattern} placeholder="kp_{kp}_wind_{wind}" onBlur={(e) => e.target.value !== pattern && setPattern(e.target.value)}

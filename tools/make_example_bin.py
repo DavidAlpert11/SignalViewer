@@ -27,7 +27,7 @@ import make_test_bin as mk  # noqa: E402  (FMT / message writer)
 HOME = (32.7840, 35.6420, -198.0)          # lat, lon, ground AMSL (the app's DEM there)
 DT = 0.04                                   # 25 Hz model step
 WIND = np.array([0.0, 3.0])                 # m/s (north, east): from the west
-GPS_START = (2026, 9, 14, 6, 30, 0)         # UTC at boot - the fleet view's flight date
+GPS_START = (2026, 9, 14, 6, 30, 0)         # UTC at boot - the flight's date in the log
 
 
 def formats():
@@ -169,8 +169,8 @@ def simulate():
 
 
 def main(out=None, start=GPS_START, seed=45, vib_scale=1.0, burst_on=True, gps_glitch=None, capacity=5200, thin=1):
-    """The defaults make examples/copter_flight.bin. The others make the fleet example's flights
-    (tools/make_fleet_example.py): another date and noise, vibration that grows with wear, no loose
+    """The defaults make examples/copter_flight.bin. The others make the folder example's flights
+    (tools/make_folder_example.py): another date and noise, vibration that grows with wear, no loose
     propeller, a stretch of poor GPS (t0, t1), a smaller (worn) battery, and fewer 25 Hz samples
     (`thin`: every n-th) so that ten flights stay small."""
     out = out or (sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",

@@ -614,6 +614,155 @@ def img_31_flight_map_3d(b, app):
     shot(pg, "31_flight_map_3d"); ctx.close()
 
 
+def _pareto(pg):
+    pg.locator(".areas .area-btn", has_text="Sweeps").click()
+    pg.locator(".sw-welcome .btn", has_text="Try an example").click()
+    pg.wait_for_selector(".sw-steps")
+    pg.locator(".sw-step-btn[data-step='goals']").click(); pg.wait_for_timeout(500)
+    pg.locator("select[aria-label='Optimize energy_wh']").select_option("min"); pg.wait_for_timeout(700)
+    pg.locator("select[aria-label='Optimize roll_error_deg']").select_option("min"); pg.wait_for_timeout(700)
+    pg.locator(".sw-rankby select").select_option("pareto"); pg.wait_for_timeout(900)
+
+
+def img_30_sweeps_pareto(b, app):
+    """Sweeps: two objectives - the Pareto front, the balanced set starred."""
+    ctx, pg = page(b, app)
+    _pareto(pg)
+    pg.locator(".sw-rankby .btn").click(); pg.wait_for_timeout(1500)
+    shot(pg, "30_sweeps_pareto"); ctx.close()
+
+
+
+
+
+# ----------------------------------------------------------------------------- 1.28: the tutorials' pictures
+def _example(pg, ex, ready, settle=1200):
+    """Open a welcome-screen example as a new user does, and wait until it is drawn."""
+    pg.locator(f".ex-card[data-example='{ex}']").first.click()
+    pg.wait_for_selector(ready, timeout=120000)
+    pg.wait_for_function("window.__sv.state().busy === 0 && !document.querySelector('.job')", timeout=120000)
+    pg.wait_for_timeout(settle)
+    no_toasts(pg)
+
+
+def img_20_sim_vs_flight(b, app):
+    """docs/sim-vs-flight.md, steps 1-4 on the example (20 before, 21 Align time, 22 aligned, 23 the roll
+    doublet up close, 24 Compare's ranking) - one session, as the tutorial goes."""
+    ctx, pg = page(b, app)
+    _example(pg, "simVsFlight", ".grid canvas", 2500)
+    shot(pg, "20_sim_vs_flight_before")
+    pg.locator(".run-head").filter(has_text="flight_attitude").first.click(button="right")
+    pg.get_by_text("Align time with another file").first.click()
+    pg.wait_for_selector("text=Signal correlation", timeout=60000); pg.wait_for_timeout(2500)
+    shot(pg, "21_sim_vs_flight_align")
+    pg.get_by_role("button", name="Apply", exact=True).first.click()
+    pg.wait_for_function("window.__sv.state().runs.some((r) => Math.abs((r.timeOffset || 0) + 104.369) < 0.05)", timeout=30000)
+    pg.wait_for_timeout(2000); no_toasts(pg)
+    shot(pg, "22_sim_vs_flight_aligned")
+    pg.evaluate("() => { const t = window.__sv.state().ws.tabs.find((x) => x.id === window.__sv.state().ws.activeTab); window.__sv.setState({ ranges: { [t.id]: [24, 40] } }); }")
+    pg.wait_for_timeout(2000)
+    shot(pg, "23_sim_vs_flight_overshoot")
+    pg.evaluate("() => { const t = window.__sv.state().ws.tabs.find((x) => x.id === window.__sv.state().ws.activeTab); window.__sv.setState({ ranges: {} }); }")
+    pg.click("[aria-label='Compare runs']")
+    pg.wait_for_selector(".sim-row", timeout=60000); pg.wait_for_timeout(2000)
+    shot(pg, "24_sim_vs_flight_compare"); ctx.close()
+
+
+def img_32_replay(b, app):
+    """32: a replay page in the browser (Report > Send it as a replay); 33: the app as it was sent - two cursors
+    with Δ in every chip, the plots' window on the timeline, the Report panel's replay card."""
+    ctx, pg = page(b, app)
+    _example(pg, "car", ".grid canvas", 1500)
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 18, t2: 31, active: 2 } })")
+    pg.click("nav.rail button[aria-label='Report']")
+    pg.wait_for_selector(".replay-card .replay-make", timeout=30000); pg.wait_for_timeout(1500)
+    shot(pg, "33_send_replay_delta")
+    pg.locator(".replay-card .replay-make").click()
+    pg.wait_for_function("document.querySelector('.crumbs input') && document.querySelector('.crumbs input').value !== ''")
+    pg.fill(".crumbs input", app.data); pg.press(".crumbs input", "Enter")
+    pg.wait_for_function(f"document.querySelector('.crumbs input').value === {json.dumps(app.data)}")
+    pg.fill(".savename input", "car-replay.html"); pg.click(".dialog-foot .btn.primary")
+    path = app.path("car-replay.html")
+    for _ in range(120):
+        if os.path.exists(path) and os.path.getsize(path) > 10000:
+            break
+        pg.wait_for_timeout(500)
+    rp = ctx.new_page()
+    rp.goto("file://" + path, wait_until="domcontentloaded")
+    rp.wait_for_function("window.__replay && document.querySelectorAll('.plot .u-over').length > 0", timeout=60000)
+    rp.wait_for_timeout(1500)
+    rp.screenshot(path=os.path.join(IMAGES, "32_replay_page.png")); print("image docs/images/32_replay_page.png")
+    ctx.close()
+
+
+def img_39_smart_sweep_demo(b, app):
+    """The smart-sweep demo after three rounds: the next runs converge on the full grid's optimum."""
+    ctx, pg = page(b, app)
+    pg.locator(".ex-card[data-example='smartSweepDemo']").first.click()
+    pg.wait_for_selector(".dm-strip", timeout=60000)
+    if pg.locator(".dm-reset").is_enabled():
+        pg.locator(".dm-reset").click()
+        pg.wait_for_function("document.querySelector('.dm-strip').dataset.round === '0'")
+    for k in (1, 2, 3):
+        pg.locator(".dm-next").click()
+        pg.wait_for_function(f"document.querySelector('.dm-chart')?.dataset.points === '{k}' && "
+                             "document.querySelector('[data-shot=demo]').dataset.settled === '1'", timeout=300000)
+    pg.wait_for_timeout(1500)
+    shot(pg, "39_smart_sweep_demo"); ctx.close()
+
+
+def img_40_common_gains(b, app):
+    """One set of gains for three drones: the shared answer, why the others fail."""
+    ctx, pg = page(b, app)
+    pg.locator(".ex-card[data-example='commonGains']").first.click()
+    pg.wait_for_selector("[data-shot][data-settled='1']", timeout=180000); pg.wait_for_timeout(2000)
+    shot(pg, "40_common_gains"); ctx.close()
+
+
+def img_41_sweeps_all_runs(b, app):
+    """The sweep table's results: All runs - a line per run across the parameters, each scenario and the outputs."""
+    ctx, pg = page(b, app)
+    _example(pg, "sweepTable", ".pp canvas", 1500)
+    tab = pg.get_by_role("tab", name="All runs")
+    if not tab.count():
+        tab = pg.locator("button", has_text="All runs")
+    tab.first.click(); pg.wait_for_timeout(2500)
+    shot(pg, "41_sweeps_all_runs"); ctx.close()
+
+
+def _what_changed(pg):
+    _example(pg, "investigate", ".grid canvas", 1500)
+    pg.locator(".sig").filter(has=pg.get_by_text("Roll", exact=True)).first.click()
+    pg.wait_for_timeout(800)
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 38.46, t2: 39.24, active: 1 } })")
+    pg.wait_for_selector(".sel-bar:not([hidden])", timeout=20000)
+    pg.click(".sel-changed")
+    pg.wait_for_selector(".wc-section", timeout=60000); pg.wait_for_timeout(2000)
+
+
+def img_42_report_process(b, app):
+    """A report opens with The process in brief: the data, what was checked, what it shows, the conclusion."""
+    ctx, pg = page(b, app)
+    _what_changed(pg)
+    pg.click("nav.rail button[aria-label='Report']")
+    pg.wait_for_selector(".side .btn:has-text('Preview')", timeout=30000)
+    pg.click(".side .btn:has-text('Preview')")
+    pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').length > 1000", timeout=60000)
+    pg.wait_for_timeout(2500)
+    shot(pg, "42_report_process"); ctx.close()
+
+
+def img_43_what_changed(b, app):
+    """What changed first around the roll error: every signal that left its usual range, in time order."""
+    ctx, pg = page(b, app)
+    _what_changed(pg)
+    shot(pg, "43_what_changed"); ctx.close()
+
+
+# ----------------------------------------------------------------------------- W2: the example cards' pictures
+EX_PICS = os.path.join(ROOT, "frontend", "public", "examples")
+EX_W, EX_H, EX_MAX_BYTES = 480, 270, 40_000
+# what is hidden while the picture is taken: every text of the interface, so a picture serves both languages
 EX_NO_TEXT = """.plot-head, .legend, .plot-title, .mode-bar, .plot-mode, .stage-bar, .toasts, .start-card, .tpl-strip, .plot-empty,
   .u-legend, .readout, .cursor-bar, .tl, .map-bar, .relation, .sw-shot-text, .geo-hint, .geo-readout, .globe3d-readout,
   .g3-readout, .g3-cam-hint, .g3-seg-label, .globe3d-light, .map-layers, .map-cam-line { visibility: hidden !important; }"""
@@ -625,6 +774,10 @@ def _ex_ready(pg, ex):
     if ex.get("open") == "study":                      # the Sweeps panel marks its picture area when its answer is in
         pg.wait_for_selector("[data-shot][data-settled='1']", timeout=120000)
     elif ex.get("open") == "sweep":                    # the table and its question: the results' parallel plot
+        pg.wait_for_selector(".pp canvas", timeout=60000); pg.wait_for_function("window.__svSweeps.idle()", timeout=60000)
+    elif ex.get("open") == "summary":                  # FL1: the folder summed up, a row per recording in Sweeps
+        pg.wait_for_selector(".sw-raw tbody tr:nth-child(10)", timeout=120000)
+        pg.locator(".sw-center-tabs [role=tab]").nth(1).click()                     # its parallel plot: a line per recording
         pg.wait_for_selector(".pp canvas", timeout=60000); pg.wait_for_function("window.__svSweeps.idle()", timeout=60000)
     else:
         pg.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length || (p.objects || []).length))", timeout=60000)
@@ -696,7 +849,7 @@ def img_examples(browser, app):
                 no_toasts(pg)
                 pg.mouse.move(W - 5, 5)
                 # a study: its shared-values chart (the values tried, which hold, the best) - no table, no words
-                area = {"study": "[data-shot] .cp-space-svg", "sweep": ".pp"}.get(ex.get("open", ""), ".grid")
+                area = {"study": "[data-shot] .cp-space-svg", "sweep": ".pp", "summary": ".pp"}.get(ex.get("open", ""), ".grid")
                 area = pg.locator(area).first
                 size = _ex_save(area.screenshot(), os.path.join(EX_PICS, f"{ex['id']}.{theme}.webp"))
                 print("example picture", ex["id"], theme, f"{size / 1000:.1f} kB")

@@ -1,0 +1,7 @@
+{
+ "measures": [
+  {"name": "vibration_max", "signal": "VIBE[0].VibeZ", "op": "max"},
+  {"name": "battery_min_V", "signal": "BAT[0].Volt", "op": "min"}
+ ],
+ "pattern": "{vehicle}_{date}"
+}

@@ -20,6 +20,7 @@ import ColumnPicker from "./ColumnPicker";
 import ParallelPlot from "./ParallelPlot";
 import { NO_ZOOM, zoomAt } from "../../sweeps/zoom";
 import { notify, notifyError } from "../../sweeps/notify";
+import { openRecordings } from "../../folderSummary";
 
 const stem = (n: string) => n.replace(/\.[^.]+$/, "");
 
@@ -144,6 +145,8 @@ export function RawCenter({ study }: { study: Study }) {
 }
 
 const PAGE = 100;
+/** a recording's file name - its folder is in the cell's tooltip */
+const baseName = (p: string) => p.split(/[\\/]/).pop() || p;
 
 function RawTable({ study, tb }: { study: Study; tb: StudyTable }) {
   const t = useT();
@@ -158,7 +161,20 @@ function RawTable({ study, tb }: { study: Study; tb: StudyTable }) {
     return () => { live = false; };
   }, [tb.id, tb.opened.rows, page, sort]);
   const role = rolesOf(study, tb);
+  // FL1: a table with a recording column (a folder summed up): tick rows, open their recordings together
+  const [ticked, setTicked] = useState<Map<number, string>>(() => new Map());
   if (!data) return <p className="hint">{t("swReading")}</p>;
+  const recCol = data.columns.findIndex((c) => role.get(c) === "recording" || c === "recording");
+  const pathAt = (i: number) => { const v = recCol >= 0 ? data.rows[i][recCol] : null; return typeof v === "string" && v ? v : null; };
+  const tick = (i: number, on: boolean) => {
+    const p = pathAt(i);
+    if (!p) return;
+    const next = new Map(ticked);
+    if (on) next.set(data.index[i], p); else next.delete(data.index[i]);
+    setTicked(next);
+  };
+  const pageRows = data.rows.map((_, i) => i).filter((i) => pathAt(i));
+  const allOnPage = pageRows.length > 0 && pageRows.every((i) => ticked.has(data.index[i]));
   const pages = Math.max(1, Math.ceil(data.total / PAGE));
   // the columns to show: all of them (as read, the removed ones too), or those picked
   const shownNames = picked ? picked.filter((c) => data.columns.includes(c)) : data.columns;
@@ -174,16 +190,27 @@ function RawTable({ study, tb }: { study: Study; tb: StudyTable }) {
           <button className="linklike" onClick={() => setPage(Math.floor(pickedRun / PAGE))}>{t("swGoToPicked")}</button>)}
         <ColumnPicker options={rawOptions(t, study, tb, data.columns)} value={shownNames} onChange={setPicked}
           presets={presetChoices(t, study, data.columns, PRESET_KEY, ["params-goal"])} />
+        {recCol >= 0 && <>
+          <button className="btn primary sm sw-open-ticked" disabled={!ticked.size} title={t("swOpenTickedHint")}
+            onClick={() => openRecordings([...ticked.values()])}>{ticked.size ? t("swOpenTicked", { n: ticked.size }) : t("swTickToOpen")}</button>
+          {ticked.size > 0 && <button className="linklike" onClick={() => setTicked(new Map())}>{t("swUntickAll")}</button>}
+        </>}
       </div>
       <div className="sw-table-wrap">
         <table className="sw-table sw-sticky-first">
-          <thead><tr>{show.map((j) => data.columns[j]).map((c) => (
+          <thead><tr>{recCol >= 0 && <th className="sw-tick"><input type="checkbox" checked={allOnPage} aria-label={t("swTickPage")}
+            onChange={(e) => { const next = new Map(ticked); for (const i of pageRows) { if (e.target.checked) next.set(data.index[i], pathAt(i)!); else next.delete(data.index[i]); } setTicked(next); }} /></th>}
+            {show.map((j) => data.columns[j]).map((c) => (
             <th key={c} className={`sw-th-${role.get(c) ?? "output"}`} title={c} onClick={() => setSort(sort?.c === c ? { c, desc: !sort.desc } : { c, desc: false })}>
               <span className="sw-ellipsis">{c}</span>{sort?.c === c ? (sort.desc ? " ▼" : " ▲") : ""}</th>
           ))}</tr></thead>
           <tbody>{data.rows.map((r, i) => (
-            <tr key={i} className={data.index[i] === pickedRun ? "sw-picked-row" : ""}>{show.map((j) => [r[j], j] as const).map(([v, j]) => <td key={j} className={`${typeof v === "number" ? "num" : ""}${role.get(data.columns[j]) === "ignore" ? " sw-dim" : ""}`}>
-              {v === null ? "–" : typeof v === "number" ? fmtValue(v) : String(v)}</td>)}</tr>
+            <tr key={i} className={data.index[i] === pickedRun ? "sw-picked-row" : ticked.has(data.index[i]) ? "sw-ticked-row" : ""}>
+              {recCol >= 0 && <td className="sw-tick">{pathAt(i) && <input type="checkbox" checked={ticked.has(data.index[i])}
+                aria-label={t("swTickRow", { name: baseName(pathAt(i)!) })} onChange={(e) => tick(i, e.target.checked)} />}</td>}
+              {show.map((j) => [r[j], j] as const).map(([v, j]) => <td key={j} className={`${typeof v === "number" ? "num" : ""}${role.get(data.columns[j]) === "ignore" ? " sw-dim" : ""}`}
+                title={j === recCol && typeof v === "string" ? v : undefined}>
+              {v === null ? "–" : typeof v === "number" ? fmtValue(v) : j === recCol ? <bdi dir="ltr">{baseName(String(v))}</bdi> : String(v)}</td>)}</tr>
           ))}</tbody>
         </table>
       </div>

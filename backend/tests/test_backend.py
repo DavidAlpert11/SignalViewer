@@ -559,7 +559,7 @@ def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
     from app.routes import fs as m
     r = client.get("/api/examples").json()
     assert [x["id"] for x in r] == ["flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "investigate",
-                                    "sweepTable", "commonGains", "smartSweepDemo"] and len(r[2]["paths"]) == 3
+                                    "folderOfFlights", "sweepTable", "commonGains", "smartSweepDemo"] and len(r[2]["paths"]) == 3
     assert [x.get("open") for x in r[-3:]] == ["sweep", "study", "study"] and r[-1]["paths"][-1].endswith("demo.svstudy.json")
     assert all(os.path.isfile(p) for x in r for p in x["paths"])
     (tmp_path / "uav_flight.csv").write_text("t,a\n0,1\n")
