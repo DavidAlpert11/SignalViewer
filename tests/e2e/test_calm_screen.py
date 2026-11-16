@@ -13,10 +13,10 @@ def test_moved_controls_are_still_reachable(pg):
     pg.keyboard.press("?")
     pg.wait_for_selector(".help")
     pg.keyboard.press("Escape")
-    assert pg.locator(".stage-bar .btn", has_text="Y").count() == 0          # Link value axes: in More, shown while on
+    assert pg.locator(".stage-bar .btn", has_text="Link values").count() == 0   # Link value axes: in More, shown while on
     pg.click(".stage-bar .stage-more"); menu_item(pg, "Link value axes")
     pg.wait_for_function("window.__sv.state().ws.tabs[0].linkY === true")
-    pg.wait_for_selector(".stage-bar .btn[aria-pressed=true]:has-text('Y')")
+    pg.wait_for_selector(".stage-bar .btn[aria-pressed=true]:has-text('Link values')")   # RV1: a word, not "Y"
     pg.keyboard.press("Control+k"); pg.fill(".palette-input", "Link value axes"); pg.keyboard.press("Enter")
     pg.wait_for_function("window.__sv.state().ws.tabs[0].linkY === false")
     pg.click(".topbar [aria-label='Settings']")
