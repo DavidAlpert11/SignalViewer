@@ -16,7 +16,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - **2026-11-16 · PLAN_2026-11-17 (the owner approved it) - in progress.** Order R, S1, S2, E1, M1, M3, M2 (plan §6).
   R done: the unreleased 1.27.0 and 1.28.0 are one release, **1.27.0** (CHANGELOG merged under `1.27.0 – unreleased`,
   the version files at 1.27.0, the docs' "1.28" -> "1.27"; history not rewritten). The owner tags v1.27.0 once the
-  round is stable. Next: S1 (formula: if / compare / text / bins).
+  round is stable. S1 done (formula: if / compare / text / bins / rank / pct, a text column is a scenario, share per
+  set). Next: S2 (table tools + export). Then E1, M1, M3, M2, P (setpoint pairs, plan §8), cleanup (§9), full e2e.
 - **2026-11-16 · Sweeps as one flow (PLAN_2026-11-16 §7a) - done.** Done: one stepper for every study (Data ·
   Columns · Goal · Results · Next runs; `sweeps/flow.ts`, `FlowNav.tsx`); the tables' column (Navigator) only in Data,
   resizable, a labelled *Remove from the study* with Undo; Next runs = the proposal + *Run from the app* (`NextStep.tsx`,
@@ -165,3 +166,10 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-16 · R (PLAN_2026-11-17 §1): 1.27.0 and 1.28.0 merged into one release 1.27.0 - CHANGELOG (one section, the
   highlights written once), build.bat, app/version.py, CITATION.cff, the installer's two files, docs' "(1.28)" -> 1.27.
   pytest test_crashlog (the versions equal) green; mkdocs build --strict green.
+- 2026-11-16 · S1 (PLAN_2026-11-17 §2a): Sweeps' row formula (`svcore/sweep/derived.py`) - text values, if() (nested;
+  `where` kept as its older name), comparisons chained, Kleene and / or / not, in / not in, between, contains, text,
+  bins, rank, pct; a missing value makes a comparison missing (was: false). A text result - or role "hold" - is a
+  scenario (`prepare`: new columns before the kept values; `newHolds` in /evaluate with every value). share per set.
+  UI: the editor completes text columns and the new functions, shows a text result, *Use as*; the conditions' cards
+  include the new scenarios. pytest test_sweep_formula (18, new) + sweep tests; e2e test_sweeps_data_columns (11,
+  one new), test_sweeps_flow, test_sweeps_workspace - green; quick_check green.

@@ -991,7 +991,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
       patch((x) => ({ ...x, evaluating: true }), false);
       sweepApi.evaluate(s.tableId, wireQuestion(s), s.view.mode === "runs").then((w) => {
         if (my !== seq) return;
-        const answer: Answer = { counts: w.counts, conditions: w.conditions, seconds: w.seconds,
+        const answer: Answer = { counts: w.counts, conditions: w.conditions, seconds: w.seconds, newHolds: w.newHolds,
           sets: w.sets.map((c) => decodeCol(c)),
           runs: w.runs && { ...w.runs, columns: w.runs.columns.map((c) => decodeCol(c, "run")) } };
         // the iteration (the tables merged so far) with this answer: how many hold, the best goal

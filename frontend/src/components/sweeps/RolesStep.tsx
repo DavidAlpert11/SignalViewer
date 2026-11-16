@@ -12,6 +12,7 @@ import { Icon } from "../../icons";
 import { sweepApi, type Role } from "../../sweeps/api";
 import { useSweeps, type Study, type StudyColumn } from "../../sweeps/state";
 import { templateSummary } from "../../sweeps/templates";
+import { newHoldColumns } from "../../sweeps/view";
 import { Stat } from "./Shape";
 import DerivedEditor from "./DerivedEditor";
 import { fmtValue } from "../../sweeps/scales";
@@ -36,7 +37,7 @@ const FEW = 8;
 export function RolesSide({ study }: { study: Study }) {
   const t = useT();
   const q = study.question, sm = study.summary;
-  const holds = study.columns.filter((c) => c.role === "hold" && !q.removed.includes(c.name));
+  const holds = [...study.columns.filter((c) => c.role === "hold" && !q.removed.includes(c.name)), ...newHoldColumns(study)];
   const tb = study.tables[study.use];
   return (
     <div className="sw-side-step">

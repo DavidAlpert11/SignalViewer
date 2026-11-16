@@ -3,7 +3,8 @@
 A question (JSON from the page):
     roles        {column: param | hold | output | id | ignore}
     holdValues   {hold column: [values kept]}         - missing or empty: every value
-    derived      [{name, kind: "row", expr} | {name, kind: "set", op, column, where}]
+    derived      [{name, kind: "row", expr, role?: "output" | "hold"} | {name, kind: "set", op, column, where}]
+                 - a text result (or role "hold") is a must-hold-across column (a scenario)
     goal         {column, direction: "max" | "min"} or null - ranks the sets that hold by its worst case
     conditions   [{column, op: ">=" "<=" ">" "<" "==" "!=", value, mode: "all" | "atLeast" | "only",
                    k (atLeast), where (only: {hold column: [values]})}]
@@ -30,7 +31,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from svcore.sweep.derived import DerivedError, SET_OPS, hold_mask, row_formula, set_aggregate
+from svcore.sweep.derived import DerivedError, SET_OPS, hold_mask, is_text, row_formula, set_aggregate
 
 _OPS = {">=": np.greater_equal, "<=": np.less_equal, ">": np.greater, "<": np.less, "==": np.equal, "!=": np.not_equal}
 _LOWER_IS_WORSE = (">=", ">")
@@ -54,6 +55,7 @@ class Prepared:
     covered: np.ndarray                 # per set: distinct combinations it ran
     row_id: np.ndarray = field(default_factory=lambda: np.zeros(0, np.int64))  # per kept row: its row in the table (to leave runs out by row)
     set_cols: Dict[str, np.ndarray] = field(default_factory=dict)   # per-set new columns
+    new_holds: Dict[str, List[Any]] = field(default_factory=dict)   # a new column used as a scenario: its values (S1)
 
 
 def _ids(df: pd.DataFrame, cols: List[str]) -> np.ndarray:
@@ -82,32 +84,42 @@ def prepare(table: pd.DataFrame, q: Dict) -> Prepared:
     if not params:
         raise QuestionError("Choose at least one parameter column.")
     df = table
-    keep = hold_mask(df, {c: v for c, v in (q.get("holdValues") or {}).items() if c in holds and v})
-    if keep is not None:
-        df = df[keep]
     excluded = q.get("exclude") or []
     if excluded:                                          # runs left out by the user (suspicious ones)
         df = df[~df.index.isin(excluded)]
-    row_id = df.index.to_numpy()
-    df = df.reset_index(drop=True)
+    # the per-run new columns (before the kept values: a new column may be a scenario, S1); rank() and
+    # pct() rank over the runs not left out
     derived = q.get("derived") or []
     new_cols: Dict[str, Any] = {}
+    new_holds: List[str] = []
     for d in derived:
         if d.get("kind") == "row":
             name = (d.get("name") or "").strip()
             if not name:
                 raise QuestionError("A new column needs a name.")
-            new_cols[name] = row_formula(df.assign(**new_cols) if new_cols else df, d.get("expr") or "")
+            v = row_formula(df.assign(**new_cols) if new_cols else df, d.get("expr") or "")
+            new_cols[name] = v
+            # a text column is a scenario (a text cannot be an output); a number one when asked
+            if d.get("role") == "hold" or is_text(v):
+                new_holds.append(name)
     if new_cols:
         df = df.assign(**new_cols)
-        outputs = outputs + [n for n in new_cols if n not in outputs]
+        holds = holds + [n for n in new_holds if n not in holds]
+        outputs = outputs + [n for n in new_cols if n not in outputs and n not in new_holds]
+    hold_values = {n: _values(df[n]) for n in new_holds}
+    keep = hold_mask(df, {c: v for c, v in (q.get("holdValues") or {}).items() if c in holds and v})
+    if keep is not None:
+        df = df[keep]
+    row_id = df.index.to_numpy()
+    df = df.reset_index(drop=True)
     set_id = _ids(df, params)
     n_sets = int(set_id.max()) + 1 if len(set_id) else 0
     _, first_row = np.unique(set_id, return_index=True)
     combo_id = _ids(df, holds)
     n_combos = int(combo_id.max()) + 1 if len(combo_id) else 0
     covered = _distinct_per_set(set_id, combo_id, n_sets, n_combos)
-    p = Prepared(df, params, holds, outputs, set_id, n_sets, first_row, combo_id, n_combos, covered, row_id=row_id)
+    p = Prepared(df, params, holds, outputs, set_id, n_sets, first_row, combo_id, n_combos, covered, row_id=row_id,
+                 new_holds=hold_values)
     for d in derived:
         if d.get("kind") == "set":
             name, op, col = (d.get("name") or "").strip(), d.get("op"), d.get("column")
@@ -119,6 +131,16 @@ def prepare(table: pd.DataFrame, q: Dict) -> Prepared:
                 raise QuestionError(f"Unknown operation: {op}")
             p.set_cols[name] = set_aggregate(df[col], set_id, n_sets, op, hold_mask(df, d.get("where")))
     return p
+
+
+def _values(s: pd.Series, limit: int = 200) -> List[Any]:
+    """A scenario column's distinct values, sorted (text as text, numbers as numbers)."""
+    u = pd.unique(s.dropna())
+    try:
+        u = sorted(u)
+    except TypeError:
+        u = sorted(u, key=str)
+    return [_py(v) for v in u[:limit]]
 
 
 def _agg(p: Prepared, col: str, op: str) -> np.ndarray:

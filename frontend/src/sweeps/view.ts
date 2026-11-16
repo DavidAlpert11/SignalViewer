@@ -2,7 +2,7 @@
    screen, their scales, and which axes can be added. Pure functions of the study. */
 import type { TFn, TKey } from "../i18n";
 import type { Col, DeskPane, MapSpec, PlotStyle, Role, Scale, View } from "./model";
-import { useSweeps, wireQuestion, type Study } from "./state";
+import { useSweeps, wireQuestion, type Study, type StudyColumn } from "./state";
 import { keptMask } from "./filters";
 import { FLAG_COLS } from "./colors";
 import { groupColumn, hiddenMask, maskOfKey } from "./groups";
@@ -199,6 +199,21 @@ export function scopedColumns(s: Study): { cols: Map<string, Col>; n: number; in
   return { cols: out, n: index.length, index };
 }
 
+/** A new column that is a scenario (S1): asked so, or its formula gives text (the server says). */
+export const isNewHold = (s: Study, name: string) =>
+  s.question.derived.some((d) => d.name === name && d.kind === "row" && d.role === "hold") || !!s.answer?.newHolds?.[name];
+
+/** The new columns used as scenarios, as columns of the table (the conditions' cards, their kept values). */
+export function newHoldColumns(s: Study): StudyColumn[] {
+  return s.question.derived.filter((d) => d.kind === "row" && isNewHold(s, d.name)).map((d) => {
+    const values = s.answer?.newHolds?.[d.name] ?? [];
+    const text = values.some((v) => typeof v === "string");
+    return { name: d.name, kind: text ? "text" : "number", distinct: values.length, missing: 0, constant: values.length === 1,
+      empty: !values.length, values, role: "hold", scale: text ? "categorical" : "linear", guessRole: "hold",
+      guessScale: text ? "categorical" : "linear" } as StudyColumn;
+  });
+}
+
 /** Which columns to show, at once: every one, or a group by role. */
 export type ColumnPreset = "all" | "params-outputs" | "params-goal" | "params" | "scenarios" | "outputs";
 export const PRESETS: ColumnPreset[] = ["all", "params-outputs", "params-goal", "params", "scenarios", "outputs"];
@@ -206,13 +221,14 @@ export const PRESETS: ColumnPreset[] = ["all", "params-outputs", "params-goal", 
 /** The columns of a group, in table order, among `available` (what the current view can show). */
 export function presetColumns(s: Study, preset: ColumnPreset, available: string[]): string[] {
   const role = (r: "param" | "hold" | "output") => activeColumns(s, r);
-  const derived = s.question.derived.map((d) => d.name);
+  const newHolds = s.question.derived.filter((d) => isNewHold(s, d.name)).map((d) => d.name);
+  const derived = s.question.derived.map((d) => d.name).filter((n) => !newHolds.includes(n));
   const goalCols = ["#goal", ...(s.answer?.sets.filter((c) => c.group === "condition" && c.part === "worst").map((c) => c.name) ?? [])];
-  const want = preset === "all" ? [...role("hold"), ...role("param"), ...role("output"), ...derived, "#goal"]
+  const want = preset === "all" ? [...role("hold"), ...newHolds, ...role("param"), ...role("output"), ...derived, "#goal"]
     : preset === "params-outputs" ? [...role("param"), ...role("output"), ...derived]
     : preset === "params-goal" ? [...role("param"), ...goalCols]
     : preset === "params" ? role("param")
-    : preset === "scenarios" ? role("hold")
+    : preset === "scenarios" ? [...role("hold"), ...newHolds]
     : [...role("output"), ...derived];
   const ok = new Set(available);
   return want.filter((c, i) => ok.has(c) && want.indexOf(c) === i);
@@ -346,7 +362,8 @@ export function columnChoices(s: Study, roles: Role[], derived = true): ColumnCh
   const removed = new Set(s.question.removed);
   return [
     ...s.columns.filter((c) => roles.includes(c.role) && !removed.has(c.name)).map((c) => ({ name: c.name, role: c.role, min: c.min, max: c.max })),
-    ...(derived ? s.question.derived.map((d) => ({ name: d.name, role: "derived" as const })) : []),
+    ...(derived ? s.question.derived.filter((d) => !isNewHold(s, d.name)).map((d) => ({ name: d.name, role: "derived" as const })) : []),
+    ...(roles.includes("hold") ? newHoldColumns(s).map((c) => ({ name: c.name, role: "hold" as const })) : []),
   ];
 }
 

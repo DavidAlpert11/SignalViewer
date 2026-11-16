@@ -13,6 +13,8 @@ import { groupLabel } from "../../sweeps/view";
 
 /** the formula's functions (svcore/sweep/derived.py `_FUN`), each with its line of help */
 const FUNCS: { name: string; key: TKey }[] = [
+  { name: "if", key: "swFnIf" }, { name: "between", key: "swFnBetween" }, { name: "contains", key: "swFnContains" },
+  { name: "bins", key: "swFnBins" }, { name: "text", key: "swFnText" }, { name: "rank", key: "swFnRank" }, { name: "pct", key: "swFnPct" },
   { name: "abs", key: "swFnAbs" }, { name: "sqrt", key: "swFnSqrt" }, { name: "exp", key: "swFnExp" }, { name: "log", key: "swFnLog" },
   { name: "log10", key: "swFnLog10" }, { name: "min", key: "swFnMin" }, { name: "max", key: "swFnMax" }, { name: "clip", key: "swFnClip" },
   { name: "where", key: "swFnWhere" }, { name: "round", key: "swFnRound" }, { name: "floor", key: "swFnFloor" }, { name: "ceil", key: "swFnCeil" },
@@ -31,9 +33,12 @@ export default function DerivedEditor({ study, edit, onDone }: { study: Study; e
   const [name, setName] = useState(init?.name ?? "");
   const [expr, setExpr] = useState(init?.kind === "row" ? init.expr : "");
   const [op, setOp] = useState<SetOp>(init?.kind === "set" ? init.op : "min");
+  const [role, setRole] = useState<"output" | "hold">(init?.kind === "row" ? init.role ?? "output" : "output");
   const others = study.question.derived.filter((_, j) => j !== edit?.i);
   const numeric = [...study.columns.filter((c) => c.kind === "number" && c.role !== "ignore").map((c) => c.name),
     ...others.filter((d) => d.kind === "row").map((d) => d.name)];
+  // what a formula may name: every used column - text ones too (== "mild", contains(...))
+  const named = [...new Set([...study.columns.filter((c) => c.role !== "ignore").map((c) => c.name), ...numeric])];
   const [column, setColumn] = useState(init?.kind === "set" ? init.column : numeric[0] ?? "");
   const [where, setWhere] = useState<Record<string, (string | number)[]>>(init?.kind === "set" ? init.where ?? {} : {});
   const holds = study.columns.filter((c) => c.role === "hold");
@@ -53,7 +58,7 @@ export default function DerivedEditor({ study, edit, onDone }: { study: Study; e
     if (!word) return [];
     const w = word.text.toLowerCase();
     const role = new Map(study.columns.map((c) => [c.name, c]));
-    const cols: Sugg[] = numeric.filter((c) => c.toLowerCase().includes(w) && c !== word.text).map((c) => {
+    const cols: Sugg[] = named.filter((c) => c.toLowerCase().includes(w) && c !== word.text).map((c) => {
       const col = role.get(c);
       const detail = col ? `${groupLabel(t, col.role)} · ${col.kind === "number" ? t("swKindNumber") : t("swKindText")}` : `ƒ ${t("swNewColumns")}`;
       return { insert: IDENT.test(c) ? c : `col("${c}")`, label: c, detail, fn: false };
@@ -63,7 +68,7 @@ export default function DerivedEditor({ study, edit, onDone }: { study: Study; e
     const fns: Sugg[] = word.inCol ? [] : FUNCS.filter((f) => f.name.startsWith(w) && f.name !== word.text).map((f) => ({ insert: `${f.name}(`, label: `${f.name}()`, detail: t(f.key), fn: true }));
     return [...cols, ...fns].slice(0, MAX_SUGG);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [word, study.columns, numeric.join("\u241f"), t]);
+  }, [word, study.columns, named.join("\u241f"), t]);
   const take = (s: Sugg) => {
     if (!word) return;
     const start = word.start;
@@ -75,7 +80,7 @@ export default function DerivedEditor({ study, edit, onDone }: { study: Study; e
     requestAnimationFrame(() => { input.current?.setSelectionRange(pos, pos); setCaret(pos); input.current?.focus(); });
   };
   // the value in the first run, or what is wrong - as it is typed
-  const [pv, setPv] = useState<{ ok: boolean; value?: number | null; error?: string } | null>(null);
+  const [pv, setPv] = useState<{ ok: boolean; value?: number | string | null; text?: boolean; error?: string } | null>(null);
   useEffect(() => {
     if (kind !== "row" || !expr.trim()) { setPv(null); return; }
     let live = true;
@@ -88,7 +93,8 @@ export default function DerivedEditor({ study, edit, onDone }: { study: Study; e
   const ok = nm && !clash && (kind === "row" ? expr.trim() && pv?.ok !== false : column);
   const save = () => {
     if (!ok) return;
-    const d: Derived = kind === "row" ? { name: nm, kind: "row", expr: expr.trim() }
+    // a text result is a scenario by itself (the server decides); the choice is kept for a number
+    const d: Derived = kind === "row" ? { name: nm, kind: "row", expr: expr.trim(), ...(role === "hold" && !pv?.text ? { role } : {}) }
       : { name: nm, kind: "set", op, column, where: Object.keys(where).length ? where : undefined };
     const st = useSweeps.getState();
     if (edit) st.replaceDerived(edit.i, d); else st.addDerived(d);
@@ -130,8 +136,17 @@ export default function DerivedEditor({ study, edit, onDone }: { study: Study; e
               )}
             </span>
           </label>
-          {pv && (pv.ok ? <p className="hint sw-formula-ok">{t("swFirstRun", { v: pv.value === null || pv.value === undefined ? "–" : fmtValue(pv.value) })}</p>
+          {pv && (pv.ok ? <p className="hint sw-formula-ok">{pv.text ? t("swFirstRunText", { v: pv.value ?? "–" })
+            : t("swFirstRun", { v: pv.value === null || pv.value === undefined ? "–" : fmtValue(pv.value as number) })}</p>
             : <p className="sw-warn" role="alert">{pv.error}</p>)}
+          {pv?.ok && !pv.text && (
+            <div className="sw-row"><span className="hint">{t("swUseAs")}</span>
+              <div className="sw-seg" role="radiogroup" aria-label={t("swUseAs")}>
+                <button role="radio" aria-checked={role === "output"} className={role === "output" ? "on" : ""} onClick={() => setRole("output")}>{t("swUseOutput")}</button>
+                <button role="radio" aria-checked={role === "hold"} className={role === "hold" ? "on" : ""} onClick={() => setRole("hold")}>{t("swUseHold")}</button>
+              </div>
+            </div>
+          )}
           {!pv && <p className="hint">{t("swFormulaHint")}</p>}
         </>
       ) : (

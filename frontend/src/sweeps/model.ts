@@ -4,8 +4,8 @@ import type { Role, Scale } from "./api";
 
 export type Op = ">=" | "<=" | ">" | "<" | "==" | "!=";
 export const OPS: Op[] = [">=", "<=", ">", "<", "==", "!="];
-export type SetOp = "min" | "max" | "mean" | "median" | "p10" | "p90" | "std" | "spread" | "count" | "count_true";
-export const SET_OPS: SetOp[] = ["min", "max", "mean", "median", "p10", "p90", "std", "spread", "count", "count_true"];
+export type SetOp = "min" | "max" | "mean" | "median" | "p10" | "p90" | "std" | "spread" | "count" | "count_true" | "share";
+export const SET_OPS: SetOp[] = ["min", "max", "mean", "median", "p10", "p90", "std", "spread", "count", "count_true", "share"];
 export const OUTPUT_AGGS: SetOp[] = ["mean", "min", "max", "median", "p10", "p90", "spread"];
 
 /** A condition on an output (or a per-set column): met in every combination, in at least k, or in
@@ -22,9 +22,11 @@ export interface Condition {
 /** A condition in words: `p ∈ {a, b}` or `out <= 5`. */
 export const condText = (c: Condition) => (c.in ? `${c.column} ∈ {${c.in.join(", ")}}` : `${c.column} ${c.op} ${c.value}`);
 
-/** A new column: a formula per run, or an operation over the runs of each parameter set. */
+/** A new column: a formula per run, or an operation over the runs of each parameter set. A formula
+ *  whose result is text (if(wind > 8, "high", "low")) - or a number one with role "hold" - is a
+ *  must-hold-across column (a scenario); missing role: an output (S1, saved files stay as they were). */
 export type Derived =
-  | { name: string; kind: "row"; expr: string }
+  | { name: string; kind: "row"; expr: string; role?: "output" | "hold" }
   | { name: string; kind: "set"; op: SetOp; column: string; where?: Record<string, (string | number)[]> };
 
 /** A goal: conditions met together (and) or any of them (or), and what to optimize - the first ranks
@@ -276,6 +278,8 @@ export interface Answer {
   sets: Col[];
   runs?: { columns: Col[]; sampled: boolean; total: number; n: number };
   seconds: number;
+  /** new columns used as scenarios: every value of each (S1) */
+  newHolds?: Record<string, (string | number)[]>;
 }
 
 export type { Role, Scale };

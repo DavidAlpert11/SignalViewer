@@ -53,6 +53,7 @@ export interface WireAnswer {
   sets: WireCol[];
   runs?: { columns: WireCol[]; sampled: boolean; total: number; n: number };
   seconds: number;
+  newHolds?: Record<string, (string | number)[]>;
 }
 export interface SetDetail {
   params: Record<string, string | number | null>;
@@ -93,7 +94,7 @@ export const sweepApi = {
   drop: (id: string) => call<{ ok: boolean }>("/api/sweep/drop", { path: id }),
   values: (id: string, column: string) => call<{ values: [string | number, number][]; total: number; numeric: boolean }>("/api/sweep/values", { id, column }),
   formulaPreview: (id: string, expr: string, derived: unknown[]) =>
-    call<{ ok: boolean; value?: number | null; error?: string }>("/api/sweep/formula-preview", { id, expr, derived }),
+    call<{ ok: boolean; value?: number | string | null; text?: boolean; error?: string }>("/api/sweep/formula-preview", { id, expr, derived }),
   exportTable: (id: string, path: string, format: "csv" | "html", body: { title?: string; axes?: string[]; labels?: Record<string, string>; view?: unknown } = {}) =>
     call<{ path: string; rows: number }>("/api/sweep/export-table", { id, path, format, ...body }),
   example: () => call<{ path: string; refine: string }>("/api/sweep/example"),

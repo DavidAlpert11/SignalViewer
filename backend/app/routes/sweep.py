@@ -4,6 +4,7 @@ counts and - later - what it draws."""
 import csv
 import json
 import os
+import re
 import time
 import uuid
 from collections import OrderedDict
@@ -162,6 +163,8 @@ def sweep_evaluate(req: QuestionReq):
             fail(400, str(e))
         t["ans"], t["ansKey"], t["ansPrep"] = a, key, p
     out = {"counts": a["counts"], "conditions": a["conditions"], "sets": _enc(a["columns"], a["data"])}
+    if p.new_holds:                     # new columns used as scenarios: their values, for the kept-values pickers
+        out["newHolds"] = p.new_holds
     if req.runs:
         r = sweep.run_rows(p, a["data"]["#holds"])
         idx = r["index"]
@@ -872,16 +875,22 @@ class FormulaReq(BaseModel):
 def sweep_formula_preview(req: FormulaReq):
     """A new column's value in the first run, or what is wrong with the formula - as it is typed."""
     from svcore.sweep.derived import DerivedError, row_formula
-    df = _get(req.id)["df"].head(1).copy()
+    full = _get(req.id)["df"]
+    # rank() / pct() are of the whole table; any other formula needs only the first run
+    uses = " ".join([req.expr] + [str(d.get("expr") or "") for d in req.derived])
+    df = (full if re.search(r"\b(rank|pct)\s*\(", uses) else full.head(1)).copy()
     try:
         for d in req.derived:
             if d.get("kind") == "row" and d.get("name") and d.get("expr"):
                 df[d["name"]] = row_formula(df, d["expr"])
-        v = float(row_formula(df, req.expr)[0])
+        r = row_formula(df, req.expr)
     except DerivedError as e:
         return {"ok": False, "error": str(e)}
     except Exception as e:              # numpy's own complaint (a wrong number of arguments...)
         return {"ok": False, "error": f"Formula: {e}"}
+    if r.dtype == object:               # a text column (S1): its first value, and that it is text
+        return {"ok": True, "value": None if r[0] is None else str(r[0]), "text": True}
+    v = float(r[0])
     return {"ok": True, "value": None if not np.isfinite(v) else v}
 
 

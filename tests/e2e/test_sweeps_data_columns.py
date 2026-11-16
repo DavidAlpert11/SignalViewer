@@ -135,6 +135,24 @@ def test_template_file_saved_and_loaded_with_its_summary(pg, tmp_path):
     pg.wait_for_function("document.querySelector(\"input[aria-label='ki_roll: hold']\").checked")
 
 
+def test_a_text_column_is_a_scenario(pg):
+    """S1: if() with text answers makes a text column - a scenario, with its own card and values."""
+    _fresh(pg)
+    _step(pg, "roles")
+    pg.locator(".sw-fold .btn", has_text="Add").click()
+    ed = pg.locator(".sw-derived-editor")
+    ed.locator("input").first.fill("gust")
+    ed.locator("input[role=combobox]").fill('if(scenario_wind_mps > 4, "strong", "mild")')
+    pg.wait_for_selector(".sw-formula-ok:has-text('a text column')")
+    assert ed.locator("[role=radiogroup][aria-label='Use as']").count() == 0      # text: a scenario by itself
+    ed.locator(".btn", has_text="Add the column").click()
+    card = pg.locator(".sw-cond-card", has_text="gust")
+    card.wait_for()
+    card.locator("summary").click()
+    card.locator(".sw-pill", has_text="mild").wait_for()
+    assert card.locator(".sw-pill", has_text="strong").count() == 1
+
+
 def test_a_narrow_window_folds_the_side_panel(pg):
     _fresh(pg)
     _step(pg, "roles")                              # C7: the Data step has no side panel (its tables are in the navigator)
