@@ -27,9 +27,14 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   Free · On the object (On the object: wheel down to 1 m, `sitting()` hides its model within 15 m; the story's close
   moments glide to 70 m), old `#cam=` links mapped; `report._top` (the flat From above picture) removed - the
   report's map picture is the 3D scene. A double-click (2D: also 0) fits everything and sets Free (it fought the
-  camera on the object). Gaps found, proposed to the owner (not done): keys for the 3D camera (2D has arrows / + − /
-  F / 0), camera commands in Ctrl+K, a click on an object to put the camera on it, the flight display letting the
-  wheel through so it can be on by default.
+  camera on the object). The owner: "all, in order" - done: (1) the 3D view's keys (arrows: On the object `rotate*`
+  look around it, Free a move over the ground along the heading; + − 0 F Q X); (2) Ctrl+K *Map camera: on <object>* /
+  *Free* (the active Map, else the tab's first); (3) a double-click on an object = the camera on it (3D: Cesium's
+  LEFT_DOUBLE_CLICK marks it, the root's double-click acts; 2D: `objUnder`); (4) `.map-dock .g3-fd` pointer-events
+  none (`.map-dock > *` had turned them back on - why it caught the wheel), the flight display shown by default
+  while sitting on it (a React `sitting` from the per-frame check; the page the same). One way to set the camera:
+  `actions.setMapCamera` (bar, F, double-click, Ctrl+K, Fit, a place's flight). Not tested by e2e: the 2D
+  double-click on an object.
 - **2026-11-16 · PLAN_2026-11-17 (the owner approved it) - in progress.** Order R, S1, S2, E1, M1, M3, M2 (plan §6).
   R done: the unreleased 1.27.0 and 1.28.0 are one release, **1.27.0** (CHANGELOG merged under `1.27.0 – unreleased`,
   the version files at 1.27.0, the docs' "1.28" -> "1.27"; history not rewritten). The owner tags v1.27.0 once the
@@ -299,3 +304,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-16 · M7 the offline pages' two cameras + double-click fits Free (see Current state). Tests: test_scene3d,
   test_hidden_objects (the 3D picture whatever the camera); e2e test_round_1112 (the wow: sitting on it, Display),
   test_live_report (the page's two cameras); e2e run: test_round_1112, test_live_report, test_globe3d, test_map_smooth.
+- 2026-11-16 · M7 gaps 1-4 (keys, Ctrl+K, double-click on an object, the flight display). e2e
+  test_globe3d::test_camera_keys_double_click_and_palette (new), the sitting test (+ the display's pointer-events),
+  test_round_1112 wow (the display shown while sitting); e2e run (53 green): test_globe3d, test_map_smooth,
+  test_map_objects, test_live_report, test_round_1112, test_calm_screen; quick_check green.
