@@ -12,6 +12,7 @@
 - Changed: when the loop converges, its page writes the answer in words: the best set (*Kp = …, Ki = …, Kd = …*) and its value.
 - Fixed: a study with tables but none open no longer reads *needs a table* under Columns and Goal – it says to open one of its tables; the status line says *1 table*, and *none open* when that is so.
 - Changed: one set of rules for every formula – a signal's, a Sweeps column's and a study's constraints are checked the same way; a name with __ is refused everywhere (in Sweeps it was read as a column of that name).
+- Changed (from the source folder): the built UI is no longer kept in the repository. The first `python run.py` builds it (Node.js LTS needed, about half a minute) and the next starts are immediate; it is built again only when the UI code changed. The installer, the portable package and `pip install signalviewer` carry a built UI, as before.
 
 ## 1.28.0 – 2026-11-16
 

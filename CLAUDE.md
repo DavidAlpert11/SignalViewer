@@ -50,8 +50,9 @@ when you stop in the middle of a task.
 - `cd backend && python -m pytest -q` — all green.
 - `cd backend && mypy --config-file ../pyproject.toml app svcore signalviewer` — clean (T36; no per-module
   overrides since T36b - narrow the Optional, do not silence the module).
-- `cd frontend && npx tsc -b` — no errors. `npm run build` (it updates the committed `frontend/dist`) only once at the
-  end of a round - never in a parallel lane: every lane's build would conflict (owner, 2026-11-14).
+- `cd frontend && npx tsc -b` — no errors. `frontend/dist` and `site/` are not in git (FR10, owner 2026-11-16): `run.py`
+  builds the UI from the sources when they changed, the release job builds it for the packages (`build.yml`), the docs
+  workflow builds the site. Build the UI whenever you need it (`npm run build`); nothing of it is committed.
 - `cd frontend && npm test` — the frontend's unit tests (Vitest, `src/**/*.test.ts`: store / undo, session
   migration, pairing, colours...) - all green; add one when you change frontend logic that has no screen.
 - Add or update a test for any backend behaviour you change; e2e (`tests/e2e`, Playwright)

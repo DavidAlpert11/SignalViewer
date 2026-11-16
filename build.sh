@@ -11,7 +11,11 @@ if [ "$MODE" = "wheels" ]; then python3 -m pip download -r requirements.txt pyin
 PY=.buildenv/bin/python
 if [ -d wheels ]; then $PY -m pip install --no-index --find-links wheels -r requirements.txt pyinstaller
 else $PY -m pip install -r requirements.txt pyinstaller; fi
-[ "$2" = "--ui" ] && (cd frontend && npm ci && npm run build)
+# the UI (frontend/dist) is not kept in git (FR10): built when missing, or again with --ui (needs Node.js)
+if [ "$2" = "--ui" ] || [ ! -f frontend/dist/index.html ]; then
+  command -v npm >/dev/null || { echo "The UI is not built and Node.js is not installed: install Node.js LTS (nodejs.org)."; exit 1; }
+  (cd frontend && npm ci && npm run build) || exit 1
+fi
 if [ "$MODE" = "onefile" ]; then
   SV_ONEFILE=1 $PY -m PyInstaller SignalViewer.spec --noconfirm
 else

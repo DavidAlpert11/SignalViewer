@@ -37,9 +37,13 @@ if exist wheels (
   %PY% -m pip install -r requirements.txt pyinstaller || exit /b 1
 )
 
-rem --- the UI is already built (frontend\dist); rebuild only with: build.bat <mode> --ui  (needs Node.js)
-if "%2"=="--ui" (pushd frontend & call npm ci & call npm run build & popd)
-if not exist frontend\dist\index.html (echo frontend\dist is missing. Run with --ui ^(needs Node.js^). & exit /b 1)
+rem --- the UI (frontend\dist) is not kept in git (FR10): built here when missing, or again with: build.bat <mode> --ui  (needs Node.js)
+if not exist frontend\dist\index.html (where npm >nul 2>nul || (echo The UI is not built and Node.js is not installed: install Node.js LTS from nodejs.org. & exit /b 1))
+set SV_BUILD_UI=
+if "%2"=="--ui" set SV_BUILD_UI=1
+if not exist frontend\dist\index.html set SV_BUILD_UI=1
+if defined SV_BUILD_UI (pushd frontend & call npm ci & call npm run build & popd)
+if not exist frontend\dist\index.html (echo Building the UI failed - see the messages above. & exit /b 1)
 
 if /i "%MODE%"=="onefile" goto onefile
 if /i "%MODE%"=="all" call :onefile_sub || exit /b 1

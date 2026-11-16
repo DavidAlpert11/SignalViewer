@@ -80,19 +80,19 @@ python run.py --browser    # always use the browser
 python run.py flight.bin   # open files (or a .svsession) - in the app that is already running, if there is one
 ```
 
-The UI is already built (`frontend/dist`). When the UI code is newer than that build (after a
-pull, a patch or an edit), `run.py` builds it once by itself - Node.js needed - into
-`frontend/.local-dist` (ignored by git; the tracked `frontend/dist` is not touched) and serves
-that; the next start sees it is current and starts at once. `python run.py --build` forces a
-build, `--no-build` (or `SV_NO_BUILD=1`) never builds. Without Node.js it says so and shows the
-last build. For working on the UI:
+The built UI (`frontend/dist`) is not kept in git - the installer, the portable package and
+`pip install signalviewer` carry it. From the source folder, `run.py` builds it once by itself on the first
+start - Node.js (LTS) needed - and again whenever the UI code is newer than that build (after a pull, a patch
+or an edit); the next start sees it is current and starts at once. `python run.py --build` forces a build,
+`--no-build` (or `SV_NO_BUILD=1`) never builds. Without Node.js it says so (and shows the last build, if
+there is one). For working on the UI:
 
 ```bash
 python run.py --port 8765 --no-open   # backend
 cd frontend
 npm install
 npm run dev      # dev server with hot reload, proxies /api to port 8765
-npm run build    # rebuilds frontend/dist
+npm run build    # builds frontend/dist (not in git)
 ```
 
 Tests:

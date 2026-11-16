@@ -175,8 +175,8 @@ def build_ui():
     """npm ci + npm run build in frontend/ (Windows: npm is npm.cmd, found through PATH)."""
     npm = shutil.which("npm")
     if not npm:
-        die("Node.js (npm) was not found, so the web UI cannot be rebuilt.\n"
-            "Install it from https://nodejs.org (LTS), or leave out --build-ui: the project already contains a built UI (frontend\\dist).")
+        die("Node.js (npm) was not found, so the web UI cannot be built.\n"
+            "Install it from https://nodejs.org (LTS) - the UI (frontend\\dist) is not kept in git, so a checkout needs one build.")
     front = os.path.join(ROOT, "frontend")
     say("[0/5] Building the web UI (npm)")
     for cmd in ([npm, "ci", "--no-audit", "--no-fund"] if os.path.isfile(os.path.join(front, "package-lock.json")) else [npm, "install", "--no-audit", "--no-fund"],
@@ -210,7 +210,8 @@ def main():
     if sys.version_info < (3, 8):
         die("Python 3.8 or newer is needed to run the build.")
     t0 = time.time()
-    if args.build_ui:
+    # FR10: frontend/dist is not in git - a checkout without it builds it here
+    if args.build_ui or not os.path.isfile(os.path.join(ROOT, "frontend", "dist", "index.html")):
         build_ui()
     else:
         stale = ui_is_stale()

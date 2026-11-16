@@ -4,7 +4,7 @@
 # suite stay in build.yml and on the owner's PC.
 #
 #   backend   pytest on the oldest Python the package allows (3.9) and a current one; mypy once
-#   frontend  tsc + vite build (frontend/dist is not committed from here: a release rebuilds it) and
+#   frontend  tsc + vite build (frontend/dist is not in git: the release job builds it for the packages) and
 #             the frontend's unit tests (Vitest, T1)
 #   e2e       a Playwright run on the freshly built UI (T3: about 4 minutes): a new user's first start,
 #             the main workflows, the top bar and Help menu, and the flows each round changed most

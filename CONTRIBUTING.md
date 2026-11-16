@@ -33,7 +33,8 @@ cd frontend && npm test                                                    # the
 python -m pytest -q tests/e2e/test_workflows.py                            # UI flows (python -m playwright install chromium, once)
 ```
 
-CI runs these on every pull request. You do not need to commit `frontend/dist`: a release rebuilds it.
+CI runs these on every pull request. `frontend/dist` and `site/` are not in git: `run.py` builds the UI from the
+sources, the release job builds it for the packages, and the docs workflow builds the site.
 
 ## The few rules that matter
 

@@ -19,8 +19,8 @@ What is open, in order (the finished history is in the Log and in git: `git show
 |---|---|---|
 | M34 FR1-FR8 - the window back to the data (ROADMAP M34) | done, on main | the end of the round, below |
 | M34 end of round | in progress | `npm run build`, the whole e2e suite, quick_check; the Log names the e2e run |
-| M34 FR9 - quick_check + the short e2e list in CI on every push | asks the owner | his yes / no (today CI is manual) |
-| M34 FR10 - `frontend/dist` and `site/` out of git, built in the release job | asks the owner | his yes / no (installer, pip, CLAUDE.md's lane rule change) |
+| M34 FR9 - quick_check + the short e2e list in CI on every push | owner: not now | - |
+| M34 FR10 - `frontend/dist` and `site/` out of git, built in the release job | done (owner: yes) | - |
 | M34 FR11 - welcome cards 11 -> 6, the rest under Help -> Examples | asks the owner | his yes / no, and which six |
 | M34 FR12 - e2e files named by feature, not by round | asks the owner | his yes / no (`test_release_1_21`, `test_round_1112`, `test_owner_notes_1_20`) |
 | Release 1.28.0 (with SF1; M34 is "Next - unreleased") | ready, not tagged | the owner tags; the version is not updated here |
@@ -99,7 +99,8 @@ What is open, in order (the finished history is in the Log and in git: `git show
    `mkdocs build --strict` must pass (the docs workflow runs it on every push).
    Tests that compare byte lengths of a file they wrote: `write_bytes`, not `write_text` - on Windows
    `write_text` writes `\r\n` (the 1.18.0 tag failed there only).
-4. `cd frontend && npm run build` and commit `frontend/dist`; tag `vX.Y.Z` and push the tag.
+4. Tag `vX.Y.Z` and push the tag - the build workflow builds the UI for every package (FR10: nothing built is
+   committed; check the e2e suite ran on a fresh `npm run build`).
 
 ## How to work here (practical notes)
 
@@ -127,8 +128,8 @@ What is open, in order (the finished history is in the Log and in git: `git show
   for slow runners (seconds, not tenths).
 - Tests reach the app state through `window.__sv.state()` / `window.__sv.setState(...)`
   (`frontend/src/main.tsx`).
-- `frontend/dist` is committed. Patches between developers may leave it out (run.py rebuilds);
-  rebuild and commit it before a release tag.
+- `frontend/dist` and `site/` are not in git (FR10, 2026-11-16): `run.py` builds the UI (first start, changed
+  sources), the release job builds it for the packages, the docs workflow builds the site.
 - **e2e: build first, then do not touch `frontend/src` while the suite runs.** `run.py` rebuilds the UI
   when the sources are newer than `frontend/dist`; the build takes longer than the fixture's 20 s wait
   for the server, so every file after an edit fails with *Connection refused* (2026-11-01).
@@ -383,3 +384,5 @@ What is open, in order (the finished history is in the Log and in git: `git show
 - 2026-11-16 · FR6: the loop's answer in words at convergence; three equal starts on the empty Sweeps screen; a study's steps say to open one of its tables; "1 table". e2e ran: test_study_demo, test_study_loop, test_sweeps_workspace, test_study_common, test_sweeps_flow, test_sweeps_data_columns, test_sweeps_groups, test_sweeps_charts, test_calm_screen, test_owner_notes_1_20, test_folder_of_recordings, test_runs_matrix, test_welcome_cards, test_first_minute, test_fresh_user - 110 green (one count raced the examples list under load - the test now waits for it); quick_check green.
 - 2026-11-16 · FR7: one formula whitelist in svcore/formula.py (signal formulas, Sweeps columns, study constraints); a name with __ is refused everywhere (it was read as a column of that name in Sweeps). Backend: tests/test_one_whitelist.py new, every formula test unchanged. e2e ran: test_conditions, test_sweeps_data_columns, test_sweeps_flow, test_study_common, test_study_loop, test_sweeps_groups, test_occurrences, test_trust_badges, test_error_details, test_features -k formula/derived/create - 67 green; quick_check green.
 - 2026-11-16 · FR8: "Current state" is a table of what is open (19 lines; was 227). Its finished history - M33's RV1-RV11 notes, SF1, FL1, the 3D black-out fix, M7, PLAN_2026-11-17, the Sweeps flow, the stability findings, the 1.28.0 release notes - is in git: `git show 05f5ed0:docs/dev/TASKS.md`; the open specs (SW2 (b), BR1) moved whole to "Open specs". No code; no e2e.
+- 2026-11-16 · The owner on FR9-FR12: FR9 not now; FR10 yes; FR11 six cards, one of them a Sweeps example; FR12 yes.
+- 2026-11-16 · FR10: frontend/dist and site/ out of git; run.py builds the UI on the first start and when the sources changed (one stamp rule, no git history); build.bat / build.sh / the portable build it when missing; CLAUDE.md and the docs follow. Backend tests green (test_launcher rewritten), quick_check green; a fresh-clone start checked by hand. No e2e change (the suite serves the same UI).

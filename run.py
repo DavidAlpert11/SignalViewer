@@ -12,10 +12,10 @@ Starts the local API server on 127.0.0.1 (free port) and opens the UI:
     python run.py --no-build # never build the UI (see ensure_ui)
     python run.py --build    # build the UI now, even when it looks up to date
 
-From the source folder the UI is always the CURRENT code: when frontend/ changed since the UI
-was last built (a pull, a patch, an edit), run.py builds it once (Node.js / npm needed) into
-frontend/.local-dist - ignored by git, so the tracked frontend/dist is never touched - and
-serves that. The packaged app (.exe / portable) is not affected.
+From the source folder the UI is always the CURRENT code: frontend/dist is not in git (FR10, owner
+2026-11-16 - the release job builds it for the packages), so a fresh clone builds it on the first run, and
+whenever frontend/ changed since it was built (a pull, a patch, an edit) run.py builds it again once
+(Node.js / npm needed). The packaged app (.exe / portable / pip) carries its built UI and is not affected.
 """
 import argparse
 import hashlib
@@ -41,8 +41,8 @@ else:
 
 
 FRONT = os.path.join(HERE, "frontend")
-LOCAL_DIST = os.path.join(FRONT, ".local-dist")
-STAMP = ".sv-source-hash"                       # in LOCAL_DIST: the sources it was built from
+DIST = os.path.join(FRONT, "dist")
+STAMP = ".sv-source-hash"                       # in DIST: the sources run.py built it from
 UI_SOURCES = ("src", "public", "index.html", "package.json", "package-lock.json", "vite.config.ts",
               "tsconfig.json", "tsconfig.app.json", "tsconfig.node.json")
 
@@ -62,10 +62,6 @@ def ui_source_hash(front: str = "") -> str:
     return h.hexdigest()
 
 
-def _git(*args) -> str:
-    return subprocess.run(["git", "-C", HERE, *args], capture_output=True, text=True, timeout=20, check=True).stdout.strip()
-
-
 def _newest_source_mtime(front: str) -> float:
     newest = 0.0
     for item in UI_SOURCES:
@@ -76,69 +72,57 @@ def _newest_source_mtime(front: str) -> float:
     return newest
 
 
-def committed_dist_is_current() -> bool:
-    """Was frontend/dist built from the sources as they are now?
-
-    Git history decides, because file times do not: `git checkout`, `pull` and `clone` give every
-    file they write a fresh time, so a dist restored or cloned AFTER newer UI sources looked "built
-    later" and the old UI was served without a word (found in T38's e2e run). So:
-      * no local changes: current when no commit touched the UI sources after the last commit that
-        touched frontend/dist;
-      * local changes (edited sources, or a dist rebuilt by hand): current only when dist was
-        built after the newest source (`npm run build` after the edits);
-      * no git (a zip of the code): it cannot tell, so it trusts the committed UI."""
-    index = os.path.join(FRONT, "dist", "index.html")
-    built_after = os.path.isfile(index) and os.path.getmtime(index) > _newest_source_mtime(FRONT)
-    sources = [f"frontend/{p}" for p in UI_SOURCES]
+def ui_is_current(src_hash: str) -> bool:
+    """Was frontend/dist built from the sources as they are now? Its stamp says so (run.py built it), or - a build
+    by hand (`npm run build`, no stamp) - it is newer than every source. frontend/dist is not in git, so no
+    checkout or pull rewrites it with a fresh time: its time is the build's."""
     try:
-        if _git("status", "--porcelain", "--", *sources) or _git("status", "--porcelain", "--", "frontend/dist"):
-            return built_after
-        last_dist = _git("log", "-1", "--format=%H", "--", "frontend/dist")
-        if not last_dist:
-            return built_after
-        return not _git("log", "--format=%H", f"{last_dist}..HEAD", "--", *sources)
-    except (OSError, subprocess.SubprocessError):
-        return True
+        with open(os.path.join(DIST, STAMP), encoding="utf-8") as f:
+            return json.load(f).get("source") == src_hash
+    except (OSError, ValueError):
+        index = os.path.join(DIST, "index.html")
+        return os.path.isfile(index) and os.path.getmtime(index) > _newest_source_mtime(FRONT)
 
 
 def _build_ui(src_hash: str) -> bool:
     npm = shutil.which("npm")
+    built = os.path.isfile(os.path.join(DIST, "index.html"))
     if not npm:
-        print("The UI code changed but Node.js (npm) is not installed, so it cannot be built here:\n"
-              "  showing the UI from the last build. Install Node.js (nodejs.org) and run again.", flush=True)
+        print(("The UI code changed but Node.js (npm) is not installed, so it cannot be built here:\n"
+               "  showing the UI from the last build. Install Node.js (nodejs.org) and run again.") if built else
+              ("The UI is not built yet (frontend/dist), and Node.js (npm) is not installed to build it.\n"
+               "  Install Node.js LTS (nodejs.org) and run again - or use the installer, the portable package or\n"
+               "  `pip install signalviewer`, which carry a built UI."), flush=True)
         return False
-    print("The UI code changed - building it once (about half a minute)...", flush=True)
+    print("The UI code changed - building it once (about half a minute)..." if built else
+          "Building the UI once (about half a minute; the next starts are immediate)...", flush=True)
     try:
         lock, mods = os.path.join(FRONT, "package-lock.json"), os.path.join(FRONT, "node_modules", ".package-lock.json")
         if not os.path.isfile(mods) or (os.path.isfile(lock) and os.path.getmtime(lock) > os.path.getmtime(mods)):
             subprocess.run([npm, "ci", "--no-audit", "--no-fund"], cwd=FRONT, check=True)
-        subprocess.run([npm, "run", "build", "--", "--outDir", ".local-dist", "--emptyOutDir"], cwd=FRONT, check=True)
+        subprocess.run([npm, "run", "build"], cwd=FRONT, check=True)
     except (OSError, subprocess.SubprocessError) as e:
-        print(f"Building the UI failed ({e}); showing the UI from the last build.", flush=True)
+        print(f"Building the UI failed ({e})" + ("; showing the UI from the last build." if built else
+              ". Run `cd frontend && npm ci && npm run build` to see why."), flush=True)
         return False
-    with open(os.path.join(LOCAL_DIST, STAMP), "w", encoding="utf-8") as f:
+    with open(os.path.join(DIST, STAMP), "w", encoding="utf-8") as f:
         json.dump({"source": src_hash, "built": time.strftime("%Y-%m-%d %H:%M:%S")}, f)
     print("UI built.", flush=True)
     return True
 
 
 def ensure_ui(force: bool = False, skip: bool = False) -> None:
-    """Point the server (SV_DIST) at a UI built from the current sources - see the module doc."""
+    """Make frontend/dist a UI built from the current sources - see the module doc."""
     if getattr(sys, "frozen", False) or os.environ.get("SV_DIST") or not os.path.isdir(os.path.join(FRONT, "src")):
         return                                  # packaged app, an explicit choice, or no sources here
     src_hash = ui_source_hash()
-    try:
-        with open(os.path.join(LOCAL_DIST, STAMP), encoding="utf-8") as f:
-            local_ok = json.load(f).get("source") == src_hash
-    except (OSError, ValueError):
-        local_ok = False
-    if local_ok and not force:
-        os.environ["SV_DIST"] = LOCAL_DIST
+    if not force and ui_is_current(src_hash):
         return
-    if skip or os.environ.get("SV_NO_BUILD") or (not force and committed_dist_is_current()):
-        return                                  # the tracked frontend/dist (default)
-    if _build_ui(src_hash):
-        os.environ["SV_DIST"] = LOCAL_DIST
+    if skip or os.environ.get("SV_NO_BUILD"):
+        if not os.path.isfile(os.path.join(DIST, "index.html")):
+            print("The UI is not built (frontend/dist): run without --no-build, or `cd frontend && npm ci && npm run build`.", flush=True)
+        return
+    _build_ui(src_hash)
 
 
 def free_port() -> int:

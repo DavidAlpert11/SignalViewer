@@ -3,8 +3,10 @@ frontend/node_modules/
 build/
 dist/
 dist-pypi/
-!frontend/dist/
+# FR10 (owner, 2026-11-16): the built UI and the docs site are not in git - the release job builds them
+frontend/dist/
 frontend/.local-dist/
+site/
 __pycache__/
 .pytest_cache/
 *.pyc

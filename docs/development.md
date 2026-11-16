@@ -15,7 +15,7 @@ backend/app/store.py   loaded files with stable ids
 backend/svcore/        computation core: loaders, decimation, analysis, compare, sync
 backend/tests/         pytest suite
 frontend/src/          React + TypeScript UI (uPlot, zustand)
-frontend/dist/         built UI served by the backend
+frontend/dist/         built UI served by the backend (not in git: run.py or the release builds it)
 examples/              demo files (tools/make_demo_data.py)
 docs/images, docs/media  screenshots and clips used in this README
 ```
