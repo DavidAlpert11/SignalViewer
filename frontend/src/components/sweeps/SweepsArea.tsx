@@ -13,6 +13,7 @@
      NextStep                       Next runs: the proposal (NextRunsView) and running it (RunPanel)
      SetDetail                      one set on the right: why it fails, its runs, its recordings
    State: sweeps/state.ts. Styles: ./sweeps.css (its own file, to restyle the area alone). */
+import { openExample } from "../Welcome";
 import { Words } from "../../i18n";
 import { RECORDING_WORDS } from "../../sweeps/i18n";
 import DemoGuide from "../DemoGuide";
@@ -60,7 +61,7 @@ import StudyPanel, { saveStudyDialog, studyReportDialog } from "./StudyPanel";
 import { HowItWorks } from "./DemoView";
 import NewStudy from "./NewStudy";
 import SetupView from "./SetupView";
-import { chooseNewStudy, closePanel, openStudyFile, redoStudy, refreshLoop, undoStudy, useStudyPanel } from "../../sweeps/studyStore";
+import { chooseNewStudy, closePanel, startFromNothing, openStudyFile, redoStudy, refreshLoop, undoStudy, useStudyPanel } from "../../sweeps/studyStore";
 import { onStudyRequest, requestStudy, takeStudy } from "../../sweeps/studyOpen";
 import { onAreaExample, takeAreaExample } from "../../areaExample";
 import { fromFolder } from "../../folderSummary";
@@ -362,8 +363,10 @@ function SweepsWelcome() {
   // the two example studies (the welcome screen's cards): the three drones, the smart-sweep demo
   const [demoPath, setDemoPath] = useState("");
   const [gainsPath, setGainsPath] = useState("");
+  const [folderEx, setFolderEx] = useState<Parameters<typeof openExample>[0] | null>(null);
   useEffect(() => {
     api.examples().then((xs) => {
+      setFolderEx(xs.find((e) => e.id === "folderOfFlights") ?? null);
       const last = (id: string) => { const x = xs.find((e) => e.id === id); return x ? x.paths[x.paths.length - 1] : ""; };
       setDemoPath(last("smartSweepDemo")); setGainsPath(last("commonGains"));
     }).catch(() => {});
@@ -406,29 +409,32 @@ function SweepsWelcome() {
           </div>
           <p className="hint">{t("swSampleNote")}</p>
         </div>
-        {/* the two ways in as two matching cards, side by side (review 2026-11-13: a clear choice) */}
-        <div className="sw-ways">
-        <div className="sw-way sw-mode-one">
-          <h2>{t("swModeOne")}</h2>
-          <p className="hint">{t("swModeOneHint")}</p>
-        <div className="sw-welcome-actions">
-          <button className="btn primary" disabled={busy} onClick={() => openTable(t("swOpenTable"))}><Icon.Open /> {t("swOpenTable")}</button>
-          {/* W16: a folder and a saved study are opened from Open ▾ (and the palette) - one way in here */}
-          <button className="btn outline" disabled={busy} onClick={example}>{t("swTryExample")}</button>
-          <button className="btn outline" disabled={busy} onClick={() => merged().catch(notifyError)}>{t("swTryMerged")}</button>
-        </div>
-        </div>
-        {/* owner (2026-11-13): the other way in - several systems that must share one set of parameters, the
-            next runs, the loop that runs them; and the demo that shows it converge */}
-        <div className="sw-way sw-mode-many" data-testid="sweeps-many">
-          <h2>{t("swModeMany")}</h2>
-          <p className="hint">{t("swModeManyHint")}</p>
-          <div className="sw-welcome-actions">
-            {demoPath && <button className="btn primary sw-try-demo" onClick={() => requestStudy(demoPath, true)}>{t("swTryDemo")}</button>}
-            {gainsPath && <button className="btn outline sw-try-gains" onClick={() => requestStudy(gainsPath)}>{t("swTryGains")}</button>}
-            <button className="btn outline sw-new-study" onClick={chooseNewStudy}>{t("cpNew")}</button>
+        {/* FR6 (owner, 2026-11-16): three equal starts - results in hand, nothing yet, a folder of recordings - each one
+            click, its examples under it. Saved studies and folders of tables stay in Open ▾ (W16). */}
+        <div className="sw-ways sw-starts">
+          <div className="sw-way" data-start="have">
+            <button className="btn primary sw-start" disabled={busy} onClick={() => openTable(t("nsHaveTitle"))}><Icon.Open /> {t("nsHave")}</button>
+            <p className="hint">{t("swStartHaveHint")}</p>
+            <div className="sw-welcome-actions">
+              <button className="btn outline sm" disabled={busy} onClick={example}>{t("swTryExample")}</button>
+              <button className="btn outline sm" disabled={busy} onClick={() => merged().catch(notifyError)}>{t("swTryMerged")}</button>
+              {gainsPath && <button className="btn outline sm sw-try-gains" onClick={() => requestStudy(gainsPath)}>{t("swTryGains")}</button>}
+            </div>
           </div>
-        </div>
+          <div className="sw-way" data-start="nothing">
+            <button className="btn primary sw-start sw-start-nothing" disabled={busy} onClick={startFromNothing}>{t("nsNothing")}</button>
+            <p className="hint">{t("swStartNothingHint")}</p>
+            <div className="sw-welcome-actions">
+              {demoPath && <button className="btn outline sm sw-try-demo" onClick={() => requestStudy(demoPath, true)}>{t("swTryDemo")}</button>}
+            </div>
+          </div>
+          <div className="sw-way" data-start="folder">
+            <button className="btn primary sw-start" disabled={busy} onClick={() => { void fromFolder(); }}>{t("swStartFolder")}</button>
+            <p className="hint">{t("swStartFolderHint")}</p>
+            <div className="sw-welcome-actions">
+              {folderEx && <button className="btn outline sm sw-try-folder" onClick={() => openExample(folderEx)}>{t("swTryFolder")}</button>}
+            </div>
+          </div>
         </div>
         {busy && <p className="hint">{restoring ? t("swReopening") : t("swReading")}</p>}
         {error && <p className="sw-error" role="alert">{error}</p>}

@@ -1,10 +1,6 @@
 /* Sweeps -> Common parameters: the study of several tables, the next runs, the launcher, the loop and the
    smart-sweep demo - English and Hebrew. */
 export const en = {
-  swModeOne: "One results table",
-  swModeOneHint: "A row per run - which settings hold in every scenario, the best of them, and why the others fail.",
-  swModeMany: "Several systems, one set of parameters",
-  swModeManyHint: "Several sweep tables - one per drone, vehicle or model - and the values that hold in all of them; the next runs to try, and the loop that runs them on your PC or your farm until it converges.",
   swTryDemo: "Watch it converge (demo)",
   swTryGains: "Example: three drones, one set of gains",
   cpTitle: 'Common parameters',
@@ -118,6 +114,8 @@ export const en = {
   lpWrapper: "a wrapper on this PC runs the round's runs",
   lpReads: "Results read from",
   lpBest: "best",
+  lpAnswer: "The answer - the best set:",
+  lpAnswerValue: "its value {v}",
   lpRunsDone: "runs done",
   lpChange: "change",
   lpSame: "same",
@@ -218,6 +216,8 @@ export const en = {
   // --- PLAN 2026-11-16 §7a: one way through every study (FlowNav)
   flDefined: "Send runs: {n} of 3",
   flNeedsTable: "needs a table",
+  flOpenOne: "open one of its {n} tables (Data)",
+  flOpenOneHint: "In Data, click one of the study's tables on the left - its columns and goal are here then.",
   flNeedsTableHint: "Open a table of results in Data (or run round 1 from Next runs) first.",
   flSystems: "{n} systems together",
   flNotReady: "round 1 is not ready",
@@ -268,10 +268,6 @@ export const en = {
 };
 
 export const he: typeof en = {
-  swModeOne: "טבלת תוצאות אחת",
-  swModeOneHint: "שורה לכל הרצה – אילו הגדרות עומדות בכל תרחיש, הטובה מביניהן, ולמה האחרות נכשלות.",
-  swModeMany: "כמה מערכות, סט פרמטרים אחד",
-  swModeManyHint: "כמה טבלאות סריקה – אחת לכל רחפן, כלי או מודל – והערכים שעומדים בכולן; ההרצות הבאות לנסות, והלולאה שמריצה אותן על המחשב או החווה עד התכנסות.",
   swTryDemo: "צפו בהתכנסות (הדגמה)",
   swTryGains: "דוגמה: שלושה רחפנים, סט הגברים אחד",
   cpTitle: 'פרמטרים משותפים',
@@ -385,6 +381,8 @@ export const he: typeof en = {
   lpWrapper: "מעטפת במחשב הזה מריצה את ריצות הסבב",
   lpReads: "התוצאות נקראות מ",
   lpBest: "הטוב",
+  lpAnswer: "התשובה - הסט הטוב ביותר:",
+  lpAnswerValue: "הערך שלו {v}",
   lpRunsDone: "הרצות שבוצעו",
   lpChange: "שינוי",
   lpSame: "ללא שינוי",
@@ -484,6 +482,8 @@ export const he: typeof en = {
   // --- PLAN 2026-11-16 §7a
   flDefined: "שליחת ריצות: {n} מתוך 3",
   flNeedsTable: "צריך טבלה",
+  flOpenOne: "לפתוח אחת מ-{n} הטבלאות שלו (נתונים)",
+  flOpenOneHint: "בשלב הנתונים, ללחוץ על אחת מטבלאות המחקר משמאל - העמודות והמטרה שלה יופיעו כאן.",
   flNeedsTableHint: "קודם פותחים טבלת תוצאות בשלב הנתונים (או מריצים את סבב 1 מהריצות הבאות).",
   flSystems: "{n} מערכות ביחד",
   flNotReady: "סבב 1 עוד לא מוכן",

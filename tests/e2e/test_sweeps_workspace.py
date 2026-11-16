@@ -3,6 +3,8 @@ Each waits on state (`window.__svSweeps`, `window.__svStudy`, data-* attributes)
 import json
 import os
 
+import re
+
 import pytest
 
 pytest.importorskip("playwright.sync_api")
@@ -39,8 +41,9 @@ def _flow(pg, step):
 def _new_study(pg):
     _to_sweeps(pg)
     pg.evaluate("window.__svSweeps.show('')")
-    pg.wait_for_selector(".sw-welcome .sw-new-study")
-    pg.locator(".sw-welcome .sw-new-study").click()
+    pg.wait_for_selector(".sw-welcome")
+    pg.locator(".areabar .btn", has_text="Open").click()                       # FR6: New study… is in Open ▾ (and Ctrl+K)
+    pg.locator(".menu.ctx button", has_text="New study").click()
     pg.wait_for_selector("[data-part=new]")
 
 
@@ -406,3 +409,37 @@ def test_a_table_goal_edited_in_the_area_reaches_the_study(pg):
     _flow(pg, "results")                                                         # the systems together: a tab of Results
     pg.locator(".sw-center-tabs [data-tab=together]").click()
     pg.wait_for_selector("[data-shot='study']")
+
+
+def test_three_equal_starts_each_one_click(pg):
+    """M34 FR6: the empty Sweeps screen - I have results, Start from nothing, A folder of recordings - each one click,
+    the examples under them; a study with tables does not read "needs a table"; no "1 tables"."""
+    _to_sweeps(pg)
+    pg.evaluate("window.__svSweeps.show('')")
+    pg.wait_for_selector(".sw-welcome .sw-start")
+    boxes = pg.eval_on_selector_all(".sw-welcome .sw-start", "els => els.map((e) => [Math.round(e.getBoundingClientRect().width), Math.round(e.getBoundingClientRect().height)])")
+    assert len(boxes) == 3 and len({tuple(b) for b in boxes}) == 1, boxes                      # three equal buttons
+    for sel in (".sw-try-gains", ".sw-try-demo", ".sw-try-folder"):              # the examples arrive with the list of examples
+        pg.wait_for_selector(f".sw-welcome {sel}")
+    for start, examples in (("have", 3), ("nothing", 1), ("folder", 1)):
+        assert pg.locator(f".sw-way[data-start={start}] .sw-welcome-actions .btn").count() == examples
+    pg.locator(".sw-way[data-start=have] .sw-start").click()                     # one click: the table's file dialog
+    pg.wait_for_selector(".dialog .crumbs"); pg.keyboard.press("Escape")
+    pg.locator(".sw-way[data-start=folder] .sw-start").click()                   # one click: the folder's dialog
+    pg.wait_for_selector(".dialog .crumbs"); pg.keyboard.press("Escape")
+    pg.wait_for_selector(".dialog", state="detached")
+    pg.locator(".sw-way[data-start=nothing] .sw-start").click()                  # one click: Send runs, empty
+    pg.wait_for_selector(".su")
+
+
+def test_a_study_with_tables_does_not_need_a_table(pg):
+    """FR6: steps 2 and 3 of a study with tables (none open) do not read "needs a table"; the status line counts
+    its tables in good grammar."""
+    pg.locator(".ex-card[data-example='commonGains']").click()
+    pg.wait_for_selector(".sw-steps .sw-step-btn[data-flow='columns']", timeout=60000)
+    pg.wait_for_function("document.querySelector('footer.status').innerText.includes('Study:')")
+    steps = pg.locator(".sw-steps").inner_text()
+    assert "needs a table" not in steps, steps
+    status = pg.locator("footer.status").inner_text()
+    assert not re.search(r"\b1 tables\b", status), status
+    assert "3 tables" in status, status

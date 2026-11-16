@@ -8,6 +8,9 @@
 - Fixed: a double-click on a signal in the list plots it once (it added the signal and removed it again). A single click adds or removes, as before.
 - Fixed: **one colour per file when runs are compared.** Wherever a plot holds the same signal from two or more files, each line has its file's colour – A blue, B rose – matching the A / B badges. *A simulation against its flight* coloured its lines by signal because the flight log writes a unit after the name (*ATT.Roll [deg]*); the plot from the Compare table did too. A colour you set by hand stays.
 - Changed: **a folder of recordings reads as recordings.** In Sweeps, a table made from a folder of recordings (or from the Runs matrix) has the steps *Data → Columns → Limits → Results*, counts *recordings*, and no longer offers *Send runs* or *Next runs* or speaks of parameter sets. The *A folder of recordings* demo opens with its answer: X8-A's vibration rose from 18 to 67 over its six flights – *Show X8-A* puts them on top, ticked, ready to open in Recordings.
+- Changed: **Sweeps starts three equal ways** – *I have results*, *Start from nothing*, *A folder of recordings* – each one click, with its examples under it (*New study…* is in Open ▾).
+- Changed: when the loop converges, its page writes the answer in words: the best set (*Kp = …, Ki = …, Kd = …*) and its value.
+- Fixed: a study with tables but none open no longer reads *needs a table* under Columns and Goal – it says to open one of its tables; the status line says *1 table*, and *none open* when that is so.
 
 ## 1.28.0 – 2026-11-16
 

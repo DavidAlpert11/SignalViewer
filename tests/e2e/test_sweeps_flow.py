@@ -321,7 +321,7 @@ def test_two_sweeps_merged(pg):
 def test_a_table_with_no_parameter_still_opens(pg, tmp_path):
     (tmp_path / "flat.csv").write_text("a,b\n1.5,2.25\n3.75,4.125\n5.5,6.875\n7.25,8.5\n")
     _to_sweeps(pg)
-    _bar_menu(pg, "Open", "Open a table") if pg.locator(".sw-welcome").count() == 0 else pg.locator(".sw-welcome .btn", has_text="Open a table").click()
+    _bar_menu(pg, "Open", "Open a table") if pg.locator(".sw-welcome").count() == 0 else pg.locator(".sw-welcome .btn", has_text="I have results").click()
     goto_folder(pg, str(tmp_path))
     pg.locator(".dialog .fs-row", has_text="flat.csv").click(); pg.click(".dialog-foot .btn.primary")
     pg.wait_for_selector(".sw-raw .sw-table")                                        # the raw results first, always
@@ -354,7 +354,7 @@ def test_one_place_for_each_control(pg):
 def _open_table(pg, folder, name):
     _to_sweeps(pg)
     if pg.locator(".sw-welcome").count():
-        pg.locator(".sw-welcome .btn", has_text="Open a table").click()
+        pg.locator(".sw-welcome .btn", has_text="I have results").click()
     else:
         _bar_menu(pg, "Open", "Open a table")
     goto_folder(pg, str(folder))

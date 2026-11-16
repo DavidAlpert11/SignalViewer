@@ -121,3 +121,5 @@ inside your lane's block.
 - `test_cursor_labels.py` – FR3: the cursor labels' boxes (the layer's `data-flags`) are under the plot area in the investigate demo and with one cursor; a double-click on a signal leaves one chip, a single click as before.
 - `test_file_colours.py` – FR4: the sim-against-flight demo's lines are their file's colour (= the A / B badges); a hand colour stays when its namesake joins.
 - `test_folder_of_recordings.py` – FR5: the demo reads as recordings (4 steps, no Send / Next runs, no "sets", status counts recordings, en + he), *Show X8-A* ticks its six flights on top; a results table keeps its 5 steps and Send runs.
+- `test_study_demo.py` – FR6: *Run until converged* writes Kp / Ki / Kd = … and the value (en / he).
+- `test_sweeps_workspace.py` – FR6: three equal starts, one click each, examples under them; a study with tables does not need a table, "3 tables" in the status; `_new_study` through Open ▾. `test_calm_screen.py`, `test_sweeps_flow.py` follow the new labels.

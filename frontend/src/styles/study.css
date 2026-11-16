@@ -125,7 +125,9 @@
 .sw-ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--sp-3); text-align: start; }
 .sw-way { display: flex; flex-direction: column; gap: var(--sp-1); padding: var(--sp-4); background: var(--panel); border: 1px solid var(--line);
   border-inline-start: 4px solid var(--focus); border-radius: var(--r-l); box-shadow: var(--shadow-sm); }
-.sw-way.sw-mode-many { border-inline-start-color: var(--select); }
+/* FR6: the three starts are equal - the same card, the same button, its examples under it */
+.sw-starts { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.sw-starts .sw-start { width: 100%; justify-content: center; }
 .sw-way h2 { margin: 0; font-size: var(--fs-l); color: var(--ink-strong); }
 .sw-way > .hint { margin: 0; flex: 1; line-height: 1.45; }
 .sw-way .sw-welcome-actions { flex-wrap: wrap; justify-content: flex-start; margin-top: var(--sp-2); }
@@ -226,3 +228,7 @@
 .su-send .card-next { display: flex; flex-wrap: wrap; gap: var(--sp-1_5); margin-top: var(--sp-1); }
 .rc-goal { padding: var(--sp-3); gap: var(--sp-1); }
 .rc-goal .su-goal { flex: 1; min-width: 8em; }
+/* FR6: the loop's answer in words once converged */
+.lp-answer { margin: var(--sp-2) 0; padding: var(--sp-2) var(--sp-3); border-inline-start: 3px solid var(--ok, var(--focus)); background: var(--panel-2);
+  border-radius: var(--r-m); color: var(--ink-strong); font-weight: 600; }
+.lp-answer-set { font-family: var(--mono); }

@@ -18,7 +18,9 @@ export default function SweepsStatus() {
     <footer className="status" role="status">
       {st ? (
         <>
-          <span>{t("swStatusStudy", { name: st.name || "–", n: st.tables.length })}</span>
+          {/* FR6: "1 table", and whether one of them is open (it said "1 tables" with none open) */}
+          <span>{t("swStatusStudy", { name: st.name || "–" })}</span>
+          {st.tables.length > 0 && <span>{t(st.tables.length === 1 ? "swStatusOneTable" : "swStatusTables", { n: st.tables.length })}{s ? "" : ` · ${t("swStatusNoneOpen")}`}</span>}
           {shown && <span>{t("swStatusShown", { part: shown })}</span>}
           {res && <span>{t("swStatusStudyHold", { n: res.counts.feasible.toLocaleString(), of: res.counts.values.toLocaleString() })}</span>}
         </>

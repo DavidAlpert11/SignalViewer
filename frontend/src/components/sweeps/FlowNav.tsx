@@ -26,6 +26,10 @@ export function useFlowStep(): FlowStep {
   return flowStep({ part, table: step ? { step, center: center ?? "lines" } : null, common, systems });
 }
 
+/** A step that works on a table, none open: a study that has tables names them; else one is needed. */
+const noTable = (t: TFn, cs: StudyPanelState["study"] | null): string =>
+  cs?.tables.length ? t("flOpenOne", { n: cs.tables.length }) : t("flNeedsTable");
+
 /** One line under each step's name: what it holds now. */
 function status(t: TFn, lang: "en" | "he", s: Study | undefined, c: StudyPanelState, step: FlowStep, rec: boolean): string {
   const cs = c.open ? c.study : null;
@@ -33,8 +37,10 @@ function status(t: TFn, lang: "en" | "he", s: Study | undefined, c: StudyPanelSt
     case "data":
       if (s) return t(rec ? "swStRawRec" : "swStRaw", { rows: s.rows.toLocaleString(), cols: s.columns.length });
       return cs ? t("flDefined", { n: setupDone(cs, !!c.guess).filter(Boolean).length }) : "";
-    case "columns": return s ? t("swStRoles", { p: s.summary.params.length, h: s.summary.holds.length, o: s.summary.outputs.length }) : t("flNeedsTable");
+    // FR6: a study with tables, none open yet, is not "needs a table": it says to open one of them
+    case "columns": return s ? t("swStRoles", { p: s.summary.params.length, h: s.summary.holds.length, o: s.summary.outputs.length }) : noTable(t, cs);
     case "goal": if (rec && s) return t("swStLimits", { c: s.question.conditions.length });
+      if (!s) return noTable(t, cs);
       return s ? t("swStGoal", { c: s.question.conditions.length, o: (s.question.goals[s.question.active]?.optimize ?? []).length }) : t("flNeedsTable");
     case "results":
       if (s && rec) return t(s.question.conditions.length && s.answer ? "rcStResults" : "swStRecordings", { n: s.answer?.counts.holding ?? 0, of: s.answer?.counts.sets ?? s.rows });
@@ -75,7 +81,7 @@ export default function FlowNav() {
         return (
           <button key={s} data-step={s === "data" ? "raw" : s === "columns" ? "roles" : s === "goal" ? "goals" : s} data-flow={s}
             className={`sw-step-btn${s === cur ? " on" : ""}${ci > i ? " done" : ""}`} aria-current={s === cur ? "step" : undefined}
-            disabled={!open} title={open ? undefined : t("flNeedsTableHint")} onClick={() => goFlow(s)}>
+            disabled={!open} title={open ? undefined : t(common.study?.tables.length ? "flOpenOneHint" : "flNeedsTableHint")} onClick={() => goFlow(s)}>
             <span className="sw-step-n">{i + 1}</span>
             <span className="sw-step-txt"><b>{flowTitle(t, s)}</b><span>{status(t, lang, study, common, s, rec)}</span></span>
           </button>

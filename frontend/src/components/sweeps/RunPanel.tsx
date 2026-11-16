@@ -4,6 +4,7 @@
    controls (Next round / Until converged / Stop / Start over; *Only write the files* and *Run them* with the
    launcher - C9: the one place a round is written or run) and its progress. The demo's controls are here too.
    A table opened alone gets its study file here, with *Run from the app*. */
+import LoopAnswer from "./LoopAnswer";
 import { useState } from "react";
 import { fmtInt, useT, type TFn } from "../../i18n";
 import { useApp } from "../../store";
@@ -164,9 +165,10 @@ function DemoControls() {
           <b>{t("dmRound", { k: p.round })}</b>
           <span>{t("dmRuns", { d: fmtInt(p.runs.done, lang), r: fmtInt(p.runs.running, lang), f: fmtInt(p.runs.failed, lang) })}</span>
           <span className="dm-workers" aria-hidden="true">{Array.from({ length: 8 }, (_, i) => <i key={i} className={i < Math.min(8, p.runs.running) ? "on" : ""} />)}</span>
-          {p.converged && <span className="dm-ok">{t("dmConverged")}</span>}
+          {p.converged ? <span className="dm-ok">{t("dmConverged")}</span> : <LoopAnswer p={p} />}
         </div>
       )}
+      {p?.converged && <LoopAnswer p={p} />}
       {p && <ConvergenceChart p={p} />}
     </section>
   );

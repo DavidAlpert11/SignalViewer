@@ -30,8 +30,10 @@ def test_moved_controls_are_still_reachable(pg):
 def test_sweeps_welcome_has_one_way_in(pg):
     _to_sweeps(pg)
     pg.wait_for_selector(".sw-welcome")
-    labels = pg.locator(".sw-welcome-actions .btn").all_inner_texts()
-    assert not any("folder" in x.lower() or "saved study" in x.lower() for x in labels)
+    labels = pg.locator(".sw-welcome .btn").all_inner_texts()
+    # FR6: three equal starts (a folder of recordings is one of them); folders of tables and saved studies: Open ▾
+    assert [x.strip() for x in pg.locator(".sw-welcome .sw-start").all_inner_texts()] == ["I have results", "Start from nothing", "A folder of recordings"]
+    assert not any("folder of tables" in x.lower() or "saved study" in x.lower() for x in labels)
     pg.locator(".areabar .btn", has_text="Open").click()
     pg.wait_for_selector(".menu.ctx button:has-text('Open a folder of tables')")
     pg.keyboard.press("Escape")

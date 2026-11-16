@@ -9,6 +9,7 @@ import { Icon } from "../../icons";
 import { isUnsaved, loopAction, useStudyPanel } from "../../sweeps/studyStore";
 import { hasGoal } from "../../sweeps/setup";
 import ConvergenceChart from "./ConvergenceChart";
+import LoopAnswer from "./LoopAnswer";
 import { saveStudyDialog } from "./StudyPanel";
 
 export default function LoopSection() {
@@ -51,9 +52,10 @@ export default function LoopSection() {
           <b>{t("dmRound", { k: p.round })}</b>
           <span>{t("dmRuns", { d: fmtInt(p.runs.done, lang), r: fmtInt(p.runs.running, lang), f: fmtInt(p.runs.failed, lang) })}</span>
           <span className="dm-workers" aria-hidden="true">{Array.from({ length: 8 }, (_, i) => <i key={i} className={i < Math.min(8, p.runs.running) ? "on" : ""} />)}</span>
-          {p.best && <span>{t("lpBest")}: <b>{fmtNum(p.best.score, lang, 5)}</b> <bdi className="hint">{Object.entries(p.best.values).map(([k, v]) => `${k} = ${v}`).join(", ")}</bdi></span>}
+          {!p.converged && <LoopAnswer p={p} />}
         </div>
       )}
+      {p?.converged && <LoopAnswer p={p} />}
       {p && p.points.length > 0 && (
         <div className="lp-views">
           <ConvergenceChart p={p} />
