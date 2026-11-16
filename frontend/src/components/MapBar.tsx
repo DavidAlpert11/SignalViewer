@@ -25,10 +25,8 @@ function CamIcon({ m }: { m: string }) {
    track up, back to the object; 3D: look at, a third object, data, events, measure, its own time). The same
    saved fields in both views (followObject, camera), so a switch between 2D and 3D keeps the camera.
    The offline pages (report_assets/relation.js svToolbar) have the same bar. */
-export default function MapBar({ plot, objects, onZoom, onFit, className, chaseHint, freeLook, children }: {
-  plot: Plot; objects: MapObject[]; onZoom: (dir: 1 | -1) => void; onFit: () => void; className: string; chaseHint: TKey;
-  /** 3D: the Cockpit's Look freely toggle - right after the cameras, while the Cockpit is chosen */
-  freeLook?: ReactNode; children?: ReactNode;
+export default function MapBar({ plot, objects, onZoom, onFit, className, chaseHint, children }: {
+  plot: Plot; objects: MapObject[]; onZoom: (dir: 1 | -1) => void; onFit: () => void; className: string; chaseHint: TKey; children?: ReactNode;
 }) {
   const t = useT();
   // the data box sits under the bar, however many rows the bar takes (Hebrew, a narrow plot: three) - it
@@ -71,7 +69,6 @@ export default function MapBar({ plot, objects, onZoom, onFit, className, chaseH
             <CamIcon m={m} />{t(label)}</button>
         ))}
       </span>
-      {mode === "cockpit" && freeLook}
       {follows && <select className="geo-follow" value={target} title={t("objFollow")} aria-label={t("objFollow")}
         onChange={(e) => set(mode === "chase" || mode === "cockpit" ? mode : "centre", e.target.value)}>
         {objects.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}

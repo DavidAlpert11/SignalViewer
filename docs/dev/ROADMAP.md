@@ -957,7 +957,6 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
   - [x] B6 Map / 3D chrome – one glass bar top-start, the bottom docks (data box as an instrument, attitude and relation box bottom-end), `styles/map.css`. 2026-11-14.
   - [ ] M1 Map background picker – `MapLayers.tsx` done 2026-11-14; open: the plot head's old select (PlotView, L3's file – requested).
   - [x] M6 Cameras named by what they do (Free · From above · Around it · Behind it · Cockpit 3D only), a picture each, Track up folded into Behind it; old sessions unchanged. 2026-11-15.
-  - [x] M7 The Cockpit's *Look freely* (owner, 2026-11-16: "on the object with a free camera") – the camera at the object along the replay, a drag turns the look (kept from north), the wheel / + − zoom the field of view; `plot.lookFree` (optional), `freeLook.ts`. Extends Cockpit instead of a sixth camera (one way to do a thing). The offline 3D page (`report_assets`) not changed. 2026-11-16.
   - [x] M5 The offline map's look: a quiet palette from the tokens' surfaces, roads wider close up, places under the tracks (2D). 2026-11-15.
   - [x] F5 Height profile – `app/heightprofile.py`, `/api/profile`, `HeightProfile.tsx` (*Profile* in the map bar); any format with positions; says why when the ground is coarse. 2026-11-15.
   - [x] F6 Vectors along the path – any two signals (north, east) as arrows on the track in 2D and 3D; a log's wind / a file's velocity offered by itself. 2026-11-15.

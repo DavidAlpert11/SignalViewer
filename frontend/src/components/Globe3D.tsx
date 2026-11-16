@@ -18,7 +18,6 @@ import { indexSpan } from "./chartUtil";
 import { pairOf, relation, type At } from "../relation";
 import RelationPanel from "./RelationPanel";
 import MapBar from "./MapBar";
-import { LOOK_FOV, lookDrag, lookFrom, lookZoom, type Look } from "../freeLook";
 import { altAt, angleUnitOf, bearing, colorRuns, derivedAttitude, fmtDistance, groundDistance, objectAt, trackColors, trackKey, trackRequest, trackTime, visualOrder, type ObjTrack, type TrackColors, shownObjects, mapCamera, positionOpen } from "../mapObjects";
 import { labelsOf, stateColor } from "../values";
 import TrackKeys from "./TrackKeys";
@@ -950,12 +949,9 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
       const range = cam.positionCartographic ? Math.max(30, cz.Cartesian3.distance(cam.positionWC, fs.pos)) : 2000;
       const second = plot.camera === "lookat" ? states.get((plot.relatedObjects ?? []).find((x) => x !== fs.id) ?? "") : undefined;
       if (plot.camera === "cockpit") {
-        // P9: the cockpit - at the object, looking along its heading and pitch, rolling with it; with free look
-        // (2026-11-16) at the object, looking where the user turned it (from north, wings level)
-        const lk = lookRef.current;
+        // P9: the cockpit - at the object, looking along its heading and pitch, rolling with it
         cam.lookAtTransform(cz.Matrix4.IDENTITY);
-        cam.setView({ destination: fs.pos, orientation: lk ? { heading: cz.Math.toRadians(lk.hdg), pitch: cz.Math.toRadians(lk.pitch), roll: 0 }
-          : { heading: cz.Math.toRadians(fs.hdg ?? 0), pitch: cz.Math.toRadians(fs.pitch ?? 0), roll: cz.Math.toRadians(fs.roll ?? 0) } });
+        cam.setView({ destination: fs.pos, orientation: { heading: cz.Math.toRadians(fs.hdg ?? 0), pitch: cz.Math.toRadians(fs.pitch ?? 0), roll: cz.Math.toRadians(fs.roll ?? 0) } });
       } else if (plot.camera === "chase") {
         // behind and a little above, along its heading (eased while playing, so noise does not shake it)
         const goal = fs.hdg ?? 0, now = performance.now(), last = chaseHdg.current;
@@ -1021,7 +1017,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
     const nearCam = !lightMode && !!fs && camMode !== "top" && camMode !== "free";
     if (w.scene.shadowMap.enabled !== nearCam) w.scene.shadowMap.enabled = nearCam;
     const fr = cam.frustum as import("cesium").PerspectiveFrustum;
-    const fov = cz.Math.toRadians(ck ? (lookRef.current?.fov ?? LOOK_FOV) : 60);
+    const fov = cz.Math.toRadians(ck ? 70 : 60);
     if (fr.fov !== undefined && Math.abs(fr.fov - fov) > 1e-6) fr.fov = fov;
     // P9: the sun where it was - the recording's own time when it has real dates (Unix seconds), else a
     // mid-morning sun (10:00 local solar time at an equinox, over the scene)
@@ -1114,7 +1110,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   const flyRef = useRef<{ t0: number; fresh: boolean; raf: number; start: { pos: import("cesium").Cartesian3; dir: import("cesium").Cartesian3; up: import("cesium").Cartesian3 } | null } | null>(null);
   const chaseHdg = useRef<{ t: number; h: number } | null>(null);
   const chaseRange = useRef<number | null>(null);
-  const camKey = `${plot.followObject ?? ""}|${plot.camera ?? ""}|${plot.camera === "lookat" ? (plot.relatedObjects ?? [])[0] ?? "" : ""}|${plot.camera === "cockpit" && plot.lookFree ? "look" : ""}`;
+  const camKey = `${plot.followObject ?? ""}|${plot.camera ?? ""}|${plot.camera === "lookat" ? (plot.relatedObjects ?? [])[0] ?? "" : ""}`;
   const camKeyRef = useRef(camKey);
   const ownFlight = useRef(false);          // P7: flyTo set the camera free itself - no blend from the old mode
   if (camKeyRef.current !== camKey) {
@@ -1170,54 +1166,6 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
     host.addEventListener("pointerleave", leave);
     return () => { host.removeEventListener("pointermove", move); host.removeEventListener("pointerleave", leave); host.removeEventListener("contextmenu", ctx); if (raf) cancelAnimationFrame(raf); };
   }, [cz]);
-  /* 2026-11-16: the Cockpit's free look - the live direction (a drag or the wheel changes it every frame; it
-     goes into the plot, one Undo step, when the drag ends or the wheel rests) */
-  const lookRef = useRef<Look | null>(plot.lookFree ?? null);
-  const lookBusy = useRef(false);
-  if (!lookBusy.current) lookRef.current = plot.lookFree ?? null;
-  const cockpit = mapCamera(plot) === "cockpit" && !!plot.followObject;
-  const lookOn = cockpit && !!plot.lookFree;
-  const lookStart = () => { const s = lastStates.current.get(plot.followObject ?? ""); return lookFrom(s?.hdg, s?.pitch); };
-  const lookSave = useRef(() => {});
-  lookSave.current = () => { lookBusy.current = false; if (lookRef.current) actions.updatePlot(plot.id, { lookFree: lookRef.current }); };
-  useEffect(() => {
-    const w = widgetRef.current, host = hostRef.current;
-    if (!w || !host || !cz || !cockpit) return;
-    // the camera is ours here: Cesium's own drag / wheel would move it off the object
-    const ctl = w.scene.screenSpaceCameraController;
-    ctl.enableInputs = false;
-    let drag: { x: number; y: number; moved: boolean } | null = null, wheelT = 0;
-    const down = (e: PointerEvent) => { if (e.button === 0 && !e.ctrlKey) drag = { x: e.clientX, y: e.clientY, moved: false }; };
-    const move = (e: PointerEvent) => {
-      if (!drag || (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 3)) return;   // a click stays a click
-      // a drag in the Cockpit turns free look on, from where the object points now
-      if (!drag.moved) { drag.moved = true; lookBusy.current = true; lookRef.current = lookRef.current ?? lookStart(); }
-      lookRef.current = lookDrag(lookRef.current!, e.clientX - drag.x, e.clientY - drag.y, host.clientHeight);
-      drag.x = e.clientX; drag.y = e.clientY;
-      updateRef.current();
-    };
-    const up = () => { if (drag?.moved) lookSave.current(); drag = null; };
-    const wheel = (e: WheelEvent) => {
-      if (!lookRef.current) return;
-      e.preventDefault();
-      lookBusy.current = true;
-      lookRef.current = lookZoom(lookRef.current, e.deltaY);
-      updateRef.current();
-      clearTimeout(wheelT);
-      wheelT = window.setTimeout(() => { wheelT = 0; lookSave.current(); }, 400);
-    };
-    host.addEventListener("pointerdown", down);
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-    host.addEventListener("wheel", wheel, { passive: false });
-    return () => {
-      if (!w.isDestroyed()) ctl.enableInputs = true;
-      host.removeEventListener("pointerdown", down); window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up); host.removeEventListener("wheel", wheel);
-      if (wheelT) { clearTimeout(wheelT); lookSave.current(); }
-      else if (drag?.moved) lookSave.current();
-    };
-  }, [cockpit, cz]);   // eslint-disable-line react-hooks/exhaustive-deps
   // P4: choosing From above (no object) frames the whole flight from straight above; tilting there turns the
   // camera to General (middle-drag or Ctrl+drag are Cesium's tilt)
   const camTop = mapCamera(plot) === "top";
@@ -1233,7 +1181,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   }, [camTop, cz]);   // eslint-disable-line react-hooks/exhaustive-deps
   // N6: the time moves the scene without a React render (playback re-rendered this 2-3 times a frame)
   useEffect(() => useApp.subscribe((s, p) => { if (s.cursor !== p.cursor) updateRef.current(); }), []);
-  useEffect(() => { updateRef.current(); }, [cz, tracks, playMode, windowSec, plot.followObject, plot.camera, plot.lookFree, plot.primaryObject, plot.relatedObjects, objects, lang, ownT, pointerT, mapNames]);
+  useEffect(() => { updateRef.current(); }, [cz, tracks, playMode, windowSec, plot.followObject, plot.camera, plot.primaryObject, plot.relatedObjects, objects, lang, ownT, pointerT, mapNames]);
 
   /* the span of the objects' own tracks (the independent time runs over that) */
   const ownExt = useMemo((): [number, number] | null => {
@@ -1282,7 +1230,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   wowAll.__svWow = { ...wowAll.__svWow, [plot.id]: {
     light: lightMode, sky: !!wc?.scene.skyAtmosphere && !lightMode, lighting: !!wc?.scene.globe.enableLighting, shadows: !!wc?.scene.shadowMap?.enabled,
     sunMs: Number.isFinite(sunMs.current) ? sunMs.current : null, drop: [...scene3.current.drawn.values()].some((d) => d.drop?.show),
-    recent: [...scene3.current.drawn.values()].some((d) => d.recent?.show), cockpit: camNowMode === "cockpit", lookFree: lookOn, fov: (fovNow * 180) / Math.PI,
+    recent: [...scene3.current.drawn.values()].some((d) => d.recent?.show), cockpit: camNowMode === "cockpit", fov: (fovNow * 180) / Math.PI,
     display: !!dispState, mini: close && miniTracks.length > 0, errorSurface: errInfo } };
   const centred = !!plot.followObject;
   const showBox = plot.showReadout !== false;
@@ -1295,10 +1243,6 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
     const fs = plot.followObject ? scene3.current.drawn.get(plot.followObject) : undefined;
     const c = w.camera, h = c.positionCartographic?.height ?? 1000;
     const d = fs && fs.label ? cz0.Cartesian3.distance(c.positionWC, fs.label.position) : h;
-    if (lookOn && lookRef.current) {      // free look: + / − zoom the view, the camera stays at the object
-      actions.updatePlot(plot.id, { lookFree: lookZoom(lookRef.current, dir > 0 ? -200 : 200) });
-      return;
-    }
     c.zoomIn(dir * Math.max(5, d * 0.35));
     if (plot.camera === "chase") chaseRange.current = Math.max(20, (chaseRange.current ?? d) * (dir > 0 ? 0.65 : 1.5));
     updateRef.current();
@@ -1317,9 +1261,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
       {/* the camera, the primary object and the related ones, the data box */}
       {cz && objects.length > 0 && (
         <MapBar plot={plot} objects={objects} className="globe3d-bar" chaseHint="g3CamChaseHint" onZoom={zoom3d}
-          onFit={() => { actions.updatePlot(plot.id, { followObject: null, camera: undefined }); reFit(); }}
-          freeLook={cockpit && <button className={`g3-toggle g3-look-free${lookOn ? " on" : ""}`} aria-pressed={lookOn} title={t("g3LookFreeHint")}
-            onClick={() => actions.updatePlot(plot.id, { lookFree: lookOn ? null : lookStart() })}>{t("g3LookFree")}</button>}>
+          onFit={() => { actions.updatePlot(plot.id, { followObject: null, camera: undefined }); reFit(); }}>
           {/* 3D only: from the reference, looking at the compared object */}
           {objects.length > 1 && <button aria-pressed={centred && plot.camera === "lookat"} className={`g3-toggle g3-cam-lookat${centred && plot.camera === "lookat" ? " on" : ""}`}
               title={t("g3CamLookAtHint")} onClick={() => actions.updatePlot(plot.id, { followObject: primaryId, camera: "lookat",
@@ -1354,7 +1296,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
       )}
       {cz && objects.length > 0 && !measuring && !detached && (
         (() => {   /* keyed by its text: a camera change shows it again (it fades after a few seconds - map.css) */
-          const hint = camTop ? t("g3CamTopHint") : t(!centred ? "g3HintFree" : plot.camera === "chase" ? "g3HintChase" : plot.camera === "cockpit" ? (lookOn ? "g3HintLookFree" : "g3HintCockpit") : plot.camera === "lookat" ? "g3HintLookAt" : "g3HintCentre");
+          const hint = camTop ? t("g3CamTopHint") : t(!centred ? "g3HintFree" : plot.camera === "chase" ? "g3HintChase" : plot.camera === "cockpit" ? "g3CamCockpitHint" : plot.camera === "lookat" ? "g3HintLookAt" : "g3HintCentre");
           return <div key={hint} className="g3-cam-hint" role="note">{hint}</div>;
         })()
       )}
