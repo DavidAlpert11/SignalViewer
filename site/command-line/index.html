@@ -410,10 +410,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -586,62 +582,6 @@
     
   
     מדריך: מה השתבש
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../fleet-tutorial/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Tutorial: what the Fleet is for
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../fleet-tutorial.he/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    מדריך: בשביל מה ה-Fleet
   
 
     
@@ -844,6 +784,17 @@
     <span class="md-ellipsis">
       
         Read and export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-sweeps-table-from-recordings-summarize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A Sweeps table from recordings: summarize
       
     </span>
   </a>
@@ -1511,6 +1462,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-sweeps-table-from-recordings-summarize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A Sweeps table from recordings: summarize
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#reports" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1691,9 +1653,24 @@ is installed by <code>pip install signalviewer</code>; from the source folder it
 <div class="highlight"><pre><span></span><code>signalviewer-cli<span class="w"> </span>info<span class="w"> </span>flight.bin<span class="w">                       </span><span class="c1"># the signals, their samples and time span</span>
 signalviewer-cli<span class="w"> </span><span class="nb">export</span><span class="w"> </span>flight.bin<span class="w"> </span>--signals<span class="w"> </span><span class="s2">"ATT.Roll,ATT.Pitch"</span><span class="w"> </span>--out<span class="w"> </span>roll.csv<span class="w"> </span>--t0<span class="w"> </span><span class="m">10</span><span class="w"> </span>--t1<span class="w"> </span><span class="m">60</span>
 signalviewer-cli<span class="w"> </span><span class="nb">export</span><span class="w"> </span>run.csv<span class="w"> </span>--out<span class="w"> </span>run.mat<span class="w">           </span><span class="c1"># one MATLAB variable per signal + Time</span>
+signalviewer-cli<span class="w"> </span><span class="nb">export</span><span class="w"> </span>flight.bin<span class="w"> </span>--signals<span class="w"> </span><span class="s2">"ATT.Roll,MODE.Mode"</span><span class="w"> </span>--rate<span class="w"> </span><span class="m">50</span><span class="w"> </span>--where<span class="w"> </span><span class="s2">"ATT.Roll &gt; 20"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--margin<span class="w"> </span><span class="m">2</span><span class="w"> </span>--out<span class="w"> </span>part.parquet<span class="w">                       </span><span class="c1"># a part of it at 50 Hz, only where the condition holds</span>
 </code></pre></div>
+<p><code>--out</code> names the format: <code>.csv</code>, <code>.parquet</code>, <code>.mat</code> or <code>.h5</code>. Without <code>--rate</code> the first signal's samples are the
+time base; with <code>--rate</code> one time base at that rate - values linear, states (modes, gears) held, and a low-pass
+first when the rate goes down (<code>--no-antialias</code> to skip it). <code>--where</code> keeps only the stretches where a condition
+holds (Investigate's language; a <code>Segment</code> column numbers them), <code>--from-zero</code> starts the time at 0. With
+<code>--rate</code> or <code>--where</code>, <code>&lt;file&gt;.export.json</code> beside it says what was taken. It is the app's <em>Export recording…</em>.</p>
 <p>Signal names may be written without their unit and in any case (<code>ATT.Roll</code> for <em>ATT.Roll [deg]</em>)
 when that is one signal; a name that is not there gets the closest names.</p>
+<h2 id="a-sweeps-table-from-recordings-summarize">A Sweeps table from recordings: <code>summarize</code><a class="headerlink" href="#a-sweeps-table-from-recordings-summarize" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>signalviewer-cli<span class="w"> </span>summarize<span class="w"> </span>logs/<span class="w"> </span>--measures<span class="w"> </span>measures.json<span class="w"> </span>--pattern<span class="w"> </span><span class="s2">"kp_{kp}_wind_{wind}"</span><span class="w"> </span>--out<span class="w"> </span>table.csv
+</code></pre></div>
+<p>One row per recording: its path, the parameters the pattern reads from its name, and one column per measure
+(<code>measures.json</code> as the Runs matrix's <em>Save measures…</em> writes it: <code>{"measures": [{"name": "max roll", "signal":
+"ATT.Roll", "op": "max", "where": "Mode == 1"}], "pattern": "..."}</code>; ops: max, min, mean, rms, std, range, first,
+final, at (with <code>"t"</code>), argmax, argmin, overshoot, settle). The files are read one at a time - the memory of one
+file. A file that cannot be read is named on stderr and left out.</p>
 <h2 id="reports">Reports<a class="headerlink" href="#reports" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>signalviewer-cli<span class="w"> </span>report<span class="w"> </span>--template<span class="w"> </span><span class="s2">"ArduPilot · Full review"</span><span class="w"> </span>--out<span class="w"> </span>reports/<span class="w"> </span>logs/*.bin<span class="w"> </span>--format<span class="w"> </span>pdf
 signalviewer-cli<span class="w"> </span>templates<span class="w">                              </span><span class="c1"># what --template can name</span>

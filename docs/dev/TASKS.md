@@ -53,30 +53,17 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   scenarios() falls back to demo.scenarios; the demo's About lists the wrapper command, the inputs and the hand run.
   demo.copy_to also copies .txt / .md. Owner's choices: JSON in, Python wrapper, MATLAB start:step:end, extend the
   existing demo.
-  **FL1 - the owner's decision (2026-11-16): drop the Fleet area, from the code AND every doc.** RV6 (Fleet fixes) is
-  cancelled. Why: many recordings are already served by Compare (a few, signal by signal), the Runs matrix (open runs:
-  a row each, measures, parameters from the names) and *Summarize a folder -> Sweeps* (hundreds of files of any
-  format, one at a time; a `recording` column opens each in Recordings). Checked on examples/fleet: the name pattern
-  `{vehicle}_{date}` + measures (VIBE[0].VibeZ max, BAT[0].Volt min, BAT[0].CurrTot final) give the X8-A vibration
-  story (18 -> 67) and X8-B's battery drop in Sweeps. The owner: "a way to define, from any folder of recordings,
-  parameters to show in Sweeps; the recordings themselves shown in Recordings by a link, their signals together".
-  FL1 to do: (1) remove the area: backend app/fleet.py, routes/fleet.py (main.py wiring), fleet.sqlite (leave a
-  user's old file alone), FleetPanel.tsx, areas.ts / App.tsx / areaExample.ts / CommandPalette / rail / icons
-  (if only Fleet uses one), i18n liveAndFleet.ts (keep the Live keys - rename the file to live.ts), CSS
-  (app.css / panels.css / review.css / index.css fleet rules), tests (backend test_fleet*, e2e test_fleet + the
-  Fleet parts of test_navigation / test_welcome_cards / test_file_help_menus / test_owner_notes_1_20 /
-  test_sweeps_flow), docs (fleet-tutorial*.md, features / GUIDE en+he / index / gallery / limitations /
-  E2E_MAP / NAVIGATION, mkdocs.yml nav, README, CLAUDE.md's area list), tools (make_training_video /
-  make_readme_media's fleet parts), the committed `site/` rebuilt (mkdocs build --strict). An old session / UI
-  setting with area "fleet" must still open (fall back to Recordings). (2) the example folder renamed
-  examples/fleet -> examples/folder_of_flights (tools/make_fleet_example.py -> make_folder_example.py) with a
-  `measures.json` (the Runs matrix's *Save measures* format, pattern `{vehicle}_{date}`); its welcome card moves to
-  the Recordings group: "a folder of recordings: which one needs a look" -> runs *Summarize a folder* with those
-  measures and opens Sweeps on the table (Charts: vibration_max by date, a colour per vehicle, if Sweeps can; else
-  the table sorted). (3) a clear way in: Sweeps -> Data -> *From recordings...* today opens the Runs matrix, which
-  needs an open recording to define measures on - offer *Summarize a folder* there directly (pick a folder; define
-  the measures on its first file). (4) From a Sweeps table with a `recording` column: open several selected rows
-  together in Recordings (Compare) - check what exists (SetDetail opens a set's runs).
+  **FL1 done (2026-11-16): the Fleet area dropped, from the code and every user doc** (history docs - ROADMAP, REVIEW,
+  older plans, CHANGELOG's released entries - keep their record). A folder of recordings = *Summarize a folder ->
+  Sweeps*: `folderSummary.ts` is the one way in (Runs matrix, Sweeps' Data *From a folder of recordings…* and its empty
+  screen, the welcome card `folderOfFlights` in the Recordings group). The backend uses a folder's `measures.json` when
+  no measures are given (`svcore.summary.folder_measures`, also `cli summarize`); `GET /api/summary/folder` says how many
+  recordings, the first and its measures. Without measures.json the first recording opens with the Runs matrix
+  (`ui.matrixFolder`: a step line, *Summarize <folder>* without asking, *Save measures* writes the folder's
+  measures.json). The Sweeps data table: a tick per row with a recording + *Open n in Recordings* (openPaths autoView:
+  Compare); the table fills the step (`.sw-raw` flex). examples/fleet -> examples/folder_of_flights (+ measures.json:
+  vibration_max, battery_min_V; `{vehicle}_{date}`); its card pictures = the parallel plot. Not done: a chart of
+  vibration by date coloured by vehicle (the parallel plot shows the story; Sweeps' scatter is in Results).
   **SW2 - the owner (2026-11-16): investigate chosen scenarios from Sweeps without loading everything.** "Many
   scenarios are run without recording, only a summary row each; to investigate, the interesting ones are run again
   with recording." Two ways from a set / selected rows of a Sweeps table, both on demand only (never load all):
@@ -92,7 +79,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   motor), so in the smart-sweep demo the best set -> *Run again with recording* -> its runs open in Recordings
   (one per scenario, compared). One home for the button: the set's details (SetDetail) and the re-run list
   (RerunList: today only Export) - not a third place. en + he, RTL; backend tests for the contract, e2e for the demo.
-  Next after FL1 and SW2: RV7 ... RV11 (ROADMAP M33).
+  **SW2 status:** (a) done by FL1 (the Sweeps data table's ticks + *Open n in Recordings*). **The owner's answers (2026-11-16, chat) for (b):** (1) which runs record is a **rule set in advance**, default *no recording*; (2) a simulation file takes **one run**, the wrapper **a parameter set** - choose accordingly; (3) the re-runs are **chained**, then a notice says a run is **ready to load** (not opened by itself); (4) a re-run whose summary row differs from the original is **loaded as another layer of results**.
+  Next: SW2 (b), then RV7 ... RV11 (ROADMAP M33).
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
@@ -430,3 +418,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-16 · Owner: Fleet dropped (FL1, RV6 cancelled) - the plan in Current state; handed to a new session (context).
 - 2026-11-16 · Owner: SW2 - from Sweeps, investigate chosen scenarios (open their recordings directly, or run them
   again with recording); queued after FL1 in the session that does FL1.
+- 2026-11-16 · FL1 done: Fleet removed (code, strings, styles, tests, docs, site); folder of recordings -> Sweeps (card,
+  Sweeps entry, measures.json, ticked rows opened together). Tests: backend test_summary (+2), full pytest green;
+  Vitest green; e2e test_folder_of_recordings (new, 2), test_welcome_cards, test_navigation, test_file_help_menus,
+  test_runs_matrix, test_sweeps_data_columns, test_sweeps_flow, test_sweeps_workspace, test_owner_notes_1_20 - all pass.
+  Owner's answers for SW2 recorded (TASKS Current state, ROADMAP M33).

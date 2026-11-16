@@ -410,10 +410,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -586,62 +582,6 @@
     
   
     מדריך: מה השתבש
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../fleet-tutorial/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Tutorial: what the Fleet is for
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../fleet-tutorial.he/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    מדריך: בשביל מה ה-Fleet
   
 
     
@@ -1720,8 +1660,8 @@ cannot go into one file, so the page draws the same data with three.js r159 (MIT
 draped on the bundled terrain (97 × 97 heights over the tracks' box and a margin), each track drawn as the app draws it (a fixed
 width on screen; a navigation solution dashed, a receiver as points), the app's models with heading, pitch
 and roll, heights ×1 / ×2 / ×5. The 2D map's page and the 3D page share one toolbar and one relation box
-(<code>report_assets/relation.js</code>, <code>mappage.css</code>, the words in <code>mapimage.PAGE_STRINGS</code>): the camera <em>Free · Around it ·
-Behind it</em> on a chosen object (<em>Behind it</em>: behind it, along its heading), + / −, <em>Fit</em>, <em>Trail</em> (whole / 60 s /
+(<code>report_assets/relation.js</code>, <code>mappage.css</code>, the words in <code>mapimage.PAGE_STRINGS</code>): the camera <em>Free · On the object</em>
+on a chosen object (as in the app: a drag turns around it, the wheel goes towards it down to sitting on it), + / −, <em>Fit</em>, <em>Trail</em> (whole / 60 s /
 20 s), <em>Relation</em> (show / hide), light / dark; an attitude indicator in 3D; the address keeps the view
 (<code>#t=…&amp;cam=…&amp;obj=…</code>); <em>Closest in</em> moves the time (inside a report: the report's time, <code>replay-seek</code>); the box is the app's (range, horizontal, Δalt, bearing, relative bearing, closure, closest-in,
 heading Δ) with the pair's rings and a dashed line with the distance. The objects are read as the Tacview export reads them. Where the browser
@@ -1763,13 +1703,15 @@ of another object (a borrowed attitude, the pair) use the whole list. A hidden o
 with it hidden and their legend rows are buttons (<code>svLegend</code> in <code>report_assets/relation.js</code>; click, Alt+click
 = only this one). Exports (Tacview, CSV, KML) keep every object.</p>
 <h2 id="the-map-is-3d-p4-126">The Map is 3D (P4, 1.26)<a class="headerlink" href="#the-map-is-3d-p4-126" title="Permanent link">&para;</a></h2>
-<p>One Map, and it is the 3D view; "2D" is its camera <em>From above</em>. Saved values do not change: <code>mode: "geo"</code>
-<strong>with objects</strong> is drawn by the 3D view (<code>isMapPlot</code>, <code>mapObjects.ts</code>) with the camera From above
-(<code>Plot.camera</code> absent on such a plot = <code>"top"</code>; <code>mapCamera</code>); <code>mode: "3d"</code> as before (absent = Free, or
-Around it with a followed object); new maps are <code>"3d"</code>. Free writes <code>camera: "free"</code>. 1.27 renamed the
-cameras on screen only - <em>Free</em> (<code>"free"</code>), <em>From above</em> (<code>"top"</code>), <em>Around it</em> (absent with a followed
-object), <em>Behind it</em> (<code>"chase"</code>), <em>Cockpit</em> (<code>"cockpit"</code>) - the saved values are unchanged, so a session opens
-with the same camera as before. A 1.25 build
+<p>One Map, and it is the 3D view. Saved values do not change: <code>mode: "geo"</code> <strong>with objects</strong> is drawn by the 3D
+view (<code>isMapPlot</code>, <code>mapObjects.ts</code>); <code>mode: "3d"</code> as before; new maps are <code>"3d"</code>. <strong>Two cameras</strong> (owner,
+2026-11-16: "enough to mark whether the camera is free or on the object"): <em>Free</em>, or <em>On the object</em>
+(<code>followObject</code> set) - the camera stays on it, a drag turns around it, the wheel / + − go towards the object
+itself down to 1 m, sitting on it (within 15 m its own model and any within 20 m of it are hidden).
+<code>mapCamera</code> reads every older <code>camera</code> value (<code>"top"</code>, <code>"chase"</code>, <code>"cockpit"</code>, <code>"lookat"</code>) by <code>followObject</code>
+alone, so a session opens On the object when it followed one, else Free; Free writes <code>camera: "free"</code>, On the
+object clears it. From above, Around it, Behind it, Cockpit, Look at (1.26-1.27) are gone; the 2D drawing's
+track up is its <strong>N</strong> button (<code>mapUp</code>). with the same camera as before. A 1.25 build
 opening a session from this one draws its maps as before. <code>mode: "geo"</code> without objects - a lon / lat X-Y on
 a map - is unchanged (GeoChart).</p>
 <p><strong>When 3D cannot draw</strong> (<code>hasWebGL()</code> false - <code>webgl.ts</code>, no CesiumJS loaded for the check - or the context
@@ -1777,8 +1719,8 @@ lost) the Map is drawn by <code>GeoChart</code> with "Shown flat – this comput
 <code>Globe3DFallback.tsx</code> (tracks on bare axes) is gone. <code>ui.mapFlat</code> forces the flat drawing (P8's <em>Map drawing:
 Always flat</em>; the flat-map e2e tests use it implicitly - their browser has no WebGL).</p>
 <p><strong>Reports and pages:</strong> a Map goes out as the 3D view on its camera (<code>plotSpec</code> → <code>mode: "3d"</code>,
-<code>scene.camera</code>); From above → the flat map picture (<code>report._map_picture</code> → <code>mapimage.render</code>), any other
-camera → <code>scene3d.render</code>; the live page opens on that camera (<code>D.camera</code>). The flat page (<code>map.html</code>) inside
+<code>scene.camera</code>: <code>"centre"</code> On the object, else <code>"free"</code>) → <code>scene3d.render</code>; the live page opens on that
+camera (<code>D.camera</code>). (<code>report._map_picture</code>'s flat picture for <code>"top"</code> is no longer asked for by the app.) The flat page (<code>map.html</code>) inside
 the 3D page's frame for a browser without WebGL is <strong>not done</strong> (the page shows its picture there, as before).</p>
 <table>
 <thead>
@@ -1797,7 +1739,7 @@ the 3D page's frame for a browser without WebGL is <strong>not done</strong> (th
 <tr>
 <td>north up / track up</td>
 <td><code>mapUp</code></td>
-<td>From above: north up; <em>Behind it</em> keeps the chosen object's heading up (1.27: the separate <em>Track up</em> button is gone; the N turns a turned map back north)</td>
+<td>the flat drawing On the object: the <strong>N</strong> button turns the map with the object and back north</td>
 </tr>
 <tr>
 <td>ring tooltips</td>
@@ -1888,7 +1830,7 @@ the setting at once, in the app and in the pages and pictures made after.</p>
 </tr>
 <tr>
 <td>Camera of a new Map</td>
-<td>Free · From above · Around it · Behind it</td>
+<td>Free · On the object (an older Behind it reads as On the object, From above as Free)</td>
 </tr>
 <tr>
 <td>Map drawing</td>
@@ -1935,9 +1877,9 @@ the setting at once, in the app and in the pages and pictures made after.</p>
   atmosphere, lighting, fog; soft model shadows only while the camera is on an object.</li>
 <li><strong>In space</strong>: a drop line and a dark disc under each object; its last 10 s brighter over the whole track.</li>
 <li><strong>Flights</strong>: every camera change eases there over ~1.2 s (none with the system's <em>reduce motion</em>).</li>
-<li><strong>Cockpit</strong>: a fifth camera at the object, along its heading and pitch, rolling with it, 70°; its own model
-  (and any within 20 m) hidden. The flat drawing treats it as Behind it.</li>
-<li><strong>Flight display</strong> (<em>Display</em> in the bar; on by default Behind it and in Cockpit) and a <strong>mini-map</strong> while the
+<li><strong>On it</strong>: On the object zoomed all the way in (within 15 m) hides its own model (and any within 20 m) -
+  the view from the object, turned by a drag (Cockpit until 2026-11-16).</li>
+<li><strong>Flight display</strong> (<em>Display</em> in the bar, On the object) and a <strong>mini-map</strong> while the
   camera is near an object (a click flies there).</li>
 <li><strong>The error, drawn</strong>: when the relation box's pair is one vehicle (median distance under 20 m) a
   see-through surface between the tracks, green → amber → red at the distance's 95th percentile, with its
@@ -1953,7 +1895,7 @@ ground crossing 5 m for 3 s), the highest and fastest points, the steepest bank 
 200 m of a place, and for the pair the largest error (one vehicle) or the closest and farthest moments. A
 moment within 3 s of a stronger one is dropped; at most 12. The live page's player runs the time so the
 recording takes about the Settings' length (×1 to ×60), at ×1 from 3 s before a moment to 2 s after, and
-stops 4 s on it; the map frames fly to its object (Around it ~400 m; Behind it for a bank, an error, a
+stops 4 s on it; the map frames fly to its object (the offline pages: Around it ~400 m; Behind it for a bank, an error, a
 takeoff or a landing) and give the reader's camera back at the end.</p>
 
 

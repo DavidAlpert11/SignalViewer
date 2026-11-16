@@ -410,10 +410,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -586,62 +582,6 @@
     
   
     מדריך: מה השתבש
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../fleet-tutorial/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Tutorial: what the Fleet is for
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../fleet-tutorial.he/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    מדריך: בשביל מה ה-Fleet
   
 
     
@@ -1047,6 +987,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-sweep-wrapper-on-this-pc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A sweep wrapper on this PC
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#in-the-app-and-on-the-command-line" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1373,6 +1324,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-sweep-wrapper-on-this-pc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A sweep wrapper on this PC
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#in-the-app-and-on-the-command-line" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1441,6 +1403,21 @@ in one place (your laptop with the Portable, or one management machine) and spea
 to each table's paths and every round's results join the ranking.</p>
 <p>Optional: <code>status.failed_glob</code> (a file that marks a failed run), <code>status.timeout_s</code> (per round),
 <code>local_workers</code> (run the command per run on this PC with N workers – the same path, without a farm).</p>
+<h2 id="a-sweep-wrapper-on-this-pc">A sweep wrapper on this PC<a class="headerlink" href="#a-sweep-wrapper-on-this-pc" title="Permanent link">&para;</a></h2>
+<p>Between "one run per command" and a farm: a <strong>wrapper</strong> gets the whole round and runs your simulation once per
+set of inputs. <code>examples/smart_sweep_demo/sweep_wrapper.py</code> is one to copy (Python, standard library only):</p>
+<div class="highlight"><pre><span></span><code><span class="nt">"launcher"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"submit"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"{{study_cli}}"</span><span class="p">,</span><span class="w"> </span><span class="s2">"wrap"</span><span class="p">,</span><span class="w"> </span><span class="s2">"{{study_dir}}/sweep_wrapper.py"</span><span class="p">,</span><span class="w"> </span><span class="s2">"--list"</span><span class="p">,</span><span class="w"> </span><span class="s2">"{{params_files}}"</span><span class="p">,</span>
+<span class="w">                         </span><span class="s2">"--sim"</span><span class="p">,</span><span class="w"> </span><span class="s2">"python my_sim.py {params}"</span><span class="p">,</span><span class="w"> </span><span class="s2">"--workers"</span><span class="p">,</span><span class="w"> </span><span class="s2">"4"</span><span class="p">],</span>
+<span class="w">              </span><span class="nt">"submit_mode"</span><span class="p">:</span><span class="w"> </span><span class="s2">"round"</span><span class="p">,</span><span class="w"> </span><span class="nt">"run_as"</span><span class="p">:</span><span class="w"> </span><span class="s2">"wrapper"</span><span class="p">,</span><span class="w"> </span><span class="err">...</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p><code>run_as: "wrapper"</code> runs the round's command on this PC in the background (the app keeps showing the results as
+they come). Your simulation reads one JSON file (every input of one run, and <code>"out"</code>) and writes one CSV row there.
+In the app: <em>How to run</em> → <strong>A wrapper on this PC</strong>, and <em>Put the example wrapper beside the study</em>. The same
+wrapper runs without the app – the inputs as <code>name: values</code> lines, MATLAB-style ranges:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>sweep_wrapper.py<span class="w"> </span>--spec<span class="w"> </span>grid.txt<span class="w"> </span>--out<span class="w"> </span>sweep.csv<span class="w">        </span><span class="c1"># grid.txt:  Kp: 0.5, 1, 2:0.5:4   wind: calm, gusty</span>
+python<span class="w"> </span>sweep_wrapper.py<span class="w"> </span>--inputs<span class="w"> </span>runs.csv<span class="w"> </span>--out<span class="w"> </span>sweep.csv<span class="w">      </span><span class="c1"># or a table, one run per row</span>
+</code></pre></div>
+<p>The smart-sweep demo runs its rounds this way; its folder's README says how to run it by hand.</p>
 <h2 id="in-the-app-and-on-the-command-line">In the app and on the command line<a class="headerlink" href="#in-the-app-and-on-the-command-line" title="Permanent link">&para;</a></h2>
 <p>Open the study (<em>Sweeps → Open ▾ → Open a saved study</em>): the <strong>Run</strong> column on its right says what the next round
 will run. <strong>Run them</strong> shows the exact command once per session, runs it, and shows each run under it as

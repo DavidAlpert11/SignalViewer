@@ -412,10 +412,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -677,6 +673,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="11. Flight logs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A folder of recordings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -847,62 +860,6 @@
     
   
     מדריך: מה השתבש
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../fleet-tutorial/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Tutorial: what the Fleet is for
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../fleet-tutorial.he/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    מדריך: בשביל מה ה-Fleet
   
 
     
@@ -1667,6 +1624,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="11. Flight logs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A folder of recordings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1815,7 +1789,7 @@ are told apart by them.</p>
 <h2 id="3-the-screen">3. The screen<a class="headerlink" href="#3-the-screen" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Top:</strong> one row - the work areas as one switch (<em>Recordings</em> - your files and plots, <em>Sweeps</em> - a run
-  envelope's results table, <em>Fleet</em> - every flight log in a folder), then the Recordings tools (open /
+  envelope's results table), then the Recordings tools (open /
   save, templates, live, undo / redo, clear, Inspector), Ctrl+K, Settings, the theme, the language and Help.</li>
 <li><strong>Left:</strong> the panels – <em>Data</em> (the open files and their signals), <em>Create signals</em>, <em>Compare runs</em>,
   <em>Investigate</em>, <em>Report</em> and <em>Checks</em> (the verdict, structure and parameters of any file - section 10).</li>
@@ -1837,11 +1811,10 @@ are told apart by them.</p>
   drag it onto any plot. Drop on a plot's right or bottom edge to make a new plot there.</li>
 <li>The button next to the plot's title (<strong>Time ▾</strong>) changes the plot's type: Time, X-Y, 3D (XYZ - any
   three signals on plain axes), Map, FFT, Spectrogram, Envelope (many runs of one quantity), Video. The <strong>Map</strong>
-  is the earth with its terrain; its bar has the camera <em>Free · From above · Around it · Behind it · Cockpit</em>
-  on the object beside it (<em>From above</em>: straight down, north up, the whole flight framed), + / − / fit, <em>Relation</em> (the relation box shown or hidden), and its extras (look at, a third object, data,
+  is the earth with its terrain; its bar has the camera <em>Free · On the object</em> (the object chosen beside it),</li>
+<li>/ − / fit, <em>Relation</em> (the relation box shown or hidden), and its extras (a third object, data,
   events, measure, its own time). The mouse's position is shown in a corner: latitude, longitude, the ground
-  height there and the distance / bearing from the reference. A map saved by an earlier version opens <em>From
-  above</em>. Where the computer cannot draw 3D (remote desktops, some virtual machines) the Map is drawn flat
+  height there and the distance / bearing from the reference. Where the computer cannot draw 3D (remote desktops, some virtual machines) the Map is drawn flat
   and says so in one quiet line.</li>
 <li><strong>Right-click a legend chip</strong> for its options: second value axis, show as states, move, remove…</li>
 <li><strong>Many signals in one plot?</strong> The legend moves into a column beside the plot by itself (a row per
@@ -1945,12 +1918,16 @@ are told apart by them.</p>
   template) and <em>My places</em> (yours, in every session - ★ moves a place there). A click flies the camera there;
   the search box also takes a position; <em>Save this view</em> keeps the camera by name. The mouse readout says
   how far the nearest place is, and the relation box can compare the reference with a place.
-- <strong>The Map's cameras</strong>, named by what they do - each with a small picture and a line in its menu: <em>Free</em>
-  (move it yourself), <em>From above</em> (straight down, never follows an object), <em>Around it</em> (turn around the
-  object, the wheel towards it), <em>Behind it</em> (behind and above it, turning with its heading) and <em>Cockpit</em>
-  (from the object, looking where it points, rolling with it). Every change flies there; a session saved
-  earlier opens with the same camera as before. <em>Display</em> shows the flight display of the
-  object the camera is on (attitude, ground speed, altitude, heading; on by default Behind it and in Cockpit);
+- <strong>The Map's camera</strong> is <em>Free</em> (move it yourself) or <em>On the object</em>: the camera stays on the object as the
+  replay moves it; drag to turn around it, the wheel (or + / −) goes nearer or further - always towards the
+  object itself, all the way in to sitting on it (its own model is hidden there) and looking where you turned.
+  Every change flies there; a session saved with one of the earlier cameras (From above, Around it, Behind
+  it, Cockpit, Look at) opens Free, or On the object when it followed one. A <strong>double-click on an object</strong> puts the
+  camera on it (elsewhere: Fit everything, Free); Ctrl+K has <em>Map camera: on …</em> / <em>Free</em>. With the 3D view clicked,
+  the keys: <strong>F</strong> on the object / Free, <strong>arrows</strong> look around the object (Free: move over the ground), <strong>+ / −</strong>
+  zoom, <strong>0</strong> fits everything. <em>Display</em> shows the flight display of the
+  object the camera is on (attitude, ground speed, altitude, heading; shown by default while sitting on it - the
+  wheel and drags go through it);
   a mini-map shows the whole flight while the camera is near an object (a click flies there). When the
   reference and the compared object are one vehicle (truth and a navigation solution), an <strong>error
   surface</strong> between their tracks shows where the solution left the truth (its scale and toggle are in the
@@ -1969,8 +1946,8 @@ are told apart by them.</p>
   and the keys work on it: arrows move it, + / − zoom, F follows, 0 fits everything (Shift+←/→ still
   step the cursor). <em>Settings → Camera following an object</em>: <em>Smooth</em> (default) eases after the object,
   so a noisy position does not shake the view; <em>Exact</em> stays right on it.
-  <em>Behind it</em> keeps the object's heading up; when the map is turned, the <strong>N</strong> button turns it back north.
-  <em>Look at</em> (the Map's extras) looks from one object towards the second. A line at the bottom says what the
+  Drawn flat, On the object has the <strong>N</strong> button: the map turns with the object (its heading up) and back
+  north again. A line at the bottom says what the
   mouse does.
 - <strong>The map's background:</strong> the <em>Map</em> button in the corner of every map (2D and 3D) shows each background
   as a picture of the place on screen - <em>Offline</em> (the default, shipped with the app), the online maps
@@ -2196,7 +2173,7 @@ shown change together – on the axis, in the list, in the legend – and it can
   checked (the log's own check, Compare's verdict, the investigation), what it shows and the conclusion –
   write the conclusion in <em>Summary</em> (the panel reminds you when it is empty). <strong>The HTML report is one live page</strong>: a time bar at the bottom moves every
   plot's cursor, the map and the 3D view together, with Play and the log's marks, while each plot keeps its
-  own zoom and statistics. The 3D view is in it live (turn, zoom, the camera <em>Free · Around it · Behind it</em> on an
+  own zoom and statistics. The 3D view is in it live (turn, zoom, the camera <em>Free · On the object</em> on an
   object; <em>Closest in</em> goes to that moment; a <em>Trail</em> of the last seconds; an attitude indicator; where the browser has no 3D graphics, its picture), and the map and the 3D
   view have the same buttons and the same relation box as in the app (hide it with <em>Relation</em>); in PDF and Word every plot, the map and the 3D view are pictures. A plot that
   cannot go into a report (a video, occurrences) is listed greyed with the reason.</li>
@@ -2254,9 +2231,18 @@ timeline (<em>3 findings</em>) and are ◆ marks on it; a click plots the signal
 the log's events, parameters and hardware too. On the map, an object's <em>Track colour</em> can follow the
 flight mode (or a value such as the altitude), with a key, and <em>Arrows along the path</em> can show the
 log's estimated wind.</p>
-<p><strong>Fleet</strong> (the top bar: <em>Recordings · Sweeps · Fleet</em>) runs the same checks on every log in a folder: follow a number over weeks
-(a motor wearing out), find the first flight over a limit, list the flights with a finding. <em>Try the
-example fleet</em> shows how - the <a href="../fleet-tutorial/">Fleet tutorial</a> walks through it.</p>
+<h3 id="folder">A folder of recordings<a class="headerlink" href="#folder" title="Permanent link">&para;</a></h3>
+<p>Many recordings of the same kind - every flight of two copters, a test run a day - are summed up one row per
+recording: <strong>Sweeps ▸ Data ▸ <em>From a folder of recordings…</em></strong> (or <em>Investigate ▸ Runs matrix ▸ Summarize a
+folder</em>). Each recording gets the same <strong>measures</strong> (the highest <code>VIBE[0].VibeZ</code>, the lowest <code>BAT[0].Volt</code>,
+the last <code>BAT[0].CurrTot</code>…) and parameters read from its name (<code>{vehicle}_{date}</code> reads <code>X8-A_2026-09-02.bin</code>
+as vehicle X8-A, date 2026-09-02). The folder is read one file at a time, so hundreds of files of any format
+are fine. A <code>measures.json</code> beside the recordings (the Runs matrix's <em>Save measures</em>) is used at once;
+without one, the folder's first recording opens with the Runs matrix to define them on it.</p>
+<p>In Sweeps each row keeps a link to its recording (the <em>recording</em> column): tick the rows that need a look and
+<em>Open in Recordings</em> opens them together, their signals side by side. The welcome card <em>A folder of
+recordings</em> shows it on ten flights of two copters: X8-A's vibration grows flight after flight (18 → 67),
+X8-B's battery drops on its last flight.</p>
 <h2 id="12-live-data">12. Live data<a class="headerlink" href="#12-live-data" title="Permanent link">&para;</a></h2>
 <p><strong>Live</strong> (the top bar, beside undo) follows files that are still being written – a CSV growing, a MATLAB file saved
 again and again – and can connect to a MAVLink stream. From Python, <code>signalviewer_push.show(...)</code>

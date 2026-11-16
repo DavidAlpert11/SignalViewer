@@ -412,10 +412,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -705,6 +701,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="11. לוגי טיסה">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        תיקייה של הקלטות
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -847,62 +860,6 @@
     
   
     מדריך: מה השתבש
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../fleet-tutorial/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Tutorial: what the Fleet is for
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../fleet-tutorial.he/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    מדריך: בשביל מה ה-Fleet
   
 
     
@@ -1667,6 +1624,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="11. לוגי טיסה">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        תיקייה של הקלטות
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2177,9 +2151,17 @@
 והמקומות שבהם סיגנל מוצג יוצא מהגבולות שלו. <strong>]</strong> ו־<strong>[</strong> מעבירים את הסמן לאירוע הבא / הקודם מכל סוג, ושורת
 המצב אומרת איזה. במפה, <em>צבע המסלול</em> של אובייקט יכול ללכת לפי מוד הטיסה (או לפי ערך
 כמו הגובה), עם מקרא, ו<em>חצים לאורך המסלול</em> יכולים להראות את הרוח המשוערת של הלוג.</p>
-<p><strong>Fleet</strong> (בסרגל העליון: <em>הקלטות · מעטפות ריצה · צי</em>) מריץ את אותן בדיקות על כל הלוגים בתיקייה: מעקב אחרי מספר לאורך
-שבועות (מנוע שנשחק), הטיסה הראשונה שעברה גבול, רשימת הטיסות עם ממצא. <em>נסו את צי הדוגמה</em> מראה
-איך – ה<a href="../fleet-tutorial.he/">מדריך ל-Fleet</a> עובר על זה.</p>
+<h3 id="folder">תיקייה של הקלטות<a class="headerlink" href="#folder" title="Permanent link">&para;</a></h3>
+<p>הרבה הקלטות מאותו סוג - כל הטיסות של שני רחפנים, ריצת ניסוי ביום - מסוכמות בשורה אחת לכל הקלטה:
+<strong>מעטפות ריצה ▸ נתונים ▸ <em>מתיקייה של הקלטות…</em></strong> (או <em>חקירה ▸ טבלת ריצות ▸ סיכום תיקייה</em>). לכל הקלטה אותם
+<strong>מדדים</strong> (המקסימום של <code>VIBE[0].VibeZ</code>, המינימום של <code>BAT[0].Volt</code>, הערך האחרון של <code>BAT[0].CurrTot</code>…)
+ופרמטרים שנקראים מהשם שלה (<code>{vehicle}_{date}</code> קורא את <code>X8-A_2026-09-02.bin</code> ככלי X8-A, תאריך 2026-09-02).
+התיקייה נקראת קובץ אחר קובץ, כך שמאות קבצים בכל פורמט אינם בעיה. קובץ <code>measures.json</code> ליד ההקלטות
+(<em>שמירת מדדים</em> בטבלת הריצות) משמש מיד; בלעדיו, ההקלטה הראשונה בתיקייה נפתחת עם טבלת הריצות כדי להגדיר
+עליה את המדדים.</p>
+<p>במעטפות הריצה כל שורה שומרת קישור להקלטה שלה (העמודה <em>recording</em>): סמנו את השורות שצריך לבדוק,
+ו<em>פתיחה בהקלטות</em> פותחת אותן יחד, הסיגנלים שלהן זה לצד זה. כרטיס הפתיחה <em>תיקייה של הקלטות</em> מראה את זה על
+עשר טיסות של שני רחפנים: הרעידות של X8-A גדלות מטיסה לטיסה (18 → 67), והסוללה של X8-B יורדת בטיסה האחרונה שלו.</p>
 <h2 id="12">12. נתונים חיים<a class="headerlink" href="#12" title="Permanent link">&para;</a></h2>
 <p><strong>חי</strong> (בסרגל העליון, ליד ביטול) עוקב אחרי קבצים שעדיין נכתבים – CSV שגדל, קובץ MATLAB שנשמר שוב ושוב –
 ויכול להתחבר לזרם MAVLink. מ־Python, ‏<code>signalviewer_push.show(...)</code> שולח מערכים ישר לאפליקציה הפתוחה.</p>

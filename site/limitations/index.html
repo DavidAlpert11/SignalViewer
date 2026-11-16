@@ -410,10 +410,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -586,62 +582,6 @@
     
   
     מדריך: מה השתבש
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../fleet-tutorial/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Tutorial: what the Fleet is for
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../fleet-tutorial.he/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    מדריך: בשביל מה ה-Fleet
   
 
     
@@ -1336,7 +1276,7 @@
 <li>The strip's rows are kept in the session, not in templates; a selection on the strip is made in the strip's run (saved as a condition it applies to every open file).</li>
 <li>The strip's flags are deliberately few: a signal that is mostly flat (a set point, a counter, a switch) is never flagged as stuck or saturated, nor is anything in the first or last 5% of the run. Files with more than 300 signals are scanned on their first 300.</li>
 <li>Reports: "Stretches together" (occurrences) plots are not drawn in reports yet; a finding's plot is the time plots of the tab it was found in (up to two) at its view. The journal keeps the last 200 steps; it is saved with the session, not with templates.</li>
-<li>Runs × conditions works on the open files: a folder of runs is opened (up to 200 files at a time, each read into memory) rather than indexed like the Fleet's flight logs. Parameters come from signals that hold one value and from numbers in file names; a side file of parameters is not read yet.</li>
+<li>Runs × conditions works on the open files: a folder of runs is opened (up to 200 files at a time, each read into memory) - for a folder of hundreds, <em>Summarize a folder</em> reads one file at a time into a Sweeps table instead. Parameters come from signals that hold one value and from numbers in file names; a side file of parameters is not read yet.</li>
 <li>What changed first finds a change in level (beyond 4 times the usual noise, 3 samples in a row); a change only in how a signal oscillates (same level, more shaking) shows only when it pushes samples that far. It reads the usual level well before the span - an event that has been building for longer than that is measured against its own start. Near the start of the file it reads it from whatever is there before the span; with nothing before it, it says so instead of answering.</li>
 <li>What differs inside the stretches compares means (in units of the spread outside) - a signal that only changes shape, not level, ranks low. The overlay draws the first 200 stretches.</li>
 <li>Conditions: kept in the session (no shared library yet). A selection is the two cursors - Shift+drag was planned for it, but Shift+drag already zooms the values (T19), so it stays that. Conditions are looked for file by file, on the first signal's samples (other signals: nearest sample).</li>
@@ -1368,7 +1308,7 @@
 <li>Altitudes are compared as recorded: ArduPilot's POS / GPS / ORGN heights are above sea level, a position converted from ECEF is above the ellipsoid - comparing the two shows the geoid height (about 18 - 20 m in Israel) as a constant vertical error.</li>
 <li>A map saved as HTML embeds the offline basemap for the tracks' area within about 15 MB (the file says which zoom levels it holds); online imagery is used only if it was on and already in the app's cache. The 3D view saves a PNG only.</li>
 <li><em>Compare with similar…</em> reads names of one file; the same signal across files is the Compare panel. <em>One plot at a time</em> is a way to look, not part of a session or a report.</li>
-<li>The 3D <em>Behind it</em> / <em>Look at</em> cameras and the map's smoothness depend on the graphics: on software rendering (no GPU) the 3D view uses lighter settings.</li>
+<li>The 3D camera On the object and the map's smoothness depend on the graphics: on software rendering (no GPU) the 3D view uses lighter settings.</li>
 <li>Line styles: opacity is not a line setting (a setpoint's faded look is automatic).</li>
 <li>The Map's flat drawing (where 3D cannot draw, or <em>Always flat</em>) has no terrain relief, sky, shadows, cockpit camera or error surface; the error is shown by colouring the compared track instead.</li>
 <li>The offline 3D page draws the ground as a flat local plane (no earth curvature) - right for a flight of tens of kilometres, increasingly off beyond ~100 km.</li>
