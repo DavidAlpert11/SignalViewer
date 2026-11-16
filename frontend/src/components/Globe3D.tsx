@@ -163,13 +163,12 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   const [lightMode, setLightMode] = useState(false);
   const widgetRef = useRef<import("cesium").CesiumWidget | null>(null);
   const handlerRef = useRef<import("cesium").ScreenSpaceEventHandler | null>(null);
-  const terrainV = useRef(0);
+  const terrainV = useRef(0);                         // P5: the terrain version new tiles are asked with
   // P4: the mouse's position, as the 2D map's readout had it - lat / lon (decimals by the camera's height),
   // the ground there, and distance / bearing from the reference
   const refState = useRef<{ name: string; lat: number; lon: number } | null>(null);
   const [mouseAt, setMouseAt] = useState<{ lat: number; lon: number; ground: number | null; prec: number; from: { name: string; d: number; brg: number } | null;
-    place: { name: string; d: number } | null } | null>(null);                                    // P5: the terrain version the tiles were asked with
-  const terrainMake = useRef<((v: number) => import("cesium").CustomHeightmapTerrainProvider) | null>(null);
+    place: { name: string; d: number } | null } | null>(null);
   const offline = useApp((s) => s.offlineOnly || s.offlineForced);   // no fetching: nothing finer can arrive
   // P6: `objects` are the ones drawn (and fitted); `allObjs` every one, for lookups (a borrowed attitude)
   const allObjs: MapObject[] = useMemo(() => plot.objects ?? [], [plot.objects]);
@@ -248,15 +247,15 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
       const light = lightOnly || softwareWebGL();
       setLightMode(light);
       try {
-        // P5: the tiles' URL carries the terrain version - when finer heights arrive (fetched in the
-        // background) the provider is made again and the browser's cache does not keep the coarse tile
-        const makeTerrain = (v: number) => new Cz.CustomHeightmapTerrainProvider({
+        // P5: the tiles' URL carries the terrain version - a tile asked after finer heights arrived (fetched
+        // in the background) is not the browser's cached coarse one. The provider is never replaced: that
+        // drops every tile on screen and the globe went black for a moment each time heights arrived while
+        // moving (owner, 2026-11-16: "every ~10 s the map turns black")
+        const terrain = new Cz.CustomHeightmapTerrainProvider({
           width: TERRAIN_SIZE, height: TERRAIN_SIZE, tilingScheme: new Cz.GeographicTilingScheme(),
-          callback: (x: number, y: number, level: number) => fetch(`/api/terrain/${level}/${x}/${y}?v=${v}`)
+          callback: (x: number, y: number, level: number) => fetch(`/api/terrain/${level}/${x}/${y}?v=${terrainV.current}`)
             .then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => (b ? new Float32Array(b) : new Float32Array(TERRAIN_SIZE * TERRAIN_SIZE))),
         });
-        terrainMake.current = makeTerrain;
-        const terrain = makeTerrain(terrainV.current);
         const w = new Cz.CesiumWidget(hostRef.current, {
           baseLayer: false, terrainProvider: terrain, skyBox: false, skyAtmosphere: false, scene3DOnly: true,
           requestRenderMode: true, maximumRenderTimeChange: Infinity, creditContainer: creditRef.current ?? undefined,
@@ -366,16 +365,13 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
     w.scene.requestRender();
   }, [cz, base, theme]);
 
-  /* P5: finer ground arrived (terrarium fetched in the background): ask the terrain again */
+  /* P5: finer ground arrived (terrarium fetched in the background): the tiles asked from now on carry the new
+     version (those on screen keep theirs until the view asks them again - no reload of the whole globe) */
   useEffect(() => {
     if (!cz || offline) return;
     const h = window.setInterval(() => {
       void fetch("/api/terrain/version").then((r) => (r.ok ? r.json() : null)).then((d: { version: number } | null) => {
-        const w = widgetRef.current;
-        if (!d || d.version === terrainV.current || !w || !terrainMake.current) return;
-        terrainV.current = d.version;
-        w.scene.terrainProvider = terrainMake.current(d.version);
-        w.scene.requestRender();
+        if (d) terrainV.current = d.version;
       }).catch(() => {});
     }, 4000);
     return () => window.clearInterval(h);

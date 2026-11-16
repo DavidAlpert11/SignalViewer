@@ -13,6 +13,12 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 
 ## Current state
 
+- **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
+  in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
+  `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
+  callback asks with the current version (`terrainV` ref), so tiles asked later are not the browser's cached coarse
+  ones; tiles on screen keep theirs until the view asks again. e2e `test_finer_ground_arriving_does_not_blank_the_globe`
+  (fails on the old code: the provider replaced).
 - **2026-11-16 · M7 Two cameras (owner) - done.** First a *Look freely* toggle in Cockpit (da51c45); the owner then
   asked for less: "enough to mark whether the camera is free or attached to the object; attached: nearer / further /
   turn, every zoom towards the object itself" - reverted (3003e80) and replaced: the Map's camera is *Free · On the
@@ -308,3 +314,5 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   test_globe3d::test_camera_keys_double_click_and_palette (new), the sitting test (+ the display's pointer-events),
   test_round_1112 wow (the display shown while sitting); e2e run (53 green): test_globe3d, test_map_smooth,
   test_map_objects, test_live_report, test_round_1112, test_calm_screen; quick_check green.
+- 2026-11-16 · The black flashes of the 3D map (the terrain provider replaced on each new terrain version) fixed; e2e
+  test_globe3d (+1, checked to fail before the fix), test_offline_map, test_map_memory; quick_check.

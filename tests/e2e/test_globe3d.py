@@ -477,6 +477,35 @@ def test_camera_keys_double_click_and_palette(g3multi):
     pg.wait_for_function(f"{P}.followObject === null")
 
 
+def test_finer_ground_arriving_does_not_blank_the_globe(g3multi):
+    """Owner, 2026-11-16: "every ~10 s the map turns black" - finer heights arriving in the background (a new
+    terrain version) replaced the terrain provider, which drops every tile on screen. Now the provider stays;
+    the tiles asked afterwards carry the new version."""
+    pg = g3multi
+    n = {"v": 100}
+
+    def version(route):
+        n["v"] += 1
+        route.fulfill(status=200, content_type="application/json", body=json.dumps({"version": n["v"]}))
+    pg.route("**/api/terrain/version", version)
+    asked = []
+    pg.on("request", lambda r: asked.append(r.url) if "/api/terrain/" in r.url and "version" not in r.url else None)
+    pg.evaluate("window.__tp = window.__svGlobe.widget.scene.terrainProvider")
+    pg.wait_for_function("window.__svGlobe.widget.scene.globe.tilesLoaded", timeout=60000)
+    pg.wait_for_timeout(9000)                                                   # two polls, each a newer version
+    assert n["v"] >= 102
+    assert pg.evaluate("window.__svGlobe.widget.scene.terrainProvider === window.__tp")
+    asked.clear()
+    pg.locator(".globe3d-bar .g3-cam-free").click()                            # somewhere new: new tiles
+    pg.evaluate("""(() => { const { widget: w, Cesium: C } = window.__svGlobe;
+      w.camera.setView({ destination: C.Cartesian3.fromDegrees(35.3, 33.1, 4000) }); w.scene.requestRender(); })()""")
+    for _ in range(60):
+        if any("v=10" in u for u in asked):
+            break
+        pg.wait_for_timeout(500)
+    assert any("v=10" in u for u in asked), asked[:5]                            # asked with the newer version
+
+
 def test_primary_secondary_in_3d(g3multi):
     """N7: in 3D the primary has a ring and the secondary a fainter one; a click on an object makes it the
     primary (Shift+click the secondary); X swaps them while the view has the focus; the box shows the
