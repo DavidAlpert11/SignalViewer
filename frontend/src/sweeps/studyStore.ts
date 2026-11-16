@@ -4,11 +4,14 @@
    on it for the panels. The study is the file: editing changes the copy, Save writes the file; the backend
    is asked with the copy as it is now (unsaved edits included), relative paths read against the saved file's
    folder. */
-import { emptyCommon, registerSetupHistory, SETUP_KEY, useSweeps, type StudyPanelState } from "./state";
+import { emptyCommon, recipeFiles, registerSetupHistory, SETUP_KEY, useSweeps, type StudyPanelState } from "./state";
 import { studyApi } from "./studyApi";
 import { areaRoles, goalToStudy, studyToGoal } from "./studyRoles";
 import { upgradeQuestion } from "./model";
 import { newSetupStudy, setupFromResults } from "./setup";
+import { notify, notifyError } from "./notify";
+import { useApp } from "../store";
+import { translate } from "../i18n";
 import type { DemoProgress, LauncherSubmitResult, NextRunsResult, Study, StudyReq, StudyTable } from "./studyTypes";
 
 export type { StudyPanelState };
@@ -78,13 +81,48 @@ export function applyStudyTable(index: number, tableId: string): void {
     ...Object.entries(spec.roles ?? {}),
   ].map(([c, r]) => [back[c] ?? c, r]));
   const was = Object.fromEntries(t.columns.map((c) => [c.name, c.role]));
-  const roles = areaRoles(named as Parameters<typeof areaRoles>[0], was);
+  // SF1: Send runs names what varies and the scenarios, never the outputs - then every other number is an output
+  const rest = Object.values(spec.roles ?? {}).includes("output") ? {}
+    : Object.fromEntries(t.columns.filter((c) => !(c.name in named) && c.name !== "run_id" && c.kind === "number" && (c.role === "param" || c.role === "hold"))
+      .map((c) => [c.name, "output"]));
+  const roles = areaRoles({ ...rest, ...named } as Parameters<typeof areaRoles>[0], was);
+  if (t.columns.some((c) => c.name === "run_id") && !("run_id" in named)) roles.run_id = "id";     // the launcher's run id: never a role of its own
   const values = Object.fromEntries(t.columns.filter((c) => c.values?.length).map((c) => [c.name, c.values!]));
   const { question } = studyToGoal(spec, t.question, values);
   asRead.set(t.tableId, { question: JSON.stringify(question), goal: { constraints: spec.constraints, objective: spec.objective, aggregate: spec.aggregate, drop: spec.drop } });
   useSweeps.setState({ studies: st.studies.map((x, i) => (i === index
     ? { ...x, columns: x.columns.map((c) => (roles[c.name] && roles[c.name] !== c.role ? { ...c, role: roles[c.name] } : c)), question, studyTable: tableId } : x)) });
   useSweeps.getState().evaluate();
+}
+
+/** A file of the study's tables (a round's results) shown in the Data step: the open table read from it, or opened
+ *  now as that study table (its roles and goal, C11). The navigator's rounds and the first results (SF1). */
+export async function showStudyFile(file: string, table?: string): Promise<void> {
+  const st = useSweeps.getState();
+  const i = st.studies.findIndex((s) => s.path === file || s.tables.some((tb) => recipeFiles(tb.recipe).includes(file)));
+  if (i < 0) {
+    await st.open(file);
+    if (table) applyStudyTable(useSweeps.getState().active, table);
+  }
+  useSweeps.setState({ active: i < 0 ? useSweeps.getState().active : i, part: "table" });
+  useSweeps.getState().setView({ step: "raw" });
+}
+
+/** SF1: round 1 sent from Send runs - when it finishes with no table open, its results come in as a regular table in
+ *  Data (shown at once when the user is still on Send runs); the usual flow follows from there. */
+async function firstResultsIn(): Promise<void> {
+  if (useSweeps.getState().studies.length || get().loopProgress?.points.length !== 1) return;
+  const r = await studyApi.tables(get().path);
+  for (const ft of r.tables) for (const rd of ft.rounds) {
+    const f = rd.files.find((x) => x.rows);
+    if (!f) continue;
+    const part = useSweeps.getState().part;
+    markSeen(rd.files.map((x) => x.mtime));                          // shown: not "new" in the navigator
+    await showStudyFile(f.path, ft.id);
+    if (part !== "setup") useSweeps.setState({ part });            // elsewhere: listed in Data, not shown over it
+    notify(translate(useApp.getState().lang, "suResultsIn", { n: ft.name || ft.id }));
+    return;
+  }
 }
 
 /** C11: a study table's file open in the four steps is that table - its goal changed there (an edit, or that edit's
@@ -248,6 +286,7 @@ function pollLoop(): void {
         const { study } = await studyApi.open(get().path);
         set({ study, saved: JSON.stringify(study) });
         void evaluate();
+        void firstResultsIn().catch(notifyError);
       }
       if (p.running) pollLoop();
       else if (p.error) set({ error: p.error });

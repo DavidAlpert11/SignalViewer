@@ -1,6 +1,6 @@
 /* C7: the study's navigator (plan §4.3 / §4.6 A, mock-up sweeps.html) - the Data step's left column (PLAN 2026-11-16
-   §7a: only there - the problem and its layers of runs): the study's name; the problem (what varies, the scenarios,
-   the outputs - ✓ each); Tables - every table open in the area (a click shows its data), a table's merged parts,
+   §7a: only there - the problem and its layers of runs): the study's name; *Send runs* (SF1: what varies, the
+   scenarios, how to run - ✓ each); Tables - every table open in the area (a click shows its data), a table's merged parts,
    and the study file's tables with their rounds (from /api/sweeps/study/tables, polled with the loop: a round's
    file opens like any table, *new* marked); Add table, Merge, and *Remove from the study* (with Undo). */
 import { useEffect, useMemo, useState } from "react";
@@ -9,7 +9,7 @@ import { useT } from "../../i18n";
 import { Icon } from "../../icons";
 import { recipeFiles, savedOf, useSweeps, type Study } from "../../sweeps/state";
 import { setupDone } from "../../sweeps/setup";
-import { applyStudyTable, markSeen, setupFromOpenTable } from "../../sweeps/studyStore";
+import { markSeen, setupFromOpenTable, showStudyFile } from "../../sweeps/studyStore";
 import { studyApi, type StudyTables } from "../../sweeps/studyApi";
 import { TABLE_EXTS } from "../../sweeps/studyFile";
 import { notifyError } from "../../sweeps/notify";
@@ -59,7 +59,7 @@ export default function Navigator() {
       <div className="sw-nav-tree">
         {(common.open || study) && <>
           <div className="sw-nav-sec"><span className="eyebrow">{t("suTitle")}</span>
-            {done && <span className={`sw-nav-done${done.slice(0, 3).every(Boolean) ? " ok" : ""}`}>✓ {done.slice(0, 3).filter(Boolean).length}/3</span>}</div>
+            {done && <span className={`sw-nav-done${done.every(Boolean) ? " ok" : ""}`}>✓ {done.filter(Boolean).length}/3</span>}</div>
           <button className={`sw-nav-item${part === "setup" ? " on" : ""}`} data-nav="setup" aria-current={part === "setup" ? "true" : undefined}
             onClick={() => { void openSetup(); }}>
             <Icon.Settings width={14} height={14} /><span className="sw-ellipsis">{t("nvSetupItem")}</span>
@@ -180,17 +180,8 @@ function RoundItem({ r, table }: { r: FileTable["rounds"][number]; table?: strin
   );
 }
 
-/** A file shown in the four steps: the open table read from it, or opened now - a study table's file with that
- *  table's roles and goal (C11). */
-function openFile(file: string, table?: string) {
-  const st = useSweeps.getState();
-  const i = openIndex(st.studies, file);
-  if (i >= 0) { showData(i); return; }
-  void st.open(file).then(() => {
-    showData(useSweeps.getState().active);
-    if (table) applyStudyTable(useSweeps.getState().active, table);
-  }).catch(notifyError);
-}
+/** A file shown in the four steps (studyStore.showStudyFile: a study table's file with that table's roles and goal, C11). */
+const openFile = (file: string, table?: string) => { void showStudyFile(file, table).catch(notifyError); };
 
 /** A table shown in the Data step (the navigator lives there, §7a). */
 function showData(i: number) {

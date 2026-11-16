@@ -55,7 +55,7 @@ opens as that table.
 ## Make it yours
 
 In the demo, *About this study* (in the Data step) → *Copy the demo to a folder…* copies the study and `sim.py`
-into a new folder and opens it as a study, nothing run yet. There, in **Next runs** → *How to run*:
+into a new folder and opens it as a study, nothing run yet. There, in **Data** → *Send runs* → *How to run*:
 
 - **The command for one run** – one argument per line, run without a shell, e.g.
   `python` · `{{study_dir}}/my_sim.py` · `{{params_file}}` (`{{study_dir}}` is the study's folder; the command runs in

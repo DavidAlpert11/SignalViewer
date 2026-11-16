@@ -7,6 +7,7 @@ import { fmtInt, fmtNum, useT } from "../../i18n";
 import { useApp } from "../../store";
 import { Icon } from "../../icons";
 import { isUnsaved, loopAction, useStudyPanel } from "../../sweeps/studyStore";
+import { hasGoal } from "../../sweeps/setup";
 import ConvergenceChart from "./ConvergenceChart";
 import { saveStudyDialog } from "./StudyPanel";
 
@@ -18,6 +19,10 @@ export default function LoopSection() {
   const path = useStudyPanel((s) => s.path);
   const cmd = study?.launcher?.submit ?? [];
   const running = !!p?.running;
+  // SF1: the loop ranks the sets - no goal, no loop (round 1 alone is sent from Send runs)
+  const goal = !!study && hasGoal(study);
+  const off = running || !cmd.length || !goal;
+  const why = !goal ? t("lpNeedsGoal") : undefined;
   const act = async (a: "next" | "run" | "stop" | "reset") => {
     if ((a === "next" || a === "run") && (isUnsaved() || !path)) { if (!(await saveStudyDialog(t))) return; }
     try { await loopAction(a); } catch { /* saved first above */ }
@@ -29,8 +34,8 @@ export default function LoopSection() {
         <h3>{t("lpTitle")}</h3>
         {state && <span className={`lp-state ${state}`}>{t(`lpState_${state}` as never)}</span>}
         <span className="spacer" />
-        <button className="btn primary lp-next" disabled={running || !cmd.length} onClick={() => act("next")}>{t("dmNext")}</button>
-        <button className="btn outline lp-run" disabled={running || !cmd.length} onClick={() => act("run")}><Icon.Reload /> {t("dmRun")}</button>
+        <button className="btn primary lp-next" disabled={off} title={why} onClick={() => act("next")}>{t("dmNext")}</button>
+        <button className="btn outline lp-run" disabled={off} title={why} onClick={() => act("run")}><Icon.Reload /> {t("dmRun")}</button>
         {running ? <button className="btn outline lp-stop" onClick={() => act("stop")}>{t("dmStop")}</button>
           : <button className="btn outline lp-reset" disabled={!p?.points.length} onClick={() => act("reset")} title={t("lpResetHint")}>{t("dmReset")}</button>}
       </div>

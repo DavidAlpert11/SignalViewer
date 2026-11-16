@@ -551,20 +551,24 @@ begin:
 
 - **I have results** – load a table of runs; the roles are guessed from its columns and fill the study's
   set-up (parameters and their ranges, scenarios, outputs), and the answer shows at once.
-- **Start from nothing** – a set-up page: what varies (ranges, steps, how many values in the first round),
-  the scenarios, what your program writes and what is good, and the command that runs one run on this PC
-  or your farm's launcher. Round 1 runs that grid; each next round is aimed by the results.
+- **Start from nothing** – *Send runs*: only what varies (values or ranges, steps, how many values in the
+  first round), the scenarios and how to run (the command for one run on this PC, a wrapper, or your farm's
+  launcher). No outputs and no goal: **Send round 1** runs that grid, and its results – even one row – open
+  as a regular table in Data; Columns (already filled: what varies, the scenarios, every other number an
+  output), Goal and Results follow as for any table. Each next round is aimed by the results.
 
 Every study goes through the same five steps: **1 Data · 2 Columns · 3 Goal · 4 Results · 5 Next runs**.
-**Data** defines the problem: on the left the study's tables – the layers of runs: each table, the tables
-merged into it and each round the loop has run (new ones marked); a click shows its data – and *Define the
-problem* (what varies, the scenarios, the outputs; how many of the three are filled). *About this study*
+**Data** holds the runs: on the left *Send runs* (what varies, the scenarios, how to run; how many of the
+three are filled) and the study's tables – the layers of runs: each table, the tables merged into it and
+each round the loop has run (new ones marked); a click shows its data. *About this study*
 explains a demo. When the study has two systems (tables) or more, **Results** has a tab *All systems
 together* – the values that hold for all of them. **Next runs** is the one place for the next parameter
 sets: the sets proposed from the results so far (export them to run outside the app) and *Run from the
-app* – what the next round will run (for round 1: sets × scenarios = runs) or what is still missing, *How
-to run* (this PC or the farm, the command), **Run them**, *Only write the files* (for a launcher of your
-own), the loop's *Next round*, *Run until converged* and *Stop*, its progress and how it converges.
+app* – what the next round will run or what is still missing, **The goal of the loop** (the loop ranks the
+sets, so it asks for a goal here, not before: the table's Goal step, or what to rank by), **Run them**, *Only
+write the files* (for a launcher of your own), the loop's *Next round*, *Run until converged* and *Stop*, its
+progress and how it converges. *Clear ▾ › Everything* closes the tables and the study file (the notice's Undo
+opens them again).
 Finished rounds come back as new tables in Data. *Study ▾* saves, undoes and closes the study, and
 *Report of the study…* writes one HTML page of the whole study. One Ctrl+Z undoes the last change anywhere
 in Sweeps.

@@ -8,9 +8,9 @@ import { useApp } from "../../store";
 import PanelResizer from "../PanelResizer";
 import { usePanelWidth } from "../panelWidth";
 import { useStudy, useSweeps } from "../../sweeps/state";
-import { readiness } from "../../sweeps/setup";
+import { hasGoal, readiness } from "../../sweeps/setup";
 import NextRunsView from "./NextRunsView";
-import RunPanel from "./RunPanel";
+import RunPanel, { LoopGoal } from "./RunPanel";
 import DemoView from "./DemoView";
 
 const DEF = 330, GUTTER = 12;
@@ -19,6 +19,8 @@ export default function NextStep() {
   const t = useT();
   const study = useStudy();
   const demo = useSweeps((s) => s.common.open && s.common.demo);
+  // SF1: no goal yet - the loop's first question, at the top of the side
+  const noGoal = useSweeps((s) => s.common.open && !s.common.demo && !!s.common.study && !hasGoal(s.common.study));
   const [w, setW] = usePanelWidth("swNext", DEF);
   const box = useRef<HTMLDivElement>(null);
   const max = () => (box.current?.clientWidth ?? window.innerWidth) - 420;
@@ -26,7 +28,7 @@ export default function NextStep() {
   return (
     <div className="sw-nextstep" data-part="next" ref={box} style={side}>
       <main className="sw-center">
-        {study && study.answer && !demo ? <NextRunsView study={study} extra={<RunPanel />} /> : (
+        {study && study.answer && !demo ? <NextRunsView study={study} lead={noGoal ? <LoopGoal /> : undefined} extra={<RunPanel goalAbove={noGoal} />} /> : (
           <div className="sw-next">
             <div className="sw-next-side"><RunPanel /></div>
             <div className="sw-next-main">{demo ? <DemoView /> : study ? <p className="empty-note">{study.evalError || t("swReading")}</p> : <RoundOne />}</div>

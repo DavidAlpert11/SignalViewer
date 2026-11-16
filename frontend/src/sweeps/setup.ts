@@ -1,6 +1,7 @@
-/* C6: a study's Set up (plan §4.3) - what varies (parameters: range, step, scale, how many in the start
-   grid; constraints between them), the scenarios (per system: columns and their values), the outputs and the
-   goal, and how one run is started (this PC / a farm launcher). It is the study file's own blocks - `shared`,
+/* C6 / SF1: a study's *Send runs* (plan §4.3) - what varies (parameters: range, step, scale, how many in the start
+   grid; constraints between them), the scenarios (per system: columns and their values) and how one run is started
+   (this PC / a wrapper / a farm launcher). The outputs and the goal are not asked for here (SF1, owner 2026-11-16):
+   they come from the results' table (Columns, Goal); the loop asks for a goal in Next runs. It is the study file's own blocks - `shared`,
    `search`, `start`, a table's roles / objective, `launcher` - edited in place, so the engine (the loop, the
    next runs) reads exactly what is shown. Pure functions on a Study: Vitest checks them. */
 import type { SearchParam, Study, StudyTable } from "./studyTypes";
@@ -258,7 +259,8 @@ export function withTemplate(s: Study): Study {
 
 // ------------------------------------------------------------------ round 1: what it will run, what is missing
 
-export type Missing = "params" | "range" | "output" | "goal" | "command";
+/** What round 1 still needs (SF1: what varies, its ranges and the command - no output, no goal). */
+export type Missing = "params" | "range" | "command";
 export interface Readiness {
   /** values per parameter in the start grid, and their product */
   counts: number[]; sets: number;
@@ -282,18 +284,18 @@ export function readiness(s: Study): Readiness {
   const missing: Missing[] = [];
   if (!ps.length) missing.push("params");
   else if (ps.some((p) => p.scale !== "values" && (p.min === null || p.max === null || !(p.max > p.min)))) missing.push("range");
-  if (!outputs(s).length) missing.push("output");
-  if (!s.tables.some((t) => t.objective?.expr)) missing.push("goal");
   if (!s.launcher?.submit?.length) missing.push("command");
   return { counts, sets, combos, runs: sets * combos, full, fullRuns: full ? full.reduce((a, b) => a * b, 1) * combos : null, missing };
 }
 
-/** Which of Set up's four parts are filled (what varies, the scenarios, outputs and goal, how to run) - SetupView's
- *  ✓ and the navigator's count (C7). `fromTable`: the scenarios are an open table's columns (I have results). */
+/** The loop (rounds aimed by the results, until converged) ranks the sets: it needs a goal - asked for in Next runs. */
+export const hasGoal = (s: Study): boolean => s.tables.some((t) => !!t.objective?.expr);
+
+/** Which of Send runs' three parts are filled (what varies, the scenarios, how to run) - SetupView's ✓, the
+ *  navigator's and the stepper's count (C7). `fromTable`: the scenarios are an open table's columns (I have results). */
 export function setupDone(s: Study, fromTable: boolean): boolean[] {
   const r = readiness(s);
-  return [params(s).length > 0 && !r.missing.includes("range"), scenarios(s).length > 0 || fromTable,
-    !r.missing.includes("output") && !r.missing.includes("goal"), !r.missing.includes("command")];
+  return [params(s).length > 0 && !r.missing.includes("range"), scenarios(s).length > 0 || fromTable, !r.missing.includes("command")];
 }
 
 // ------------------------------------------------------------------ I have results: the set-up from a table

@@ -57,7 +57,7 @@ import StudyPanel, { saveStudyDialog, studyReportDialog } from "./StudyPanel";
 import { HowItWorks } from "./DemoView";
 import NewStudy from "./NewStudy";
 import SetupView from "./SetupView";
-import { chooseNewStudy, closePanel, openStudyFile, redoStudy, undoStudy, useStudyPanel } from "../../sweeps/studyStore";
+import { chooseNewStudy, closePanel, openStudyFile, redoStudy, refreshLoop, undoStudy, useStudyPanel } from "../../sweeps/studyStore";
 import { onStudyRequest, requestStudy, takeStudy } from "../../sweeps/studyOpen";
 import { onAreaExample, takeAreaExample } from "../../areaExample";
 import { fromFolder } from "../../folderSummary";
@@ -297,14 +297,22 @@ function SweepsBar() {
         { label: "", sep: true, run: () => {} },
       ] : []),
       ...(useStudyPanel.getState().open ? [{ label: t("cpClose"), run: closePanel }, { label: "", sep: true, run: () => {} }] : []),
-      { label: t("swClearAll", { n: studies.length }), danger: true, disabled: !studies.length, run: async () => {
+      // SF1 (owner): everything = the study file too (asked first; the notice's one Undo opens it all again)
+      { label: t("swClearAll", { n: studies.length + (common ? 1 : 0) }), danger: true, disabled: !studies.length && !common, run: async () => {
         if (!(await confirmAsk(t("swClearAllTitle"), t("swClearAllAsk"), t("swClearAllOk"), true))) return;
         const now = useSweeps.getState();
         // what can be opened again (read from files): put back by the notice's Undo
         const docs = now.studies.filter((x) => x.path || x.tables.some((tb) => recipeFiles(tb.recipe).length)).map(savedOf);
+        const file = now.common.open ? now.common : null;
         for (let i = now.studies.length - 1; i >= 0; i--) useSweeps.getState().close(i);
-        useApp.getState().toast({ kind: "info", text: t("swClearedAll", { n: now.studies.length }),
-          action: docs.length ? { label: t("undo"), run: async () => { for (const d of docs) await useSweeps.getState().open(d.path, d); } } : undefined });
+        if (file) closePanel();
+        useSweeps.setState({ part: "" });
+        const n = now.studies.length + (file ? 1 : 0);
+        useApp.getState().toast({ kind: "info", text: t("swClearedAll", { n }),
+          action: docs.length || file ? { label: t("undo"), run: async () => {
+            if (file) { useStudyPanel.setState({ ...file, past: [], future: [] }); void refreshLoop(); }
+            for (const d of docs) await useSweeps.getState().open(d.path, d);
+          } } : undefined });
       } },
     ]);
   };

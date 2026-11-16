@@ -7,7 +7,7 @@ import { useApp } from "../../store";
 import { FLOW, flowGo, flowStep, type FlowAt, type FlowStep } from "../../sweeps/flow";
 import { goFlow } from "../../sweeps/goFlow";
 import { useSweeps, type Study } from "../../sweeps/state";
-import { readiness, setupDone } from "../../sweeps/setup";
+import { hasGoal, readiness, setupDone } from "../../sweeps/setup";
 import { rerunCount } from "../../sweeps/split";
 import { useLeftHidden, useNarrow } from "../../sweeps/narrow";
 import type { StudyPanelState } from "../../sweeps/studyStore";
@@ -32,7 +32,7 @@ function status(t: TFn, lang: "en" | "he", s: Study | undefined, c: StudyPanelSt
   switch (step) {
     case "data":
       if (s) return t("swStRaw", { rows: s.rows.toLocaleString(), cols: s.columns.length });
-      return cs ? t("flDefined", { n: setupDone(cs, !!c.guess).slice(0, 3).filter(Boolean).length }) : "";
+      return cs ? t("flDefined", { n: setupDone(cs, !!c.guess).filter(Boolean).length }) : "";
     case "columns": return s ? t("swStRoles", { p: s.summary.params.length, h: s.summary.holds.length, o: s.summary.outputs.length }) : t("flNeedsTable");
     case "goal": return s ? t("swStGoal", { c: s.question.conditions.length, o: (s.question.goals[s.question.active]?.optimize ?? []).length }) : t("flNeedsTable");
     case "results":
@@ -41,6 +41,7 @@ function status(t: TFn, lang: "en" | "he", s: Study | undefined, c: StudyPanelSt
     case "next": {
       const k = c.loopProgress?.round ?? c.demoProgress?.round ?? cs?.history?.length ?? 0;
       if (cs && !c.demo && readiness(cs).missing.length && !k) return t("flNotReady");
+      if (cs && !c.demo && k && !hasGoal(cs)) return t("flNeedsGoal");          // SF1: the loop asks for it here
       const n = s ? rerunCount(s) : 0;
       return [k ? t("flRounds", { k: fmtInt(k, lang) }) : "", n ? t("flRerun", { n }) : ""].filter(Boolean).join(" · ") || t("flPropose");
     }

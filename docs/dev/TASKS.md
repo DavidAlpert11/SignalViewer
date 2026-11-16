@@ -80,7 +80,19 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   (one per scenario, compared). One home for the button: the set's details (SetDetail) and the re-run list
   (RerunList: today only Export) - not a third place. en + he, RTL; backend tests for the contract, e2e for the demo.
   **SW2 status:** (a) done by FL1 (the Sweeps data table's ticks + *Open n in Recordings*). **The owner's answers (2026-11-16, chat) for (b):** (1) which runs record is a **rule set in advance**, default *no recording*; (2) a simulation file takes **one run**, the wrapper **a parameter set** - choose accordingly; (3) the re-runs are **chained**, then a notice says a run is **ready to load** (not opened by itself); (4) a re-run whose summary row differs from the original is **loaded as another layer of results**.
-  **SF1 - NEXT (owner, 2026-11-16): Sweeps - one flow, runs sent from a side panel.** Before SW2 (SW2 builds on it).
+  **SF1 - DONE (2026-11-16, in 1.28.0): Sweeps - one flow, runs sent from a side panel.** What it touched (callers read
+  first): `sweeps/setup.ts` (readiness: params / range / command only; `hasGoal`; setupDone = 3 parts) - callers
+  SetupView, Navigator (✓ n/3), FlowNav (Data's line *Send runs: n of 3*, Next runs' *round 1 is not ready* / *the
+  loop needs a goal*), RunPanel, NextStep; `SetupView` = Send runs (outputs + goal part out; How to run moved in from
+  Next runs; the sticky *Send round 1* card = `loopAction("next")`, Save first; the demo shows parts 1-2 only);
+  `studyStore` (`showStudyFile` - the Navigator's rounds use it too -, `firstResultsIn` after round 1 with no table open,
+  `applyStudyTable` - no output in the study: every other number an output, run_id = id); `RunPanel.LoopGoal` (also
+  above the proposal while the goal is missing, NextRunsView `lead`), LoopSection (Next round / Until converged need a
+  goal - so a goal-less round 1 is sent only from Send runs); SweepsArea's Clear › Everything (closes the study file
+  too, one Undo); NewStudy unchanged (its hint text). Old studies: outputs / goal stay in the file; the goal is shown in
+  Next runs. Docs: GUIDE en + he, features, common-gains, smart-sweep-demo en + he, launcher en + he. Not done: the
+  Sweeps pictures and the release round (below, "Releasing") - next.
+  The original spec, kept for the record:
   **Part of 1.28.0** (owner: the same unreleased version): its CHANGELOG lines in the 1.28.0 section; at the end the
   release round again - Sweeps pictures, mkdocs, `npm run build`, the whole e2e suite, quick_check.
   The flow stays the five steps: 1 Data (load result tables; merge, split...) -> 2 Columns (which table goes on, the
@@ -140,7 +152,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   CHANGELOG section with highlights; docs checked against it (install file name, findings wording, From a folder in
   Sweeps' Open ▾); pictures 32, 33, 38 and the training film retaken (no Fleet); validation.md regenerated;
   finished plans removed; `frontend/dist` built. The whole e2e suite (482 passed, 1 failed -> fixed: W16 keeps folders
-  in Open ▾, the FL1 button moved there), quick_check and mkdocs --strict green. **Not tagged: SF1 goes into 1.28.0 first (owner).**
+  in Open ▾, the FL1 button moved there), quick_check and mkdocs --strict green. **Not tagged: SF1 goes into 1.28.0 first (owner).** SF1 done (code, tests, docs);
+  the release round again is next (Sweeps pictures, mkdocs, `npm run build`, the whole e2e suite, quick_check).
   Next: SW2 once the owner says yes to the spec above (do not implement before); BR1 waits for his yes.
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
@@ -498,3 +511,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-16 · Full e2e suite: 482 passed, 1 failed (test_calm_screen W16 - FL1's welcome button moved to Open ▾ and
   Ctrl+K; it and test_folder_of_recordings pass). 1.28.0 prepared: versions, CHANGELOG, docs, pictures 32/33/38,
   training film, validation.md, dist built; waits for the owner's tag.
+- 2026-11-16 · SF1 done (Sweeps one flow, Send runs). Tests: Vitest setup.test (+1, readiness without output / goal);
+  e2e test_sweeps_workspace (start from nothing and runs first rewritten for Send runs -> first results as a table ->
+  goal in its Goal step -> round 2 -> Clear everything + Undo; one flow; the Open ▾ list now has FL1's *From a folder of
+  recordings…* - it failed on main before SF1), test_study_loop (How to run in Send runs). Run: test_sweeps_*,
+  test_study_*, test_calm_screen, test_folder_of_recordings, test_owner_notes_1_20.

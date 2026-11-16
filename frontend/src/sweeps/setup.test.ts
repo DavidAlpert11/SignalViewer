@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { fileKind } from "./studyFile";
 import { applyParamsText, applyScenariosText, autoTemplate, newSetupStudy, params, paramsText, parseValues, readiness, removeParam, runWhere,
-  scenarios, scenariosText, setGoal, setOutputs, setParam, setRun, setScenario, setupFromResults, splitCommand, type FromTable } from "./setup";
+  hasGoal, scenarios, scenariosText, setGoal, setOutputs, setParam, setRun, setScenario, setupDone, setupFromResults, splitCommand, type FromTable } from "./setup";
 
-/** The walkthrough's study from nothing (plan §4.7, 4): two parameters, one scenario column, an output, the command. */
+/** SF1: Send runs - two parameters, one scenario column, the command (no output, no goal). */
+function sendRuns() {
+  let s = newSetupStudy("Roll tuning");
+  s = setParam(s, "", { name: "a", min: 0, max: 2, step: 0.1, scale: "linear", values: [], count: 3 });
+  s = setScenario(s, "", { name: "wind", values: parseValues("0, 5") });
+  return setRun(s, { where: "pc", command: "python sim.py {{params_file}}" });
+}
+
+/** An older study from nothing (plan §4.7, 4): two parameters, one scenario column, an output and a goal typed in Set up, the command. */
 function fromNothing() {
   let s = newSetupStudy("Roll tuning");
   s = setParam(s, "", { name: "a", min: 0, max: 2, step: 0.1, scale: "linear", values: [], count: 3 });
@@ -32,7 +40,7 @@ describe("Set up (C6)", () => {
 
   it("says what round 1 will run and what is missing", () => {
     const empty = readiness(newSetupStudy());
-    expect(empty.missing).toEqual(["params", "output", "goal", "command"]);
+    expect(empty.missing).toEqual(["params", "command"]);         // SF1: no output, no goal for round 1
     const r = readiness(fromNothing());
     expect(r.missing).toEqual([]);
     expect(r.counts).toEqual([3, 2]);
@@ -42,6 +50,15 @@ describe("Set up (C6)", () => {
     const noRange = setParam(fromNothing(), "a", { name: "a", min: 2, max: 1, step: null, scale: "linear", values: [], count: 3 });
     expect(readiness(noRange).missing).toEqual(["range"]);
     expect(readiness(noRange).full).toBeNull();
+  });
+
+  it("SF1: round 1 is ready with what varies and a command; the loop asks for the goal", () => {
+    const s = sendRuns();
+    expect(readiness(s).missing).toEqual([]);
+    expect(setupDone(s, false)).toEqual([true, true, true]);
+    expect(hasGoal(s)).toBe(false);
+    expect(hasGoal(fromNothing())).toBe(true);                    // an older study keeps its goal
+    expect(setupDone(newSetupStudy(), false)).toEqual([false, false, false]);
   });
 
   it("renames and removes a parameter and a scenario everywhere it is written", () => {

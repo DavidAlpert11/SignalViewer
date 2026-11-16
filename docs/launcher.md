@@ -52,7 +52,7 @@ set of inputs. `examples/smart_sweep_demo/sweep_wrapper.py` is one to copy (Pyth
 
 `run_as: "wrapper"` runs the round's command on this PC in the background (the app keeps showing the results as
 they come). Your simulation reads one JSON file (every input of one run, and `"out"`) and writes one CSV row there.
-In the app: *How to run* → **A wrapper on this PC**, and *Put the example wrapper beside the study*. The same
+In the app: *Send runs* → *How to run* → **A wrapper on this PC**, and *Put the example wrapper beside the study*. The same
 wrapper runs without the app – the inputs as `name: values` lines, MATLAB-style ranges:
 
 ```bash

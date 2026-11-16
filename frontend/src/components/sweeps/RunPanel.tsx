@@ -1,6 +1,6 @@
 /* PLAN 2026-11-16 §7a: running the next sets from the app - in the Next runs step, beside the proposal of the
    next sets (it was the Run column on the right of every part, C8). What the next round will run (or what is still
-   missing - the problem definition in Data says it), how to run (the command, this PC or a farm), the loop's
+   missing - Send runs in Data says it), the loop's goal (SF1: asked for here, not before), the loop's
    controls (Next round / Until converged / Stop / Start over; *Only write the files* and *Run them* with the
    launcher - C9: the one place a round is written or run) and its progress. The demo's controls are here too.
    A table opened alone gets its study file here, with *Run from the app*. */
@@ -9,27 +9,28 @@ import { fmtInt, useT, type TFn } from "../../i18n";
 import { useApp } from "../../store";
 import { Icon } from "../../icons";
 import { useSweeps } from "../../sweeps/state";
-import { readiness, type Missing } from "../../sweeps/setup";
-import { demoAction, isUnsaved, launcherCommand, sendToLauncher, setupFromOpenTable, suggestNext } from "../../sweeps/studyStore";
+import { firstTable, hasGoal, outputs, readiness, setGoal, type Missing } from "../../sweeps/setup";
+import { demoAction, editStudy, isUnsaved, launcherCommand, sendToLauncher, setupFromOpenTable, suggestNext } from "../../sweeps/studyStore";
+import { goFlow } from "../../sweeps/goFlow";
 import { confirmAsk } from "../Overlays";
 import { notify, notifyError } from "../../sweeps/notify";
 import { saveStudyDialog } from "./StudyPanel";
 import ConvergenceChart from "./ConvergenceChart";
 import LoopSection from "./LoopSection";
-import { RunHow } from "./SetupView";
 
 let confirmedThisSession = false;                // W17: the launcher command is shown once per session
-const MISSING: Record<Missing, string> = { params: "rcMissParams", range: "rcMissRange", output: "rcMissOutput", goal: "rcMissGoal", command: "rcMissCommand" };
+const MISSING: Record<Missing, string> = { params: "rcMissParams", range: "rcMissRange", command: "rcMissCommand" };
 export const missingText = (t: TFn, m: Missing[]) => m.map((x) => t(MISSING[x] as never)).join(", ");
 
-export default function RunPanel() {
+/** `goalAbove`: the loop's goal card is shown above the proposal already (Next runs with a table, no goal yet). */
+export default function RunPanel({ goalAbove = false }: { goalAbove?: boolean }) {
   const t = useT();
   const common = useSweeps((s) => s.common);
   const table = useSweeps((s) => s.studies[s.active]);
   return (
     <section className="sw-run" aria-label={t("rcTitle")}>
       <h3 className="sw-run-title">{t("rcTitle")}</h3>
-      {common.open && common.study ? (common.demo ? <DemoControls /> : <><NextRound /><RunHow /><LoopSection /></>)
+      {common.open && common.study ? (common.demo ? <DemoControls /> : <><NextRound />{!goalAbove && <LoopGoal />}<LoopSection /></>)
         : table ? <RunOffer /> : null}
     </section>
   );
@@ -90,7 +91,7 @@ function NextRound() {
       {k === 1 && r.runs > 0 && <span className="card-meta">{t("rcRound1", { sets: fmtInt(r.sets, lang), combos: fmtInt(r.combos, lang), runs: fmtInt(r.runs, lang) })}</span>}
       {r.missing.length > 0 && <span className="card-meta">{t("rcMissing", { list: missingText(t, r.missing) })}</span>}
       <div className="card-next">
-        {r.missing.some((m) => m !== "command") && <button className="btn outline sm rc-setup" onClick={() => useSweeps.setState({ part: "setup" })}>{t("rcDefine")}</button>}
+        {(r.missing.length > 0 || (k === 1 && !hasGoal(study))) && <button className="btn outline sm rc-setup" onClick={() => useSweeps.setState({ part: "setup" })}>{t("rcDefine")}</button>}
         {/* W15: the next runs written to the round's folder, for a launcher of your own - nothing runs */}
         <button className="btn outline sm rc-write" disabled={busy || !study.tables.length} onClick={() => { void write(); }}
           title={t("rcWriteHint")}>{t("rcWrite")}</button>
@@ -101,6 +102,45 @@ function NextRound() {
         <span className="card-meta cp-run-states" role="status" data-finished={status.finished ? "1" : "0"}>
           {t("cpRunsCount", { k: status.round, done: status.counts.done, sub: status.counts.submitted, failed: status.counts.failed, missing: status.counts.missing })}</span>
       )}
+    </section>
+  );
+}
+
+/** SF1: the loop ranks the sets, so it needs a goal - asked for here. With a round's table open (linked to the study,
+ *  C11) the goal is that table's Goal step (it reaches the study); otherwise said here: rank by, smallest / largest,
+ *  what must hold. Older studies show the goal typed in their Set up. */
+export function LoopGoal() {
+  const t = useT();
+  const study = useSweeps((s) => s.common.study)!;
+  const table = useSweeps((s) => s.studies[s.active]);
+  const tb = firstTable(study);
+  const goal = hasGoal(study);
+  const linked = !!table?.studyTable;
+  const names = [...new Set([...outputs(study), ...(table?.columns.filter((c) => c.role === "output").map((c) => c.name) ?? [])])];
+  const sense = tb?.objective?.sense ?? "min";
+  const edit = (expr: string, d: "min" | "max", hold: string[]) => editStudy((x) => setGoal(x, expr, d, hold));
+  return (
+    <section className={`card rc-goal${goal ? " ok" : " warn"}`} data-goal={goal ? "1" : "0"}>
+      <span className="card-title">{t("glTitle")}</span>
+      {goal ? <span className="card-meta">{t("glNow", { goal: `${t(sense === "min" ? "suMinimise" : "suMaximise")} ${tb?.objective?.expr ?? ""}` })}</span>
+        : <span className="card-meta">{t("glNeed")}</span>}
+      {linked ? <>
+        <span className="card-meta">{t("glInTable")}</span>
+        <div className="card-next"><button className="btn outline sm rc-to-goal" onClick={() => goFlow("goal")}>{t("suOpenGoal")}</button></div>
+      </> : <div className="su-body">
+        <div className="su-row">
+          <span>{t("suRankBy")}</span>
+          <input key={tb?.objective?.expr ?? ""} className="su-in su-goal" dir="ltr" list="rc-goal-names" aria-label={t("suRankBy")} defaultValue={tb?.objective?.expr ?? ""}
+            onBlur={(e) => { if (e.target.value.trim() !== (tb?.objective?.expr ?? "")) edit(e.target.value.trim(), sense, tb?.constraints ?? []); }}
+            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+          <datalist id="rc-goal-names">{names.map((o) => <option key={o} value={o} />)}</datalist>
+          <div className="seg">{(["min", "max"] as const).map((d) => <button key={d} className={sense === d ? "on" : ""} aria-pressed={sense === d}
+            onClick={() => edit(tb?.objective?.expr ?? "", d, tb?.constraints ?? [])}>{t(d === "min" ? "suMinimise" : "suMaximise")}</button>)}</div>
+        </div>
+        <label className="su-wide">{t("suMustHold")}
+          <textarea key={(tb?.constraints ?? []).join("\n")} className="su-in su-hold" rows={2} dir="ltr" defaultValue={(tb?.constraints ?? []).join("\n")} aria-label={t("suMustHold")}
+            onBlur={(e) => edit(tb?.objective?.expr ?? "", sense, e.target.value.split("\n").map((c) => c.trim()).filter(Boolean))} /></label>
+      </div>}
     </section>
   );
 }

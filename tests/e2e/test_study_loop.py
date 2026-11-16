@@ -56,8 +56,7 @@ def test_the_inputs_as_text_and_a_wrapper(pg):
     sec2.locator(".su-as-text").click()
     pg.locator(".su-scen [data-scenario='mode']").wait_for()
     assert "calm, gusty" in pg.locator(".su-scen [data-scenario='mode'] input").nth(1).input_value()
-    # how to run: a wrapper on this PC, the example copied beside the study
-    pg.locator(".sw-step-btn[data-flow=next]").click()
+    # how to run (SF1: Send runs' part 3): a wrapper on this PC, the example copied beside the study
     pg.locator(".su-where [data-where='wrapper']").click()
     assert "sweep_wrapper.py --list {{params_files}}" in pg.locator(".su-command").input_value()
     pg.locator(".su-wrapper-copy").click()

@@ -83,16 +83,21 @@ def test_results_first_opens_the_results_and_fills_set_up(pg):
 
 
 def test_start_from_nothing_types_the_set_up(pg):
-    """4: New study -> Start from nothing: two parameters with ranges, one scenario column, an output to minimise,
-    the command - each written into the study file; Undo takes the last one back."""
+    """4 / SF1: New study -> Start from nothing = Send runs: two parameters with ranges, one scenario column, the
+    command - each written into the study file; round 1 is ready without an output or a goal (those come from the
+    results); Undo takes the last one back."""
     _new_study(pg)
     pg.locator(".ns-nothing").click()
     pg.wait_for_selector("[data-part=setup]")
-    assert set(pg.get_attribute("[data-part=setup]", "data-missing").split()) == {"params", "output", "goal", "command"}
-    _flow(pg, "next")                                                           # §7a: running is the Next runs step's
-    assert set(pg.get_attribute(".sw-run .rc-next", "data-missing").split()) == {"params", "output", "goal", "command"}
+    assert set(pg.get_attribute("[data-part=setup]", "data-missing").split()) == {"params", "command"}
+    assert "missing: the parameters, the command" in pg.locator(".su-send").inner_text()
+    assert pg.locator(".su-send-btn").is_disabled()
+    assert pg.locator(".su-outputs, .su-goal").count() == 0                       # no outputs, no goal in Send runs
+    _flow(pg, "next")                                                           # §7a: the loop is the Next runs step's
+    assert set(pg.get_attribute(".sw-run .rc-next", "data-missing").split()) == {"params", "command"}
     assert "cannot run yet" in pg.locator(".sw-run .rc-next").inner_text()
-    pg.locator(".rc-setup").click()                                              # Define the problem: back in Data
+    assert pg.locator(".sw-run .rc-goal[data-goal='0']").count() == 1           # the loop asks for its goal here
+    pg.locator(".rc-setup").click()                                              # Send runs: back in Data
     pg.wait_for_selector("[data-part=setup]")
     for name, lo, hi, step in (("a", "0", "2", "0.1"), ("b", "1", "3", "0.5")):
         pg.locator(".su-add-param").click()
@@ -107,18 +112,18 @@ def test_start_from_nothing_types_the_set_up(pg):
     _field(pg, ".su-new-scenario", "wind")
     pg.wait_for_selector("tr[data-scenario=wind]")
     _field(pg, "tr[data-scenario=wind] input >> nth=1", "0, 5")
-    _field(pg, ".su-outputs", "err")
-    pg.locator(".su-goal").select_option("err")
     pg.wait_for_function("document.querySelector('[data-part=setup]').dataset.missing === 'command'")
-    assert pg.locator(".sw-flow[data-flow=data] .su-command").count() == 0       # how to run: in Next runs
-    _flow(pg, "next")
-    _field(pg, ".su-command", "python sim.py {{params_file}}")
-    pg.wait_for_function("document.querySelector('.sw-run .rc-next').dataset.missing === ''")       # round 1 is ready
-    assert "Round 1 is ready to run" in pg.locator(".sw-run .rc-next").inner_text()
-    assert "16 sets × 2 scenarios = 32 runs" in pg.locator(".sw-run .rc-next").inner_text()
+    _field(pg, ".sw-flow[data-flow=data] .su-command", "python sim.py {{params_file}}")      # how to run: Send runs' part 3
+    pg.wait_for_function("document.querySelector('[data-part=setup]').dataset.missing === ''")       # round 1 is ready
+    assert "16 sets × 2 scenarios = 32 runs" in pg.locator(".su-send").inner_text()
+    assert pg.locator(".su-send-btn").is_enabled()
+    assert pg.locator(".sw-nav .sw-nav-done.ok").inner_text() == "✓ 3/3"
     assert _study(pg, "s.start") == {"grid": {"a": 4, "b": 4}, "scenarios": {"T1": {"wind": [0, 5]}}}
-    assert _study(pg, "s.tables[0].objective") == {"expr": "err", "sense": "min"}
+    assert _study(pg, "s.tables[0].objective") == {"expr": "", "sense": "min"}
     assert _study(pg, "s.launcher.submit") == ["python", "sim.py", "{{params_file}}"]
+    _flow(pg, "next")
+    assert pg.get_attribute(".sw-run .rc-next", "data-missing") == ""
+    assert pg.locator(".lp-next").is_disabled()                                  # no goal: no loop (round 1 is Send runs')
     pg.keyboard.press("Control+z")                                              # the one Undo: the command goes
     pg.wait_for_function("window.__svStudy.state().study.launcher.submit.length === 0")
     assert pg.get_attribute(".sw-run .rc-next", "data-missing") == "command"
@@ -154,6 +159,7 @@ def test_one_flow_the_tables_in_data_running_in_next_runs(pg):
     pg.wait_for_selector("[data-part=setup]")
     assert pg.locator(".sw-flow[data-flow=data] .sw-nav").count() == 1
     assert pg.locator(".sw-run").count() == 0
+    assert pg.locator(".sw-flow[data-flow=data] .su-command").count() == 1       # SF1: how to run is Send runs'
     for s in ("columns", "goal", "results"):                                    # nothing to show without a table
         assert pg.locator(f".sw-step-btn[data-flow={s}]").is_disabled()
     w = pg.evaluate("document.querySelector('.sw-nav').getBoundingClientRect().width")
@@ -163,7 +169,8 @@ def test_one_flow_the_tables_in_data_running_in_next_runs(pg):
     _flow(pg, "next")
     pg.wait_for_selector(".sw-run .rc-next")
     assert pg.locator(".sw-nav").count() == 0
-    assert pg.locator(".sw-run .su-command").count() == 1                         # how to run, beside the round
+    assert pg.locator(".sw-run .su-command").count() == 0                         # SF1: how to run is in Send runs
+    assert pg.locator(".sw-run .rc-goal").count() == 1                            # the loop's goal asked for here
     pg.wait_for_selector(".nx-round1")
 
 
@@ -173,7 +180,7 @@ def test_one_open_menu_and_each_command_once(pg):
     _to_sweeps(pg)
     pg.locator(".areabar .btn", has_text="Open").first.click()
     items = [x.strip() for x in pg.locator(".menu button").all_inner_texts() if x.strip()]
-    assert items == ["New study…", "Open a table", "Open a folder of tables", "Open a saved study"]
+    assert items == ["New study…", "Open a table", "Open a folder of tables", "From a folder of recordings…", "Open a saved study"]
     assert pg.locator(".menu .sub, .menu [aria-haspopup]").count() == 0
     pg.keyboard.press("Escape")
     pg.evaluate("p => window.__svRequestStudy(p)", os.path.join(ROOT, "examples", "drones", "drones.svstudy.json"))
@@ -308,15 +315,17 @@ with open(p["out"], "w", newline="") as f:
 
 
 def test_runs_first_round_one_then_round_two(pg):
-    """5 (walkthrough 4-5): Start from nothing with a test program -> Next round saves the study (.svstudy.json) and
-    runs round 1 -> Round 1 under Tables; a click opens it in the four steps with the goal typed in Set up; Next round
-    again -> Round 2 listed, marked new."""
+    """5 / SF1 (walkthrough 4-5): Start from nothing with a test program -> Send round 1 saves the study (.svstudy.json)
+    and runs it -> its results come in as a table in Data, the roles from Send runs (what varies = param, the scenario
+    = hold, the rest = output); the goal said in its Goal step reaches the study; Next round in Next runs -> Round 2
+    listed, marked new. Clear ▾ > Everything then closes the study too, and its Undo opens it again."""
     import sys
     work = os.path.join(pg.env["out"], "runs_first")
     os.makedirs(work, exist_ok=True)
     with open(os.path.join(work, "sim.py"), "w", encoding="utf-8") as f:
         f.write(SIM)
-    from test_features import save_as
+    from test_features import save_as, menu_item
+    from test_sweeps_flow import _optimize
     _new_study(pg)
     pg.locator(".ns-nothing").click()
     pg.wait_for_selector("[data-part=setup]")
@@ -330,32 +339,40 @@ def test_runs_first_round_one_then_round_two(pg):
     _field(pg, ".su-new-scenario", "wind")
     pg.wait_for_selector("tr[data-scenario=wind]")
     _field(pg, "tr[data-scenario=wind] input >> nth=1", "0, 5")
-    _field(pg, ".su-outputs", "err")
-    pg.locator(".su-goal").select_option("err")
-    _flow(pg, "next")
     _field(pg, ".su-command", f"{sys.executable} {{{{study_dir}}}}/sim.py {{{{params_file}}}}")
-    pg.wait_for_function("document.querySelector('.sw-run .rc-next').dataset.missing === ''")
-    pg.locator(".sw-run .lp-next").click()                                       # unsaved: Save as first
+    pg.wait_for_function("document.querySelector('[data-part=setup]').dataset.missing === ''")
+    pg.locator(".su-send-btn").click()                                           # unsaved: Save as first
     save_as(pg, "runs_first.svstudy.json", work)
-    pg.wait_for_selector(".sw-run .lp[data-round='1']:not([data-state=running]) .lp-next:enabled", timeout=120000)   # round 1 finished
-    assert _study(pg, "s.tables[0].objective") == {"expr": "err", "sense": "min"}
-    _flow(pg, "data")                                                           # the round: a new table in Data
-    pg.wait_for_function("document.querySelector('.sw-nav [data-nav=round][data-round=\"1\"]')", timeout=120000)
-    pg.locator(".sw-nav [data-nav=round][data-round='1']").first.click()
-    pg.wait_for_selector(".sw-flow[data-flow=data] .sw-raw")
+    # the first results: a regular table in Data, shown at once (the user was on Send runs)
+    pg.wait_for_selector(".sw-flow[data-flow=data] .sw-raw", timeout=120000)
     pg.wait_for_function("window.__svSweeps.doc() && window.__svSweeps.doc().columns.some((c) => c.name === 'a' && c.role === 'param')")
     _idle(pg)
     roles = {c["name"]: c["role"] for c in pg.evaluate("window.__svSweeps.doc().columns")}
     assert roles["b"] == "param" and roles["wind"] == "hold" and roles["err"] == "output"
-    q = pg.evaluate("window.__svSweeps.doc().question")
-    assert q["goals"][q["active"]]["optimize"][0]["column"] == "err"            # the goal from Set up
     pg.wait_for_selector(".sw-nav [data-nav=round][data-round='1'].on")         # the round shown
+    assert _study(pg, "s.tables[0].objective.expr") == ""
+    _flow(pg, "next")
+    assert pg.locator(".sw-next-side > .rc-goal[data-goal='0'] .rc-to-goal").count() == 1   # the loop asks for its goal, first
+    assert pg.locator(".sw-run .lp-next").is_disabled()
+    pg.locator(".rc-to-goal").click()                                            # the table's Goal step
+    pg.wait_for_selector(".sw-flow[data-flow=goal]")
+    _optimize(pg, "err", "min")
+    pg.wait_for_function("window.__svStudy.state().study.tables[0].objective.expr === 'err'")
     _flow(pg, "next")
     pg.locator(".sw-run .lp-next").click()
     pg.wait_for_selector(".sw-run .lp[data-round='2']:not([data-state=running]) .lp-next:enabled", timeout=120000)
     _flow(pg, "data")
     pg.wait_for_selector(".sw-nav [data-nav=round][data-round='2'] .sw-nav-new", timeout=120000)
     assert pg.locator(".sw-nav [data-nav=round][data-round='1'] .sw-nav-new").count() == 0   # opened: seen
+    # SF1: Clear ▾ > Everything closes the study as well (asked first); the notice's Undo opens it all again
+    pg.locator(".sw-clear-btn").click()
+    menu_item(pg, "Everything")
+    pg.locator(".dialog-foot .btn").last.click()
+    pg.wait_for_selector(".sw-welcome")
+    assert not pg.evaluate("window.__svStudy.state().open")
+    pg.locator(".toast button:has-text('Undo')").click()
+    pg.wait_for_function("window.__svStudy.state().open && window.__svStudy.state().path.endsWith('runs_first.svstudy.json')")
+    pg.wait_for_function("!!window.__svSweeps.doc()")                           # the tables too
 
 
 def test_a_table_goal_edited_in_the_area_reaches_the_study(pg):

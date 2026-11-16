@@ -9,7 +9,7 @@ is ranked on its own).
 
 ## The question, in a study file
 
-A study (`<name>.svstudy.json`) is built in the app - *Define the problem* in the Data step - and saved with *Study ▾ →
+A study (`<name>.svstudy.json`) is built in the app - *Send runs* in the Data step, the goal in its tables' Goal step - and saved with *Study ▾ →
 Save*; *Open a saved study* opens it again, and the same file is read by the command line.
 
 | A column is… | Meaning | Example |

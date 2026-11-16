@@ -26,8 +26,9 @@ const FORMATS: [string, TKey][] = [[".csv", "swFmtCsv"], [".tsv", "swFmtTsv"], [
 /** What the suggestions answered: the question and the parameters explored. */
 const keyOf = (s: Study, focus: string[] | null) => JSON.stringify([wireQuestion(s), focus]);
 
-/** `extra`: what follows the proposal in the side column (the Next runs step's *Run from the app*, §7a). */
-export default function NextRunsView({ study, extra }: { study: Study; extra?: React.ReactNode }) {
+/** `extra`: what follows the proposal in the side column (the Next runs step's *Run from the app*, §7a); `lead`: what
+ *  comes before it (SF1: the loop's goal while it is missing). */
+export default function NextRunsView({ study, extra, lead }: { study: Study; extra?: React.ReactNode; lead?: React.ReactNode }) {
   const t = useT();
   const next = study.view.next ?? {};
   const setNext = (p: Partial<NextRuns>) => useSweeps.getState().setView({ next: { ...(useSweeps.getState().studies[useSweeps.getState().active]?.view.next ?? {}), ...p } });
@@ -96,6 +97,7 @@ export default function NextRunsView({ study, extra }: { study: Study; extra?: R
   return (
     <div className="sw-next">
       <div className="sw-next-side">
+        {lead}
         <section className="sw-propose" aria-label={t("nxPropose")}>
         <h3 className="sw-run-title">{t("nxPropose")}</h3>
         <p className="hint">{t("nxProposeHint")}</p>

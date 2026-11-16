@@ -1,15 +1,20 @@
-/* C6: the study's Set up (plan §4.3, mock-up sweeps-start.html) - what varies, the scenarios, the outputs and
-   the goal: the problem defined in the Data step (PLAN 2026-11-16 §7a; how to run is RunHow below, in Next runs). Each field is the study file's own block (sweeps/setup.ts), edited through editStudy:
-   one Undo with the tables. A field is written when it is left (Enter or blur), not on every key. */
+/* C6 / SF1: *Send runs* (owner, 2026-11-16) - only what varies, the scenarios and how to run, then *Send round 1*.
+   No outputs and no goal here: round 1's results come back as a table in Data and the usual flow follows (Columns,
+   Goal, Results); the loop asks for its goal in Next runs. Each field is the study file's own block
+   (sweeps/setup.ts), edited through editStudy: one Undo with the tables. A field is written when it is left (Enter
+   or blur), not on every key. Older studies keep the outputs and goal typed here before (shown in Next runs). */
 import { useState, type ReactNode } from "react";
-import { useT } from "../../i18n";
+import { fmtInt, useT } from "../../i18n";
+import { useApp } from "../../store";
 import { useSweeps } from "../../sweeps/state";
 import { goFlow } from "../../sweeps/goFlow";
-import { editStudy, useStudyPanel } from "../../sweeps/studyStore";
+import { editStudy, isUnsaved, loopAction, useStudyPanel } from "../../sweeps/studyStore";
 import { studyApi } from "../../sweeps/studyApi";
 import { notify, notifyError } from "../../sweeps/notify";
-import { applyParamsText, applyScenariosText, firstTable, joinCommand, outputs, params, paramsText, parseValues, readiness, removeParam, removeScenario,
-  runWhere, scenarios, scenariosText, setGoal, setOutputs, setParam, setRun, setScenario, setupDone, type ParamRow, type Scale } from "../../sweeps/setup";
+import { applyParamsText, applyScenariosText, joinCommand, params, paramsText, parseValues, readiness, removeParam, removeScenario,
+  runWhere, scenarios, scenariosText, setParam, setRun, setScenario, setupDone, type ParamRow, type Scale } from "../../sweeps/setup";
+import { missingText } from "./RunPanel";
+import { saveStudyDialog } from "./StudyPanel";
 
 /** A text field written when it is left; it shows the stored value again after an undo (key = the value). */
 function Field({ value, onDone, label, ph, className, num }: { value: string; onDone: (v: string) => void; label: string; ph?: string; className?: string; num?: boolean }) {
@@ -44,8 +49,9 @@ export default function SetupView() {
   const textToggle = (no: number) => <button className="btn ghost su-as-text" aria-pressed={!!asText[no]}
     onClick={() => setAsText((x) => ({ ...x, [no]: !x[no] }))}>{t(asText[no] ? "suAsTable" : "suAsText")}</button>;
   const tables = useSweeps((x) => x.studies.length);
+  const demo = useStudyPanel((x) => x.demo);                // the demo runs from its own controls (Next runs)
   if (!study) return null;
-  const ps = params(study), sc = scenarios(study), outs = outputs(study), tb = firstTable(study), r = readiness(study);
+  const ps = params(study), sc = scenarios(study), r = readiness(study);
   const fromTable = !!guess && !sc.length;              // I have results: the scenarios are the table's columns
   const edit = (f: Parameters<typeof editStudy>[0]) => editStudy(f);
   const rowEdit = (p: ParamRow, patch: Partial<ParamRow>) => edit((x) => setParam(x, p.name, { ...p, ...patch }));
@@ -55,7 +61,7 @@ export default function SetupView() {
   return (
     <div className="su" data-part="setup" data-missing={r.missing.join(" ")}>
       <div className="su-head">
-        <span className="eyebrow">{t("suTitle")} · {t("suPartOf", { n: done.slice(0, 3).filter(Boolean).length })}</span>
+        <span className="eyebrow">{t("suTitle")} · {t("suPartOf", { n: done.filter(Boolean).length })}</span>
         <Field value={study.name ?? ""} label={t("suName")} ph={t("suNamePh")} className="su-name" onDone={(v) => edit((x) => ({ ...x, name: v }))} />
         {tables > 0 && <button className="btn outline su-to-results" onClick={() => goFlow("results")}>{t("suContinue")}</button>}
       </div>
@@ -124,33 +130,14 @@ export default function SetupView() {
         </>}
       </Section>
 
-      <Section no={3} title={t("suOutputs")} count={String(outs.length)} done={done[2]}>
-        {guess ? <div className="su-body">
-          <p className="card-meta">{t("suGoalInTable")} <b className="num">{tb?.objective?.expr ? `${tb.objective.sense} ${tb.objective.expr}` : "-"}</b></p>
-          <div className="card-next"><button className="btn outline su-open-goal" onClick={() => { useSweeps.setState({ part: "table" }); useSweeps.getState().setView({ step: "goals" }); }}>{t("suOpenGoal")}</button></div>
-        </div> : <div className="su-body">
-          <label className="su-wide">{t("suOutputsList")}
-            <Field value={outs.join(", ")} label={t("suOutputsList")} className="su-outputs" onDone={(v) => edit((x) => setOutputs(x, v.split(",").map((o) => o.trim()).filter(Boolean)))} /></label>
-          <div className="su-row">
-            <span>{t("suRankBy")}</span>
-            <select className="su-goal" aria-label={t("suRankBy")} value={tb?.objective?.expr ?? ""}
-              onChange={(e) => edit((x) => setGoal(x, e.target.value, tb?.objective?.sense ?? "min", tb?.constraints ?? []))}>
-              <option value="">-</option>{outs.map((o) => <option key={o} value={o}>{o}</option>)}</select>
-            <div className="seg">{(["min", "max"] as const).map((d) => <button key={d} className={(tb?.objective?.sense ?? "min") === d ? "on" : ""} aria-pressed={(tb?.objective?.sense ?? "min") === d}
-              onClick={() => edit((x) => setGoal(x, tb?.objective?.expr ?? "", d, tb?.constraints ?? []))}>{t(d === "min" ? "suMinimise" : "suMaximise")}</button>)}</div>
-          </div>
-          <label className="su-wide">{t("suMustHold")}
-            <textarea key={(tb?.constraints ?? []).join("\n")} className="su-in su-hold" rows={2} dir="ltr" defaultValue={(tb?.constraints ?? []).join("\n")} aria-label={t("suMustHold")}
-              onBlur={(e) => edit((x) => setGoal(x, tb?.objective?.expr ?? "", tb?.objective?.sense ?? "min", e.target.value.split("\n").map((c) => c.trim()).filter(Boolean)))} /></label>
-        </div>}
-      </Section>
-
+      {!demo && <Section no={3} title={t("suHowRun")} done={done[2]}><RunHow /></Section>}
+      {!demo && <SendRound />}
     </div>
   );
 }
 
-/** How to run (the study's launcher): this PC or a farm, the command, the workers - the Next runs step's (§7a). */
-export function RunHow() {
+/** How to run (the study's launcher): this PC, a wrapper or a farm, the command, the workers - Send runs' part 3. */
+function RunHow() {
   const t = useT();
   const study = useStudyPanel((x) => x.study);
   if (!study) return null;
@@ -162,21 +149,55 @@ export function RunHow() {
     try { notify(t((await studyApi.copyWrapper(path)).existed ? "suWrapperThere" : "suWrapperCopied")); } catch (e) { notifyError(e); }
   };
   return (
-    <section className="card su-sec su-how" data-done={setupDone(study, false)[3] ? "1" : "0"}>
-      <div className="panel-head"><h2>{t("suHowRun")}</h2></div>
-      <div className="su-body">
-        <div className="seg su-where">{(["pc", "wrapper", "farm"] as const).map((w) => <button key={w} data-where={w} className={where === w ? "on" : ""} aria-pressed={where === w}
-          onClick={() => edit((x) => setRun(x, { where: w }))}>{t(w === "pc" ? "suThisPc" : w === "wrapper" ? "suWrapper" : "suFarm")}</button>)}</div>
-        <label className="su-wide">{t(where === "pc" ? "suCommand" : where === "wrapper" ? "suCommandWrapper" : "suCommandFarm")}
-          <Field num value={joinCommand(study.launcher?.submit ?? [])} label={t("suCommand")} className="su-command"
-            ph={where === "pc" ? "python sim.py {{params_file}}" : "python sweep_wrapper.py --list {{params_files}}"}
-            onDone={(v) => edit((x) => setRun(x, { command: v }))} /></label>
-        {where === "pc" && <label className="su-row">{t("suWorkers")}
-          <Field num value={String(study.launcher?.local_workers ?? 2)} label={t("suWorkers")} className="su-workers"
-            onDone={(v) => edit((x) => setRun(x, { where: "pc", workers: Math.max(1, Math.round(n(v) ?? 2)) }))} /></label>}
-        <p className="card-meta">{t(where === "pc" ? "suRunHint" : where === "wrapper" ? "suWrapperHint" : "suFarmHint")}</p>
-        {where === "wrapper" && <div className="card-next"><button className="btn outline sm su-wrapper-copy" onClick={() => { void copyWrapper(); }}>{t("suWrapperCopy")}</button></div>}
-      </div>
+    <div className="su-body su-how">
+      <div className="seg su-where">{(["pc", "wrapper", "farm"] as const).map((w) => <button key={w} data-where={w} className={where === w ? "on" : ""} aria-pressed={where === w}
+        onClick={() => edit((x) => setRun(x, { where: w }))}>{t(w === "pc" ? "suThisPc" : w === "wrapper" ? "suWrapper" : "suFarm")}</button>)}</div>
+      <label className="su-wide">{t(where === "pc" ? "suCommand" : where === "wrapper" ? "suCommandWrapper" : "suCommandFarm")}
+        <Field num value={joinCommand(study.launcher?.submit ?? [])} label={t("suCommand")} className="su-command"
+          ph={where === "pc" ? "python sim.py {{params_file}}" : "python sweep_wrapper.py --list {{params_files}}"}
+          onDone={(v) => edit((x) => setRun(x, { command: v }))} /></label>
+      {where === "pc" && <label className="su-row">{t("suWorkers")}
+        <Field num value={String(study.launcher?.local_workers ?? 2)} label={t("suWorkers")} className="su-workers"
+          onDone={(v) => edit((x) => setRun(x, { where: "pc", workers: Math.max(1, Math.round(n(v) ?? 2)) }))} /></label>}
+      <p className="card-meta">{t(where === "pc" ? "suRunHint" : where === "wrapper" ? "suWrapperHint" : "suFarmHint")}</p>
+      {where === "wrapper" && <div className="card-next"><button className="btn outline sm su-wrapper-copy" onClick={() => { void copyWrapper(); }}>{t("suWrapperCopy")}</button></div>}
+    </div>
+  );
+}
+
+/** Round 1 sent from here (the loop's first round: the start grid); its progress while it runs. A study with
+ *  results already (I have results, rounds run) proposes its next rounds in Next runs. */
+function SendRound() {
+  const t = useT();
+  const lang = useApp((x) => x.lang);
+  const study = useStudyPanel((x) => x.study)!;
+  const guess = useStudyPanel((x) => x.guess);
+  const path = useStudyPanel((x) => x.path);
+  const p = useStudyPanel((x) => x.loopProgress);
+  const r = readiness(study);
+  const running = !!p?.running;
+  if ((study.history?.length || guess) && !running) return (
+    <section className="card su-send" data-state="next">
+      <p className="card-meta">{t("suSendNext")}</p>
+      <div className="card-next"><button className="btn outline sm su-to-next" onClick={() => goFlow("next")}>{t("suToNext")}</button></div>
+    </section>
+  );
+  const send = async () => {
+    if (isUnsaved() || !path) { if (!(await saveStudyDialog(t))) return; }
+    try { await loopAction("next"); } catch (e) { notifyError(e); }
+  };
+  return (
+    <section className={`card su-send${r.missing.length ? " warn" : " ok"}`} data-missing={r.missing.join(" ")} data-state={running ? "running" : "ready"}>
+      <span className="card-title">{r.missing.length ? t("suSendNotYet", { list: missingText(t, r.missing) }) : t("rcRound1", { sets: fmtInt(r.sets, lang), combos: fmtInt(r.combos, lang), runs: fmtInt(r.runs, lang) })}</span>
+      <p className="card-meta">{t("suSendHint")}</p>
+      {running && p && (
+        <div className="dm-strip busy" role="status">
+          <b>{t("dmRound", { k: p.round })}</b>
+          <span>{t("dmRuns", { d: fmtInt(p.runs.done, lang), r: fmtInt(p.runs.running, lang), f: fmtInt(p.runs.failed, lang) })}</span>
+        </div>
+      )}
+      {p?.error && !running && <p className="sw-error" role="alert">{p.error}</p>}
+      <div className="card-next"><button className="btn primary su-send-btn" disabled={running || r.missing.length > 0} onClick={() => { void send(); }}>{t("suSend")}</button></div>
     </section>
   );
 }

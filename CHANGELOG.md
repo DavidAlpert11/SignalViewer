@@ -6,12 +6,14 @@
 
 **Highlights:** clear to a newcomer. **A folder of recordings becomes one table in Sweeps** – a row per recording,
 the same measures in each, parameters from the file names – and ticked rows open together in Recordings (the
-Fleet area is gone; this replaces it). **A sweep wrapper** runs your one simulation for every set of inputs, written
+Fleet area is gone; this replaces it). **Sweeps is one flow:** *Send runs* asks only what varies, the scenarios
+and how to run; round 1's results open as a regular table, and the loop asks for its goal only when it needs it. **A sweep wrapper** runs your one simulation for every set of inputs, written
 as `name: values` lines with MATLAB-style ranges. **Each demo says what to do next**, with the button that does it.
 **No zoom mode to set** – a drag zooms by its direction. **One button for the page you send**, a Map bar on one row,
 runs A and B easier to tell apart, a checks file that gives the same verdict in the window and in CI, and clearer
 formula errors.
 
+- Changed: **Sweeps is one flow, and runs are sent from *Send runs*.** *Define the problem* is now **Send runs** (Data's side, and *New study ▸ Start from nothing*): only what varies – values or ranges – the scenarios and *How to run* (this PC, a wrapper, a farm launcher; it was in Next runs). No outputs and no goal are asked for: round 1 is ready as soon as the parameters have ranges and there is a command, and **Send round 1** runs it (saving the study first). Its results – even one row – come in as a regular table in Data, and the usual steps follow: Columns (what varies already a parameter, the scenarios held, every other number an output), Goal, Results. **The loop until convergence lives in Next runs and asks for its goal there** (*The goal of the loop*, at the top: say it in the table's Goal step, or type what to rank by); *Next round* and *Run until converged* wait for it. **Clear ▾ › Everything** now closes the study file too (asked first; the notice's Undo opens it all again). Older studies with outputs and a goal typed in their set-up open as before – their goal is shown in Next runs – and the smart-sweep demo and *I have results* work as they did.
 - Fixed: after clicking a button in the bar above the plots, **Space** pressed that button again instead of moving the cursor (it looked like Space did nothing). Space is now always the cursor; Enter still presses a focused button. In a sent page, **P** plays as in the app (Space still plays there).
 - Fixed: a formula's syntax error now says where: *The formula ends too early: something is missing after '{ATT.Roll} +'*, or *Syntax error at character 14: …* in the text as you typed it (it said "near position 0"). An unknown function is named, with the closest one: *Unknown function: sqrtt() – did you mean sqrt()?*
 - Changed: Settings – *Camera following an object* moved from *Time and cursor* to *Map and objects*, beside the camera of a new Map.
