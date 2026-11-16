@@ -95,6 +95,9 @@ export interface Study {
   changed: boolean;
   /** C11: the study file's table this file was opened as (its goal edited here is that table's) - not saved */
   studyTable?: string;
+  /** FR5: rows handed over by the recordings side (a folder summed up, the Runs matrix): a row is a recording,
+   *  not a run of a sweep - no runs to send, no next runs, "recordings" not "sets". Not saved (neither are the rows). */
+  recordings?: boolean;
   /** a template whose columns this table has, offered when it opened */
   offer: string | null;
   /** the tables merged into this one, in order (their file names) */
@@ -246,6 +249,9 @@ interface SweepsState {
   dataTab: "table" | "plot";
   /** each table's parallel plot as it was left (axes, filters, colour, zoom): kept across the tabs */
   rawViews: Record<string, RawView>;
+  /** FR5: a table's Data view asked to sort by a column and tick the rows with a value (a demo's button shows its
+   *  answer so); taken once by the table (UI only) */
+  rawAsk: { table: string; sort: { c: string; desc: boolean }; tick?: { col: string; value: string } } | null;
   setRawView: (id: string, v: RawView) => void;
   /** each parallel plot's zoom (a Data table's by its id, the results' as "res:" + id): UI only */
   zooms: Record<string, { k: number; x: number; y: number }>;
@@ -323,6 +329,10 @@ interface SweepsState {
 }
 
 /** A table's parallel plot in the Data step, as the user left it. */
+/** FR5: the active table is a table of recordings, and no study file is open (a study's tables are runs). */
+export const isRecordings = (s: { studies: Study[]; active: number; common: { open: boolean } }): boolean =>
+  !!s.studies[s.active]?.recordings && !s.common.open;
+
 export interface RawView {
   axes: string[]; filters: Record<string, Filter>; colorBy: string | null;
   scales: Record<string, Scale>; reversed: Record<string, boolean>;
@@ -484,7 +494,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
       .catch((e) => set({ error: (e as Error).message }));
   };
   /** a table the server opened, as a new study: the user's remembered roles, or a saved study's */
-  const add = (r: SweepOpened, saved?: SavedStudy) => {
+  const add = (r: SweepOpened, saved?: SavedStudy, extra?: Partial<Study>) => {
     const mem = getPrefValue<Record<string, { role: Role; scale: Scale }>>(memoryKey(r.columns)) ?? {};
     const from = saved ? Object.fromEntries(saved.columns.map((c) => [c.name, c])) : mem;
     const columns: StudyColumn[] = r.columns.map((c) => ({ ...c, guessRole: c.role, guessScale: c.scale,
@@ -500,7 +510,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
       // is not a step of the analysis: Where it comes from names the tables)
       log: saved?.log ?? [], iterations: saved?.iterations ?? [],
       tables: [{ id: r.id, name: r.name, recipe: r.recipe ?? (r.path ? { path: r.path } : {}), opened: r, merged: !!r.recipe && "merge" in r.recipe }],
-      use: 0, shown: 0, picked: [] };
+      use: 0, shown: 0, picked: [], ...extra };
     // the table always opens; with no parameter column yet, the columns come first - say which they are
     if (!columns.some((c) => c.role === "param")) study.view = { ...study.view, left: "columns" };
     if (!saved) study.offer = get().templates.find((t) => fits(t, columns))?.name ?? null;
@@ -576,7 +586,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
     },
     openRows: async (name, columns, rows) => {
       set({ busy: true, error: "" });
-      try { add(await sweepApi.openRows(name, columns, rows)); }
+      try { add(await sweepApi.openRows(name, columns, rows), undefined, { recordings: true }); }
       catch (e) { set({ busy: false, error: (e as Error).message }); }
     },
     saved: () => { const s = get().studies[get().active]; return s ? savedOf(s) : null; },
@@ -688,6 +698,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
     },
     dataTab: "table",
     rawViews: {},
+    rawAsk: null,
     setRawView: (id, v) => set((st) => ({ rawViews: { ...st.rawViews, [id]: v } })),
     zooms: {},
     setZoom: (key, z) => set((st) => ({ zooms: { ...st.zooms, [key]: z } })),

@@ -236,6 +236,7 @@ export const en = {
   rcDefine: "Send runs",
   nvTables: "Tables",
   nvRuns: "runs",
+  nvRecordings: "recordings",
   nvRound: "Round {n}",
   nvNew: "new",
   // --- C8: the Run column
@@ -501,6 +502,7 @@ export const he: typeof en = {
   rcDefine: "שליחת ריצות",
   nvTables: "טבלאות",
   nvRuns: "ריצות",
+  nvRecordings: "הקלטות",
   nvRound: "סבב {n}",
   nvNew: "חדש",
   // --- C8: the Run column

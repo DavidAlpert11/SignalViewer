@@ -9,7 +9,9 @@ import { applySyncOffset } from "./sync";
 
 export interface DemoGuide { id: ExampleId; runs: string[]; done?: boolean }
 
-interface Step { text: TKey; act?: TKey; done?: TKey; go?: (runs: string[]) => Promise<void> | void }
+interface Step { text: TKey; act?: TKey; done?: TKey; go?: (runs: string[]) => Promise<void> | void;
+  /** FR5: a demo that opens in Sweeps has its line there (no recordings open; the recordings' stage does not show it) */
+  area?: "sweeps" }
 
 const panel = (p: "compare" | "log" | "report" | "investigate") => () => useApp.setState({ panel: p });
 
@@ -21,16 +23,18 @@ export const DEMO_STEPS: Partial<Record<ExampleId, Step>> = {
   ardupilot: { text: "demoArdupilot", act: "demoChecksAct", go: panel("log") },
   simVsFlight: { text: "demoSimVsFlight", act: "demoAlignAct", done: "demoSimVsFlightDone", go: alignSecond },
   investigate: { text: "demoInvestigate", act: "demoInvestigateAct", done: "demoInvestigateDone", go: cursorsOnFirstBump },
+  folderOfFlights: { text: "demoFolder", act: "demoFolderAct", done: "demoFolderDone", go: worstCopterFirst, area: "sweeps" },
 };
 
 /** Is the demo's line on screen: a demo with a step, its files still open, the welcome screen not over the plots.
  *  (FR2: the strip gives it the row of its own head - one rule for both.) */
 export const demoLineUp = (s: { demoGuide: DemoGuide | null; runs: { id: string }[]; startOpen: boolean }): boolean =>
-  !!s.demoGuide && !!DEMO_STEPS[s.demoGuide.id] && !s.startOpen && s.demoGuide.runs.every((id) => s.runs.some((r) => r.id === id));
+  !!s.demoGuide && !!DEMO_STEPS[s.demoGuide.id] && !DEMO_STEPS[s.demoGuide.id]!.area && !s.startOpen
+  && s.demoGuide.runs.every((id) => s.runs.some((r) => r.id === id));
 
 /** Called once a demo's files are open with their view: the demo's own setup, then its line. */
 export async function startDemoGuide(id: ExampleId, runs: string[]) {
-  if (!runs.length || !DEMO_STEPS[id]) return;
+  if (!DEMO_STEPS[id] || (!runs.length && !DEMO_STEPS[id]!.area)) return;
   if (id === "twoFlights") await bothTracksOnOneMap();
   useApp.setState({ demoGuide: { id, runs } });
 }
@@ -64,4 +68,15 @@ async function alignSecond([ref, other]: string[]) {
 function cursorsOnFirstBump() {
   const st = useApp.getState();
   useApp.setState({ cursor: { ...st.cursor, on: true, dual: true, t1: 38.4, t2: 39.3, active: 1 }, panel: "investigate" });
+}
+
+/** FR5: the folder of recordings - its answer is X8-A's vibration, 18 -> 67 over its six flights. The table sorted by
+ *  vibration (X8-A's six flights are its top six) with them ticked: one more click opens them in Recordings. */
+async function worstCopterFirst() {
+  const [{ useSweeps }, { goFlow }] = await Promise.all([import("./sweeps/state"), import("./sweeps/goFlow")]);
+  const st = useSweeps.getState(), s = st.studies[st.active];
+  const tb = s?.tables[s.use];
+  if (!s || !tb || !s.columns.some((c) => c.name === "vibration_max")) throw new Error("no vibration column");
+  useSweeps.setState({ dataTab: "table", rawAsk: { table: tb.id, sort: { c: "vibration_max", desc: true }, tick: { col: "vehicle", value: "X8-A" } } });
+  goFlow("data");
 }

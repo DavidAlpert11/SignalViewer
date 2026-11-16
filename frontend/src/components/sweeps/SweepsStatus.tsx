@@ -25,8 +25,9 @@ export default function SweepsStatus() {
       ) : s ? (
         <>
           <span>{s.name}</span>
-          <span>{t("swStatusRows", { n: s.rows.toLocaleString() })}</span>
-          {s.answer && <span>{t("swStatusAnswer", { n: s.answer.counts.holding.toLocaleString(), of: s.answer.counts.sets.toLocaleString(), s: s.answer.seconds.toFixed(2) })}</span>}
+          <span>{t(s.recordings ? "swStatusRecordings" : "swStatusRows", { n: s.rows.toLocaleString() })}</span>
+          {s.recordings ? s.answer && s.question.conditions.length > 0 && <span>{t("swStatusRecHold", { n: s.answer.counts.holding.toLocaleString(), of: s.answer.counts.sets.toLocaleString() })}</span>
+            : s.answer && <span>{t("swStatusAnswer", { n: s.answer.counts.holding.toLocaleString(), of: s.answer.counts.sets.toLocaleString(), s: s.answer.seconds.toFixed(2) })}</span>}
           {s.evaluating && <span>{t("swReading")}</span>}
         </>
       ) : <span>{t("swStatusNone")}</span>}

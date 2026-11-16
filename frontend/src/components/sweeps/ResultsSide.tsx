@@ -45,7 +45,7 @@ export default function ResultsSide({ study }: { study: Study }) {
         {steps.map((s, i) => <span key={i} className="hint">{t(s.kind === "keep" ? "swRepKept" : "swRepExcluded", { i: i + 1, n: s.sets.length })}</span>)}
         {q.exclude.length > 0 && <span className="hint">{t("swLeftOutN", { n: q.exclude.length })} <button className="linklike" onClick={() => st.setQuestion({ exclude: [] })}>{t("swKeepAll")}</button></span>}
       </div>
-      <p className="hint">{t("swResultsNextHint")}</p>
+      {!study.recordings && <p className="hint">{t("swResultsNextHint")}</p>}
       <StepFoot study={study} />
     </div>
   );

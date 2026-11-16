@@ -13,6 +13,9 @@
      NextStep                       Next runs: the proposal (NextRunsView) and running it (RunPanel)
      SetDetail                      one set on the right: why it fails, its runs, its recordings
    State: sweeps/state.ts. Styles: ./sweeps.css (its own file, to restyle the area alone). */
+import { Words } from "../../i18n";
+import { RECORDING_WORDS } from "../../sweeps/i18n";
+import DemoGuide from "../DemoGuide";
 import { useEffect, useMemo, useRef, useState } from "react";
 import PanelResizer from "../PanelResizer";
 import { usePanelWidth } from "../panelWidth";
@@ -227,11 +230,14 @@ function StudyFlow() {
   else if (step === "results" && (part === "together" || !study)) body = common ? <div className="sw-together"><TogetherTabs /><StudyPanel /></div> : empty;
   else body = study ? <StudyView study={study} /> : empty;
   return (
+    <Words.Provider value={study?.recordings && !common ? RECORDING_WORDS : null}>
     <div className="sw-study-wrap sw-flow" data-flow={step}>
       <div className="notices sw-notices"><Toasts /></div>
       <FlowNav />
+      {study?.recordings && <DemoGuide area="sweeps" />}
       {body}
     </div>
+    </Words.Provider>
   );
 }
 

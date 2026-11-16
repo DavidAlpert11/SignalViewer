@@ -5,10 +5,11 @@ import { Icon } from "../icons";
 import { DEMO_STEPS, demoLineUp } from "../demoGuide";
 
 /** RV5: a demo's line above the plots - what it shows, what to do next, and the click that does it. */
-export default function DemoGuide() {
+export default function DemoGuide({ area }: { area?: "sweeps" }) {
   const t = useT();
   const g = useApp((s) => s.demoGuide);
-  const up = useApp(demoLineUp);
+  // FR5: a demo of Sweeps has its line there, while its table of recordings is the one shown
+  const up = useApp(demoLineUp) || (!!area && !!g && DEMO_STEPS[g.id]?.area === area);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const step = g && DEMO_STEPS[g.id];

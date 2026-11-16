@@ -163,6 +163,18 @@ function RawTable({ study, tb }: { study: Study; tb: StudyTable }) {
   const role = rolesOf(study, tb);
   // FL1: a table with a recording column (a folder summed up): tick rows, open their recordings together
   const [ticked, setTicked] = useState<Map<number, string>>(() => new Map());
+  // FR5: asked from outside (a demo's button): sort so, then tick the rows with that value - once
+  const ask = useSweeps((s) => (s.rawAsk?.table === tb.id ? s.rawAsk : null));
+  useEffect(() => {
+    if (!ask) return;
+    if (sort?.c !== ask.sort.c || sort.desc !== ask.sort.desc || page !== 0) { setSort(ask.sort); setPage(0); return; }
+    if (!data || data.index.length === 0) return;
+    if (ask.tick) {
+      const c = data.columns.indexOf(ask.tick.col), r = data.columns.findIndex((x) => role.get(x) === "recording" || x === "recording");
+      if (c >= 0 && r >= 0) setTicked(new Map(data.rows.flatMap((row, i) => (String(row[c]) === ask.tick!.value && typeof row[r] === "string" ? [[data.index[i], row[r] as string]] : []))));
+    }
+    useSweeps.setState({ rawAsk: null });
+  }, [ask, data, sort, page]);   // eslint-disable-line react-hooks/exhaustive-deps
   if (!data) return <p className="hint">{t("swReading")}</p>;
   const recCol = data.columns.findIndex((c) => role.get(c) === "recording" || c === "recording");
   const pathAt = (i: number) => { const v = recCol >= 0 ? data.rows[i][recCol] : null; return typeof v === "string" && v ? v : null; };

@@ -29,7 +29,7 @@ export function openExample(ex: Example): void {
   if (ex.open === "study") requestStudy(ex.paths[ex.paths.length - 1], ex.id === "smartSweepDemo");
   else if (ex.open === "sweep") requestAreaExample("sweeps", ex.paths[ex.paths.length - 1]);   // its .svsweep: the table and its question
   // FL1: a folder of recordings (its measures.json beside them) summed up, a row per recording in Sweeps
-  else if (ex.open === "summary") void summarizeFolder(ex.paths[0].replace(/[\\/][^\\/]*$/, ""));
+  else if (ex.open === "summary") void summarizeFolder(ex.paths[0].replace(/[\\/][^\\/]*$/, "")).then((ok) => { if (ok) void startDemoGuide(ex.id, []); });
   // RV5: once its view is open, the demo's own setup and its line of what to do next
   else void openPaths(ex.paths, undefined, { autoView: true }).then((ids) => startDemoGuide(ex.id, ids));
 }

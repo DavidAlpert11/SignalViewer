@@ -120,3 +120,4 @@ inside your lane's block.
 - `test_tab_band.py` – FR2: `test_one_mode_row_with_cursors_and_hover` closes the demo's line before the strip's × (the head is folded while the line is up).
 - `test_cursor_labels.py` – FR3: the cursor labels' boxes (the layer's `data-flags`) are under the plot area in the investigate demo and with one cursor; a double-click on a signal leaves one chip, a single click as before.
 - `test_file_colours.py` – FR4: the sim-against-flight demo's lines are their file's colour (= the A / B badges); a hand colour stays when its namesake joins.
+- `test_folder_of_recordings.py` – FR5: the demo reads as recordings (4 steps, no Send / Next runs, no "sets", status counts recordings, en + he), *Show X8-A* ticks its six flights on top; a results table keeps its 5 steps and Send runs.

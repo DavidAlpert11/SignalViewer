@@ -1,3 +1,4 @@
+import { createContext, useContext } from "react";
 import { useApp } from "../store";
 import { swEn, swHe } from "../sweeps/i18n";
 import * as templates from "./templates";
@@ -36,9 +37,14 @@ export function translate(lang: Lang, key: TKey, vars?: Record<string, string | 
 /** What useT() returns: a key (and its {vars}) to text in the current language. */
 export type TFn = (key: TKey, vars?: Record<string, string | number>) => string;
 
+/** FR5: a part of the screen can speak its own words for some keys (a table of recordings says "recordings" where a
+ *  sweep says "parameter sets"): a map of key -> the key to use instead, given to the part with <Words.Provider>. */
+export const Words = createContext<Partial<Record<TKey, TKey>> | null>(null);
+
 export function useT(): TFn {
   const lang = useApp((s) => s.lang);
-  return (key: TKey, vars?: Record<string, string | number>) => translate(lang, key, vars);
+  const words = useContext(Words);
+  return (key: TKey, vars?: Record<string, string | number>) => translate(lang, words?.[key] ?? key, vars);
 }
 
 export function fmtNum(v: number | null | undefined, lang: Lang, digits = 5): string {

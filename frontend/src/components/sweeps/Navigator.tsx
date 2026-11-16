@@ -57,7 +57,8 @@ export default function Navigator() {
         <div className="sw-nav-name"><span className="eyebrow">{t("nvStudy")}</span><h2 className="ph-title" title={name}>{name}</h2></div>
       </div>
       <div className="sw-nav-tree">
-        {(common.open || study) && <>
+        {/* FR5: recordings are not sent anywhere - a table of them has no Send runs */}
+        {(common.open || (study && !study.recordings)) && <>
           <div className="sw-nav-sec"><span className="eyebrow">{t("suTitle")}</span>
             {done && <span className={`sw-nav-done${done.every(Boolean) ? " ok" : ""}`}>✓ {done.filter(Boolean).length}/3</span>}</div>
           <button className={`sw-nav-item${part === "setup" ? " on" : ""}`} data-nav="setup" aria-current={part === "setup" ? "true" : undefined}
@@ -72,7 +73,7 @@ export default function Navigator() {
           </button>
         )}
         <section className="sw-tables" aria-label={t("nvTables")}>
-          <div className="sw-nav-sec"><span className="eyebrow">{t("nvTables")}</span><span className="eyebrow sw-nav-n">{t("nvRuns")}</span></div>
+          <div className="sw-nav-sec"><span className="eyebrow">{t("nvTables")}</span><span className="eyebrow sw-nav-n">{t(study?.recordings && !common.open ? "nvRecordings" : "nvRuns")}</span></div>
           {studies.map((s, i) => (
             <TabItem key={s.tableId} s={s} i={i} on={tableOn && i === active} fileTable={byTab.get(i)} />
           ))}

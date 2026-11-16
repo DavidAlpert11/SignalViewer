@@ -7,6 +7,8 @@ import type { Part } from "./state";
 
 export type FlowStep = "data" | "columns" | "goal" | "results" | "next";
 export const FLOW: FlowStep[] = ["data", "columns", "goal", "results", "next"];
+/** FR5: a table of recordings has no runs to send or propose: its steps stop at Results (the goal step is its limits). */
+export const flowSteps = (recordings: boolean): FlowStep[] => (recordings ? FLOW.filter((s) => s !== "next") : FLOW);
 
 /** Where the area stands: the part shown, the active table's step (null: no table open), the study file. */
 export interface FlowAt {
