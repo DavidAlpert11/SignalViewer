@@ -16,6 +16,7 @@ Functions:  abs sqrt exp log log10 sin cos tan asin acos atan atan2 sign floor
 """
 
 import ast
+import re
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -166,25 +167,38 @@ def _unknown_function(fn: ast.expr, funcs: dict) -> str:
     return f"Unknown function: {fn.id}()" + (f" - did you mean {near[0]}()?" if near else ". Use one of the listed functions.")
 
 
-def parse(expr: str, n_vars: int) -> ast.Expression:
-    """Parse and validate; raises FormulaError with a readable message."""
-    if not expr or not expr.strip():
-        raise FormulaError("The formula is empty.")
-    if len(expr) > 2000:
-        raise FormulaError("The formula is too long.")
-    try:
-        tree = ast.parse(expr.replace("^", "**"), mode="eval")
-    except SyntaxError as e:
-        raise FormulaError(_syntax_message(expr, e)) from None
-    allowed_names = {f"v{i}" for i in range(n_vars)} | {"t", "pi", "e"}
-    funcs = _funcs(np.zeros(1))
+# ------------------------------------------------------------------ the one whitelist (FR7)
+# Every formula of the app - a signal's (here), a Sweeps column's and a study's constraints (svcore/sweep/derived.py,
+# svcore/sweeps_common.py) - is parsed and checked here; the others import it and only give values to what passed.
+
+#: the functions of a Sweeps row formula (implemented in svcore/sweep/derived.py): numbers, and the conditions and
+#: text of S1 - if (written `if(`, a keyword: read as `_if(`), where (if's older name), between, contains, text,
+#: bins, rank, pct; col("a name with spaces") names a column.
+ROW_FUNCTIONS = ("abs", "sqrt", "exp", "log", "log10", "sin", "cos", "tan", "atan2", "sign", "floor", "ceil", "round",
+                 "min", "max", "clip", "isnan", "if", "where", "between", "contains", "text", "bins", "rank", "pct")
+ROW_CONSTANTS = ("pi", "e", "nan", "inf", "True", "False")
+_ROW_CALLS = frozenset(ROW_FUNCTIONS) - {"if"} | {"_if", "col"}
+_STRINGS = re.compile(r"(\"[^\"]*\"|'[^']*')")
+
+
+def _dunder(name: str) -> bool:
+    return name.startswith("__") or name.endswith("__")
+
+
+def check(tree: ast.AST, *, rows: bool, names: Optional[set] = None, funcs: Optional[dict] = None) -> None:
+    """The whitelist. Raises FormulaError for anything else - attributes, subscripts, lambdas, keyword arguments,
+    any name with __ - whichever formula it is.
+    rows=False (a signal formula): the names v0..vN, t, pi, e (`names`) and `funcs` with their arity.
+    rows=True (a Sweeps row formula): any other name is a column; text in quotes; x in (a, b); lists for in / bins."""
     for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and _dunder(node.id):
+            raise FormulaError(f"Names with __ are not allowed: {node.id}")
         if isinstance(node, (ast.Expression, ast.Load, ast.operator, ast.unaryop, ast.cmpop)):
             if isinstance(node, ast.operator) and type(node) not in _BIN:
                 raise FormulaError("Only + - * / ** % are allowed.")
             if isinstance(node, ast.unaryop) and not isinstance(node, (ast.USub, ast.UAdd, ast.Not)):
                 raise FormulaError("Only unary minus is allowed.")
-            if isinstance(node, ast.cmpop) and type(node) not in _CMP:
+            if isinstance(node, ast.cmpop) and type(node) not in _CMP and not (rows and isinstance(node, (ast.In, ast.NotIn))):
                 raise FormulaError("Unsupported comparison.")
             continue
         if isinstance(node, (ast.BinOp, ast.UnaryOp, ast.Compare)):
@@ -193,25 +207,88 @@ def parse(expr: str, n_vars: int) -> ast.Expression:
         if isinstance(node, (ast.BoolOp, ast.And, ast.Or, ast.Not)):
             continue
         if isinstance(node, ast.Constant):
+            if rows and isinstance(node.value, str):
+                continue
             if not isinstance(node.value, (int, float)) or isinstance(node.value, bool):
-                raise FormulaError("Only numbers are allowed as constants.")
+                raise FormulaError("Only numbers are allowed as constants." if not rows else "Only numbers and \"text\" are allowed as values.")
             continue
         if isinstance(node, ast.Name):
-            if node.id not in allowed_names and node.id not in funcs:
+            if rows:
+                continue                                           # a column (or a constant): its value is the table's
+            if node.id not in (names or set()) and node.id not in (funcs or {}):
                 raise FormulaError(f"Unknown name: {node.id}")
             continue
+        if rows and isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+            continue                                               # x in (1, 2), bins(x, [0, 5, 10])
         if isinstance(node, ast.Call):
-            if not isinstance(node.func, ast.Name) or node.func.id not in funcs:
-                raise FormulaError(_unknown_function(node.func, funcs))
+            known = _ROW_CALLS if rows else (funcs or {})
+            if not isinstance(node.func, ast.Name) or node.func.id not in known:
+                if rows and isinstance(node.func, ast.Name):
+                    raise FormulaError(f"Unknown function: {'if' if node.func.id == '_if' else node.func.id}")
+                raise FormulaError(_unknown_function(node.func, dict.fromkeys(known)))
             if node.keywords:
                 raise FormulaError("Functions take positional arguments only.")
-            arity = funcs[node.func.id][1]
-            ok = len(node.args) in arity if isinstance(arity, tuple) else len(node.args) == arity
-            if not ok:
-                raise FormulaError(f"{node.func.id}() takes {arity if not isinstance(arity, tuple) else ' or '.join(map(str, arity))} argument(s).")
+            if not rows and funcs is not None:
+                arity = funcs[node.func.id][1]
+                ok = len(node.args) in arity if isinstance(arity, tuple) else len(node.args) == arity
+                if not ok:
+                    raise FormulaError(f"{node.func.id}() takes {arity if not isinstance(arity, tuple) else ' or '.join(map(str, arity))} argument(s).")
             continue
         raise FormulaError("This kind of expression is not allowed.")
+
+
+def parse(expr: str, n_vars: int) -> ast.Expression:
+    """Parse and validate a signal formula; raises FormulaError with a readable message."""
+    if not expr or not expr.strip():
+        raise FormulaError("The formula is empty.")
+    if len(expr) > 2000:
+        raise FormulaError("The formula is too long.")
+    try:
+        tree = ast.parse(expr.replace("^", "**"), mode="eval")
+    except SyntaxError as e:
+        raise FormulaError(_syntax_message(expr, e)) from None
+    check(tree, rows=False, names={f"v{i}" for i in range(n_vars)} | {"t", "pi", "e"}, funcs=_funcs(np.zeros(1)))
     return tree
+
+
+def _if_calls(expr: str) -> str:
+    """`if(` is a Python keyword: written as the function `_if(` (outside quoted text)."""
+    parts = _STRINGS.split(expr)
+    return "".join(p if i % 2 else re.sub(r"\bif\s*\(", "_if(", p) for i, p in enumerate(parts))
+
+
+def parse_rows(expr: str) -> ast.Expression:
+    """Parse and validate a Sweeps row formula (a column, a constraint, an objective) through the whitelist."""
+    if not expr or not expr.strip():
+        raise FormulaError("it is empty")
+    if len(expr) > 2000:
+        raise FormulaError("The formula is too long.")
+    try:
+        tree = ast.parse(_if_calls(expr.strip()), mode="eval")
+    except SyntaxError as e:
+        raise FormulaError(e.msg) from None
+    check(tree, rows=True)
+    return tree
+
+
+def split_and(expr: str) -> List[str]:
+    """A row condition split at its top-level `and` (each part reported on its own), checked by the whitelist."""
+    body = parse_rows(expr).body
+    if isinstance(body, ast.BoolOp) and isinstance(body.op, ast.And):
+        return [ast.unparse(v) for v in body.values]
+    return [expr.strip()]
+
+
+def margin_of(part: str) -> Optional[str]:
+    """For `a < b` / `a > b` (and <=, >=): an expression whose positive value is by how much it is broken."""
+    body = parse_rows(part).body
+    if isinstance(body, ast.Compare) and len(body.ops) == 1:
+        lhs, rhs = ast.unparse(body.left), ast.unparse(body.comparators[0])
+        if isinstance(body.ops[0], (ast.Lt, ast.LtE)):
+            return f"({lhs}) - ({rhs})"
+        if isinstance(body.ops[0], (ast.Gt, ast.GtE)):
+            return f"({rhs}) - ({lhs})"
+    return None
 
 
 def _truth(v) -> np.ndarray:

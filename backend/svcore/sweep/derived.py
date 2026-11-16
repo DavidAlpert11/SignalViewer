@@ -2,8 +2,8 @@
 
 Per run   - a formula on the columns of the same row: "range_m / payload_kg", "abs(roll) * 2",
             "if(wind_mps > 4, range_m, nan)". A column whose name is not a plain identifier is
-            written col("max roll [deg]"). Parsed with `ast` - a closed set of nodes and functions,
-            no eval - the same rule as the signal formulas (svcore/formula.py).
+            written col("max roll [deg]"). Parsed and checked by the one whitelist of svcore/formula.py
+            (parse_rows: a closed set of nodes and functions, no eval, no name with __); here only the values.
             Conditions (S1): comparisons (also chained: 0 < x <= 5), and / or / not, if(cond, a, b),
             between(x, lo, hi), x in (1, 2) / not in; text: == "mild", in ("mild", "strong"),
             contains(name, "B"), text(x); a text result is a text column (if(wind > 8, "high", "low")).
@@ -16,13 +16,12 @@ Per set   - one value per parameter set: an operation (min, max, mean, median, p
             count_true / share of a condition column: in how many / what share of its runs it held.
 """
 import ast
-import re
 from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 
-from svcore.formula import _BIN, _CMP, bool_op
+from svcore.formula import _BIN, _CMP, ROW_FUNCTIONS, FormulaError, bool_op, parse_rows
 
 
 class DerivedError(ValueError):
@@ -35,8 +34,9 @@ _FUN: Dict[str, Callable[..., Any]] = {"abs": np.abs, "sqrt": np.sqrt, "exp": np
 # the functions of conditions and text (S1), handled by the evaluator itself
 _OWN = ("if", "where", "between", "contains", "text", "bins", "rank", "pct")
 FUNCTIONS = sorted(set(_FUN) | set(_OWN))
+# the whitelist (svcore/formula.py) names the functions; here is what each does - the two lists are one
+assert set(FUNCTIONS) == set(ROW_FUNCTIONS), "svcore.formula.ROW_FUNCTIONS and the row functions here differ"
 _CONST = {"pi": np.pi, "e": np.e, "nan": np.nan, "inf": np.inf}
-_STRINGS = re.compile(r"(\"[^\"]*\"|'[^']*')")
 
 
 class _Text:
@@ -48,24 +48,16 @@ class _Text:
         self.v = v
 
 
-def _keyword_calls(expr: str) -> str:
-    """`if(` is a Python keyword: written as the function `_if(` (outside quoted text)."""
-    parts = _STRINGS.split(expr)
-    return "".join(p if i % 2 else re.sub(r"\bif\s*\(", "_if(", p) for i, p in enumerate(parts))
-
-
 def _fmt(x: float) -> str:
     return f"{x:g}"
 
 
 def row_formula(df: pd.DataFrame, expr: str) -> np.ndarray:
     """Evaluate `expr` on every row of df: a float array, or an object array of text (None missing)."""
-    if not expr or not expr.strip():
-        raise DerivedError("Formula: it is empty")
     try:
-        tree = ast.parse(_keyword_calls(expr.strip()), mode="eval")
-    except SyntaxError as e:
-        raise DerivedError(f"Formula: {e.msg}") from None
+        tree = parse_rows(expr)
+    except FormulaError as e:
+        raise DerivedError(f"Formula: {e}") from None
     n = len(df)
 
     def col(name: str):

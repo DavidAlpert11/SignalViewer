@@ -20,7 +20,6 @@ and J - then per S the best L. The reference with plain loops lives in the tests
 """
 from __future__ import annotations
 
-import ast
 import os
 import difflib
 import re
@@ -33,6 +32,7 @@ import pandas as pd
 
 from svcore import study as studies
 from svcore.sweep.columns import describe
+from svcore.formula import FormulaError, margin_of, split_and
 from svcore.sweep.derived import DerivedError, row_formula
 from svcore.sweep.io import read_any
 
@@ -177,26 +177,15 @@ def load_tables(s: studies.Study, frames: Optional[Dict[str, pd.DataFrame]] = No
 # ------------------------------------------------------------------ expressions: pass masks and margins
 
 def _parts(expr: str) -> List[str]:
-    """A constraint split at its top-level `and` (each part reported on its own when it fails)."""
+    """A constraint split at its top-level `and` (each part reported on its own when it fails) - parsed and checked by
+    the one whitelist (svcore/formula.py)."""
     try:
-        tree = ast.parse(expr.strip(), mode="eval").body
-    except SyntaxError as e:
-        raise StudyError(f"Constraint '{expr}': {e.msg}.") from None
-    if isinstance(tree, ast.BoolOp) and isinstance(tree.op, ast.And):
-        return [ast.unparse(v) for v in tree.values]
-    return [expr.strip()]
+        return split_and(expr)
+    except FormulaError as e:
+        raise StudyError(f"Constraint '{expr}': {e}.") from None
 
 
-def _margin_expr(part: str) -> Optional[str]:
-    """For `a < b` / `a > b` (and <=, >=): an expression whose positive value is by how much it is broken."""
-    tree = ast.parse(part, mode="eval").body
-    if isinstance(tree, ast.Compare) and len(tree.ops) == 1:
-        lhs, rhs = ast.unparse(tree.left), ast.unparse(tree.comparators[0])
-        if isinstance(tree.ops[0], (ast.Lt, ast.LtE)):
-            return f"({lhs}) - ({rhs})"
-        if isinstance(tree.ops[0], (ast.Gt, ast.GtE)):
-            return f"({rhs}) - ({lhs})"
-    return None
+_margin_expr = margin_of
 
 
 def _eval(df: pd.DataFrame, expr: str, what: str) -> np.ndarray:
