@@ -399,7 +399,7 @@ shown change together – on the axis, in the list, in the legend – and it can
   checked (the log's own check, Compare's verdict, the investigation), what it shows and the conclusion –
   write the conclusion in *Summary* (the panel reminds you when it is empty). **The HTML report is one live page**: a time bar at the bottom moves every
   plot's cursor, the map and the 3D view together, with Play and the log's marks, while each plot keeps its
-  own zoom and statistics. The 3D view is in it live (turn, zoom, the camera *Free · Around it · Behind it* on an
+  own zoom and statistics. The 3D view is in it live (turn, zoom, the camera *Free · On the object* on an
   object; *Closest in* goes to that moment; a *Trail* of the last seconds; an attitude indicator; where the browser has no 3D graphics, its picture), and the map and the 3D
   view have the same buttons and the same relation box as in the app (hide it with *Relation*); in PDF and Word every plot, the map and the 3D view are pictures. A plot that
   cannot go into a report (a video, occurrences) is listed greyed with the reason.

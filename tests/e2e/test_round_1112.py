@@ -242,9 +242,9 @@ def _tabor_page(env, tmp_path, camera=None, replay=None):
 
 
 def test_the_wow_in_the_3d_page(env, tmp_path, gl_browser):
-    """P9: the 3D page - the sun of the scene, drop lines and the last 10 s, flights, the cockpit (70°, its own
-    model hidden), the flight display (off in General, on in Chase / Cockpit), the mini-map, the error surface
-    between truth and nav (one vehicle: p95 near 6 m)."""
+    """P9: the 3D page - the sun of the scene, drop lines and the last 10 s, flights, On the object down to
+    sitting on it (its own model hidden), the flight display (off by default, its toggle), the mini-map, the
+    error surface between truth and nav (one vehicle: p95 near 6 m)."""
     path, _r = _tabor_page(env, tmp_path)
     ctx = gl_browser.new_context(viewport={"width": 1300, "height": 800})
     page = ctx.new_page()
@@ -253,20 +253,23 @@ def test_the_wow_in_the_3d_page(env, tmp_path, gl_browser):
     w = lambda: page.evaluate("window.__scene.state.wow")                     # noqa: E731
     s = w()
     assert s["sun"]["el"] > 8 and not s["sun"]["dated"]
-    assert s["drop"] and s["recent"] and not s["display"] and not s["mini"] and not s["cockpit"]
+    assert s["drop"] and s["recent"] and not s["display"] and not s["mini"] and not s["sitting"]
     assert s["errorSurface"]["shown"] and 4.5 < s["errorSurface"]["p95"] < 7.5 and s["errorSurface"]["median"] < 20
     page.click("#fit")
     assert page.evaluate("window.__scene.state.wow.gliding")                  # Fit flies there
-    page.locator('#cam [data-cam="close"]').click()
-    page.wait_for_timeout(1500)
-    s = w()
-    assert s["display"] and s["mini"]
-    page.locator('#cam [data-cam="cockpit"]').click()
-    page.wait_for_function("window.__scene.state.wow.cockpit && window.__scene.state.wow.fov === 70")   # under load it takes a moment
-    s = w()
-    assert s["cockpit"] and s["fov"] == 70 and s["display"]
+    page.locator('#cam [data-cam="centre"]').click()
+    page.wait_for_function("window.__scene.state.wow.mini && !window.__scene.state.wow.gliding")
+    assert not w()["display"]
+    # the wheel goes towards the object, all the way to sitting on it
+    b = page.locator("#gl").bounding_box()
+    page.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2)
+    for _ in range(30):
+        page.mouse.wheel(0, -500)
+    page.wait_for_function("window.__scene.state.wow.sitting && window.__scene.state.camDist < 2")
     page.click("#disp")
-    page.wait_for_function("!window.__scene.state.wow.display")              # the next frame shows it (no sleep)
+    page.wait_for_function("window.__scene.state.wow.display")               # the next frame shows it (no sleep)
+    page.click("#disp")
+    page.wait_for_function("!window.__scene.state.wow.display")
     page.click("#errs")
     page.wait_for_function("!window.__scene.state.wow.errorSurface.shown")
     ctx.close()

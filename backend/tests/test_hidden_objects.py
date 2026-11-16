@@ -38,18 +38,17 @@ def test_hidden_objects_in_data_pictures_and_pages():
         client.delete(f"/api/runs/{run}")
 
 
-def test_the_map_from_above_is_the_flat_picture_and_the_page_opens_from_above(monkeypatch):
-    """P4: a Map on its From above camera (a 2D-era map) goes out as the flat map picture; the live page opens
-    From above; any other camera is the 3D picture."""
+def test_the_map_is_the_3d_picture_and_the_page_opens_on_its_camera(monkeypatch):
+    """The Map goes out as the 3D picture whatever its camera (From above - the flat picture - is gone, 2026-11-16);
+    the live page opens on the app's camera, Free or On the object ("centre"); an older value is dropped."""
     from app import report
     run = client.post("/api/files/open", json={"paths": [EX]}).json()["opened"][0]["id"]
     try:
         spec = {**_spec(run, set()), "mode": "3d"}
-        monkeypatch.setattr(mapimage, "render", lambda *a, **k: b"FLAT")
         monkeypatch.setattr(scene3d, "render", lambda *a, **k: b"SCENE")
-        assert report.build_image(store, {**spec, "scene": {**spec["scene"], "camera": "top"}}, "png", "light") == b"FLAT"
-        assert report.build_image(store, {**spec, "scene": {**spec["scene"], "camera": "free"}}, "png", "light") == b"SCENE"
-        page = report.build_plot_html(store, {**spec, "scene": {**spec["scene"], "camera": "top"}})
-        assert '"camera":"top"' in page and 'D.camera === "top"' in page
+        for cam in ("free", "centre", "top"):
+            assert report.build_image(store, {**spec, "scene": {**spec["scene"], "camera": cam}}, "png", "light") == b"SCENE"
+        assert '"camera":"centre"' in report.build_plot_html(store, {**spec, "scene": {**spec["scene"], "camera": "centre"}})
+        assert '"camera":null' in report.build_plot_html(store, {**spec, "scene": {**spec["scene"], "camera": "top"}})
     finally:
         client.delete(f"/api/runs/{run}")

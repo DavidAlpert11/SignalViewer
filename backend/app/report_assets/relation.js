@@ -109,15 +109,17 @@ function svToolbar(S, objs, start, set) {
   if ($("rel")) $("rel").textContent = S.relation;
   if ($("slider")) $("slider").setAttribute("aria-label", S.time);
   const cams = Array.prototype.slice.call(document.querySelectorAll("#cam button"));
-  const label = { free: S.camFree, top: S.top, centre: S.camCentre, close: S.camClose, cockpit: S.camCockpit },
-    hint = { free: S.camFreeHint, top: S.camTopHint, centre: S.camCentreHint, close: S.camCloseHint, cockpit: S.camCockpitHint };
+  // the app's two cameras: Free · On the object ("centre")
+  const label = { free: S.camFree, centre: S.camCentre }, hint = { free: S.camFreeHint, centre: S.camCentreHint };
   cams.forEach(function (b) { b.textContent = label[b.dataset.cam]; b.title = hint[b.dataset.cam]; });
   const sel = $("obj");
   objs.forEach(function (o, i) { const op = document.createElement("option"); op.value = i; op.textContent = o.name; sel.append(op); });
   sel.value = String(start.obj);
   const h = svHash.read();
   const modes = cams.map(function (b) { return b.dataset.cam; });
-  const st = { mode: modes.indexOf(h.cam) >= 0 ? h.cam : start.mode, obj: h.obj !== undefined && objs[+h.obj] ? +h.obj : start.obj };
+  // a link made with an earlier page: Behind it / Cockpit were on the object, From above was not
+  const hc = h.cam === "close" || h.cam === "cockpit" ? "centre" : h.cam === "top" ? "free" : h.cam;
+  const st = { mode: modes.indexOf(hc) >= 0 ? hc : start.mode, obj: h.obj !== undefined && objs[+h.obj] ? +h.obj : start.obj };
   sel.value = String(st.obj);
   const show = function () { cams.forEach(function (b) { const on = b.dataset.cam === st.mode; b.classList.toggle("on", on); b.setAttribute("aria-checked", String(on)); }); };
   cams.forEach(function (b) { b.addEventListener("click", function () { st.mode = b.dataset.cam; show(); set(st, true); }); });

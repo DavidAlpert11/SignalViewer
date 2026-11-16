@@ -860,7 +860,10 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   const fitAll = () => { stopAnim(); userView.current = false; const f = fitView(allTracksRef.current(), size.w, size.h); if (f) animateTo(f, 220); };
   const panRef = useRef(panBy); panRef.current = panBy;
   const zoomRef = useRef(zoomBy); zoomRef.current = zoomBy;
-  const fitRef = useRef(fitAll); fitRef.current = fitAll;
+  /** Fit everything (the bar's button, 0, a double-click): every track in view - the camera Free again (a
+   *  camera on the object would pull the view back to it) */
+  const fitFree = () => { if (plot.followObject) actions.updatePlot(plot.id, { followObject: null, camera: undefined }); fitAll(); };
+  const fitRef = useRef(fitFree); fitRef.current = fitFree;
   useEffect(() => {
     const cv = cvRef.current;
     if (!cv) return;
@@ -995,7 +998,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       done();
     } else if (k === "+" || k === "=") { zoomBy(1); done(); }
     else if (k === "-" || k === "_") { zoomBy(-1); done(); }
-    else if (k === "0") { fitAll(); done(); }
+    else if (k === "0") { fitFree(); done(); }
     else if (k.toLowerCase() === "f" && objects.length) { toggleFollow(); done(); }
     else if (k.toLowerCase() === "q" && objects.length > 1) { cyclePrimary(e.shiftKey ? -1 : 1); done(); }
     else if (k.toLowerCase() === "x" && objects.length > 1) { const c = pairOf(plot); if (c.secondary) actions.setObjectPair(plot.id, c.secondary, c.primary); done(); }
@@ -1032,7 +1035,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       {trackUp && <canvas ref={topRef} className="geo-top" style={{ width: size.w, height: size.h }} />}
       {view && (
         objects.length > 0 ? (
-        <MapBar plot={plot} objects={objects} className="geo-bar" objectHint="mapCamObjectHint" onZoom={(d) => zoomBy(d)} onFit={() => { actions.updatePlot(plot.id, { followObject: null, camera: undefined }); fitAll(); }}>
+        <MapBar plot={plot} objects={objects} className="geo-bar" objectHint="mapCamObjectHint" onZoom={(d) => zoomBy(d)} onFit={fitFree}>
           {/* on the object, the map turns with it (Track up: its heading up); the N shows where north is while
               the map is turned, a click turns it back */}
           {(trackUp || plot.followObject) && (

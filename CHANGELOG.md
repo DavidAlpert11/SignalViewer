@@ -2,7 +2,7 @@
 
 ## Next – unreleased
 
-- Changed: **the Map's camera is now just *Free* or *On the object*** (2D and 3D). On the object, the camera stays on it as the replay moves it: drag to turn around it, and the wheel (or + / −) goes nearer or further – always towards the object itself, all the way in to sitting on it and looking wherever you turn. *From above*, *Around it*, *Behind it*, *Cockpit* and *Look at* are gone; a session saved with one of them opens On the object if it followed one, otherwise Free. In the flat drawing the **N** button turns the map with the object (its heading up) and back to north.
+- Changed: **the Map's camera is now just *Free* or *On the object*** (2D and 3D). On the object, the camera stays on it as the replay moves it: drag to turn around it, and the wheel (or + / −) goes nearer or further – always towards the object itself, all the way in to sitting on it and looking wherever you turn. *From above*, *Around it*, *Behind it*, *Cockpit* and *Look at* are gone; a session saved with one of them opens On the object if it followed one, otherwise Free. In the flat drawing the **N** button turns the map with the object (its heading up) and back to north. The HTML report's map pages have the same two cameras. A double-click on the map now fits everything and sets the camera Free (it used to fight the camera that stayed on the object). The flight display starts hidden – turn it on with *Display*.
 - Fixed: zoomed in on the satellite map (2D and 3D), places without imagery at that zoom showed grey *"Map data not yet available"* squares. Such tiles are no longer shown or kept: the closest zoom that has a picture is enlarged instead, and tiles already cached that way are put right the first time they are shown.
 
 ## 1.27.0 – 2026-11-16

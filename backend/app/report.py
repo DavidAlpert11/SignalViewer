@@ -186,20 +186,10 @@ def _scene_data(store, spec: Dict, for_html: bool) -> Dict:
     return out
 
 
-def _top(spec: Dict) -> bool:
-    """P4: the Map on its From above camera (a 2D-era map: the default)."""
-    return ((spec.get("scene") or {}).get("camera") or "") == "top"
-
-
 def _map_picture(store, spec: Dict, sd: Optional[Dict], fmt: str, theme: str, scale: float) -> bytes:
-    """P4: the Map's static picture - From above: the clear flat map (app/mapimage.py); any other camera: the
-    3D scene (app/scene3d.py)."""
-    from app import mapimage, scene3d
-    if _top(spec):
-        try:
-            return mapimage.render(mapimage.map_data(store, spec), fmt, theme, scale)
-        except ValueError:
-            pass
+    """P4: the Map's static picture - the 3D scene (app/scene3d.py). (Its From above camera, drawn as the flat
+    map, is gone: the Map's camera is Free or On the object since 2026-11-16.)"""
+    from app import scene3d
     return scene3d.render(sd if sd is not None else scene3d.scene_data(store, spec), fmt, theme, scale)
 
 

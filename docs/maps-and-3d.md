@@ -85,8 +85,8 @@ cannot go into one file, so the page draws the same data with three.js r159 (MIT
 draped on the bundled terrain (97 × 97 heights over the tracks' box and a margin), each track drawn as the app draws it (a fixed
 width on screen; a navigation solution dashed, a receiver as points), the app's models with heading, pitch
 and roll, heights ×1 / ×2 / ×5. The 2D map's page and the 3D page share one toolbar and one relation box
-(`report_assets/relation.js`, `mappage.css`, the words in `mapimage.PAGE_STRINGS`): the camera *Free · Around it ·
-Behind it* on a chosen object (*Behind it*: behind it, along its heading), + / −, *Fit*, *Trail* (whole / 60 s /
+(`report_assets/relation.js`, `mappage.css`, the words in `mapimage.PAGE_STRINGS`): the camera *Free · On the object*
+on a chosen object (as in the app: a drag turns around it, the wheel goes towards it down to sitting on it), + / −, *Fit*, *Trail* (whole / 60 s /
 20 s), *Relation* (show / hide), light / dark; an attitude indicator in 3D; the address keeps the view
 (`#t=…&cam=…&obj=…`); *Closest in* moves the time (inside a report: the report's time, `replay-seek`); the box is the app's (range, horizontal, Δalt, bearing, relative bearing, closure, closest-in,
 heading Δ) with the pair's rings and a dashed line with the distance. The objects are read as the Tacview export reads them. Where the browser

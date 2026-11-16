@@ -23,7 +23,13 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   `followObject` alone (old `camera` values unchanged in files); Settings: Free · On the object (an old `chase`
   setting reads as On the object). Removed: From above (and its tilt guard and straight-down fit), Behind it, Cockpit,
   Look at, their strings. The flat drawing: the N button turns track up on / off while on an object. Reports send
-  `"centre"` / `"free"`; the offline pages keep their own 5 buttons - **ask the owner** whether to make them two too.
+  `"centre"` / `"free"`. The owner: the offline pages too - done: `scene3d.html` / `map.html` / `relation.js`
+  Free · On the object (On the object: wheel down to 1 m, `sitting()` hides its model within 15 m; the story's close
+  moments glide to 70 m), old `#cam=` links mapped; `report._top` (the flat From above picture) removed - the
+  report's map picture is the 3D scene. A double-click (2D: also 0) fits everything and sets Free (it fought the
+  camera on the object). Gaps found, proposed to the owner (not done): keys for the 3D camera (2D has arrows / + − /
+  F / 0), camera commands in Ctrl+K, a click on an object to put the camera on it, the flight display letting the
+  wheel through so it can be on by default.
 - **2026-11-16 · PLAN_2026-11-17 (the owner approved it) - in progress.** Order R, S1, S2, E1, M1, M3, M2 (plan §6).
   R done: the unreleased 1.27.0 and 1.28.0 are one release, **1.27.0** (CHANGELOG merged under `1.27.0 – unreleased`,
   the version files at 1.27.0, the docs' "1.28" -> "1.27"; history not rewritten). The owner tags v1.27.0 once the
@@ -290,3 +296,6 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   test_globe3d (test_two_cameras, test_on_the_object_down_to_sitting_on_it new; the chase / look-at test removed;
   the 2D-era map test reads Free), test_live_report::test_one_bar, test_map_smooth (track up by the N); e2e run:
   test_globe3d, test_live_report, test_map_objects, test_map_smooth, test_round_1112; quick_check.
+- 2026-11-16 · M7 the offline pages' two cameras + double-click fits Free (see Current state). Tests: test_scene3d,
+  test_hidden_objects (the 3D picture whatever the camera); e2e test_round_1112 (the wow: sitting on it, Display),
+  test_live_report (the page's two cameras); e2e run: test_round_1112, test_live_report, test_globe3d, test_map_smooth.

@@ -242,7 +242,7 @@ def scene_data(store, spec: Dict) -> Dict:
             "story": _story(objs, sc, geo),
             "sun": scene_sun(float(cur) if cur is not None else float(min(float(o["t"][0]) for o in objs)), lat0, lon0),
             "follow": sc.get("follow"), "primary": sc.get("primary"), "secondary": sc.get("secondary"),
-            "camera": sc.get("camera") if sc.get("camera") in ("top", "free", "centre", "chase", "lookat", "cockpit") else None}
+            "camera": sc.get("camera") if sc.get("camera") in ("free", "centre") else None}
 
 
 # ---- the picture ----------------------------------------------------------------------------------

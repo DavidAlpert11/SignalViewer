@@ -1198,6 +1198,8 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   const showBox = plot.showReadout !== false;
   const secondaryName = plot.relHidden ? null : objects.find((o) => o.id === pairOf(plot).secondary)?.name;
   const reFit = () => { scene3.current.fitted = false; setTracks((x) => ({ ...x })); };
+  /** Fit everything (the bar's button, a double-click): the camera Free again, every track in view */
+  const fitFree = () => { if (plot.followObject) actions.updatePlot(plot.id, { followObject: null, camera: undefined }); reFit(); };
   /** + / − of the map bar: towards / away from what the camera is on (the followed object, else the ground) */
   const zoom3d = (dir: 1 | -1) => {
     const w = widgetRef.current, cz0 = cz;
@@ -1214,7 +1216,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   useEffect(() => { if (failed) onFlat?.(failed); }, [failed]);   // eslint-disable-line react-hooks/exhaustive-deps
   if (failed) return null;
   return (
-    <div ref={rootRef} className={`globe3d${detached ? " own-time" : ""}`} onDoubleClick={reFit} tabIndex={-1} onKeyDown={onKey}
+    <div ref={rootRef} className={`globe3d${detached ? " own-time" : ""}`} onDoubleClick={fitFree} tabIndex={-1} onKeyDown={onKey}
       onPointerDownCapture={(e) => { if (!(e.target as HTMLElement).closest("button, select, input, a")) rootRef.current?.focus({ preventScroll: true }); }}>
       <div ref={hostRef} className="globe3d-host" />
       <div ref={creditRef} className="globe3d-credits" />
@@ -1223,7 +1225,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
       {/* the camera, the primary object and the related ones, the data box */}
       {cz && objects.length > 0 && (
         <MapBar plot={plot} objects={objects} className="globe3d-bar" objectHint="g3CamObjectHint" onZoom={zoom3d}
-          onFit={() => { actions.updatePlot(plot.id, { followObject: null, camera: undefined }); reFit(); }}>
+          onFit={fitFree}>
           {objects.length > 2 && (() => {
             // a third object: a second dashed line from the reference (the compared one is chosen in the picker)
             const sec = pairOf(plot).secondary;

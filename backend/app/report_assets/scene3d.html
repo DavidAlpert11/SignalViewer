@@ -18,7 +18,7 @@
 <body>
 <header>
   <h1 id="title"></h1>
-  <span class="seg" id="cam" role="radiogroup"><span id="camT"></span><button data-cam="free" role="radio"></button><button data-cam="top" role="radio"></button><button data-cam="centre" role="radio"></button><button data-cam="close" role="radio"></button><button data-cam="cockpit" role="radio"></button></span>
+  <span class="seg" id="cam" role="radiogroup"><span id="camT"></span><button data-cam="free" role="radio"></button><button data-cam="centre" role="radio"></button></span>
   <label><span id="objT"></span><select id="obj"></select></label>
   <button id="disp" aria-pressed="false"></button><button id="errs" aria-pressed="true" hidden></button>
   <button id="zin">+</button><button id="zout">−</button><button id="fit">⤢</button>
@@ -64,9 +64,9 @@ rel.onShow = (on) => { $("rel").setAttribute("aria-pressed", String(on)); need()
 $("rel").onclick = () => rel.show(!rel.shown());
 const followIdx = D.objects.findIndex((o) => o.name === D.follow);
 let onCam = () => {};
-const follows = () => cam.st.mode !== "free" && cam.st.mode !== "top";   // From above never follows an object (as in the app)
-// the app's cameras (M6): Free · From above · Around it · Behind it (the page's "close") · Cockpit
-const startMode = D.camera === "top" ? "top" : followIdx < 0 ? "free" : D.camera === "chase" ? "close" : D.camera === "cockpit" ? "cockpit" : "centre";
+const follows = () => cam.st.mode !== "free";
+// the app's two cameras (2026-11-16): Free · On the object (the page's "centre")
+const startMode = followIdx < 0 || D.camera === "free" ? "free" : "centre";
 const cam = svToolbar(S, D.objects, { mode: startMode, obj: followIdx >= 0 ? followIdx : rel.pair.p }, (st, user) => onCam(st, user));
 $("help").textContent = S.help3d;
 let state = () => ({ t: Number(slider.value), gl: false, objects: [] });
@@ -250,7 +250,7 @@ if (!webgl()) {
   const setTracks = () => { setPlaces(); for (const ob of objs) { const o = ob.o, pts = o.t.map((_, i) => [o.e[i], o.u[i] * ex, -o.n[i]]); setLine(ob.line, pts); setLine(ob.recent, pts); } buildErr(); };
   setTracks();
   // ---- the camera: orbit around a target (drag), move (right-drag / Shift), zoom (wheel / pinch);
-  // Centre keeps the chosen object in the middle, Close sits behind it looking where it goes
+  // On the object keeps it in the middle - the wheel goes towards it down to a metre, sitting on it
   const target = new T.Vector3(), sph = { r: 1000, th: -0.7, ph: 0.95 };
   let followOff = new T.Vector3();
   /* P9: the one camera flight of the page - every change of camera eases there over ~1.2 s (the orbit's
@@ -284,11 +284,8 @@ if (!webgl()) {
   let fitted = false;
   onCam = (st, user) => {
     followOff.set(0, 0, 0);
-    if (user && st.mode === "close") glideTo({ r: 70, ph: 1.32, free: false });
-    else if (user && st.mode === "centre") glideTo({ r: Math.min(sph.r, 1500), free: false });
+    if (user && st.mode === "centre") glideTo({ r: Math.min(sph.r, 1500), free: false });
     else if (user && st.mode === "free") glideTo({});
-    else if (user && st.mode === "top") glideTo({ ph: 0.03, th: 0 });             // straight down, north up; follows nothing
-    showDisplay(st.mode);
     need();
   };
   /* P9: the error, drawn - when the pair is the same vehicle (median distance under 20 m: truth and a
@@ -325,24 +322,15 @@ if (!webgl()) {
     errMesh.renderOrder = 3; scene.add(errMesh);
   }
   if (follows()) sph.r = 1500;
+  const sitting = () => (follows() && sph.r < 15 && followOff.lengthSq() < 1 ? objs[cam.st.obj] || null : null);
   const place = () => {
     glideStep();
-    const ck = cam.st.mode === "cockpit" ? objs[cam.st.obj] : null;
-    camera.fov = ck ? 70 : 45;
-    if (ck) {
-      // P9: the cockpit - at the object, looking along its heading and pitch, rolling with it (its own model hidden)
-      const o = ck.o, k = idxAt(o, Number(slider.value)), yaw = ck.at.yaw * R, pitch = (o.pitch[k] ?? 0) * R, roll = (o.roll[k] ?? 0) * R;
-      camera.position.set(ck.at.x, ck.at.y, ck.at.z);
-      camera.near = 0.5; camera.far = 2e5; camera.updateProjectionMatrix();
-      camera.rotation.order = "YXZ"; camera.rotation.set(pitch, -yaw, -roll);
-      return;
-    }
     if (follows()) {
       const ob = objs[cam.st.obj];
-      if (ob) { target.set(ob.at.x, ob.at.y, ob.at.z).add(followOff); if (cam.st.mode === "close" && !glide) sph.th = -ob.at.yaw * R; }
+      if (ob) target.set(ob.at.x, ob.at.y, ob.at.z).add(followOff);
     }
     camera.position.set(target.x + sph.r * Math.sin(sph.ph) * Math.sin(sph.th), target.y + sph.r * Math.cos(sph.ph), target.z + sph.r * Math.sin(sph.ph) * Math.cos(sph.th));
-    camera.near = Math.max(0.5, sph.r / 2000); camera.far = sph.r * 200 + 1e5; camera.updateProjectionMatrix();
+    camera.near = Math.max(0.1, sph.r / 2000); camera.far = sph.r * 200 + 1e5; camera.updateProjectionMatrix();
     camera.lookAt(target);
   };
   const pts = new Map(); let pinch = null;
@@ -356,13 +344,11 @@ if (!webgl()) {
     const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
     if (pts.size === 2) {
       const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
-      if (pinch) sph.r = Math.max(5, sph.r * pinch / Math.max(d, 1));
+      if (pinch) sph.r = Math.max(1, sph.r * pinch / Math.max(d, 1));
       pinch = d; pan(dx / 2, dy / 2); need(); return;
     }
     if (p.b === 2 || p.sh || e.shiftKey) pan(dx, dy);
-    else { if (cam.st.mode === "close") document.querySelector('#cam [data-cam="centre"]').click();   // turning around it: still on it
-      if (cam.st.mode === "top") cam.free();                                     // turning from above: Free (as tilting in the app)
-      sph.th -= dx * 0.006; sph.ph = Math.min(1.53, Math.max(0.03, sph.ph - dy * 0.006)); }
+    else { sph.th -= dx * 0.006; sph.ph = Math.min(1.53, Math.max(0.03, sph.ph - dy * 0.006)); }
     need();
   });
   function pan(dx, dy) {
@@ -370,7 +356,7 @@ if (!webgl()) {
     const d = r.multiplyScalar(-dx * k).add(f.multiplyScalar(dy * k));
     if (follows()) followOff.add(d); else target.add(d);
   }
-  const zoom = (k) => { sph.r = Math.max(5, sph.r * k); need(); };
+  const zoom = (k) => { sph.r = Math.max(follows() ? 1 : 5, sph.r * k); need(); };   // on the object: down to sitting on it
   canvas.addEventListener("wheel", (e) => { e.preventDefault(); zoom(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
   $("zin").onclick = () => zoom(0.6);
   $("zout").onclick = () => zoom(1 / 0.6);
@@ -393,8 +379,9 @@ if (!webgl()) {
       if (trail.sec) { const k0 = idxAt(o, t - trail.sec); ob.line.setDrawRange(6 * k0, 6 * Math.max(0, k - k0)); }
       else ob.line.setDrawRange(0, Infinity);
       if (lg.hidden(objs.indexOf(ob))) ob.visible = false;           // P6: hidden in the legend
-      // the cockpit: not its own model, nor one within 20 m (a solution of the same vehicle would fill the view)
-      const ckOb = cam.st.mode === "cockpit" ? objs[cam.st.obj] : null;
+      // sitting on the object (within 15 m of it): not its own model, nor one within 20 m (a solution of the same
+      // vehicle would fill the view)
+      const ckOb = sitting();
       ob.body.visible = ob.visible && !(ckOb && (ckOb === ob || Math.hypot(ckOb.at.x - ob.at.x, ckOb.at.y - ob.at.y, ckOb.at.z - ob.at.z) < 20));
       ob.mesh.visible = !lg.hidden(objs.indexOf(ob));
       const g = L(o.g) * ex;
@@ -445,13 +432,12 @@ if (!webgl()) {
     const put = (cls, x, y, text) => { const d = document.createElement("div"); d.className = cls; d.style.left = x + "px"; d.style.top = y + "px"; if (text) d.textContent = text; labels.append(d); return d; };
     for (const q of places) { const p = q.p, k = Math.floor(p.e.length / 2), s = toScreen(p.e[k], p.u[k] * ex + (p.kind === "point" ? POLE : 0), -p.n[k]);
       if (s[2] < 1) svPlaceTag(labels, s[0], s[1], p); }
-    const scr = objs.map((ob) => toScreen(ob.at.x, ob.at.y, ob.at.z));
+    const scr = objs.map((ob) => toScreen(ob.at.x, ob.at.y, ob.at.z)), sitOn = sitting();
     objs.forEach((ob, i) => {
       const d = camera.position.distanceTo(ob.body.position);
-      const near = cam.st.mode === "close" && i === cam.st.obj ? 3 : 1;    // Close: the followed one large in front of you
-      ob.body.scale.setScalar(Math.max(0.5, ob.size * 1.1 * near * px * d));     // a model keeps its size on screen
+      ob.body.scale.setScalar(Math.max(0.5, ob.size * 1.1 * px * d));     // a model keeps its size on screen
       ob.disc.scale.setScalar(Math.max(0.5, ob.size * 0.6 * px * camera.position.distanceTo(ob.disc.position)));
-      const mine = cam.st.mode === "cockpit" && i === cam.st.obj;      // in the cockpit: no name on yourself
+      const mine = sitOn === ob;                                         // sitting on it: no name on yourself
       if (ob.visible && scr[i][2] < 1 && D.names !== false && !mine && d > 1) put("lab", scr[i][0], scr[i][1], ob.o.name);
     });
     const showRel = rel.el && rel.shown() && !lg.hidden(rel.pair.p) && !lg.hidden(rel.pair.s);
@@ -460,7 +446,7 @@ if (!webgl()) {
       const a = objs[rel.pair.p], b = objs[rel.pair.s];
       setLine(linkGeo, [[a.at.x, a.at.y, a.at.z], [b.at.x, b.at.y, b.at.z]]);
       const sa = scr[rel.pair.p], sb = scr[rel.pair.s];
-      const ck = cam.st.mode === "cockpit" ? cam.st.obj : -1;
+      const ck = sitOn ? cam.st.obj : -1;
       if (sa[2] < 1 && rel.pair.p !== ck) put("ring", sa[0], sa[1]);
       if (sb[2] < 1 && rel.pair.s !== ck) put("ring s", sb[0], sb[1]);
       rel.update(Number(slider.value));
@@ -481,10 +467,10 @@ if (!webgl()) {
   const adiCv = $("adi"), ac = adiCv.getContext("2d");
   /* P9: the flight display of the object the camera is on (the app draws the same): the attitude indicator,
      a ground-speed tape on its left, an altitude tape (and the height above ground) on its right, the heading */
-  let dispOn = false, dispSet = false;
-  function showDisplay(mode) { if (!dispSet) dispOn = mode === "close" || mode === "cockpit"; $("adi").hidden = !dispOn; $("disp").setAttribute("aria-pressed", String(dispOn)); }
+  let dispOn = false;                                  // off by default, as in the app (it would cover the view's middle)
+  function showDisplay() { $("adi").hidden = !dispOn; $("disp").setAttribute("aria-pressed", String(dispOn)); }
   $("disp").textContent = S.display; $("disp").title = S.displayHint;
-  $("disp").onclick = () => { dispSet = true; dispOn = !dispOn; showDisplay(cam.st.mode); need(); };
+  $("disp").onclick = () => { dispOn = !dispOn; showDisplay(); need(); };
   $("errs").textContent = S.errs; $("errs").title = S.errsHint;
   $("errs").onclick = () => { errOn = !errOn; need(); };
   const tape = (x, w, v, step, unit, label, sub) => {
@@ -567,19 +553,17 @@ if (!webgl()) {
   need = () => { if (!dirty) { dirty = true; requestAnimationFrame(frame); } };
   draw = need;
   state = () => ({ camObj: objs[cam.st.obj] ? objs[cam.st.obj].o.name : null, wow: { sun: D.sun || null, drop: objs.some((ob) => ob.drop.visible), recent: objs.some((ob) => ob.recentMesh.visible), gliding: !!glide,
-      cockpit: cam.st.mode === "cockpit", fov: camera.fov, display: dispOn && !$("adi").hidden, mini: !miniCv.hidden, errorSurface: errInfo ? { shown: !!(errMesh && errMesh.visible), p95: errInfo.p95, median: errInfo.median } : null },
+      sitting: !!sitting(), fov: camera.fov, display: dispOn && !$("adi").hidden, mini: !miniCv.hidden, errorSurface: errInfo ? { shown: !!(errMesh && errMesh.visible), p95: errInfo.p95, median: errInfo.median } : null },
     grounds: grounds.length, fog: !!scene.fog, t: Number(slider.value), gl: true, trail: trail.sec, cam: cam.st.mode, camDist: sph.r, objects: objs.map((ob) => ({ name: ob.o.name, x: ob.at.x, up: ob.at.y / ex, north: -ob.at.z, t: ob.at.t })) });
   $("ex").addEventListener("change", () => { ex = Number($("ex").value) || 1; setGround(); setFar(); setTracks(); need(); });
   $("fit").onclick = () => { cam.free(); fit(); };
-  if (cam.st.mode === "top") glideTo({ ph: 0.03, th: 0 });   // P4: the Map's camera in the app was From above
   addEventListener("resize", need);
   fit(); update();
   if (follows()) sph.r = 1500;
-  if (cam.st.mode === "close") { sph.r = 70; sph.ph = 1.32; }      // opened from a link on Chase
-  showDisplay(cam.st.mode);
+  showDisplay();
   window.__scene.glideTo = glideTo;                                // P10: the story flies the camera
-  // P10: a Story moment flies to its object - On the object at ~400 m, or Chase when close; at the end the
-  // reader's own camera comes back (unless they stayed on a moment)
+  // P10: a Story moment flies to its object - On the object at ~400 m, close (70 m, low) for a bank, an error,
+  // a takeoff or a landing; at the end the reader's own camera comes back (unless they stayed on a moment)
   let saved = null;
   window.__scene.focus = (f, keep) => {
     if (f) {
@@ -587,12 +571,12 @@ if (!webgl()) {
       if (i < 0) return;
       if (!saved) saved = { mode: cam.st.mode, obj: cam.st.obj, r: sph.r, th: sph.th, ph: sph.ph, x: target.x, y: target.y, z: target.z };
       followOff.set(0, 0, 0);
-      cam.to(f.close ? "close" : "centre", i); showDisplay(cam.st.mode);
+      cam.to("centre", i);
       glideTo(f.close ? { r: 70, ph: 1.32, free: false } : { r: 400, ph: 1.0, free: false });
     } else if (saved) {
       const s0 = saved; saved = null;
       if (keep) return;
-      cam.to(s0.mode, s0.obj); showDisplay(s0.mode);
+      cam.to(s0.mode, s0.obj);
       glideTo({ r: s0.r, th: s0.th, ph: s0.ph, x: s0.x, y: s0.y, z: s0.z, free: s0.mode === "free" });
     }
     need();

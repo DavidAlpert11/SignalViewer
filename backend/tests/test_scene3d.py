@@ -147,14 +147,15 @@ def test_both_pages_share_the_toolbar_and_the_relation_box(rid):
     p3 = scene3d.build_html(scene3d.scene_data(store, sp), "light", "en")
     p2 = mapimage.build_html(mapimage.map_data(store, {**sp, "mode": "geo"}), "light", lang="he")
     for page in (p2, p3):
-        for ident in ('id="cam"', 'data-cam="close"', 'id="obj"', 'id="zin"', 'id="zout"', 'id="fit"', 'id="rel"', 'id="theme"'):
+        for ident in ('id="cam"', 'data-cam="centre"', 'id="obj"', 'id="zin"', 'id="zout"', 'id="fit"', 'id="rel"', 'id="theme"'):
             assert ident in page, ident
         assert "function svRelation" in page and ".svrel" in page and "/*__" not in page
+        assert page.count("data-cam=") == 2                                          # the app's two cameras
     d3 = json.loads(re.search(r"const D = (\{.*?\});\n", p3, re.S).group(1))
     d2 = json.loads(re.search(r"const D = (\{.*?\});\n", p2, re.S).group(1))
     assert d3["pair"] == d2["pair"] == {"primary": "GPS[0]", "secondary": "POS"}
     assert [o["track"] for o in d3["objects"]] == [o["track"] for o in d2["objects"]] == [None, "points"]
-    assert d2["S"]["camClose"] == "מאחוריו" and d3["S"]["camClose"] == "Behind it"     # the app's words (g3CamChase, M6)
+    assert d2["S"]["camCentre"] == "על האובייקט" and d3["S"]["camCentre"] == "On the object"     # the app's words (g3CamObject)
 
 
 def test_sun_where_it_was():
@@ -175,5 +176,5 @@ def test_scene_page_has_its_sun_and_wow(rid):
     sd = scene3d.scene_data(store, spec3d(rid))
     assert set(sd["sun"]) == {"az", "el", "dated"}
     html = scene3d.build_html(sd, "light", "en", fallback_png=b"x")
-    for k in ('data-cam="cockpit"', 'id="disp"', 'id="errs"', 'id="mini"', "glideTo", '"sun":'):
+    for k in ('data-cam="centre"', 'id="disp"', 'id="errs"', 'id="mini"', "glideTo", '"sun":'):
         assert k in html, k

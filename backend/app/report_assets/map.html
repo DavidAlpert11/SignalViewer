@@ -10,7 +10,7 @@
 <body>
 <header>
   <h1 id="title"></h1>
-  <span class="seg" id="cam" role="radiogroup"><span id="camT"></span><button data-cam="free" role="radio"></button><button data-cam="centre" role="radio"></button><button data-cam="close" role="radio"></button></span>
+  <span class="seg" id="cam" role="radiogroup"><span id="camT"></span><button data-cam="free" role="radio"></button><button data-cam="centre" role="radio"></button></span>
   <label><span id="objT"></span><select id="obj"></select></label>
   <button id="zin">+</button><button id="zout">−</button><button id="fit">⤢</button>
   <label><span id="trailT"></span><select id="trail"></select></label>
@@ -64,10 +64,7 @@ const trail = svTrail(S, () => draw());
 if (!rel.el) $("rel").hidden = true;
 rel.onShow = (on) => { $("rel").setAttribute("aria-pressed", String(on)); };
 $("rel").onclick = () => rel.show(!rel.shown());
-const cam = svToolbar(S, objs, { mode: "free", obj: rel.pair.p }, (st, user) => {
-  if (user && st.mode === "close") { const W = cv.clientWidth || 800, k = TILE * 2 ** 0; view.z = Math.log2(W / (900 / (40075016.686 * Math.cos(lat0 * Math.PI / 180))) / k); }
-  draw();
-});
+const cam = svToolbar(S, objs, { mode: "free", obj: rel.pair.p }, () => draw());
 function draw() {
   svHash.write(slider.value, cam.st);
   const W = cv.clientWidth, H = cv.clientHeight, r = devicePixelRatio || 1;
