@@ -262,7 +262,7 @@ def test_the_wow_in_the_3d_page(env, tmp_path, gl_browser):
     s = w()
     assert s["display"] and s["mini"]
     page.locator('#cam [data-cam="cockpit"]').click()
-    page.wait_for_timeout(300)
+    page.wait_for_function("window.__scene.state.wow.cockpit && window.__scene.state.wow.fov === 70")   # under load it takes a moment
     s = w()
     assert s["cockpit"] and s["fov"] == 70 and s["display"]
     page.click("#disp")

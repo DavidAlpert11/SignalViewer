@@ -13,13 +13,14 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 
 ## Current state
 
-- **2026-11-16 · Sweeps as one flow (PLAN_2026-11-16 §7a) - in progress.** Done: one stepper for every study (Data ·
+- **2026-11-16 · Sweeps as one flow (PLAN_2026-11-16 §7a) - done.** Done: one stepper for every study (Data ·
   Columns · Goal · Results · Next runs; `sweeps/flow.ts`, `FlowNav.tsx`); the tables' column (Navigator) only in Data,
   resizable, a labelled *Remove from the study* with Undo; Next runs = the proposal + *Run from the app* (`NextStep.tsx`,
   `RunPanel.tsx` - the Run column is gone, *How to run* moved there from Set up); the systems together = a tab of
   Results. §7b file dialog done: New folder, Rename (F2), Delete (Del, to the recycle bin - `app/trash.py`, no new
   dependency), only in the user's own folders. The 404 on /api/object_track fixed (a map asked for a closed file's
-  track). Next: the stability round (quick_check, the whole e2e suite with xdist + measure_e2e_memory, build, CHANGELOG).
+  track). Stability round done: quick_check green; the whole e2e suite (4 workers, xdist) - 2 timing failures under
+  load, both green alone (one wait made state-based); UI built. **1.28.0 is ready for the owner to tag.**
 - **2026-11-16 · main is not stable (owner): Out of Memory, the 3D map's "Fragment shader failed to compile", slow
   maps.** Findings, numbers and plan: `docs/dev/PLAN_2026-11-16.md`. Found: every closed 3D map kept its WebGL
   context alive (Cesium's static index-buffer cache) up to 16 - fixed in `Globe3D.tsx` (contexts released, render
@@ -150,3 +151,10 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   that file's track (the runs changed before the plot unmounted). `positionOpen` skips objects whose position is not
   in an open file (GeoChart, Globe3D). measure_maps --cycles 1: 6 console messages (the 404s) before, 0 after. Vitest
   mapObjects; e2e test_map_memory, test_map_objects, test_globe3d - 26 green.
+- 2026-11-16 · Stability round: quick_check green (a radius token fixed). The whole e2e suite with pytest-xdist
+  (`-n 4 --dist loadfile`, added to requirements-dev) under measure_e2e_memory: all green except two timing failures
+  under the 4-worker load (test_flat_line_solo::test_comparison_lines_wear_their_object, test_round_1112::
+  test_the_wow_in_the_3d_page) - both green alone; the 3D one now waits on the state, not 300 ms. Memory: pytest
+  123 MB, servers peak 2.5 GB, browsers peak 7.0 GB (4 workers at once), back to 1.7 GB at the end - no steady
+  climb. Lesson: warm the UI build first (`python run.py --build`) - after a UI edit each worker built it at once
+  and the machine ran out of memory. frontend/dist rebuilt.
