@@ -13,74 +13,26 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 
 ## Current state
 
-- **2026-11-16 · Milestone 34 - the window back to the data, one way for each thing (the owner's review of
-  2026-11-16) - in progress.** Specs: ROADMAP M34. No features this round; SW2 (b) is not started; the version is not
-  updated (the owner tags). Order FR1..FR8; FR9-FR12 are the owner's decisions - asked, not coded.
+What is open, in order (the finished history is in the Log and in git: `git show 05f5ed0:docs/dev/TASKS.md`).
 
-  | Task | What | Status | Next step |
-  |---|---|---|---|
-  | FR1 | Plots take the window (>= 35 % of it on the ArduPilot demo) | done - 36.3 % (with FR2) | - |
-  | FR2 | One row above the plots (first curve <= 200 px from the top) | done - first curve at 184 px | - |
-  | FR3 | Cursor labels off the curve; double-click plots once | done | - |
-  | FR4 | One colour rule for two runs (the file's colour) | done | - |
-  | FR5 | A folder of recordings reads as recordings | done | - |
-  | FR6 | Sweeps: the answer in words, three equal starts | done | - |
-  | FR7 | One formula evaluator (svcore/formula.py owns the whitelist) | done | - |
-  | FR8 | This section as a table of at most 30 lines | open | after FR7 |
-  | FR9-FR12 | CI on push; dist / site out of git; six welcome cards; e2e files renamed | ask the owner | - |
+| Task | Status | Next step |
+|---|---|---|
+| M34 FR1-FR8 - the window back to the data (ROADMAP M34) | done, on main | the end of the round, below |
+| M34 end of round | in progress | `npm run build`, the whole e2e suite, quick_check; the Log names the e2e run |
+| M34 FR9 - quick_check + the short e2e list in CI on every push | asks the owner | his yes / no (today CI is manual) |
+| M34 FR10 - `frontend/dist` and `site/` out of git, built in the release job | asks the owner | his yes / no (installer, pip, CLAUDE.md's lane rule change) |
+| M34 FR11 - welcome cards 11 -> 6, the rest under Help -> Examples | asks the owner | his yes / no, and which six |
+| M34 FR12 - e2e files named by feature, not by round | asks the owner | his yes / no (`test_release_1_21`, `test_round_1112`, `test_owner_notes_1_20`) |
+| Release 1.28.0 (with SF1; M34 is "Next - unreleased") | ready, not tagged | the owner tags; the version is not updated here |
+| SW2 (b) - Run again with recording | spec agreed in parts | the owner's final yes on "Open specs" below - do not implement before |
+| BR1 - the app as one process (README, docs home, welcome groups) | proposed | the owner's yes on the wording below |
+| Stability on Windows with a GPU (Out of Memory, the 3D shader) | waiting for numbers | the owner runs `tools/measure_maps.py --gpu`; the e2e suite's memory |
+| Films in Hebrew + a narration script; GitHub About texts | offered / with the owner | his choice; he pastes the About texts |
+| Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
 
-- **2026-11-16 · Milestone 33 - clear to a human (owner: "fix everything you think helps a human understand and
-  benefit") - in progress.** From the fresh review (`docs/dev/REVIEW_2026-11-16.md`). Order RV1..RV7 (ROADMAP M33).
-  RV1 done: a drag on a time plot zooms by its direction - `chartUtil.dragUni` sets uPlot's `drag.uni` during the drag
-  to 0.4 × the longer side (within ~22° of an axis = that axis only; diagonal = a box); Shift = values only, Ctrl =
-  always a box; the wheel zooms time (value axis / Shift: values); pan moves time, and the values once they are
-  zoomed. `zoomMode` (state, actions, StageBar menu, Z, Ctrl+K x3, Help row) removed; an old session's `ui.zoomMode`
-  is ignored. The link button reads *Link time* (always visible), not "X". Touches: TimeChart.tsx, StageBar.tsx,
-  CommandPalette.tsx, shortcuts.ts, Help.tsx, files.ts, App.tsx, store view slice / actions / types, i18n plots /
-  flightlog, docs/features.md.
-  RV2 done: `GET /api/runs/{id}/checks-file` runs the checks file kept with the recording (`<name>.checks.json`, else
-  the folder's `checks.json`; `app.checks.checks_file_for`) through the CLI's `run_checks` on the open run (new
-  optional `store, run_id`); a file none of whose checks find their signals is not shown. `ChecksView.useChecksFile`
-  (+ `checksFileCounts`): a *Checks file* card in Checks, counted in the verdict and in the strip's pill; the pill says
-  *No limits set* / *none failed* / *n failed* by what was checked. Touches: app/checks.py (CLI unchanged), routes/files.py,
-  api.ts, ChecksView.tsx, OverviewStrip.tsx, i18n flightlog / plots.
-  RV3 done: `.run-name` min-width min(9ch, 45%); the row's reload / ⋯ in `.run-acts` (width 0 until hover - an
-  overlay hid the amber *newer* time under them); `.badge-fmt` hidden below a 380 px list (container query); the
-  header count reads *n signals* (the word hidden below 330 px). DataPanel.tsx, index.css, i18n signals.
-  RV4 done: the *text read as states* notice dropped (files.ts; `textColsRead` removed); a template's *opened* notice
-  2.5 s (templates.ts, TemplateLibrary.tsx). The dock's place (bottom-left, with the start card) unchanged.
-  RV5 done: a demo's line above the plots (`demoGuide.ts` DEMO_STEPS + `DemoGuide.tsx`, UI state `demoGuide`; set by
-  `Welcome.openExample` once `openPaths` - which now returns the opened ids and, with autoView, waits for the view -
-  is done): text + one button per demo (sim: `syncSuggest` best offset -> `applySyncOffset`; investigate: cursors
-  38.4-39.3 + Investigate; Compare / Checks / Play). twoFlights: *Position on the map* over every file (the objects
-  generator bound to `*all` = a slot per file, objects named "<name> · <file>") as the first tab. The start card no
-  longer offers a template made for other formats (the CSV flight got "ArduPilot · Flight on the map") - its own
-  Position on the map instead. Card text of simVsFlight: "align their time in one click". Touches: templates.ts
-  (objectTabs takes files), smartStart.ts, files.ts (openPaths' return), Welcome.tsx, App.tsx, ui slice, i18n welcome /
-  templates, index.css.
-  SW1 (owner, between RV5 and RV6) done: the sweep wrapper - `examples/smart_sweep_demo/sweep_wrapper.py` (stdlib;
-  `--spec` name: values lines with MATLAB ranges / `--inputs` a CSV of rows / `--list` the app's params files; `--sim`
-  "cmd {params}" else sim.py beside it in-process; `--set`, `--out` resumable, `--workers`), `grid.txt`, README;
-  `study wrap <script.py> args` (the Portable has no Python: runs the wrapper in-process); launcher `run_as: "wrapper"`
-  = the round command (round mode) runs on this PC in a background thread; the demo's launcher uses it (was
-  demo-sim per run, local_workers 3). UI: setup.ts parseValues ranges, paramsText / applyParamsText /
-  scenariosText / applyScenariosText (*Write as text* in Set up 1 and 2), RunWhere "wrapper" (RunHow 3 choices +
-  *Put the example wrapper beside the study* -> POST /api/sweeps/study/wrapper; StudyPanel's select uses setRun),
-  scenarios() falls back to demo.scenarios; the demo's About lists the wrapper command, the inputs and the hand run.
-  demo.copy_to also copies .txt / .md. Owner's choices: JSON in, Python wrapper, MATLAB start:step:end, extend the
-  existing demo.
-  **FL1 done (2026-11-16): the Fleet area dropped, from the code and every user doc** (history docs - ROADMAP, REVIEW,
-  older plans, CHANGELOG's released entries - keep their record). A folder of recordings = *Summarize a folder ->
-  Sweeps*: `folderSummary.ts` is the one way in (Runs matrix, Sweeps' Data *From a folder of recordings…* and its Open ▾
-  screen, the welcome card `folderOfFlights` in the Recordings group). The backend uses a folder's `measures.json` when
-  no measures are given (`svcore.summary.folder_measures`, also `cli summarize`); `GET /api/summary/folder` says how many
-  recordings, the first and its measures. Without measures.json the first recording opens with the Runs matrix
-  (`ui.matrixFolder`: a step line, *Summarize <folder>* without asking, *Save measures* writes the folder's
-  measures.json). The Sweeps data table: a tick per row with a recording + *Open n in Recordings* (openPaths autoView:
-  Compare); the table fills the step (`.sw-raw` flex). examples/fleet -> examples/folder_of_flights (+ measures.json:
-  vibration_max, battery_min_V; `{vehicle}_{date}`); its card pictures = the parallel plot. Not done: a chart of
-  vibration by date coloured by vehicle (the parallel plot shows the story; Sweeps' scatter is in Results).
-  **SW2 - the owner (2026-11-16): investigate chosen scenarios from Sweeps without loading everything.** "Many
+## Open specs (waiting for the owner)
+
+- **SW2 - the owner (2026-11-16): investigate chosen scenarios from Sweeps without loading everything.** "Many
   scenarios are run without recording, only a summary row each; to investigate, the interesting ones are run again
   with recording." Two ways from a set / selected rows of a Sweeps table, both on demand only (never load all):
   (a) open their recordings directly when they exist (exists: *Where are the runs' recordings?* / a `recording`
@@ -96,42 +48,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   (one per scenario, compared). One home for the button: the set's details (SetDetail) and the re-run list
   (RerunList: today only Export) - not a third place. en + he, RTL; backend tests for the contract, e2e for the demo.
   **SW2 status:** (a) done by FL1 (the Sweeps data table's ticks + *Open n in Recordings*). **The owner's answers (2026-11-16, chat) for (b):** (1) which runs record is a **rule set in advance**, default *no recording*; (2) a simulation file takes **one run**, the wrapper **a parameter set** - choose accordingly; (3) the re-runs are **chained**, then a notice says a run is **ready to load** (not opened by itself); (4) a re-run whose summary row differs from the original is **loaded as another layer of results**.
-  **SF1 - DONE (2026-11-16, in 1.28.0): Sweeps - one flow, runs sent from a side panel.** What it touched (callers read
-  first): `sweeps/setup.ts` (readiness: params / range / command only; `hasGoal`; setupDone = 3 parts) - callers
-  SetupView, Navigator (✓ n/3), FlowNav (Data's line *Send runs: n of 3*, Next runs' *round 1 is not ready* / *the
-  loop needs a goal*), RunPanel, NextStep; `SetupView` = Send runs (outputs + goal part out; How to run moved in from
-  Next runs; the sticky *Send round 1* card = `loopAction("next")`, Save first; the demo shows parts 1-2 only);
-  `studyStore` (`showStudyFile` - the Navigator's rounds use it too -, `firstResultsIn` after round 1 with no table open,
-  `applyStudyTable` - no output in the study: every other number an output, run_id = id); `RunPanel.LoopGoal` (also
-  above the proposal while the goal is missing, NextRunsView `lead`), LoopSection (Next round / Until converged need a
-  goal - so a goal-less round 1 is sent only from Send runs); SweepsArea's Clear › Everything (closes the study file
-  too, one Undo); NewStudy unchanged (its hint text). Old studies: outputs / goal stay in the file; the goal is shown in
-  Next runs. Docs: GUIDE en + he, features, common-gains, smart-sweep-demo en + he, launcher en + he. Not done: the
-  Sweeps pictures and the release round - done (1.28.0 ready, above).
-  The original spec, kept for the record:
-  **Part of 1.28.0** (owner: the same unreleased version): its CHANGELOG lines in the 1.28.0 section; at the end the
-  release round again - Sweeps pictures, mkdocs, `npm run build`, the whole e2e suite, quick_check.
-  The flow stays the five steps: 1 Data (load result tables; merge, split...) -> 2 Columns (which table goes on, the
-  roles) -> 3 Goal -> 4 Results -> 5 Next runs (proposals from the data). What was mixed in: *Define the problem* (Set up:
-  what varies, scenarios, outputs + goal, how to run) beside the steps, and round 1 shown "not ready" until outputs and
-  a goal are typed - with no table yet.
-  The owner's design:
-  - **Send runs** = a side panel (where *Define the problem* is now): ONLY what varies (values / ranges, MATLAB-style),
-    the scenarios and how to run (this PC / wrapper / farm). No outputs, no goal, no optimisation. Round 1 is ready
-    with params (+ ranges) and a command: `readiness` for round 1 must not list "output" / "goal".
-  - **The first results (even one row)** arrive as a regular table in step 1; from there the usual flow: Columns from
-    the table (roles pre-filled from Send runs: varies = param, scenario = hold, the rest = output), Goal, Results.
-  - **The loop until convergence** lives in step 5 and needs a goal - asked for there, not before.
-  - **Clear ▾ > everything** closes the study too (asks first, one Undo) - today Clear leaves the study until closed.
-  - Backward compatible: an old study with outputs / a goal typed in Set up keeps them and opens as before; the demo
-    and *I have results* keep working.
-  Code points found: `sweeps/setup.ts` readiness / setupDone (4 parts -> Send runs' 3; output/goal only for the loop),
-  `components/sweeps/SetupView.tsx` (its outputs+goal part out), `RunPanel.tsx` (round 1's card: missing = params /
-  range / command only), `FlowNav.tsx` (*Not ready* only for those), `NewStudy.tsx` / `Navigator.tsx` (the side's
-  *Define the problem* -> *Send runs*), SweepsArea's Clear menu. Check every caller first (CLAUDE.md); e2e: the
-  test_study_* / test_sweeps_* files.
-
-, waiting for the owner's final yes (2026-11-16):**
+- **SW2 (b) - the proposal, waiting for the owner's final yes (2026-11-16):**
   - A run = one row (inputs + summary outputs); a recording = its full time series. Default: **no recording**.
   - **When to record = a rule set in advance** (Set up, beside *How to run*): none (default) / a rule on inputs or
     outputs (`wind >= 10`, `overshoot > 8`, *every failed run*) / always. Runs the rule picks are **chained**: after the
@@ -151,92 +68,11 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   Touches: study.Launcher (+ optional `record` rule, statistic / record prefixes and folders, keep singles), launcher.py
   (write_params `{{record}}`, chained record round, merge), sweep_wrapper.py (`--record DIR`, the merge), sim.py (a time
   series when asked), SetDetail / RerunList / Set up UI, README, docs/launcher.md.
-  RV7 done: the findings chip says *n to look at* (the pill's word); the report's line names the log's own messages; the
-  strip's how-to line shown on the first file only (`ovHintSeen` set once shown).
-  RV8 done: the Report panel's one offline page (*Save the page (HTML)…* at the top = the HTML report with its replay and
-  brand line); Ctrl+K's compact tab page kept.
-  RV9 done: the Map's bar - camera, + − fit, Story; the rest under one ⋯ (MapBar `extras`).
-  **BR1 - the owner's idea (2026-11-16): brand the tool as one process.** Proposed (in Hebrew to him): "Signal Viewer -
+- **BR1 - the owner's idea (2026-11-16): brand the tool as one process.** Proposed (in Hebrew to him): "Signal Viewer -
   from one run to a whole sweep, in one place, offline": 1. a run (open, look, find what went wrong); 2. runs (a folder
   of recordings or simulations -> one table, a row each, back to the recording); 3. a sweep (which parameters hold in
   every scenario, the next runs, a re-run with recording for the interesting ones). Waits for his yes; then README,
   docs/index.md and the welcome screen's groups.
-  RV10 done: file B rose (was teal-green next to A's blue); setpoints drawn above their measurement.
-  RV11 done: Space after a toolbar click = the cursor (keyup kept from the focused button), P plays in pages too;
-  formula syntax errors at their place in the typed text, unknown functions named; camera following under Map.
-  **1.28.0 ready (2026-11-16, owner: "prepare a release"):** version in build.bat / version.py / CITATION / installer;
-  CHANGELOG section with highlights; docs checked against it (install file name, findings wording, From a folder in
-  Sweeps' Open ▾); pictures 32, 33, 38 and the training film retaken (no Fleet); validation.md regenerated;
-  finished plans removed; `frontend/dist` built. The whole e2e suite (482 passed, 1 failed -> fixed: W16 keeps folders
-  in Open ▾, the FL1 button moved there), quick_check and mkdocs --strict green. **Not tagged: SF1 goes into 1.28.0 first (owner).** SF1 done (code, tests, docs);
-  **1.28.0 ready - waiting for the owner's tag** (release round after SF1 done: Sweeps pictures 23 25 26 30 38-41 and
-  the example cards retaken, mkdocs --strict, `frontend/dist` built, the whole e2e suite 482 passed / 1 timeout in
-  test_map_objects::test_follow_and_remove_with_its_file - passes alone, not Sweeps).
-  Next: SW2 once the owner says yes to the spec above (do not implement before); BR1 waits for his yes.
-- **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
-  in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
-  `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
-  callback asks with the current version (`terrainV` ref), so tiles asked later are not the browser's cached coarse
-  ones; tiles on screen keep theirs until the view asks again. e2e `test_finer_ground_arriving_does_not_blank_the_globe`
-  (fails on the old code: the provider replaced).
-- **2026-11-16 · M7 Two cameras (owner) - done.** First a *Look freely* toggle in Cockpit (da51c45); the owner then
-  asked for less: "enough to mark whether the camera is free or attached to the object; attached: nearer / further /
-  turn, every zoom towards the object itself" - reverted (3003e80) and replaced: the Map's camera is *Free · On the
-  object* in 2D and 3D. On the object (`Globe3D.tsx` update): `cam.lookAt` at the user's heading / pitch, the range
-  read in the object's frame (a time jump keeps it on it), down to 1 m; within `SIT_M` (15 m) its model is hidden
-  (checked after each frame drawn - `moveEnd` needs frames the request-render mode does not draw); + − never past it;
-  the flight display off by default (it caught the wheel in the view's middle). `mapCamera` = `"free" | "object"` by
-  `followObject` alone (old `camera` values unchanged in files); Settings: Free · On the object (an old `chase`
-  setting reads as On the object). Removed: From above (and its tilt guard and straight-down fit), Behind it, Cockpit,
-  Look at, their strings. The flat drawing: the N button turns track up on / off while on an object. Reports send
-  `"centre"` / `"free"`. The owner: the offline pages too - done: `scene3d.html` / `map.html` / `relation.js`
-  Free · On the object (On the object: wheel down to 1 m, `sitting()` hides its model within 15 m; the story's close
-  moments glide to 70 m), old `#cam=` links mapped; `report._top` (the flat From above picture) removed - the
-  report's map picture is the 3D scene. A double-click (2D: also 0) fits everything and sets Free (it fought the
-  camera on the object). The owner: "all, in order" - done: (1) the 3D view's keys (arrows: On the object `rotate*`
-  look around it, Free a move over the ground along the heading; + − 0 F Q X); (2) Ctrl+K *Map camera: on <object>* /
-  *Free* (the active Map, else the tab's first); (3) a double-click on an object = the camera on it (3D: Cesium's
-  LEFT_DOUBLE_CLICK marks it, the root's double-click acts; 2D: `objUnder`); (4) `.map-dock .g3-fd` pointer-events
-  none (`.map-dock > *` had turned them back on - why it caught the wheel), the flight display shown by default
-  while sitting on it (a React `sitting` from the per-frame check; the page the same). One way to set the camera:
-  `actions.setMapCamera` (bar, F, double-click, Ctrl+K, Fit, a place's flight). Not tested by e2e: the 2D
-  double-click on an object.
-- **2026-11-16 · PLAN_2026-11-17 (the owner approved it) - in progress.** Order R, S1, S2, E1, M1, M3, M2 (plan §6).
-  R done: the unreleased 1.27.0 and 1.28.0 are one release, **1.27.0** (CHANGELOG merged under `1.27.0 – unreleased`,
-  the version files at 1.27.0, the docs' "1.28" -> "1.27"; history not rewritten). The owner tags v1.27.0 once the
-  round is stable. S1 done (formula: if / compare / text / bins / rank / pct, a text column is a scenario, share per
-  set). S2 done (Table tools: drop Not used, keep runs where, name / unit, fixed values; export CSV / Parquet /
-  Excel as edited + recipe). E1 done (Export recording…: signals on screen / all, all / view / cursors / where a
-  condition holds, as recorded / a rate with linear + held + anti-alias, CSV / Parquet / MAT / HDF5 + .export.json;
-  `svcore/subset.py` also writes the plot's Export CSV and `cli.py export`). M1 + M2 done (Runs matrix: measures per
-  run + parameters from the names -> Open in Sweeps; Summarize a folder -> Sweeps as a background job, one file at a
-  time - memory measured flat; `cli.py summarize`). M3 done (a set's runs -> their recordings by a folder + a name
-  from the row; the fetch command dropped as heavy). P done (Plot the commanded / measured pairs, one detector in
-  desired.ts). Cleanup (§9) done. Release readiness done: the whole e2e suite, quick_check, mkdocs --strict green, `frontend/dist` built - **waiting for the owner to tag v1.27.0**.
-- **2026-11-16 · Sweeps as one flow (PLAN_2026-11-16 §7a) - done.** Done: one stepper for every study (Data ·
-  Columns · Goal · Results · Next runs; `sweeps/flow.ts`, `FlowNav.tsx`); the tables' column (Navigator) only in Data,
-  resizable, a labelled *Remove from the study* with Undo; Next runs = the proposal + *Run from the app* (`NextStep.tsx`,
-  `RunPanel.tsx` - the Run column is gone, *How to run* moved there from Set up); the systems together = a tab of
-  Results. §7b file dialog done: New folder, Rename (F2), Delete (Del, to the recycle bin - `app/trash.py`, no new
-  dependency), only in the user's own folders. The 404 on /api/object_track fixed (a map asked for a closed file's
-  track). Stability round done: quick_check green; the whole e2e suite (4 workers, xdist) - 2 timing failures under
-  load, both green alone (one wait made state-based); UI built. (Released as 1.27.0 - see R above.)
-- **2026-11-16 · main is not stable (owner): Out of Memory, the 3D map's "Fragment shader failed to compile", slow
-  maps.** Findings, numbers and plan: `docs/dev/PLAN_2026-11-16.md` (removed in the 1.28.0 cleanup: `git show c44fbbb:docs/dev/PLAN_2026-11-16.md`). Found: every closed 3D map kept its WebGL
-  context alive (Cesium's static index-buffer cache) up to 16 - fixed in `Globe3D.tsx` (contexts released, render
-  error -> light mode -> flat map). Guard `tests/e2e/test_map_memory.py`; measuring `tools/measure_maps.py`,
-  `tools/measure_e2e_memory.py`. Waiting for: the owner's numbers on Windows with a GPU (`measure_maps.py --gpu`);
-  the e2e suite's memory; the whole suite before the tag.
-- **1.28.0 is finished on `main`, not tagged** (the owner tags). Round 2026-11-15: polish before the tag –
-  repository cleanup, code reliability, the films and the pictures (marketing).
-- Done 2026-11-15 (see the Log): repository cleanup, history rewritten to the owner's identity, e2e speed-up and two
-  outdated tests, Align time in the palette, the camera line fades, the offline 3D page's cameras, the pictures
-  retaken, the training film remade.
-- Open: a Hebrew version of the films and a narration script (offered); GitHub About texts (the owner pastes them);
-  the full e2e suite before the tag.
-- Media made from the app itself (all in `tools/`): `make_readme_media.py` (pictures, the welcome cards'),
-  `make_demo_video.py` (`docs/media/demo_simulation.mp4`), `make_training_video.py` (`docs/media/training.mp4`),
-  `make_social_preview.py`, `make_bench_example.py`.
 
 ## Releasing
 
@@ -546,3 +382,4 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-16 · FR5: a folder of recordings reads as recordings (4 steps, Limits, no Send / Next runs, no sets; status counts recordings); its demo line names X8-A with *Show X8-A*. e2e ran: test_folder_of_recordings, test_sweeps_flow, test_sweeps_workspace, test_sweeps_data_columns, test_sweeps_groups, test_sweeps_charts, test_study_demo, test_study_loop, test_study_common, test_runs_matrix, test_welcome_cards, test_plot_room, test_tab_band - 97 green; quick_check green.
 - 2026-11-16 · FR6: the loop's answer in words at convergence; three equal starts on the empty Sweeps screen; a study's steps say to open one of its tables; "1 table". e2e ran: test_study_demo, test_study_loop, test_sweeps_workspace, test_study_common, test_sweeps_flow, test_sweeps_data_columns, test_sweeps_groups, test_sweeps_charts, test_calm_screen, test_owner_notes_1_20, test_folder_of_recordings, test_runs_matrix, test_welcome_cards, test_first_minute, test_fresh_user - 110 green (one count raced the examples list under load - the test now waits for it); quick_check green.
 - 2026-11-16 · FR7: one formula whitelist in svcore/formula.py (signal formulas, Sweeps columns, study constraints); a name with __ is refused everywhere (it was read as a column of that name in Sweeps). Backend: tests/test_one_whitelist.py new, every formula test unchanged. e2e ran: test_conditions, test_sweeps_data_columns, test_sweeps_flow, test_study_common, test_study_loop, test_sweeps_groups, test_occurrences, test_trust_badges, test_error_details, test_features -k formula/derived/create - 67 green; quick_check green.
+- 2026-11-16 · FR8: "Current state" is a table of what is open (19 lines; was 227). Its finished history - M33's RV1-RV11 notes, SF1, FL1, the 3D black-out fix, M7, PLAN_2026-11-17, the Sweeps flow, the stability findings, the 1.28.0 release notes - is in git: `git show 05f5ed0:docs/dev/TASKS.md`; the open specs (SW2 (b), BR1) moved whole to "Open specs". No code; no e2e.
