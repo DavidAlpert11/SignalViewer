@@ -271,3 +271,6 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   parent tile's quarter enlarged instead (_overzoom, recursive); a placeholder cached by an older version is put right
   when read. One place for 2D, 3D, the exported picture and the composite *Satellite + roads*. Tests:
   test_tiles_no_data.py (3, new); quick_check green.
+- 2026-11-16 · **1.27.0 released by the owner** (tag v1.27.0 = c249489, with the Python package). CHANGELOG: 1.27.0 dated,
+  a "Next – unreleased" section above it (the satellite no-data fix, 9ab4914). Next: the 3D view's free camera on
+  the object (owner's request) - in a new session.
