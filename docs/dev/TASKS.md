@@ -13,6 +13,22 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 
 ## Current state
 
+- **2026-11-16 · Milestone 34 - the window back to the data, one way for each thing (the owner's review of
+  2026-11-16) - in progress.** Specs: ROADMAP M34. No features this round; SW2 (b) is not started; the version is not
+  updated (the owner tags). Order FR1..FR8; FR9-FR12 are the owner's decisions - asked, not coded.
+
+  | Task | What | Status | Next step |
+  |---|---|---|---|
+  | FR1 | Plots take the window (>= 35 % of it on the ArduPilot demo) | open | read TimeChart / PlotCard head, measure |
+  | FR2 | One row above the plots (first curve <= 200 px from the top) | open | after FR1 |
+  | FR3 | Cursor labels off the curve; double-click plots once | open | after FR2 |
+  | FR4 | One colour rule for two runs (the file's colour) | open | after FR3 |
+  | FR5 | A folder of recordings reads as recordings | open | after FR4 |
+  | FR6 | Sweeps: the answer in words, three equal starts | open | after FR5 |
+  | FR7 | One formula evaluator (svcore/formula.py owns the whitelist) | open | after FR6 |
+  | FR8 | This section as a table of at most 30 lines | open | after FR7 |
+  | FR9-FR12 | CI on push; dist / site out of git; six welcome cards; e2e files renamed | ask the owner | - |
+
 - **2026-11-16 · Milestone 33 - clear to a human (owner: "fix everything you think helps a human understand and
   benefit") - in progress.** From the fresh review (`docs/dev/REVIEW_2026-11-16.md`). Order RV1..RV7 (ROADMAP M33).
   RV1 done: a drag on a time plot zooms by its direction - `chartUtil.dragUni` sets uPlot's `drag.uni` during the drag
@@ -521,3 +537,4 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-16 · 1.28.0 release round after SF1: pictures (make_readme_media --only 23 25 26 30 39 40 41 38, examples),
   mkdocs --strict, npm run build; whole e2e suite: 482 passed, 1 failed (test_map_objects follow_and_remove - a
   30 s timeout under load; passes alone). 1.28.0 ready - waiting for the owner's tag.
+- 2026-11-16 · M34 opened (the owner's review of 2026-11-16): FR1-FR8 in ROADMAP and on the board; FR9-FR12 wait for the owner.
