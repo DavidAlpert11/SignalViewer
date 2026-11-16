@@ -492,7 +492,7 @@ For any recording, not only flight logs (1.27: the Log panel became *Checks*).
 
 ### A folder of recordings
 
-- **Sweeps ▸ Data ▸ *From a folder of recordings…*** (also *Investigate ▸ Runs matrix ▸ Summarize a folder*): one row per recording of a folder - the same measures in each (max / min / mean / rms / final… of a signal, optionally only *where* a condition holds) and parameters from the file name (`{vehicle}_{date}`); read one file at a time (memory: one file's), any format, sub-folders not included
+- **Sweeps ▸ Data ▸ *From a folder of recordings…*** (also Sweeps' *Open ▾*, Ctrl+K and *Investigate ▸ Runs matrix ▸ Summarize a folder*): one row per recording of a folder - the same measures in each (max / min / mean / rms / final… of a signal, optionally only *where* a condition holds) and parameters from the file name (`{vehicle}_{date}`); read one file at a time (memory: one file's), any format, sub-folders not included
 - A `measures.json` beside the recordings (the Runs matrix's *Save measures*: `{"measures": [...], "pattern": "..."}`) is used at once; without one, the folder's first recording opens with the Runs matrix to define the measures on it, and its *Summarize a folder* remembers the folder. The same file runs from the command line: `signalviewer-cli summarize <folder> --measures measures.json`
 - The table opens in Sweeps with a *recording* column: tick rows and *Open in Recordings* opens them together (Compare-ready); a set's detail opens its runs' recordings
 - The welcome card *A folder of recordings* (`examples/folder_of_flights`, ten flights of two copters with its `measures.json`): X8-A's vibration grows flight after flight (18 → 67), X8-B's battery drops on its last flight

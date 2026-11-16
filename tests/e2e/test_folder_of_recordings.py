@@ -40,7 +40,8 @@ def test_a_folder_without_measures_is_defined_on_its_first_recording(pg, tmp_pat
     for n in ("X8-B_2026-09-05.bin", "X8-B_2026-10-17.bin"):
         shutil.copy(os.path.join(EXAMPLE, n), d / n)
     pg.locator(".areas .area-btn", has_text="Sweeps").click()
-    pg.locator(".sw-from-folder").click()
+    pg.locator(".areabar .btn", has_text="Open").click()                             # W16: folders open from Open ▾
+    pg.locator(".menu.ctx button", has_text="From a folder of recordings").click()
     goto_folder(pg, str(d))
     pg.click(".dialog button:has-text('Use this folder')")
     pg.wait_for_selector(".mx-folder-step", timeout=60000)                           # the step it waits on, said

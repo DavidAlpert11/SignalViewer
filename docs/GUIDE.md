@@ -474,7 +474,7 @@ log's estimated wind.
 ### A folder of recordings { #folder }
 
 Many recordings of the same kind - every flight of two copters, a test run a day - are summed up one row per
-recording: **Sweeps ▸ Data ▸ *From a folder of recordings…*** (or *Investigate ▸ Runs matrix ▸ Summarize a
+recording: **Sweeps ▸ Data ▸ *From a folder of recordings…*** (also under Sweeps' *Open ▾*; or *Investigate ▸ Runs matrix ▸ Summarize a
 folder*). Each recording gets the same **measures** (the highest `VIBE[0].VibeZ`, the lowest `BAT[0].Volt`,
 the last `BAT[0].CurrTot`…) and parameters read from its name (`{vehicle}_{date}` reads `X8-A_2026-09-02.bin`
 as vehicle X8-A, date 2026-09-02). The folder is read one file at a time, so hundreds of files of any format

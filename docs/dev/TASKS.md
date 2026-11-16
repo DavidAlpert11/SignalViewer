@@ -55,7 +55,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   existing demo.
   **FL1 done (2026-11-16): the Fleet area dropped, from the code and every user doc** (history docs - ROADMAP, REVIEW,
   older plans, CHANGELOG's released entries - keep their record). A folder of recordings = *Summarize a folder ->
-  Sweeps*: `folderSummary.ts` is the one way in (Runs matrix, Sweeps' Data *From a folder of recordings…* and its empty
+  Sweeps*: `folderSummary.ts` is the one way in (Runs matrix, Sweeps' Data *From a folder of recordings…* and its Open ▾
   screen, the welcome card `folderOfFlights` in the Recordings group). The backend uses a folder's `measures.json` when
   no measures are given (`svcore.summary.folder_measures`, also `cli summarize`); `GET /api/summary/folder` says how many
   recordings, the first and its measures. Without measures.json the first recording opens with the Runs matrix
@@ -113,6 +113,11 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   RV10 done: file B rose (was teal-green next to A's blue); setpoints drawn above their measurement.
   RV11 done: Space after a toolbar click = the cursor (keyup kept from the focused button), P plays in pages too;
   formula syntax errors at their place in the typed text, unknown functions named; camera following under Map.
+  **1.28.0 ready (2026-11-16, owner: "prepare a release"):** version in build.bat / version.py / CITATION / installer;
+  CHANGELOG section with highlights; docs checked against it (install file name, findings wording, From a folder in
+  Sweeps' Open ▾); pictures 32, 33, 38 and the training film retaken (no Fleet); validation.md regenerated;
+  finished plans removed; `frontend/dist` built. The whole e2e suite (482 passed, 1 failed -> fixed: W16 keeps folders
+  in Open ▾, the FL1 button moved there), quick_check and mkdocs --strict green. **Waiting for the owner to tag v1.28.0.**
   Next: SW2 once the owner says yes to the spec above (do not implement before); BR1 waits for his yes.
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
@@ -467,3 +472,6 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   test_runs_matrix.
 - 2026-11-16 · RV11 done. backend test_formula_messages (new, 4); e2e test_space_and_settings (new, 2), test_settings,
   test_replay, test_features -k space/setting/replay/formula/fx/cursor.
+- 2026-11-16 · Full e2e suite: 482 passed, 1 failed (test_calm_screen W16 - FL1's welcome button moved to Open ▾ and
+  Ctrl+K; it and test_folder_of_recordings pass). 1.28.0 prepared: versions, CHANGELOG, docs, pictures 32/33/38,
+  training film, validation.md, dist built; waits for the owner's tag.

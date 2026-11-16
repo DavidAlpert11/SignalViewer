@@ -145,6 +145,7 @@ registerArea("sweeps", {
       { id: "sw-new-study", label: t("nsTitle"), group: g, icon: "open" as const, run: chooseNewStudy },
       { id: "sw-open-table", label: t("swOpenTable"), group: g, icon: "open" as const, run: () => { openTable(t("swOpenTable")); } },
       { id: "sw-open-folder", label: t("swOpenFolder"), group: g, icon: "open" as const, run: () => { openFolder(t("swOpenFolder")); } },
+      { id: "sw-from-folder", label: t("swFromFolder"), group: g, icon: "open" as const, run: () => { void fromFolder(); } },
       { id: "sw-open-study", label: t("swOpenStudy"), group: g, icon: "open" as const, run: () => { openStudy(t("swOpenStudy")).then((m) => m && notify(m, "error")); } },
     ];
     if (!study && !common) return open;
@@ -252,6 +253,8 @@ function SweepsBar() {
     { label: "", sep: true, run: () => {} },
     { label: t("swOpenTable"), run: () => openTable(t("swOpenTable")) },
     { label: t("swOpenFolder"), run: () => openFolder(t("swOpenFolder")) },
+    // FL1: a folder of recordings summed up, a row each (W16: the ways to open a folder are here, not on the welcome)
+    { label: t("swFromFolder"), run: () => { void fromFolder(); } },
     { label: t("swOpenStudy"), run: () => say(openStudy(t("swOpenStudy")).then((m) => { if (m) throw new Error(m); })) },
   ]);
   // what is kept of the study: the study itself, a template, a report
@@ -396,8 +399,6 @@ function SweepsWelcome() {
           <p className="hint">{t("swModeOneHint")}</p>
         <div className="sw-welcome-actions">
           <button className="btn primary" disabled={busy} onClick={() => openTable(t("swOpenTable"))}><Icon.Open /> {t("swOpenTable")}</button>
-          {/* FL1: a table made from a folder of recordings, a row each */}
-          <button className="btn outline sw-from-folder" disabled={busy} title={t("swFromFolderHint")} onClick={() => { void fromFolder(); }}>{t("swFromFolder")}</button>
           {/* W16: a folder and a saved study are opened from Open ▾ (and the palette) - one way in here */}
           <button className="btn outline" disabled={busy} onClick={example}>{t("swTryExample")}</button>
           <button className="btn outline" disabled={busy} onClick={() => merged().catch(notifyError)}>{t("swTryMerged")}</button>
