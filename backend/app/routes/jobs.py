@@ -98,6 +98,32 @@ def start_job(req: JobRequest):
                 raise LoadError("This file is no longer open.") from None
             job.report(1.0, "read")
             return res
+    elif req.kind == "summarizeFolder":
+        # M2: the Runs matrix's measures over a folder of recordings that are not open - each read into a store
+        # of its own, measured and closed (memory: one file's); the rows go to Sweeps
+        from app.store import Store
+        from svcore import summary
+        try:
+            summary.check(b.get("measures") or [])
+        except summary.SummaryError as e:
+            fail(400, str(e))
+        folder = os.path.abspath(os.path.expanduser(str(b.get("folder") or "")))
+        if not os.path.isdir(folder):
+            fail(400, f"Folder not found: {folder}")
+        files = summary.folder_files([folder])
+        if not files:
+            fail(400, f"No recordings in {folder}.")
+
+        def open_one(path):
+            st = Store()
+            return st, st.open_file(path).id
+
+        def work(job):
+            cols, rows, skipped = summary.summarize_files(files, b.get("measures") or [], str(b.get("pattern") or ""), open_one,
+                                                          job.report, job.cancelled)
+            if job.cancelled():
+                raise JobCancelled()
+            return {"columns": cols, "rows": rows, "skipped": skipped}
     elif req.kind == "compareAll":
         ca = CompareAllRequest(**b)
         _tolerances(ca)                       # 26.U5: a wrong tolerance is said now, not as a failed job

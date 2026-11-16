@@ -772,6 +772,24 @@ def runs_params(req: ParamsRequest):
     return {"params": store.run_params(req.runs)}
 
 
+class SummaryRequest(BaseModel):
+    measures: List[dict] = []        # [{name, signal, op, where?, t?}] - svcore/summary.py
+    pattern: str = ""                # parameters from the file's name: kp_{kp}_wind_{wind}
+    runs: Optional[List[str]] = None
+
+
+@router.post("/api/runs/summary")
+def runs_summary(req: SummaryRequest):
+    """M1: per open run, each measure's value and the name pattern's parameters (the Runs matrix)."""
+    from svcore import summary
+    try:
+        summary.check(req.measures)
+    except summary.SummaryError as e:
+        fail(400, str(e))
+    return {"rows": {rid: summary.summarize_run(store, rid, req.measures, req.pattern)
+                     for rid in (req.runs or list(store.order)) if rid in store.runs and rid != "derived"}}
+
+
 # F3: the parameters of a run (any format) and two runs compared - svcore/runinfo.py
 @router.get("/api/runs/{run_id}/parameters")
 def run_parameters(run_id: str):

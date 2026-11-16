@@ -146,6 +146,10 @@ export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta
   stateNames?: Record<string, boolean>;
   /** Investigation step 2: named conditions (where an expression holds), in the session. */
   conditions?: Condition[];
+  /** M1: the Runs matrix's measures (one number per run: a signal and what to take of it) and the pattern that
+   *  reads parameters from the file names (kp_{kp}_wind_{wind}); saved with the session, the summary is not. */
+  measures?: Measure[];
+  namePattern?: string;
   /** The rows of the overview strip, in order (absent: the run's phase signal alone). */
   overviewRows?: StripRow[];
   /** Groups of signals the user made and named in the signal list (owner, 2026-11-03); "/" in a
@@ -226,3 +230,8 @@ export function initialWorkspace(): Workspace {
   const t = newTab(1);
   return { tabs: [t], activeTab: t.id };
 }
+
+/** M1: one number per run (svcore/summary.py): `op` of `signal` (by name, in every file), only where `where` holds. */
+export type MeasureOp = "max" | "min" | "mean" | "rms" | "std" | "range" | "first" | "final" | "at" | "argmax" | "argmin" | "overshoot" | "settle";
+export const MEASURE_OPS: MeasureOp[] = ["max", "min", "mean", "rms", "std", "range", "first", "final", "at", "argmax", "argmin", "overshoot", "settle"];
+export interface Measure { id: string; name: string; signal: string; op: MeasureOp; where?: string; t?: number }

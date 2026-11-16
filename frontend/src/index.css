@@ -1729,6 +1729,12 @@ input.fx-input { width: 100%; }
 .mx-dialog { width: min(1100px, 96vw); max-height: 90vh; display: flex; flex-direction: column; }
 .mx-tools { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; padding: 0 16px; }
 .mx-dialog > .hint { padding: 0 16px; }
+/* M1: the measures row and the new measure's fields */
+.mx-measures, .mx-draft { padding-top: 6px; }
+.mx-measure-chip { display: inline-flex; gap: 4px; align-items: center; }
+.mx-pattern { margin-inline-start: auto; display: inline-flex; gap: 6px; align-items: center; }
+.mx-pattern input { width: 14em; }
+.mx-draft .mx-sig { width: 16em; } .mx-draft .mx-where { width: 14em; } .mx-draft .mx-at { width: 6em; }
 .mx-body { overflow: auto; display: flex; flex-direction: column; gap: var(--sp-3); }
 .mx-table td.mx-file { text-align: start; }
 .mx-table td.mx-param { opacity: 0.8; }

@@ -101,7 +101,12 @@ def read_any(path: str) -> pd.DataFrame:
 
 def from_rows(columns, rows) -> pd.DataFrame:
     """A table handed over as rows (another part of the app, e.g. Runs x conditions)."""
-    df = pd.DataFrame(rows, columns=columns)
+    seen: dict = {}
+    names = []
+    for c in columns:                   # one name per column: "mass" twice would make df[c] a table
+        k = seen[c] = seen.get(c, 0) + 1
+        names.append(c if k == 1 else f"{c} ({k})")
+    df = pd.DataFrame(rows, columns=names)
     for c in df.columns:                # numbers as numbers
         conv = pd.to_numeric(df[c], errors="coerce")
         if conv.notna().sum() == df[c].notna().sum():

@@ -580,6 +580,18 @@ overshoot, energy...), with a second, finer sweep to merge. The same answer on t
 - Word
 - Per-plot captions, include/exclude, report language
 
+### A Sweeps table from recordings
+
+- The **Runs matrix** (Investigate › *Runs matrix*; Sweeps › Data › *From recordings…*): a row per open run with
+  its **measures** - a signal by name and max / min / mean / RMS / std / range / first / final / the value at a time /
+  time of max or min / overshoot / settling time, optionally only where a condition holds - the values shown at
+  once for every open run (define them on one run, see them right), **parameters from the file names**
+  (`kp_{kp}_wind_{wind}`), the conditions' counts or durations. *Open in Sweeps* makes it a Sweeps table (the
+  recording of each row kept: *Open its recording* from a set).
+- **Summarize a folder → Sweeps…**: the same measures for every recording in a folder, read one at a time in the
+  background without opening them (progress, Cancel, memory of one file); `cli.py summarize` does the same from a
+  script (*Save measures…* writes the file it reads).
+
 ### Export a part of a recording
 
 - **Export recording…** (the top bar's ⤓ beside Save; Ctrl+K): the signals in the plots on screen or every signal

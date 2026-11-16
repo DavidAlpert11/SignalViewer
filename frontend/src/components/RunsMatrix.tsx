@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { actions, fileLabel, pickPath, useApp, type Condition } from "../store";
+import { actions, fileLabel, MEASURE_OPS, pickPath, uid, useApp, type Condition, type Measure, type MeasureOp } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { useEscape } from "./Overlays";
-import { openPaths } from "../files";
+import { openPaths, runJob } from "../files";
 import { copyText } from "../errorReport";
 
 const DATA_EXTS = [".csv", ".txt", ".mat", ".parquet", ".h5", ".hdf5"];
@@ -31,21 +31,59 @@ export default function RunsMatrix() {
   const [busy, setBusy] = useState("");
 
   useEffect(() => { api.runParams().then((r) => setParams(r.params)).catch(() => setParams({})); }, [runs.length]);
+  // M1: the measures (one number per run) and the parameters read from the file names - defined while
+  // looking at the open runs, so a wrong signal or condition shows at once as "–"
+  const measures = useApp((s) => s.ws.measures) ?? [];
+  const pattern = useApp((s) => s.ws.namePattern) ?? "";
+  const [summary, setSummary] = useState<Record<string, { params: Record<string, number | string>; values: Record<string, number | null> }>>({});
+  const [sumErr, setSumErr] = useState("");
+  const sumKey = JSON.stringify([measures, pattern, files.map((f) => f.version ?? f.id)]);
+  useEffect(() => {
+    if (!measures.length && !pattern.trim()) { setSummary({}); return; }
+    let live = true;
+    api.runSummary(measures, pattern).then((r) => { if (live) { setSummary(r.rows); setSumErr(""); } })
+      .catch((e) => { if (live) setSumErr(String((e as Error).message)); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sumKey]);
+  const nameCols = useMemo(() => [...new Set(Object.values(summary).flatMap((r) => Object.keys(r.params)))], [summary]);
+  const setMeasures = (next: Measure[]) => useApp.getState().commit((ws) => { ws.measures = next; return ws; });
+  const setPattern = (v: string) => useApp.getState().commit((ws) => { ws.namePattern = v || undefined; return ws; });
+  const [draft, setDraft] = useState<{ signal: string; op: MeasureOp; where: string; t: string } | null>(null);
+  const addMeasure = () => {
+    if (!draft?.signal.trim()) return;
+    const name = `${draft.op} ${draft.signal.trim()}${draft.op === "at" ? ` @${draft.t}` : ""}`;
+    setMeasures([...measures, { id: uid("m"), name, signal: draft.signal.trim(), op: draft.op,
+      ...(draft.where.trim() ? { where: draft.where.trim() } : {}), ...(draft.op === "at" ? { t: Number(draft.t) || 0 } : {}) }]);
+    setDraft(null);
+  };
+  const signalNames = useMemo(() => [...new Set(files.flatMap((f) => f.signals.map((s) => s.name)))].slice(0, 2000), [files]);
+  const saveMeasures = async () => {
+    const path = await pickPath({ mode: "save", title: t("mxSaveMeasures"), exts: [".json"], defaultName: "measures.json" });
+    if (!path) return;
+    const body = JSON.stringify({ measures: measures.map(({ id: _id, ...m }) => m), pattern }, null, 1);
+    try { await api.saveText(path, body, ".json", false); useApp.getState().toast({ kind: "info", text: t("mxSavedMeasures", { path }) }); }
+    catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
+  };
 
   // parameters that differ between the runs (one value everywhere tells nothing)
   const paramCols = useMemo(() => {
     const names = [...new Set(Object.values(params).flatMap((p) => Object.keys(p)))];
-    return names.filter((n) => new Set(files.map((f) => params[f.id]?.[n])).size > 1).sort();
-  }, [params, files]);
+    // a parameter the name pattern reads is shown once, from the pattern
+    return names.filter((n) => !nameCols.includes(n) && new Set(files.map((f) => params[f.id]?.[n])).size > 1).sort();
+  }, [params, files, nameCols]);
   const condCols = conds.map((c) => ({ key: `c:${c.id}`, c }));
   const value = (rid: string, key: string): number | null => {
     if (key.startsWith("p:")) return params[rid]?.[key.slice(2)] ?? null;
+    if (key.startsWith("m:")) return summary[rid]?.values[measures.find((m) => `m:${m.id}` === key)?.name ?? ""] ?? null;
+    if (key.startsWith("n:")) { const v = summary[rid]?.params[key.slice(2)]; return typeof v === "number" ? v : null; }
     const r = results[key.slice(2)]?.[rid];
     if (!r || r.missing?.length || r.error) return null;
     return measure === "count" ? r.count ?? 0 : r.total ?? 0;
   };
-  const allKeys = [...paramCols.map((n) => `p:${n}`), ...condCols.map((x) => x.key)];
-  const label = (key: string) => (key.startsWith("p:") ? key.slice(2) : conds.find((c) => `c:${c.id}` === key)?.name ?? key);
+  const allKeys = [...nameCols.map((n) => `n:${n}`), ...paramCols.map((n) => `p:${n}`), ...measures.map((m) => `m:${m.id}`), ...condCols.map((x) => x.key)];
+  const label = (key: string) => (key.startsWith("p:") || key.startsWith("n:") ? key.slice(2)
+    : key.startsWith("m:") ? measures.find((m) => `m:${m.id}` === key)?.name ?? key : conds.find((c) => `c:${c.id}` === key)?.name ?? key);
 
   // a cell far from the rest of its column: beyond 3 robust spreads, or the odd one out when the rest agree
   const odd = useMemo(() => {
@@ -98,11 +136,26 @@ export default function RunsMatrix() {
     void copyText(lines.join("\n")).then((ok) => useApp.getState().toast(ok ? { kind: "info", text: t("occCopied") } : { kind: "error", text: t("copyTextFailed") }));
   };
 
+  // M2: the measures over a folder of recordings that are NOT opened (the backend reads one at a time - the
+  // memory of one file), straight into Sweeps
+  const summarizeFolder = async () => {
+    const dir = await pickPath({ mode: "folder", title: t("mxSumFolderTitle") });
+    if (!dir) return;
+    const res = await runJob<{ columns: string[]; rows: (string | number | null)[][]; skipped: string[] }>(
+      "summarizeFolder", { folder: dir, measures, pattern }, t("mxSumFolderJob"));
+    if (!res) return;
+    if (res.skipped.length) useApp.getState().toast({ kind: "info", text: t("mxSumSkipped", { n: res.skipped.length, names: res.skipped.slice(0, 3).join("; ") }) });
+    if (!res.rows.length) return;
+    const { useSweeps } = await import("../sweeps/state");
+    useApp.setState({ matrixOpen: false, area: "sweeps" });
+    await useSweeps.getState().openRows(dir.split(/[\\/]/).filter(Boolean).pop() ?? t("mxTitle"), res.columns, res.rows);
+  };
   // the same table in the Sweeps area: a row per run - its file, parameters and the conditions'
   // measures - where a goal, conditions over scenarios and the parallel plot apply
   const toSweeps = async () => {
-    const columns = ["recording", ...paramCols, ...condCols.map((x) => x.c.name)];
-    const rows = files.map((f) => [f.path, ...paramCols.map((n) => params[f.id]?.[n] ?? null), ...condCols.map((x) => value(f.id, x.key))]);
+    const columns = ["recording", ...nameCols, ...paramCols, ...measures.map((m) => m.name), ...condCols.map((x) => x.c.name)];
+    const rows = files.map((f) => [f.path, ...nameCols.map((n) => summary[f.id]?.params[n] ?? null), ...paramCols.map((n) => params[f.id]?.[n] ?? null),
+      ...measures.map((m) => summary[f.id]?.values[m.name] ?? null), ...condCols.map((x) => value(f.id, x.key))]);
     const { useSweeps } = await import("../sweeps/state");
     useApp.setState({ matrixOpen: false, area: "sweeps" });
     await useSweeps.getState().openRows(t("mxTitle"), columns, rows);
@@ -124,18 +177,51 @@ export default function RunsMatrix() {
           {busy && <span className="hint">{busy}</span>}
         </div>
         <p className="hint">{t("mxHint")}</p>
+        <div className="mx-tools mx-measures">
+          <span>{t("mxMeasures")}</span>
+          {measures.map((m) => (
+            <span key={m.id} className="chip mx-measure-chip" title={m.where ? `${m.name} · ${m.where}` : m.name}>{m.name}
+              <button className="linklike" aria-label={t("remove")} onClick={() => setMeasures(measures.filter((x) => x.id !== m.id))}>×</button></span>
+          ))}
+          {!draft && <button className="btn outline sm mx-add-measure" onClick={() => setDraft({ signal: "", op: "max", where: "", t: "0" })}>+ {t("mxAddMeasure")}</button>}
+          {measures.length > 0 && <button className="btn outline sm mx-sum-folder" onClick={summarizeFolder} title={t("mxSumFolderHint")}>{t("mxSumFolder")}</button>}
+          {measures.length > 0 && <button className="btn outline sm" onClick={saveMeasures} title={t("mxSaveMeasuresHint")}>{t("mxSaveMeasures")}</button>}
+          <label className="mx-pattern">{t("mxPattern")}{" "}
+            <input dir="ltr" defaultValue={pattern} placeholder="kp_{kp}_wind_{wind}" onBlur={(e) => e.target.value !== pattern && setPattern(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} aria-label={t("mxPattern")} /></label>
+        </div>
+        {draft && (
+          <div className="mx-tools mx-draft">
+            <select className="mx-op" value={draft.op} onChange={(e) => setDraft({ ...draft, op: e.target.value as MeasureOp })} aria-label={t("mxWhat")}>
+              {MEASURE_OPS.map((o) => <option key={o} value={o}>{t(`mxOp_${o}` as "mxOp_max")}</option>)}
+            </select>
+            <input className="mx-sig" dir="ltr" list="mx-sig-names" value={draft.signal} placeholder={t("mxSignal")} autoFocus
+              onChange={(e) => setDraft({ ...draft, signal: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addMeasure()} aria-label={t("mxSignal")} />
+            <datalist id="mx-sig-names">{signalNames.map((n) => <option key={n} value={n} />)}</datalist>
+            {draft.op === "at" && <input className="mx-at" type="number" value={draft.t} onChange={(e) => setDraft({ ...draft, t: e.target.value })} aria-label="t" />}
+            <input className="mx-where" dir="ltr" value={draft.where} placeholder={t("mxWhere")} onChange={(e) => setDraft({ ...draft, where: e.target.value })}
+              onKeyDown={(e) => e.key === "Enter" && addMeasure()} aria-label={t("mxWhere")} />
+            <button className="btn primary sm mx-add" disabled={!draft.signal.trim()} onClick={addMeasure}>{t("mxAdd")}</button>
+            <button className="btn outline sm" onClick={() => setDraft(null)}>{t("cancel")}</button>
+          </div>
+        )}
+        {sumErr && <p className="hint err">{sumErr}</p>}
         <div className="dialog-body mx-body">
           <table className="occ-table mx-table">
             <thead><tr>
               {head("file", t("occFile"))}
+              {nameCols.map((n) => head(`n:${n}`, n))}
               {paramCols.map((n) => head(`p:${n}`, n))}
+              {measures.map((m) => head(`m:${m.id}`, m.name))}
               {condCols.map(({ key, c }) => head(key, c.name, c.color))}
             </tr></thead>
             <tbody>
               {rows.map((f) => (
                 <tr key={f.id}>
                   <td className="mx-file">{fileLabel(runs, f.id)}</td>
+                  {nameCols.map((n) => { const v = summary[f.id]?.params[n]; return <td key={`n:${n}`} className="mx-param">{v === undefined ? "–" : typeof v === "number" ? fmtNum(v, lang, 6) : v}</td>; })}
                   {paramCols.map((n) => <td key={n} className="mx-param">{params[f.id]?.[n] !== undefined ? fmtNum(params[f.id][n], lang, 6) : "–"}</td>)}
+                  {measures.map((m) => { const v = summary[f.id]?.values[m.name]; return <td key={m.id} className="mx-cell mx-mval">{v === null || v === undefined ? "–" : fmtNum(v, lang, 5)}</td>; })}
                   {condCols.map(({ key, c }) => {
                     const v = value(f.id, key);
                     const r = results[c.id]?.[f.id];

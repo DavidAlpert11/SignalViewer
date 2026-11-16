@@ -534,6 +534,9 @@ export const api = {
   suggestCondition: (a: number, b: number, sigs: string[]) =>
     call<{ id: string | null; name?: string; text?: string; up?: boolean }>("/api/condition/suggest", { a, b, sigs }),
   lag: (a: string, b: string, t0: number, t1: number) => call<LagResult>("/api/lag", { a, b, t0, t1 }),
+  /** M1: per open run, the measures' values and the name pattern's parameters (svcore/summary.py). */
+  runSummary: (measures: { name: string; signal: string; op: string; where?: string; t?: number }[], pattern: string) =>
+    call<{ rows: Record<string, { params: Record<string, number | string>; values: Record<string, number | null> }> }>("/api/runs/summary", { measures, pattern }),
   runParams: (runs?: string[]) => call<{ params: Record<string, Record<string, number>> }>("/api/runs/params", { runs }),
   overview: (id: string, rows: string[] = []) =>
     call<RunOverview>(`/api/runs/${encodeURIComponent(id)}/overview${rows.length ? "?" + rows.map((r) => `rows=${encodeURIComponent(r)}`).join("&") : ""}`),

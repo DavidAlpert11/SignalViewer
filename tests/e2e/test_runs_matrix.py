@@ -64,3 +64,25 @@ def test_odd_run_marked_and_scatter(pg):
     pg.select_option(".mx-x", "p:mass")
     pg.wait_for_selector(".mx-r")
     assert "r = " in pg.inner_text(".mx-r") and "4 runs" in pg.inner_text(".mx-r")
+
+
+def test_measures_and_name_parameters_to_sweeps(pg):
+    """M1: a measure per run (defined while looking at the open runs) and parameters from the file names,
+    with no condition at all; Undo takes a measure back; the table opens in Sweeps with them as columns."""
+    open_files(pg, "mc_mass1.csv", "mc_mass2.csv", "mc_mass4.csv")
+    _panel(pg)
+    pg.click(".cond-matrix")
+    pg.locator(".mx-dialog").wait_for()
+    pg.click(".mx-add-measure")
+    pg.select_option(".mx-op", "max")
+    pg.fill(".mx-sig", "Load")
+    pg.click(".mx-add")
+    pg.wait_for_function("document.querySelectorAll('.mx-mval').length === 3 && [...document.querySelectorAll('.mx-mval')].every(td => td.textContent !== '–')")
+    vals = sorted(float(x) for x in pg.locator(".mx-mval").all_inner_texts())
+    assert vals == [4.0, 8.0, 16.0]                     # 8 x mass / 2
+    pg.fill(".mx-pattern input", "mc_mass{mass}"); pg.press(".mx-pattern input", "Enter")
+    pg.wait_for_function("[...document.querySelectorAll('.mx-table th')].some(th => th.textContent.trim() === 'mass')")
+    assert S(pg, "s.ws.namePattern") == "mc_mass{mass}" and S(pg, "s.ws.measures.length") == 1
+    pg.click(".mx-dialog button:has-text('Open in Sweeps')")
+    pg.wait_for_function("window.__sv.state().area === 'sweeps'")
+    pg.wait_for_selector("text=max Load", timeout=20000)

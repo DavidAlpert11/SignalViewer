@@ -20,8 +20,10 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   set). S2 done (Table tools: drop Not used, keep runs where, name / unit, fixed values; export CSV / Parquet /
   Excel as edited + recipe). E1 done (Export recording…: signals on screen / all, all / view / cursors / where a
   condition holds, as recorded / a rate with linear + held + anti-alias, CSV / Parquet / MAT / HDF5 + .export.json;
-  `svcore/subset.py` also writes the plot's Export CSV and `cli.py export`). Next: M1 (summarize runs defined on one
-  open run + Runs matrix "Open as a Sweeps table"). Then M3, M2, P (setpoint pairs, plan §8), cleanup (§9), full e2e.
+  `svcore/subset.py` also writes the plot's Export CSV and `cli.py export`). M1 + M2 done (Runs matrix: measures per
+  run + parameters from the names -> Open in Sweeps; Summarize a folder -> Sweeps as a background job, one file at a
+  time - memory measured flat; `cli.py summarize`). Next: M3 (a Sweeps row -> its recording by run number / fetch
+  command). Then P (setpoint pairs, plan §8), cleanup (§9), full e2e, propose the release.
 - **2026-11-16 · Sweeps as one flow (PLAN_2026-11-16 §7a) - done.** Done: one stepper for every study (Data ·
   Columns · Goal · Results · Next runs; `sweeps/flow.ts`, `FlowNav.tsx`); the tables' column (Navigator) only in Data,
   resizable, a labelled *Remove from the study* with Undo; Next runs = the proposal + *Run from the app* (`NextStep.tsx`,
@@ -197,3 +199,17 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   Tests: pytest test_subset_export (8: round trip per format through the app's readers, where, as recorded + from
   zero, anti-alias, mistakes), test_cli_api (+1); e2e test_export_recording (new) + test_features -k N06 green;
   quick_check green; mkdocs --strict green.
+- 2026-11-16 · M1 + M2 done (plan §3 / §3a): `svcore/summary.py` - take() (max min mean rms std range first final at
+  argmax argmin overshoot settle(2 %)), params_from_name (`kp_{kp}_wind_{wind}` -> groups, matched at the end of the
+  name without extension), measure_run (a `where` condition -> its stretches), summarize_run (a Store + run id; names
+  without units via resolve_signal_name), folder_files + summarize_files (open_file -> a store of its own per file,
+  measured, removed). Route `/api/runs/summary`; job `summarizeFolder` (app/routes/jobs.py, a fresh Store per file);
+  CLI `summarize` (files / globs / folders, `--measures` JSON as *Save measures…* writes it, `--pattern`). UI:
+  RunsMatrix measures row (chips, + Measure: what / signal with a datalist / at t / only where), the name pattern,
+  *Summarize a folder → Sweeps…*, *Save measures…*; ws.measures / ws.namePattern (optional, through commit = Undo);
+  the matrix opens with files only (no condition needed), its title "Runs matrix"; Sweeps Navigator *From
+  recordings…* opens it. Fixed: a parameter twice (pattern + detected) made Open in Sweeps fail - the matrix shows it
+  once and `sweep.io.from_rows` makes duplicate column names unique. Measured (tools/measure_summary_memory.py, new):
+  50 parquet files x 2 M rows x 8 signals: RSS 536 MB first 10, 542 MB last 10, peak 555 MB - flat; 8.6 s / file ->
+  the folder summary is in the app too (a background job), not CLI-only. Tests: pytest test_summary (4, new),
+  e2e test_runs_matrix (3, +1) green; quick_check green.

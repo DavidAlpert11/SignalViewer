@@ -22,6 +22,18 @@ holds (Investigate's language; a `Segment` column numbers them), `--from-zero` s
 Signal names may be written without their unit and in any case (`ATT.Roll` for *ATT.Roll [deg]*)
 when that is one signal; a name that is not there gets the closest names.
 
+## A Sweeps table from recordings: `summarize`
+
+```bash
+signalviewer-cli summarize logs/ --measures measures.json --pattern "kp_{kp}_wind_{wind}" --out table.csv
+```
+
+One row per recording: its path, the parameters the pattern reads from its name, and one column per measure
+(`measures.json` as the Runs matrix's *Save measures…* writes it: `{"measures": [{"name": "max roll", "signal":
+"ATT.Roll", "op": "max", "where": "Mode == 1"}], "pattern": "..."}`; ops: max, min, mean, rms, std, range, first,
+final, at (with `"t"`), argmax, argmin, overshoot, settle). The files are read one at a time - the memory of one
+file. A file that cannot be read is named on stderr and left out.
+
 ## Reports
 
 ```bash

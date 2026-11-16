@@ -228,5 +228,10 @@ function AddTable({ first }: { first: boolean }) {
     const st = useSweeps.getState();
     (first ? st.open(p).then(() => showData(useSweeps.getState().active)) : st.addTable(p)).catch(notifyError);
   };
-  return <button className="btn ghost sm sw-nav-add" onClick={() => { void add(); }}><Icon.Plus width={14} height={14} /> {t("swAddTable")}</button>;
+  // M1: a table from the open recordings - defined in the Runs matrix (measures, parameters from the names)
+  const fromRecordings = () => useApp.setState({ area: "recordings", matrixOpen: true, panel: "investigate" });
+  return <>
+    <button className="btn ghost sm sw-nav-add" onClick={() => { void add(); }}><Icon.Plus width={14} height={14} /> {t("swAddTable")}</button>
+    <button className="btn ghost sm sw-nav-recordings" onClick={fromRecordings} title={t("swFromRecordingsHint")}>{t("swFromRecordings")}</button>
+  </>;
 }

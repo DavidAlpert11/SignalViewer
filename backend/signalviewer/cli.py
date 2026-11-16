@@ -8,6 +8,7 @@
     python cli.py templates                                # the templates --template can name
     python cli.py check runs/*.csv --checks checks.json [--junit results.xml]   # pass / fail (CI)
     python cli.py compare golden.csv new.csv --tol-abs 0.5     # against a golden run (CI)
+    python cli.py summarize logs/ --measures m.json --pattern "kp_{kp}_wind_{wind}" --out table.csv   # a Sweeps table
     python cli.py validate [--json] [--junit v.xml]        # the numerical validation, on this machine
     python cli.py objects flight.bin [--all] [--json]      # the map objects found, and why (L12)
     python cli.py compare-objects flight.bin --ref POS --objects "XKF1[0],XKF1[1]" --what position,attitude \
@@ -251,6 +252,32 @@ def cmd_cache(a) -> int:
     for k, path in kinds.items():
         print(f"{k:8s} {size(path) / 1048576:10.1f} MB  {path}")
     return 0
+
+
+def cmd_summarize(a) -> int:
+    """M1/M2: one row per recording - the measures (a JSON list, as the Runs matrix saves them) and the name
+    pattern's parameters - one file at a time (svcore/summary.py): memory stays one file's."""
+    import csv
+    from svcore import summary
+    spec = json.load(open(a.measures, encoding="utf-8"))
+    measures = spec.get("measures", []) if isinstance(spec, dict) else spec
+    pattern = a.pattern if a.pattern is not None else (spec.get("pattern", "") if isinstance(spec, dict) else "")
+    files = summary.folder_files(a.files)
+
+    def open_file(path):
+        rec = load(path)
+        return rec._store, rec._id
+    cols, rows, skipped = summary.summarize_files(files, measures, pattern, open_file,
+                                                  progress=lambda f, name: print(f"[{round(f * len(files)) + 1}/{len(files)}] {name}", file=sys.stderr))
+    with open(a.out, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(cols)
+        for r in rows:
+            w.writerow(["" if v is None else v for v in r])
+    for s in skipped:
+        print(f"skipped {s}", file=sys.stderr)
+    print(f"{a.out}: {len(rows)} runs, {max(0, len(cols) - 1)} columns")
+    return 0 if rows else 1
 
 
 def cmd_sweep(a) -> int:
@@ -520,6 +547,12 @@ def main(argv=None) -> int:
     p = sub.add_parser("cache", help="disk space the app uses for speed (CSV cache, log indexes, dropped-file copies, map tiles) and clearing it")
     p.add_argument("--clear", nargs="+", metavar="WHAT", help="cache, uploads, tiles - or all")
     p.set_defaults(fn=cmd_cache)
+    p = sub.add_parser("summarize", help="one row per recording: the measures (JSON) and parameters from the names - a Sweeps table")
+    p.add_argument("files", nargs="+", help="files, patterns or folders")
+    p.add_argument("--measures", required=True, help='JSON: [{"name","signal","op","where"?,"t"?}] or {"measures": [...], "pattern": "..."}')
+    p.add_argument("--pattern", help="parameters from the file names, e.g. kp_{kp}_wind_{wind}")
+    p.add_argument("--out", required=True, help="the table (.csv)")
+    p.set_defaults(fn=cmd_summarize)
     p = sub.add_parser("sweep", help="a run envelope's results table: which parameter sets hold in every scenario (exit code for CI)")
     p.add_argument("table", help="the results table (CSV, Parquet, Excel) or a folder of them")
     p.add_argument("--question", help="a JSON question, or a study saved by the app (.svsweep)")
