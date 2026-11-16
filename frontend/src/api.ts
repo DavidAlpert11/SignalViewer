@@ -320,6 +320,7 @@ export const api = {
     call<{ candidates: SyncCandidate[] }>("/api/sync/suggest", { ref, other, refSignal: refSignal ?? null, otherSignal: otherSignal ?? null,
       feature: opts.feature ?? null, maxLag: opts.maxLag ?? null }),
   runHealth: (id: string) => call<HealthReport>(`/api/runs/${encodeURIComponent(id)}/health`),
+  runChecksFile: (id: string) => call<ChecksFile>(`/api/runs/${encodeURIComponent(id)}/checks-file`),
   spectrogram: (signal: string, x0: number | null, x1: number | null, nfft: number, width: number, height: number, fmax: number | null) =>
     call<SpecData>("/api/spectrogram", { signal, x0, x1, nfft, width, height, fmax }),
   open: (paths: string[], settings?: Record<string, unknown>) =>
@@ -610,6 +611,10 @@ export interface HealthFinding {
   spans: [number, number][]; signals: string[];
 }
 export interface HealthReport { findings: HealthFinding[]; errors: number; warnings: number }
+/** RV2: the checks file kept with a recording, run on it (the CLI's verdict); file null = none beside it */
+export interface ChecksFileResult { name: string; status: "pass" | "fail" | "error" | "skipped"; lo?: number | null; hi?: number | null;
+  window?: string; violations?: number; first?: number; worstT?: number; message?: string }
+export interface ChecksFile { file: string | null; error?: string; results: ChecksFileResult[] }
 /** T25: the error A − B over some time. */
 export interface ErrStat { n: number; rms?: number; mean?: number; maxAbs?: number; tMaxAbs?: number }
 /** A1: how a spectrum's samples were put on an even time grid (gaps and NaN are bridged in time). */

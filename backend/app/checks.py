@@ -37,6 +37,19 @@ class ChecksError(ValueError):
     """The checks themselves are wrong (file, template) - nothing was checked."""
 
 
+CHECKS_NEXT_TO = "checks.json"
+
+
+def checks_file_for(path: str) -> Optional[str]:
+    """The checks file the app uses for a recording: `<name>.checks.json` beside it, else a `checks.json` in its
+    folder (the CLI's `--checks` file kept with the runs it checks)."""
+    base = os.path.splitext(path)[0] + ".checks.json"
+    if os.path.isfile(base):
+        return base
+    near = os.path.join(os.path.dirname(path), CHECKS_NEXT_TO)
+    return near if os.path.isfile(near) else None
+
+
 def load_checks(path: str) -> List[dict]:
     try:
         with open(path, encoding="utf-8") as f:
@@ -125,20 +138,24 @@ def _windows(store, run_id: str, names: List[str], c: dict, where: str) -> Tuple
     return parts, say
 
 
-def run_checks(path: str, checks: List[dict]) -> Dict[str, Any]:
-    """Every check on one file: {file, results: [{name, status: pass|fail|error|skipped, ...}]}."""
-    from app.store import Store
-    store = Store()
+def run_checks(path: str, checks: List[dict], store: Any = None, run_id: Optional[str] = None) -> Dict[str, Any]:
+    """Every check on one file: {file, results: [{name, status: pass|fail|error|skipped, ...}]}.
+    store + run_id: the file already open in the app (its Checks view - the same verdict as the CLI's)."""
     where = os.path.basename(path)
     out: Dict[str, Any] = {"file": path, "results": []}
-    try:
-        with contextlib.redirect_stdout(sys.stderr):  # the readers print progress
-            lr = store.open_file(os.path.abspath(path))
-    except Exception as e:                           # unreadable: every check is an error
-        msg = str(e) or e.__class__.__name__
-        out["error"] = msg
-        out["results"] = [{"name": c.get("name") or c["signal"], "status": "error", "message": msg} for c in checks]
-        return out
+    if store is not None and run_id is not None:
+        lr = store.runs[run_id]
+    else:
+        from app.store import Store
+        store = Store()
+        try:
+            with contextlib.redirect_stdout(sys.stderr):  # the readers print progress
+                lr = store.open_file(os.path.abspath(path))
+        except Exception as e:                           # unreadable: every check is an error
+            msg = str(e) or e.__class__.__name__
+            out["error"] = msg
+            out["results"] = [{"name": c.get("name") or c["signal"], "status": "error", "message": msg} for c in checks]
+            return out
     names = list(lr.run.signals.keys())
     for c in checks:
         res: Dict[str, Any] = {"name": c.get("name") or c["signal"], "lo": c.get("lo"), "hi": c.get("hi")}

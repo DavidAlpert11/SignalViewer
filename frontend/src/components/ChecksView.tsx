@@ -2,7 +2,7 @@
    log, its health check, as tinted cards under one verdict - plus F1 *The file* (its structure) and F3 the
    run's parameters for files that are not flight logs. Shown in the Log panel's place. */
 import { useEffect, useMemo, useState } from "react";
-import { api, type FileStructure, type HealthReport, type LimitResult, type ParamDiff, type RunParam } from "../api";
+import { api, type ChecksFile, type FileStructure, type HealthReport, type LimitResult, type ParamDiff, type RunParam } from "../api";
 import { actions, useApp } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
@@ -28,6 +28,23 @@ function useLimitItems(runId: string): LimitItem[] {
     return [...seen.values()];
   }, [tabs, runId]);
 }
+
+/** RV2: the checks file kept with the recording (`<name>.checks.json` or the folder's `checks.json`), run on it -
+ *  the window's verdict is CI's. null while asked; {file: null} when there is none. */
+export function useChecksFile(runId: string | undefined, key: unknown): ChecksFile | null {
+  const [res, setRes] = useState<ChecksFile | null>(null);
+  useEffect(() => {
+    if (!runId) { setRes({ file: null, results: [] }); return; }
+    let gone = false;
+    setRes(null);
+    api.runChecksFile(runId).then((r) => { if (!gone) setRes(r); }).catch(() => { if (!gone) setRes({ file: null, results: [] }); });
+    return () => { gone = true; };
+  }, [runId, key]);
+  return res;
+}
+/** How many checks of a checks file failed / passed (an error or a skip counts as neither). */
+export const checksFileCounts = (cf: ChecksFile | null) => ({
+  bad: cf?.results.filter((r) => r.status === "fail").length ?? 0, ok: cf?.results.filter((r) => r.status === "pass").length ?? 0 });
 
 /** The Checks tab: a verdict, then Limits · Data quality · Health check (logs only). */
 export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean; runKey: string }) {
@@ -55,22 +72,48 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
     return () => { gone = true; };
   }, [runId, runKey, isLog]);
 
+  const cfile = useChecksFile(runId, runKey);
+  const cf = checksFileCounts(cfile);
+  const fileName = (p: string) => p.slice(Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\")) + 1);
   const name = (id: string) => id.slice(id.indexOf("/") + 1);
   const range = (it: LimitItem) => `${it.lo ?? "−∞"} … ${it.hi ?? "∞"}`;
   const limRows = items.map((it) => ({ it, r: lim?.[it.id] })).filter((x) => x.r);
   const badLim = limRows.filter((x) => !x.r!.pass).length;
   const qIssues = q ? q.signals.filter((s) => s.issues.length) : [];
   const hRep = health !== null && health !== "none" ? health : null;
-  const bad = badLim + (hRep?.errors ?? 0);
+  const bad = badLim + (hRep?.errors ?? 0) + cf.bad;
   const warn = qIssues.length + (hRep?.warnings ?? 0);
-  const ok = limRows.length - badLim + (q && !qIssues.length ? 1 : 0) + (hRep ? hRep.findings.filter((f) => f.level === "ok").length : 0);
-  const ready = lim !== null && !!q && health !== null;
+  const ok = limRows.length - badLim + cf.ok + (q && !qIssues.length ? 1 : 0) + (hRep ? hRep.findings.filter((f) => f.level === "ok").length : 0);
+  const ready = lim !== null && !!q && health !== null && cfile !== null;
 
   return (
     <div className="checks" data-checks-ready={ready ? "1" : "0"} data-bad={bad} data-warn={warn}>
       {ready && <p className={`health-sum ${bad ? "error" : warn ? "warning" : "ok"}`} data-testid="checks-verdict">
         {bad || warn ? ([[bad, "chkBad"], [warn, "chkWarn"], [ok, "chkFine"]] as const).filter(([n]) => n > 0)
           .map(([n, k]) => t(k, { n })).join(" · ") : t("chkVerdictOk")}</p>}
+
+      {cfile?.file && (
+        <section className="checks-sec" aria-label={t("chkFile")} data-checks-file={fileName(cfile.file)}>
+          <h3 className="eyebrow">{t("chkFile")}</h3>
+          <p className="card-meta" title={cfile.file}>{t("chkFileFrom", { file: fileName(cfile.file) })}</p>
+          {cfile.error ? <p className="empty-state"><span>{t("chkFileBroken", { file: fileName(cfile.file), why: cfile.error })}</span></p> : (
+            <ul className="card-list">
+              {cfile.results.map((r, k) => (
+                <li key={k} className={`card ${r.status === "pass" ? "ok" : r.status === "fail" ? "bad" : "warn"}`} data-check={r.name} data-status={r.status}>
+                  <p className="card-title">{r.status === "pass" ? t("chkFilePass", { name: r.name })
+                    : r.status === "fail" ? t("chkLimitBad", { name: r.name, range: `${r.lo ?? "−∞"} … ${r.hi ?? "∞"}`, n: r.violations ?? 0,
+                      t: r.first === undefined ? "–" : fmtTime(r.first, lang) })
+                    : t("chkFileNotRun", { name: r.name, why: r.message ?? "" })}</p>
+                  {r.status === "fail" && r.worstT !== undefined && (
+                    <div className="card-next"><button className="pchange span" onClick={() => actions.goToTime(r.worstT!)} title={t("healthSpan")}>
+                      {fmtTime(r.worstT, lang)}</button></div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <section className="checks-sec" aria-label={t("chkLimits")}>
         <h3 className="eyebrow">{t("chkLimits")}</h3>

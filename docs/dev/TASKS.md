@@ -22,6 +22,12 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   is ignored. The link button reads *Link time* (always visible), not "X". Touches: TimeChart.tsx, StageBar.tsx,
   CommandPalette.tsx, shortcuts.ts, Help.tsx, files.ts, App.tsx, store view slice / actions / types, i18n plots /
   flightlog, docs/features.md.
+  RV2 done: `GET /api/runs/{id}/checks-file` runs the checks file kept with the recording (`<name>.checks.json`, else
+  the folder's `checks.json`; `app.checks.checks_file_for`) through the CLI's `run_checks` on the open run (new
+  optional `store, run_id`); a file none of whose checks find their signals is not shown. `ChecksView.useChecksFile`
+  (+ `checksFileCounts`): a *Checks file* card in Checks, counted in the verdict and in the strip's pill; the pill says
+  *No limits set* / *none failed* / *n failed* by what was checked. Touches: app/checks.py (CLI unchanged), routes/files.py,
+  api.ts, ChecksView.tsx, OverviewStrip.tsx, i18n flightlog / plots.
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
@@ -335,3 +341,6 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   e2e test_features::test_zoom_by_the_drag_direction (replaces test_zoom_y_only_and_back), test_zoom_keys...,
   test_workflows::test_clearer_controls; e2e run: test_aligned_plots, test_timeline, test_wheel, test_workflows,
   test_features -k zoom/drag/wheel/pan/... (51 green).
+- 2026-11-16 · M33 RV2 (the checks file beside a recording runs in the window; an honest pill). Tests:
+  backend test_checks (+1); e2e test_checks_view (+1), test_plot_polish (the cursors next to Reset zoom - RV1); e2e
+  run: test_checks_view, test_plot_polish, test_welcome_cards.

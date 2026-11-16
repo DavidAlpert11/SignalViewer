@@ -350,6 +350,30 @@ def run_health(run_id: str):
 
 
 
+@router.get("/api/runs/{run_id}/checks-file")
+async def run_checks_file(run_id: str):
+    """The checks file kept with a recording (`<name>.checks.json`, or `checks.json` in its folder - what
+    `signalviewer-cli check --checks` reads), run on the open file: the window shows the verdict CI gives.
+    {file: null} when there is none."""
+    from app.checks import ChecksError, checks_file_for, load_checks, run_checks
+    lr = store.runs.get(run_id)
+    if lr is None:
+        fail(404, "This file is no longer open.")
+    path = lr.run.file_path
+    cf = checks_file_for(path) if path else None
+    if not cf:
+        return {"file": None, "results": []}
+    try:
+        checks = load_checks(cf)
+    except ChecksError as e:
+        return {"file": cf, "error": str(e), "results": []}
+    res = await asyncio.to_thread(run_checks, path, checks, store, run_id)
+    if not any(r["status"] in ("pass", "fail") for r in res["results"]):
+        return {"file": None, "results": []}         # a folder's checks file made for other recordings
+    return {**res, "file": cf}                       # times as on the plots: the store's signals carry the offset
+
+
+
 @router.get("/api/runs/{run_id}/quality")
 async def run_quality_route(run_id: str):
     """26.U7: the data-quality summary of a file's signals (missing values, gaps, repeated or backwards

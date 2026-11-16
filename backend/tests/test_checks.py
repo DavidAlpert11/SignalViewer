@@ -167,3 +167,37 @@ def test_compare_cli_fails_a_violation_between_golden_samples(tmp_path, capsys):
     rc, so, _ = run(capsys, "compare", str(golden), str(bad), "--tol-abs", "0.01", "--json")
     row = json.loads(so)["files"][0]["results"][0]
     assert rc == 1 and row["status"] == "fail" and row["maxAbsDiff"] > 1.9
+
+
+def test_the_window_runs_the_checks_file_kept_with_the_recording(tmp_path):
+    """RV2: the app's Checks run the checks file beside a recording - the CLI's verdict - with the file's time
+    offset; a folder's checks file made for other recordings is not shown."""
+    import shutil
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.store import store
+    c = TestClient(app, base_url="http://127.0.0.1")
+    bench = os.path.join(EX, "bench", "pump_run_07.parquet")
+    rid = c.post("/api/files/open", json={"paths": [bench]}).json()["opened"][0]["id"]
+    try:
+        d = c.get(f"/api/runs/{rid}/checks-file").json()
+        assert os.path.basename(d["file"]) == "checks.json"
+        st = {r["name"]: r["status"] for r in d["results"]}
+        assert st == {"Motor temperature below 85 °C": "fail", "Pressure below 16 bar": "fail",
+                      "Speed 2850 - 2950 rpm while steady": "pass", "Vibration below 0.5 g": "pass"}
+        store.set_time_offset(rid, 10.0)
+        p = next(r for r in c.get(f"/api/runs/{rid}/checks-file").json()["results"] if r["name"].startswith("Pressure"))
+        assert abs(p["first"] - 422.0) < 1e-6           # 412 s + the offset, as on the plots
+    finally:
+        c.delete(f"/api/runs/{rid}")
+    # a checks file whose signals this recording does not have: nothing shown
+    shutil.copy(os.path.join(EX, "uav_flight.csv"), tmp_path / "f.csv")
+    (tmp_path / "checks.json").write_text(json.dumps({"checks": [{"signal": "EngineTemp", "hi": 90}]}))
+    rid = c.post("/api/files/open", json={"paths": [str(tmp_path / "f.csv")]}).json()["opened"][0]["id"]
+    try:
+        assert c.get(f"/api/runs/{rid}/checks-file").json() == {"file": None, "results": []}
+        (tmp_path / "f.checks.json").write_text(json.dumps({"checks": [{"signal": "GPS.Alt", "hi": 1000}]}))
+        d = c.get(f"/api/runs/{rid}/checks-file").json()       # <name>.checks.json comes first
+        assert os.path.basename(d["file"]) == "f.checks.json" and d["results"][0]["status"] == "pass"
+    finally:
+        c.delete(f"/api/runs/{rid}")

@@ -1,3 +1,4 @@
+import { checksFileCounts, useChecksFile } from "./ChecksView";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type GlanceValue, type HealthReport, type LimitResult, type RunOverview } from "../api";
 import { actions, activeTab, fileLabel, rangeKey, useApp, type StripRow, type MenuItem } from "../store";
@@ -14,7 +15,7 @@ export const SEL_COLOR = "#E5534B";
 /** D7 / D14: what the Checks view would say about a run, in two numbers - failed (limits broken, the log's
  *  errors) and to look at (signals with quality issues, the log's warnings) - as ChecksView's `Checks` counts them.
  *  null until every part has answered. */
-function useCheckCounts(runId: string | undefined, isLog: boolean, off: boolean): { bad: number; warn: number } | null {
+function useCheckCounts(runId: string | undefined, isLog: boolean, off: boolean): { bad: number; warn: number; checked: boolean } | null {
   const tabs = useApp((s) => s.ws.tabs);
   const q = useApp((s) => (runId ? s.quality[runId] : undefined));
   const dataVersion = useApp((s) => s.dataVersion);
@@ -27,6 +28,7 @@ function useCheckCounts(runId: string | undefined, isLog: boolean, off: boolean)
     return [...seen.values()];
   }, [tabs, runId]);
   const [lim, setLim] = useState<Record<string, LimitResult> | null>(null);
+  const cfile = useChecksFile(off ? undefined : runId, dataVersion);
   const [health, setHealth] = useState<HealthReport | null | "none">(null);
   useEffect(() => {
     if (!runId || off || q) return;
@@ -45,10 +47,13 @@ function useCheckCounts(runId: string | undefined, isLog: boolean, off: boolean)
     api.runHealth(runId).then((r) => { if (!gone) setHealth(r); }).catch(() => { if (!gone) setHealth("none"); });
     return () => { gone = true; };
   }, [runId, off, isLog, dataVersion]);
-  if (!runId || off || lim === null || !q || health === null) return null;
+  if (!runId || off || lim === null || !q || health === null || cfile === null) return null;
   const h = health === "none" ? null : health;
-  return { bad: Object.values(lim).filter((x) => !x.pass).length + (h?.errors ?? 0),
-    warn: q.signals.filter((x) => x.issues.length).length + (h?.warnings ?? 0) };
+  const cf = checksFileCounts(cfile);
+  // RV2: "0 failed" only when something was checked - with no limits it says so (it read as a pass)
+  return { bad: Object.values(lim).filter((x) => !x.pass).length + (h?.errors ?? 0) + cf.bad,
+    warn: q.signals.filter((x) => x.issues.length).length + (h?.warnings ?? 0),
+    checked: items.length > 0 || !!h || cf.bad + cf.ok > 0 };
 }
 
 const keyOf = (r: StripRow) => (r.kind === "state" ? `s:${r.name}` : `c:${r.id}`);
@@ -312,7 +317,7 @@ export default function OverviewStrip() {
         {checks && (checks.bad > 0 || checks.warn > 0) && (
           <button className={`chipbtn ov-checks ${checks.bad ? "bad" : "warn"}`} data-bad={checks.bad} data-warn={checks.warn}
             title={t("ovChecksHint")} onClick={() => useApp.setState({ panel: "log", checksRun: rid ?? null })}>
-            {t("ovChecks", { bad: checks.bad, warn: checks.warn })}</button>
+            {t(checks.bad ? "ovChecks" : checks.checked ? "ovChecksPassed" : "ovChecksNone", { bad: checks.bad, warn: checks.warn })}</button>
         )}
         {!hintSeen && (clusters.length > 0 || rows.length > 0) && <span className="ov-hint muted">{t("ovPickHint")}</span>}
         <button className="iconbtn sm ov-add" aria-label={t("ovAdd")} title={t("ovAdd")} onClick={addMenu}>+</button>

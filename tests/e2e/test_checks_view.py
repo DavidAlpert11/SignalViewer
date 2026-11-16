@@ -60,3 +60,29 @@ def test_checks_file_and_parameters_for_csv_runs(pg):
     pg.wait_for_selector("aside.log-panel tr[data-diff='Gain']")
     assert panel.locator("tr[data-diff]").count() == 2                          # Gain and run - nothing equal listed
     assert "0.8" in panel.locator("tr[data-diff='Gain']").inner_text()
+
+
+def test_the_checks_file_beside_a_recording_gives_the_verdict(pg):
+    """RV2 (review 2026-11-16): the pump read "Checks: 0 failed" while its checks.json fails 2 of 4 in CI. The
+    checks file beside a recording now runs in the window; with nothing checked the pill says so."""
+    import json, shutil
+    d = pg.env["data"]
+    shutil.copy(os.path.join(os.path.dirname(__file__), "..", "..", "examples", "bench", "pump_run_07.parquet"), os.path.join(d, "pump.parquet"))
+    with open(os.path.join(d, "pump.checks.json"), "w") as fh:
+        json.dump({"checks": [{"name": "Temp below 85", "signal": "MotorTemp", "hi": 85}, {"signal": "Vibration", "hi": 0.5}]}, fh)
+    _write(d, "plain_run.csv", 0.5, gap=True)
+    open_files(pg, "plain_run.csv")
+    pg.wait_for_selector(".ov-head .ov-checks")
+    assert pg.locator(".ov-head .ov-checks").inner_text().startswith("No limits set")   # not "0 failed"
+    open_files(pg, "pump.parquet")
+    rid = S(pg, "s.runs.find(r => r.name === 'pump.parquet').id")
+    pg.locator(".rail button[aria-label='Checks']").click()
+    panel = pg.locator("aside.log-panel")
+    panel.locator("select").first.select_option(rid)
+    pg.wait_for_selector("aside.log-panel .checks[data-checks-ready='1']", timeout=20000)
+    assert panel.locator("[data-testid=checks-verdict]").inner_text().startswith("1 failed")
+    sec = panel.locator("[data-checks-file='pump.checks.json']")
+    assert sec.locator(".card.bad[data-check='Temp below 85']").count() == 1
+    assert sec.locator(".card.ok[data-status=pass]").count() == 1
+    sec.locator(".card.bad .pchange.span").click()                                # to the worst moment
+    pg.wait_for_function("Math.abs(window.__sv.state().cursor.t1 - 559.74) < 0.5")

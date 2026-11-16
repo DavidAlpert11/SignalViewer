@@ -24,8 +24,9 @@ def test_two_cursors_bar_sits_in_the_plot_head(pg):
 
 def test_cursor_buttons_next_to_the_zoom(pg):
     open_files(pg, "run_a.csv")
-    order = pg.eval_on_selector_all(".stage-bar > *", "els => els.map((e) => e.className)")
-    z = next(i for i, c in enumerate(order) if "zoom" in c or c == "pick-wrap" and i > 3)
+    # RV1: no zoom-mode button any more - the cursors sit next to Reset zoom
+    order = pg.eval_on_selector_all(".stage-bar > *", "els => els.map((e) => e.className + ((e.title || '').startsWith('Reset zoom') ? ' zoom' : ''))")
+    z = next(i for i, c in enumerate(order) if "zoom" in c)
     cur = next(i for i, c in enumerate(order) if "cursor-btn" in c)
     assert 0 < cur - z <= 4, order
 
