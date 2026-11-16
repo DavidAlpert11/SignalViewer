@@ -18,6 +18,8 @@ export const studyApi = {
     call<StudyTables>(`/api/sweeps/study/tables?study_path=${encodeURIComponent(study_path)}${since ? `&since=${since}` : ""}`),
   open: (study_path: string) => call<{ path: string; study: Study }>("/api/sweeps/study/open", { study_path }),
   save: (path: string, study: Study) => call<{ path: string }>("/api/sweeps/study/save", { path, study }),
+  /** the example sweep wrapper beside the study (kept when one is there) */
+  copyWrapper: (study_path: string) => call<{ path: string; existed: boolean }>("/api/sweeps/study/wrapper", { study_path }),
   mapping: (paths: Record<string, string[]>) =>
     call<{ columns: Record<string, string[]>; roles: Record<string, Record<string, string>>; mapping: { table: string; column: string; name: string; score: number }[] }>("/api/sweeps/mapping", { paths }),
   common: (req: StudyReq) => call<CommonResult>("/api/sweeps/common", req),

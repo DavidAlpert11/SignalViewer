@@ -201,8 +201,8 @@ def copy_to(src_study: str, folder: str) -> str:
     if any(not n.startswith(".") for n in os.listdir(folder)):
         raise L.LauncherError(f"{folder} is not empty: choose a new or empty folder for the copy.")
     src_dir = os.path.dirname(os.path.abspath(src_study))
-    for name in os.listdir(src_dir):
-        if name.endswith((".py", ".json")) and not name.startswith("reference"):
+    for name in os.listdir(src_dir):           # + the wrapper's grid.txt and the README: to run it by hand there
+        if name.endswith((".py", ".json", ".txt", ".md")) and not name.startswith("reference"):
             shutil.copy2(os.path.join(src_dir, name), os.path.join(folder, name))
     return os.path.join(folder, os.path.basename(src_study))
 

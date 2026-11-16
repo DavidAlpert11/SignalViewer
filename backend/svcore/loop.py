@@ -288,4 +288,4 @@ def progress(s: studies.Study) -> Dict[str, Any]:
             "best": None if not last or last["values"] is None else {"values": last["values"], "score": last["best"]},
             "tried": tried(s), "axes": [p.name for p in s.shared],
             "launcher": {"command": list(s.launcher.submit), "mode": "run" if s.launcher.local_workers else s.launcher.submit_mode,
-                         "local_workers": s.launcher.local_workers, "results": s.launcher.results.glob}}
+                         "local_workers": s.launcher.local_workers, "run_as": s.launcher.run_as or None, "results": s.launcher.results.glob}}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fileKind } from "./studyFile";
-import { autoTemplate, newSetupStudy, params, parseValues, readiness, removeParam, scenarios, setGoal, setOutputs, setParam, setRun,
-  setScenario, setupFromResults, splitCommand, type FromTable } from "./setup";
+import { applyParamsText, applyScenariosText, autoTemplate, newSetupStudy, params, paramsText, parseValues, readiness, removeParam, runWhere,
+  scenarios, scenariosText, setGoal, setOutputs, setParam, setRun, setScenario, setupFromResults, splitCommand, type FromTable } from "./setup";
 
 /** The walkthrough's study from nothing (plan §4.7, 4): two parameters, one scenario column, an output, the command. */
 function fromNothing() {
@@ -81,5 +81,35 @@ describe("Set up (C6)", () => {
     expect(s.tables[0]).toMatchObject({ paths: ["/x/t.csv"], constraints: ["err < 3"], roles: { wind: "scenario" } });
     expect(fileKind(s, 1)).toBe("svsweep");
     expect(readiness(s).missing).toEqual(["command"]);
+  });
+});
+
+describe("the inputs as text (owner, 2026-11-16: 'name: 1,2,5,8:0.1:9', MATLAB-style)", () => {
+  it("expands ranges like MATLAB and keeps text values", () => {
+    expect(parseValues("1,2,5,8:0.5:10")).toEqual([1, 2, 5, 8, 8.5, 9, 9.5, 10]);
+    expect(parseValues("8:0.1:8.3")).toEqual([8, 8.1, 8.2, 8.3]);
+    expect(parseValues("1:3; calm")).toEqual([1, 2, 3, "calm"]);
+    expect(parseValues("5:1:2")).toEqual(["5:1:2"]);                        // a wrong range is shown back, not lost
+  });
+  it("writes and reads the parameters and scenarios as name: values lines", () => {
+    let s = fromNothing();
+    expect(paramsText(s)).toBe("a: 0:0.1:2\nb: log 1:3");
+    expect(applyParamsText(s, paramsText(s))).toEqual(s);                     // unchanged lines keep their rows
+    s = applyParamsText(s, "a: 0:0.25:1\nc: 1, 2, 4:2:8");
+    expect(params(s).map((p) => [p.name, p.scale, p.min, p.max, p.step, p.values])).toEqual([
+      ["a", "linear", 0, 1, 0.25, []], ["c", "values", null, null, null, [1, 2, 4, 6, 8]]]);
+    s = applyScenariosText(s, "wind: 0:5:10\nmode: calm, gusty");
+    expect(scenarios(s)).toEqual([{ name: "wind", values: [0, 5, 10] }, { name: "mode", values: ["calm", "gusty"] }]);
+    expect(scenariosText(s)).toBe("wind: 0, 5, 10\nmode: calm, gusty");
+    expect(s.tables[0].roles?.mode).toBe("scenario");
+  });
+  it("a sweep wrapper on this PC runs the whole round (round mode, its own workers)", () => {
+    let s = setRun(fromNothing(), { where: "wrapper" });
+    expect(runWhere(s)).toBe("wrapper");
+    expect(s.launcher).toMatchObject({ submit_mode: "round", local_workers: null, run_as: "wrapper" });
+    expect(s.launcher?.submit?.join(" ")).toContain("sweep_wrapper.py --list {{params_files}}");
+    s = setRun(s, { where: "pc" });
+    expect(runWhere(s)).toBe("pc");
+    expect(s.launcher?.run_as).toBeUndefined();
   });
 });

@@ -1,0 +1,6 @@
+# The inputs of one sweep: one per line, MATLAB-style values (start:step:end).
+# Run:  python sweep_wrapper.py --spec grid.txt --set table=A --out my_sweep.csv
+Kp:   0.5, 1, 2:0.5:4
+Ki:   0.2, 0.6
+Kd:   0.3:0.3:0.9
+wind: 0, 5, 10

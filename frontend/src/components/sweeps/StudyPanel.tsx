@@ -9,6 +9,7 @@ import { fmtNum, useT, type TFn } from "../../i18n";
 import { pickPath, useApp } from "../../store";
 import { Icon } from "../../icons";
 import { studyApi } from "../../sweeps/studyApi";
+import { runWhere, setRun, type RunWhere } from "../../sweeps/setup";
 import {
   editStudy, isUnsaved, reqOf, saveStudyAs, useStudyPanel,
 } from "../../sweeps/studyStore";
@@ -214,12 +215,12 @@ function StudyEditor({ study }: { study: Study }) {
         <textarea dir="ltr" rows={3} className="lp-cmd" placeholder={"python\n{{study_dir}}/my_sim.py\n{{params_file}}"} value={(study.launcher?.submit ?? []).join("\n")}
           onChange={(e) => editStudy((s) => ({ ...s, launcher: { ...(s.launcher ?? {}), submit: e.target.value.split("\n").map((v) => v.trim()).filter(Boolean) } }))} /></label>
       <div className="cp-row"><span>{t("lpWhere")}</span>
-        <select value={study.launcher?.local_workers ? "local" : "farm"} onChange={(e) => editStudy((s) => ({ ...s, launcher: { ...(s.launcher ?? {}),
-          local_workers: e.target.value === "local" ? Math.max(1, (navigator.hardwareConcurrency || 2) - 1) : null } }))}>
-          <option value="local">{t("lpWhereLocal")}</option><option value="farm">{t("lpWhereFarm")}</option></select>
+        <select value={runWhere(study)} onChange={(e) => editStudy((s) => setRun(s, { where: e.target.value as RunWhere,
+          ...(e.target.value === "pc" ? { workers: Math.max(1, (navigator.hardwareConcurrency || 2) - 1) } : {}) }))}>
+          <option value="pc">{t("lpWhereLocal")}</option><option value="wrapper">{t("suWrapper")}</option><option value="farm">{t("lpWhereFarm")}</option></select>
         {!!study.launcher?.local_workers && <input type="number" min={1} max={64} aria-label={t("lpWorkers")} title={t("lpWorkers")} value={study.launcher.local_workers}
           onChange={(e) => editStudy((s) => ({ ...s, launcher: { ...(s.launcher ?? {}), local_workers: Math.max(1, Math.round(Number(e.target.value) || 1)) } }))} />}</div>
-      {!study.launcher?.local_workers && <div className="cp-row"><span>{t("lpMode")}</span>
+      {runWhere(study) === "farm" && <div className="cp-row"><span>{t("lpMode")}</span>
         <select value={study.launcher?.submit_mode ?? "round"} onChange={(e) => editStudy((s) => ({ ...s, launcher: { ...(s.launcher ?? {}), submit_mode: e.target.value as "run" | "round" } }))}>
           <option value="round">{t("lpModeRound")}</option><option value="run">{t("lpModeRun")}</option></select></div>}
       <label className="afield"><span>{t("lpResults")}</span>

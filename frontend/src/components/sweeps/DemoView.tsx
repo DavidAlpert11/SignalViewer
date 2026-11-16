@@ -7,6 +7,7 @@ import { fmtInt, fmtNum, useT, type TFn } from "../../i18n";
 import { useApp } from "../../store";
 import { Icon } from "../../icons";
 import { openStudyFile, useStudyPanel } from "../../sweeps/studyStore";
+import { useSweeps } from "../../sweeps/state";
 import { studyApi } from "../../sweeps/studyApi";
 import { pickPath } from "../../store";
 import type { DemoProgress } from "../../sweeps/studyTypes";
@@ -93,7 +94,12 @@ export function HowItWorks() {
         <li><b>{t("dmHow2")}</b> {t("dmHow2Text")}
           <pre dir="ltr" className="dm-io">{input}</pre>{t("dmHow2Out")}
           <pre dir="ltr" className="dm-io">{`Kp,Ki,Kd,wind,overshoot,settling_time,motor_sat,energy,phase_margin,run_id\n${ex.Kp},${ex.Ki},${ex.Kd},5,3.1,1.29,0.31,9.4,62.0,8c068b1aed`}</pre></li>
-        <li><b>{t("dmHow3")}</b> {t("dmHow3Text")}</li>
+        <li><b>{t("dmHow3")}</b> {t("dmHow3Text")}
+          <pre dir="ltr" className="dm-io">{(study?.launcher?.submit ?? []).join(" ")}</pre></li>
+        <li><b>{t("dmHowInputs")}</b> {t("dmHowInputsText")}{" "}
+          <button className="linklike dm-inputs" onClick={() => useSweeps.setState({ part: "setup" })}>{t("dmHowInputsLink")}</button></li>
+        <li><b>{t("dmHowYourself")}</b> {t("dmHowYourselfText")}
+          <pre dir="ltr" className="dm-io dm-cmd">{`cd "${path.replace(/[\\/][^\\/]*$/, "")}"\npython sweep_wrapper.py --spec grid.txt --set table=A --out my_sweep.csv`}</pre></li>
         <li><b>{t("dmHow4")}</b> {t("dmHow4Text")}
           <div><button className="btn outline dm-copy" onClick={copy}><Icon.Copy /> {t("dmCopy")}</button></div></li>
       </ol>

@@ -22,7 +22,10 @@ compute nodes. It speaks the launcher's language, all of it written in the study
   input values; the same run twice counts once (reported).
 * ``status`` - done = a result is present; a failure-marker glob; a timeout per round.
 * ``local_workers`` - when set, the "launcher" is a local process pool of that size running the command per run
-  on this PC: the same path, used by the smart-sweep demo (W18) and to try things without a farm.
+  on this PC: the same path, used to try things without a farm.
+* ``run_as: "wrapper"`` - the round's command (submit_mode ``round``, ``{{params_files}}``) is a sweep wrapper on this
+  PC (examples/smart_sweep_demo/sweep_wrapper.py: one simulation per parameters file, its own workers), run in the
+  background; the smart-sweep demo (W18) runs this way.
 
 What comes back is collected per round into ``round_<k>/collected_<table>.csv`` (the run's inputs, the outputs,
 ``run_id``): a table whose paths include ``next/round_*/collected_<table>.csv`` grows with each round.
@@ -234,6 +237,19 @@ def submit(s: studies.Study, k: Optional[int] = None, wait: bool = False, extra:
         if on_done:
             on_done()
 
+    if L.run_as == "wrapper" and not L.local_workers:
+        # a sweep wrapper on this PC runs the round's runs itself (its own workers): one command per table, in the
+        # background like the local pool, so the app keeps showing the results as they come
+        def wrapped() -> None:
+            finish({tid: _run_command(a, rdir, log) for a, _p, tid in jobs})
+
+        th = threading.Thread(target=wrapped, daemon=True, name=f"study-wrapper-{r.round}")
+        _RUNNING[os.path.abspath(rdir)] = th
+        th.start()
+        if wait:
+            th.join()
+        out["exit_code"] = 0
+        return out
     if L.local_workers:
         workers = max(1, int(L.local_workers))
 

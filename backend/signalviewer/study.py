@@ -8,11 +8,14 @@
     python -m signalviewer.study loop   drones.svstudy.json [--max-rounds N] [--local]
     python -m signalviewer.study demo   examples/smart_sweep_demo/demo.svstudy.json [--max-rounds N]
     python -m signalviewer.study demo-sim params.json                          # one run of the demo simulator
+    python -m signalviewer.study wrap   sweep_wrapper.py --list params_files.txt [...]   # a sweep wrapper (.py)
 
     SignalViewer.exe study ...   - the same, headless, from the Portable (no Python needed)
 
 `demo <study>` = `loop <study> --local` plus, per round, the gap to the full-grid optimum and the final
-sentence (W18). `demo-sim` takes one run's parameters file (JSON), not a study file.
+sentence (W18). `demo-sim` takes one run's parameters file (JSON), not a study file. `wrap` runs a sweep wrapper
+script (examples/smart_sweep_demo/sweep_wrapper.py: one simulation per set of inputs) with this program's Python - the
+Portable has none of its own; the arguments after the script are the wrapper's.
 
 Exit codes: 0 done / ok, 1 an error (the message says what to do), 3 nothing left to propose at the smallest
 step, 4 some runs failed, 5 timed out.
@@ -179,7 +182,7 @@ def cmd_wait(a: argparse.Namespace) -> int:
 
 
 def _local(s, on: bool) -> None:
-    if on and not s.launcher.local_workers:
+    if on and not s.launcher.local_workers and s.launcher.run_as != "wrapper":   # a wrapper already runs here
         import os
         s.launcher.local_workers = max(1, (os.cpu_count() or 2) - 1)
 
@@ -259,7 +262,33 @@ def cmd_demo_sim(a: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-COMMANDS.update({"submit": cmd_submit, "wait": cmd_wait, "loop": cmd_loop, "demo": cmd_demo, "demo-sim": cmd_demo_sim})
+def cmd_wrap(a: argparse.Namespace) -> int:
+    """A sweep wrapper script run here: its main(argv) when it has one, else the script as __main__."""
+    import importlib.util
+    import os
+    import runpy
+    if not os.path.isfile(a.script):
+        return _err(f"The wrapper {a.script} was not found: check the path in the study's run command.")
+    spec = importlib.util.spec_from_file_location("sv_sweep_wrapper", a.script)
+    if spec is None or spec.loader is None:
+        return _err(f"The wrapper {a.script} could not be loaded (a .py file is expected).")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    main_fn = getattr(mod, "main", None)
+    if callable(main_fn):
+        return int(main_fn(list(a.args)) or 0)
+    old = sys.argv
+    try:
+        sys.argv = [a.script, *a.args]
+        runpy.run_path(a.script, run_name="__main__")
+    except SystemExit as e:
+        return int(e.code or 0) if isinstance(e.code, int) else 1
+    finally:
+        sys.argv = old
+    return EXIT_OK
+
+
+COMMANDS.update({"submit": cmd_submit, "wait": cmd_wait, "loop": cmd_loop, "demo": cmd_demo, "demo-sim": cmd_demo_sim, "wrap": cmd_wrap})
 
 
 def parser() -> argparse.ArgumentParser:
@@ -283,6 +312,9 @@ def parser() -> argparse.ArgumentParser:
             p.add_argument("--local", action="store_true", help="run on this PC (local_workers), not the launcher")
     p = sub.add_parser("demo-sim")
     p.add_argument("params", help="one run's parameters file (JSON)")
+    p = sub.add_parser("wrap")
+    p.add_argument("script", help="the sweep wrapper (.py)")
+    p.add_argument("args", nargs=argparse.REMAINDER, help="the wrapper's own arguments")
     return ap
 
 

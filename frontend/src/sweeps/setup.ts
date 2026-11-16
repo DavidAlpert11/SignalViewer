@@ -82,20 +82,84 @@ export function removeParam(s: Study, name: string): Study {
 export const firstTable = (s: Study): StudyTable | undefined => s.tables[0];
 
 export function scenarios(s: Study, table = firstTable(s)?.id ?? ""): ScenarioRow[] {
-  const sc = s.start?.scenarios?.[table] ?? {};
+  // the demo keeps its start scenarios in its own block (the engine reads start's first, then the demo's)
+  const sc = s.start?.scenarios?.[table] ?? s.demo?.scenarios?.[table] ?? {};
   return Object.entries(sc).map(([name, values]) => ({ name, values }));
 }
 
-/** "0, 5, 10" -> [0, 5, 10]; text stays text. */
+const isNum = (x: string) => x.trim() !== "" && Number.isFinite(+x);
+
+/** "0, 5, 10" -> [0, 5, 10]; text stays text. MATLAB-style ranges (owner, 2026-11-16): "1, 2, 8:0.5:10" ->
+ *  1, 2, 8, 8.5 … 10 (start:step:end; start:end = step 1) - the same as the sweep wrapper's grid files. */
 export function parseValues(text: string): (number | string)[] {
-  return text.split(/[,;]/).map((x) => x.trim()).filter(Boolean).map((x) => (x !== "" && Number.isFinite(+x) ? +x : x));
+  const out: (number | string)[] = [];
+  for (const x of text.split(/[,;]/).map((v) => v.trim()).filter(Boolean)) {
+    const r = x.split(":");
+    if ((r.length === 2 || r.length === 3) && r.every(isNum)) {
+      const [a, st, b] = r.length === 2 ? [+r[0], 1, +r[1]] : [+r[0], +r[1], +r[2]];
+      if (st === 0 || (b - a) / st < 0) { out.push(x); continue; }        // shown back as it was: the user sees it is wrong
+      const n = Math.floor((b - a) / st + 1e-9) + 1;
+      for (let k = 0; k < Math.min(n, 10000); k++) out.push(+(a + k * st).toPrecision(12));
+    } else out.push(isNum(x) ? +x : x);
+  }
+  return out;
+}
+
+// ------------------------------------------------------------------ the inputs as text ("name: values" lines)
+
+/** A parameter as one text line: a list of values, or its range (start:step:end; log a:b; start:end = no step). */
+export function paramLine(p: ParamRow): string {
+  const v = p.scale === "values" ? p.values.join(", ")
+    : p.min === null || p.max === null ? "" : p.scale === "log" ? `log ${p.min}:${p.max}`
+    : p.step ? `${p.min}:${p.step}:${p.max}` : `${p.min}:${p.max}`;
+  return `${p.name}: ${v}`;
+}
+export const paramsText = (s: Study): string => params(s).map(paramLine).join("\n");
+export const scenariosText = (s: Study): string => scenarios(s).map((x) => `${x.name}: ${x.values.join(", ")}`).join("\n");
+
+function lines(text: string): [string, string][] {
+  return text.split("\n").map((l) => l.split("#")[0].trim()).filter(Boolean).map((l) => {
+    const i = l.indexOf(":");
+    return (i > 0 ? [l.slice(0, i).trim(), l.slice(i + 1).trim()] : [l, ""]) as [string, string];
+  }).filter(([n]) => !!n);
+}
+
+/** The parameters from "name: values" lines: a line not changed keeps its row (its start count, its scale); a range
+ *  alone is the search range (with its step when it has one), anything else the list of values. Names gone are removed. */
+export function applyParamsText(s: Study, text: string): Study {
+  const was = new Map(params(s).map((p) => [p.name, p]));
+  const keep = new Set<string>();
+  for (const [name, vals] of lines(text)) {
+    keep.add(name);
+    const old = was.get(name);
+    if (old && paramLine(old) === `${name}: ${vals}`) continue;
+    const count = old?.count ?? DEFAULT_COUNT;
+    const log = /^log\s+/i.test(vals);
+    const r = vals.replace(/^log\s+/i, "").split(":");
+    let row: ParamRow;
+    if (!vals.includes(",") && (r.length === 2 || r.length === 3) && r.every(isNum))
+      row = { name, min: +r[0], max: +r[r.length - 1], step: r.length === 3 && !log ? +r[1] : null, scale: log ? "log" : "linear", values: [], count };
+    else row = { name, min: null, max: null, step: null, scale: "values", values: parseValues(vals).filter((x): x is number => typeof x === "number"), count };
+    s = setParam(s, old ? name : "", row);
+  }
+  for (const n of was.keys()) if (!keep.has(n)) s = removeParam(s, n);
+  return s;
+}
+
+/** The scenarios from "name: values" lines (text values too); names gone are removed. */
+export function applyScenariosText(s: Study, text: string): Study {
+  const was = new Set(scenarios(s).map((x) => x.name));
+  const keep = new Set<string>();
+  for (const [name, vals] of lines(text)) { keep.add(name); s = setScenario(s, was.has(name) ? name : "", { name, values: parseValues(vals) }); }
+  for (const n of was) if (!keep.has(n)) s = removeScenario(s, n);
+  return s;
 }
 
 export function setScenario(s: Study, old: string, r: ScenarioRow, table = firstTable(s)?.id ?? ""): Study {
   const name = r.name.trim();
   if (!name || !table) return s;
   const all = { ...(s.start?.scenarios ?? {}) };
-  const was = Object.entries(all[table] ?? {});
+  const was = Object.entries(all[table] ?? s.demo?.scenarios?.[table] ?? {});
   const key = old && was.some(([k]) => k === old) ? old : name;
   const sc = was.some(([k]) => k === key) ? was.filter(([k]) => k === key || k !== name).map(([k, v]): [string, (number | string)[]] => (k === key ? [name, r.values] : [k, v]))
     : [...was, [name, r.values] as [string, (number | string)[]]];
@@ -148,15 +212,25 @@ export function splitCommand(text: string): string[] {
 }
 export const joinCommand = (args: string[]): string => args.map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(" ");
 
-export type RunWhere = "pc" | "farm";
-export const runWhere = (s: Study): RunWhere => (s.launcher?.local_workers ? "pc" : "farm");
+/** pc: a pool here runs the command per run; wrapper: the command is a sweep wrapper here that runs the round's
+ *  runs itself (`run_as`); farm: the farm's launcher gets the round. */
+export type RunWhere = "pc" | "wrapper" | "farm";
+export const runWhere = (s: Study): RunWhere => (s.launcher?.local_workers ? "pc" : s.launcher?.run_as === "wrapper" ? "wrapper" : "farm");
+/** The wrapper's command when the user has none yet: the sweep wrapper beside the study, run by this program. */
+export const WRAPPER_COMMAND = "{{study_cli}} wrap {{study_dir}}/sweep_wrapper.py --list {{params_files}} --workers 2";
 
 export function setRun(s: Study, p: { where?: RunWhere; command?: string; workers?: number }): Study {
   const l = { params_name: PARAMS_NAME, results: { glob: RESULTS, format: "csv_row" as const }, ...(s.launcher ?? {}) };
   if (p.command !== undefined) l.submit = splitCommand(p.command);
   const where = p.where ?? runWhere(s);
-  if (where === "pc") { l.local_workers = p.workers ?? l.local_workers ?? 2; l.submit_mode = "run"; }
-  else { l.local_workers = null; l.submit_mode = l.submit?.some((a) => a.includes("{{params_files}}")) ? "round" : "run"; }
+  if (where === "pc") {
+    if (p.command === undefined && l.run_as === "wrapper") l.submit = [];   // the wrapper's command runs a round, not one run
+    l.local_workers = p.workers ?? l.local_workers ?? 2; l.submit_mode = "run"; delete l.run_as;
+  }
+  else if (where === "wrapper") {
+    if (!l.submit?.some((a) => a.includes("{{params_files}}"))) l.submit = splitCommand(WRAPPER_COMMAND);
+    l.local_workers = null; l.submit_mode = "round"; l.run_as = "wrapper";
+  } else { l.local_workers = null; delete l.run_as; l.submit_mode = l.submit?.some((a) => a.includes("{{params_files}}")) ? "round" : "run"; }
   s.launcher = l;
   return withTemplate(s);
 }

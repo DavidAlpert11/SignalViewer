@@ -42,6 +42,17 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   Position on the map instead. Card text of simVsFlight: "align their time in one click". Touches: templates.ts
   (objectTabs takes files), smartStart.ts, files.ts (openPaths' return), Welcome.tsx, App.tsx, ui slice, i18n welcome /
   templates, index.css.
+  SW1 (owner, between RV5 and RV6) done: the sweep wrapper - `examples/smart_sweep_demo/sweep_wrapper.py` (stdlib;
+  `--spec` name: values lines with MATLAB ranges / `--inputs` a CSV of rows / `--list` the app's params files; `--sim`
+  "cmd {params}" else sim.py beside it in-process; `--set`, `--out` resumable, `--workers`), `grid.txt`, README;
+  `study wrap <script.py> args` (the Portable has no Python: runs the wrapper in-process); launcher `run_as: "wrapper"`
+  = the round command (round mode) runs on this PC in a background thread; the demo's launcher uses it (was
+  demo-sim per run, local_workers 3). UI: setup.ts parseValues ranges, paramsText / applyParamsText /
+  scenariosText / applyScenariosText (*Write as text* in Set up 1 and 2), RunWhere "wrapper" (RunHow 3 choices +
+  *Put the example wrapper beside the study* -> POST /api/sweeps/study/wrapper; StudyPanel's select uses setRun),
+  scenarios() falls back to demo.scenarios; the demo's About lists the wrapper command, the inputs and the hand run.
+  demo.copy_to also copies .txt / .md. Owner's choices: JSON in, Python wrapper, MATLAB start:step:end, extend the
+  existing demo.
   Next: RV6, RV7 ... RV11 (ROADMAP M33).
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
@@ -375,3 +386,5 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   needed; XYZChart likewise), Vitest chartUtil.test (+1). Not changed: the data is sent as float32 relative to the
   window's middle (P3), so a value 1e-7 of the window's range (0.0002 beside 1000) is drawn ~1e-5 off - only visible
   zoomed far into the values, and the readouts are exact.
+- 2026-11-16 · SW1 sweep wrapper (owner). Tests: backend test_sweep_wrapper (new, 6); Vitest setup.test (+3); e2e
+  test_study_loop (+1, the demo's how + the copy's command), run: test_study_loop, test_study_demo.

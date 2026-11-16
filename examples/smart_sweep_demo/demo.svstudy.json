@@ -124,10 +124,14 @@
     "params_name": "params/{{table}}/{{run_id}}.json",
     "submit": [
       "{{study_cli}}",
-      "demo-sim",
-      "{{params_file}}"
+      "wrap",
+      "{{study_dir}}/sweep_wrapper.py",
+      "--list",
+      "{{params_files}}",
+      "--workers",
+      "3"
     ],
-    "submit_mode": "run",
+    "submit_mode": "round",
     "results": {
       "glob": "results/{{table}}/{{run_id}}.csv",
       "format": "csv_row"
@@ -135,7 +139,7 @@
     "status": {
       "timeout_s": 300
     },
-    "local_workers": 3
+    "run_as": "wrapper"
   },
   "demo": {
     "sleep_ms": 30,

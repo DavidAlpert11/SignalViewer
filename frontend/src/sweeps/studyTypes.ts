@@ -22,6 +22,8 @@ export interface LauncherBlock extends Extra {
   results?: { glob?: string; format?: "csv_row" | "csv_series" | "json" | "loader"; reduce?: Record<string, string>; json_keys?: Record<string, string>; converter?: string[] };
   status?: { failed_glob?: string; timeout_s?: number | null };
   local_workers?: number | null;
+  /** "wrapper": the round's command is a sweep wrapper run on this PC in the background (sweep_wrapper.py) */
+  run_as?: "wrapper";
 }
 export interface DemoBlock extends Extra { sleep_ms?: number; noise?: number; seed?: number; tolerance_pct?: number; max_rounds?: number; reference?: string; start_grid?: number; scenarios?: Record<string, Record<string, (number | string)[]>> }
 export interface StudyProposal extends Extra { run_id: string; table: string; values: Values; reason: Reason; state: RunState }
@@ -98,7 +100,7 @@ export interface LoopProgress {
   best: { values: Values; score: number } | null;
   tried: { values: Values; round: number; feasible: boolean; state?: RunState }[];
   axes: string[];
-  launcher: { command: string[]; mode: "run" | "round"; local_workers: number | null; results: string };
+  launcher: { command: string[]; mode: "run" | "round"; local_workers: number | null; run_as?: string | null; results: string };
 }
 /** The demo: the loop's progress plus the full grid's reference. */
 export interface DemoProgress extends LoopProgress {

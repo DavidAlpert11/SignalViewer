@@ -37,7 +37,7 @@ export default function LoopSection() {
       {!cmd.length ? <p className="hint">{t("lpNoCommand")}</p> : (
         <dl className="lp-what">
           <dt>{t("lpRuns")}</dt><dd><code dir="ltr">{cmd.join(" ")}</code>
-            <span className="hint"> · {study?.launcher?.local_workers ? t("lpLocal", { n: study.launcher.local_workers }) : t("lpFarm")}</span></dd>
+            <span className="hint"> · {study?.launcher?.local_workers ? t("lpLocal", { n: study.launcher.local_workers }) : study?.launcher?.run_as === "wrapper" ? t("lpWrapper") : t("lpFarm")}</span></dd>
           <dt>{t("lpReads")}</dt><dd><code dir="ltr">{study?.launcher?.results?.glob ?? "results/{{table}}/{{run_id}}*"}</code></dd>
         </dl>
       )}

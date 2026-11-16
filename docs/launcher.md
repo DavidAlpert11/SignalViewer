@@ -39,6 +39,29 @@ to each table's paths and every round's results join the ranking.
 Optional: `status.failed_glob` (a file that marks a failed run), `status.timeout_s` (per round),
 `local_workers` (run the command per run on this PC with N workers – the same path, without a farm).
 
+## A sweep wrapper on this PC
+
+Between "one run per command" and a farm: a **wrapper** gets the whole round and runs your simulation once per
+set of inputs. `examples/smart_sweep_demo/sweep_wrapper.py` is one to copy (Python, standard library only):
+
+```json
+"launcher": { "submit": ["{{study_cli}}", "wrap", "{{study_dir}}/sweep_wrapper.py", "--list", "{{params_files}}",
+                         "--sim", "python my_sim.py {params}", "--workers", "4"],
+              "submit_mode": "round", "run_as": "wrapper", ... }
+```
+
+`run_as: "wrapper"` runs the round's command on this PC in the background (the app keeps showing the results as
+they come). Your simulation reads one JSON file (every input of one run, and `"out"`) and writes one CSV row there.
+In the app: *How to run* → **A wrapper on this PC**, and *Put the example wrapper beside the study*. The same
+wrapper runs without the app – the inputs as `name: values` lines, MATLAB-style ranges:
+
+```bash
+python sweep_wrapper.py --spec grid.txt --out sweep.csv        # grid.txt:  Kp: 0.5, 1, 2:0.5:4   wind: calm, gusty
+python sweep_wrapper.py --inputs runs.csv --out sweep.csv      # or a table, one run per row
+```
+
+The smart-sweep demo runs its rounds this way; its folder's README says how to run it by hand.
+
 ## In the app and on the command line
 
 Open the study (*Sweeps → Open ▾ → Open a saved study*): the **Run** column on its right says what the next round

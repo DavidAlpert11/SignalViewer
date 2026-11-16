@@ -108,6 +108,29 @@ def open_study(req: StudyReq):
     return {"path": s.path, "study": studies.to_dict(s)}
 
 
+class WrapperReq(BaseModel):
+    study_path: str                        # the saved study: the wrapper goes beside it
+
+
+@router.post("/api/sweeps/study/wrapper")
+def copy_wrapper(req: WrapperReq):
+    """The example sweep wrapper (one simulation per parameters file) copied beside a study, to adapt; an existing
+    one is left as it is."""
+    from app.routes.fs import EXAMPLES
+    import shutil
+    folder = os.path.dirname(os.path.abspath(req.study_path))
+    if not os.path.isdir(folder):
+        fail(400, "Save the study first: the wrapper goes into the study's folder.")
+    target = os.path.join(folder, "sweep_wrapper.py")
+    existed = os.path.isfile(target)
+    if not existed:
+        try:
+            shutil.copy2(os.path.join(EXAMPLES, "smart_sweep_demo", "sweep_wrapper.py"), target)
+        except OSError as e:
+            fail(400, f"The example wrapper could not be copied to {folder}: {e}")
+    return {"path": target, "existed": existed}
+
+
 @router.get("/api/sweeps/study/tables")
 def study_tables(study_path: str, since: Optional[float] = None):
     """C2: each table's files grouped by round (rows counted once per file version), and the history's rounds -

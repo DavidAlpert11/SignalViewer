@@ -996,3 +996,4 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [ ] RV9 Map bar: Camera, Fit, Story always; the rest under one ⋯ (no second row with the Inspector open) (§4.6)
 - [ ] RV10 Runs A / B colours further apart; a set point drawn above its measurement (§4.5)
 - [ ] RV11 Small ones: Space = the same meaning in the app and the report pages (B7); a formula's syntax error at its real position, an unknown function named (B8); *Camera following an object* under Map in Settings (B9)
+- [x] SW1 (owner, 2026-11-16) Sweeps: a sweep wrapper - one simulation per set of inputs (one JSON file each, one row back); the inputs as `name: 1,2,5,8:0.1:9` lines (MATLAB-style), a table of rows or the app's round; *How to run* → A wrapper on this PC; the smart-sweep demo runs through it and shows how to run it by hand

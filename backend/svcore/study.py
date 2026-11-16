@@ -136,6 +136,7 @@ class Launcher:
     results: Results = field(default_factory=Results)
     status: Status = field(default_factory=Status)
     local_workers: Optional[int] = None    # set: a local process pool of that size runs `submit` per run
+    run_as: str = ""                   # "wrapper": `submit` (round mode) is a sweep wrapper run on this PC, in the background
     extra: Dict[str, Any] = field(default_factory=dict)
 
 
