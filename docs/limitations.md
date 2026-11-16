@@ -47,7 +47,7 @@
 * Altitudes are compared as recorded: ArduPilot's POS / GPS / ORGN heights are above sea level, a position converted from ECEF is above the ellipsoid - comparing the two shows the geoid height (about 18 - 20 m in Israel) as a constant vertical error.
 * A map saved as HTML embeds the offline basemap for the tracks' area within about 15 MB (the file says which zoom levels it holds); online imagery is used only if it was on and already in the app's cache. The 3D view saves a PNG only.
 * *Compare with similar…* reads names of one file; the same signal across files is the Compare panel. *One plot at a time* is a way to look, not part of a session or a report.
-* The 3D *Behind it* / *Look at* cameras and the map's smoothness depend on the graphics: on software rendering (no GPU) the 3D view uses lighter settings.
+* The 3D camera On the object and the map's smoothness depend on the graphics: on software rendering (no GPU) the 3D view uses lighter settings.
 * Line styles: opacity is not a line setting (a setpoint's faded look is automatic).
 * The Map's flat drawing (where 3D cannot draw, or *Always flat*) has no terrain relief, sky, shadows, cockpit camera or error surface; the error is shown by colouring the compared track instead.
 * The offline 3D page draws the ground as a flat local plane (no earth curvature) - right for a flight of tens of kilometres, increasingly off beyond ~100 km.

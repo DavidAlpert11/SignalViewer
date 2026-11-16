@@ -15,20 +15,26 @@ describe("mapDefaults", () => {
   });
   test("each pref is read", () => {
     setIconFor("navigation", "drone");
-    setMapPref("camera", "chase"); setMapPref("relation", "hidden"); setMapPref("modelSize", 18); setMapPref("units", "imperial");
+    setMapPref("camera", "centre"); setMapPref("relation", "hidden"); setMapPref("modelSize", 18); setMapPref("units", "imperial");
     setMapPref("trackWidth", 4); setMapPref("coords", "dms"); setMapPref("rate", 2); setMapPref("names", "hidden"); setMapPref("storyLength", 45);
     const m = readMapPrefs();
     expect(m.icon).toEqual({ truth: "aircraft", navigation: "drone", receiver: "aircraft", other: "aircraft" });
-    expect([m.camera, m.relation, m.modelSize, m.units, m.trackWidth, m.coords, m.rate, m.names, m.storyLength]).toEqual(["chase", "hidden", 18, "imperial", 4, "dms", 2, "hidden", 45]);
+    expect([m.camera, m.relation, m.modelSize, m.units, m.trackWidth, m.coords, m.rate, m.names, m.storyLength]).toEqual(["centre", "hidden", 18, "imperial", 4, "dms", 2, "hidden", 45]);
     expect(useApp.getState().mapPrefs).toEqual(m);                         // the store's copy follows
     expect(newObjectLook("navigation")).toEqual({ kind: "drone", size: 18 });
     expect(newObjectLook(undefined)).toEqual({ kind: "aircraft", size: 18 });   // unknown class: "other"
-    expect(newMapFields("o1")).toEqual({ followObject: "o1", camera: "chase", relHidden: true });
+    expect(newMapFields("o1")).toEqual({ followObject: "o1", relHidden: true });
   });
   test("a bad value falls back to the default", () => {
     setPref("sv3.map.camera", "sideways"); setPref("sv3.map.trackWidth", 7); setPref("sv3.map.icon.truth", "rocket");
     const m = readMapPrefs();
     expect([m.camera, m.trackWidth, m.icon.truth]).toEqual(["free", 2.5, "aircraft"]);
+  });
+  test("a camera an older version kept: Behind it is On the object, From above is Free", () => {
+    setPref("sv3.map.camera", "chase");
+    expect(readMapPrefs().camera).toBe("centre");
+    setPref("sv3.map.camera", "top");
+    expect(readMapPrefs().camera).toBe("free");
   });
   test("drawing: Always flat turns the light drawing on", () => {
     setMapPref("drawing", "flat");

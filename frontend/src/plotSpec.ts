@@ -51,14 +51,13 @@ export function plotSpec(tab: Tab, plot: Plot, index: number, plotLabel: string,
   const st = useApp.getState();
   // 1.26: the map seen in 3D - the server draws it (app/scene3d.py): a picture in PDF / Word / PNG, a live
   // three.js page in HTML. The objects as the 3D view fetches them (a borrowed attitude resolved).
-  // P4: the Map (a 3D map, or a 2D-era map with objects) goes out as the 3D view on its camera - the server
-  // draws From above as the flat map picture and opens the live page From above; `view` (this view of the
-  // flat drawing) stays the flat map
+  // P4: the Map (a 3D map, or a 2D-era map with objects) goes out as the 3D view on its camera (the page's
+  // words: "centre" on the object, else "free"); `view` (this view of the flat drawing) stays the flat map
   if (isMapPlot(plot) && plot.objects?.length && !view) {
     const objs = plot.objects, nameOf = (id?: string | null) => objs.find((o) => o.id === id)?.name ?? null;
     return { title: plot.title || plotLabel.replace("{n}", String(index + 1)), caption: plot.caption || "", mode: "3d", signals: [], geo: geoSpec(plot, false),
       scene: { objects: objs.map((o) => ({ ...trackRequest(o, objs), ...(o.hidden ? { hidden: true } : {}) })), follow: nameOf(plot.followObject),
-        camera: mapCamera(plot), ...pairNames(plot) } };
+        camera: mapCamera(plot) === "object" ? "centre" : "free", ...pairNames(plot) } };
   }
   if (plot.mode === "geo" && plot.objects?.length) {
     return { title: plot.title || plotLabel.replace("{n}", String(index + 1)), caption: plot.caption || "", mode: "geo", signals: [], geo: geoSpec(plot, view) };

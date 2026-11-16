@@ -17,7 +17,7 @@ import { markNoPosition } from "../noPosition";
 import { isMapPlot, mapCamera, positionOpen } from "../mapObjects";
 
 /** 1.26: Track up - chosen, or the camera's Chase (on the object, close, its direction of travel up) */
-const trackUpOf = (p: Plot) => p.mapUp === "track" || ((p.camera === "chase" || p.camera === "cockpit") && !!p.followObject);
+const trackUpOf = (p: Plot) => p.mapUp === "track";
 import { geoViewBounds, mapCameraNow, mapFly, mapObjectAt } from "../globeBridge";
 import { nearestPlace, placeIconSvg, shownPlaces } from "../places";
 import { fmtCoord } from "../mapDefaults";
@@ -1011,7 +1011,6 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   };
 
   const trackUp = trackUpOf(plot);
-  // M6: Behind it leaves the zoom alone (Chase used to zoom to ~900 m - the same as Around it then, turned)
   const camMode = mapCamera(plot);
   const prec = view ? Math.max(1, Math.min(8, Math.round(view.z * 0.3 + 1))) : 2;
   return (
@@ -1033,11 +1032,12 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       {trackUp && <canvas ref={topRef} className="geo-top" style={{ width: size.w, height: size.h }} />}
       {view && (
         objects.length > 0 ? (
-        <MapBar plot={plot} objects={objects} className="geo-bar" chaseHint="mapCamChaseHint" onZoom={(d) => zoomBy(d)} onFit={() => { actions.updatePlot(plot.id, { followObject: null, camera: undefined }); fitAll(); }}>
-          {/* M6: Track up is Behind it; the N shows where north is while the map is turned, a click turns it back */}
-          {trackUp && (
-            <button className="geo-up on" aria-pressed={true} title={t("mapNorthUpBack")} aria-label={t("mapNorthUpBack")}
-              onClick={() => actions.updatePlot(plot.id, { mapUp: undefined, ...(plot.camera === "chase" || plot.camera === "cockpit" ? { camera: undefined } : {}) })}>
+        <MapBar plot={plot} objects={objects} className="geo-bar" objectHint="mapCamObjectHint" onZoom={(d) => zoomBy(d)} onFit={() => { actions.updatePlot(plot.id, { followObject: null, camera: undefined }); fitAll(); }}>
+          {/* on the object, the map turns with it (Track up: its heading up); the N shows where north is while
+              the map is turned, a click turns it back */}
+          {(trackUp || plot.followObject) && (
+            <button className={`geo-up${trackUp ? " on" : ""}`} aria-pressed={trackUp} title={t(trackUp ? "mapTrackUpHint" : "mapTrackUp")}
+              aria-label={t(trackUp ? "mapNorthUpBack" : "mapTrackUp")} onClick={() => actions.updatePlot(plot.id, { mapUp: trackUp ? undefined : "track" })}>
               <span ref={northRef} className="geo-north" aria-hidden="true">N</span></button>
           )}
           {offFollow && plot.followObject && <button className="geo-back" onClick={backToFollow}>{t("mapBackToFollow")}</button>}
@@ -1062,7 +1062,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
             return [Math.max(-85, latOf(v.cy + hh)), Math.max(-180, lonOf(v.cx - hw)), Math.min(85, latOf(v.cy - hh)), Math.min(180, lonOf(v.cx + hw))];
           }} />
       )}
-      {view && objects.length > 0 && !hint && (camMode === "free" || camMode === "top" || camMode === "centre" || camMode === "chase") && (
+      {view && objects.length > 0 && !hint && (
         <div key={camMode} className="g3-cam-hint map-cam-line" role="note">{t(`camLine_${camMode}`)}</div>   /* keyed: shown again on a camera change */
       )}
       {view && hint && (

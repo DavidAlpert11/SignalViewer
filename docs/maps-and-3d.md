@@ -137,13 +137,15 @@ with it hidden and their legend rows are buttons (`svLegend` in `report_assets/r
 
 ## The Map is 3D (P4, 1.26)
 
-One Map, and it is the 3D view; "2D" is its camera *From above*. Saved values do not change: `mode: "geo"`
-**with objects** is drawn by the 3D view (`isMapPlot`, `mapObjects.ts`) with the camera From above
-(`Plot.camera` absent on such a plot = `"top"`; `mapCamera`); `mode: "3d"` as before (absent = Free, or
-Around it with a followed object); new maps are `"3d"`. Free writes `camera: "free"`. 1.27 renamed the
-cameras on screen only - *Free* (`"free"`), *From above* (`"top"`), *Around it* (absent with a followed
-object), *Behind it* (`"chase"`), *Cockpit* (`"cockpit"`) - the saved values are unchanged, so a session opens
-with the same camera as before. A 1.25 build
+One Map, and it is the 3D view. Saved values do not change: `mode: "geo"` **with objects** is drawn by the 3D
+view (`isMapPlot`, `mapObjects.ts`); `mode: "3d"` as before; new maps are `"3d"`. **Two cameras** (owner,
+2026-11-16: "enough to mark whether the camera is free or on the object"): *Free*, or *On the object*
+(`followObject` set) - the camera stays on it, a drag turns around it, the wheel / + − go towards the object
+itself down to 1 m, sitting on it (within 15 m its own model and any within 20 m of it are hidden).
+`mapCamera` reads every older `camera` value (`"top"`, `"chase"`, `"cockpit"`, `"lookat"`) by `followObject`
+alone, so a session opens On the object when it followed one, else Free; Free writes `camera: "free"`, On the
+object clears it. From above, Around it, Behind it, Cockpit, Look at (1.26-1.27) are gone; the 2D drawing's
+track up is its **N** button (`mapUp`). with the same camera as before. A 1.25 build
 opening a session from this one draws its maps as before. `mode: "geo"` without objects - a lon / lat X-Y on
 a map - is unchanged (GeoChart).
 
@@ -153,14 +155,14 @@ lost) the Map is drawn by `GeoChart` with "Shown flat – this computer cannot d
 Always flat*; the flat-map e2e tests use it implicitly - their browser has no WebGL).
 
 **Reports and pages:** a Map goes out as the 3D view on its camera (`plotSpec` → `mode: "3d"`,
-`scene.camera`); From above → the flat map picture (`report._map_picture` → `mapimage.render`), any other
-camera → `scene3d.render`; the live page opens on that camera (`D.camera`). The flat page (`map.html`) inside
+`scene.camera`: `"centre"` On the object, else `"free"`) → `scene3d.render`; the live page opens on that
+camera (`D.camera`). (`report._map_picture`'s flat picture for `"top"` is no longer asked for by the app.) The flat page (`map.html`) inside
 the 3D page's frame for a browser without WebGL is **not done** (the page shows its picture there, as before).
 
 | 2D feature | where it was (GeoChart.tsx) | where it is now |
 |---|---|---|
 | the mouse's position | `.geo-readout` (lat / lon) | `Globe3D.tsx` `.g3-readout`: lat / lon (decimals by the camera's height), ground height, distance / bearing from the reference (`scene.globe.pick`, one update a frame) - e2e `test_the_map_from_above_and_the_mouse_readout` |
-| north up / track up | `mapUp` | From above: north up; *Behind it* keeps the chosen object's heading up (1.27: the separate *Track up* button is gone; the N turns a turned map back north) |
+| north up / track up | `mapUp` | the flat drawing On the object: the **N** button turns the map with the object and back north |
 | ring tooltips | `ringTip` | the 3D rings and their hover (1.26, existing) |
 | relation lines and distance | relation layer | existing in 3D (`relLines`) - `test_globe3d` related-objects test |
 | track colouring by a value | `trackColors` | existing in 3D (`objColors`) |
@@ -206,7 +208,7 @@ the setting at once, in the app and in the pages and pictures made after.
 | Setting | Choices (default first) |
 |---|---|
 | Icon of a new object, per class (truth / navigation / receiver / other) | aircraft · uav · drone · missile · ship · vehicle |
-| Camera of a new Map | Free · From above · Around it · Behind it |
+| Camera of a new Map | Free · On the object (an older Behind it reads as On the object, From above as Free) |
 | Map drawing | Automatic · Always flat (light) |
 | Relation box on a new Map / Names on the Map | shown · hidden |
 | Track width | 2.5 px · 1.5 · 4 |
@@ -224,9 +226,9 @@ the setting at once, in the app and in the pages and pictures made after.
   atmosphere, lighting, fog; soft model shadows only while the camera is on an object.
 - **In space**: a drop line and a dark disc under each object; its last 10 s brighter over the whole track.
 - **Flights**: every camera change eases there over ~1.2 s (none with the system's *reduce motion*).
-- **Cockpit**: a fifth camera at the object, along its heading and pitch, rolling with it, 70°; its own model
-  (and any within 20 m) hidden. The flat drawing treats it as Behind it.
-- **Flight display** (*Display* in the bar; on by default Behind it and in Cockpit) and a **mini-map** while the
+- **On it**: On the object zoomed all the way in (within 15 m) hides its own model (and any within 20 m) -
+  the view from the object, turned by a drag (Cockpit until 2026-11-16).
+- **Flight display** (*Display* in the bar, On the object) and a **mini-map** while the
   camera is near an object (a click flies there).
 - **The error, drawn**: when the relation box's pair is one vehicle (median distance under 20 m) a
   see-through surface between the tracks, green → amber → red at the distance's 95th percentile, with its
@@ -243,5 +245,5 @@ ground crossing 5 m for 3 s), the highest and fastest points, the steepest bank 
 200 m of a place, and for the pair the largest error (one vehicle) or the closest and farthest moments. A
 moment within 3 s of a stronger one is dropped; at most 12. The live page's player runs the time so the
 recording takes about the Settings' length (×1 to ×60), at ×1 from 3 s before a moment to 2 s after, and
-stops 4 s on it; the map frames fly to its object (Around it ~400 m; Behind it for a bank, an error, a
+stops 4 s on it; the map frames fly to its object (the offline pages: Around it ~400 m; Behind it for a bank, an error, a
 takeoff or a landing) and give the reader's camera back at the end.

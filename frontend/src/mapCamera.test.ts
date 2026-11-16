@@ -10,13 +10,11 @@ describe("the Map and its camera", () => {
     expect(isMapPlot({ mode: "geo" })).toBe(false);              // a plain lon / lat X-Y
     expect(isMapPlot({ mode: "xyz" })).toBe(false);
   });
-  test("saved values unchanged, read as the four cameras", () => {
-    expect(mapCamera({ mode: "geo" })).toBe("top");               // a 2D-era map
-    expect(mapCamera({ mode: "geo", followObject: "a" })).toBe("top");
-    expect(mapCamera({ mode: "geo", camera: "free" })).toBe("free");
-    expect(mapCamera({ mode: "3d" })).toBe("free");
-    expect(mapCamera({ mode: "3d", followObject: "a" })).toBe("centre");
-    expect(mapCamera({ mode: "3d", followObject: "a", camera: "chase" })).toBe("chase");
-    expect(mapCamera({ mode: "3d", camera: "top" })).toBe("top");
+  test("saved values unchanged, read as the two cameras", () => {
+    // Free unless an object is followed - whatever camera an older version saved with it
+    expect(mapCamera({})).toBe("free");
+    expect(mapCamera({ followObject: null })).toBe("free");
+    expect(mapCamera({ followObject: "a" })).toBe("object");
+    for (const camera of ["chase", "cockpit", "lookat", "top", undefined]) expect(mapCamera({ followObject: "a", camera } as { followObject: string })).toBe("object");
   });
 });

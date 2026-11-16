@@ -56,11 +56,10 @@ are told apart by them.
   drag it onto any plot. Drop on a plot's right or bottom edge to make a new plot there.
 - The button next to the plot's title (**Time ▾**) changes the plot's type: Time, X-Y, 3D (XYZ - any
   three signals on plain axes), Map, FFT, Spectrogram, Envelope (many runs of one quantity), Video. The **Map**
-  is the earth with its terrain; its bar has the camera *Free · From above · Around it · Behind it · Cockpit*
-  on the object beside it (*From above*: straight down, north up, the whole flight framed), + / − / fit, *Relation* (the relation box shown or hidden), and its extras (look at, a third object, data,
+  is the earth with its terrain; its bar has the camera *Free · On the object* (the object chosen beside it),
+  + / − / fit, *Relation* (the relation box shown or hidden), and its extras (a third object, data,
   events, measure, its own time). The mouse's position is shown in a corner: latitude, longitude, the ground
-  height there and the distance / bearing from the reference. A map saved by an earlier version opens *From
-  above*. Where the computer cannot draw 3D (remote desktops, some virtual machines) the Map is drawn flat
+  height there and the distance / bearing from the reference. Where the computer cannot draw 3D (remote desktops, some virtual machines) the Map is drawn flat
   and says so in one quiet line.
 - **Right-click a legend chip** for its options: second value axis, show as states, move, remove…
 - **Many signals in one plot?** The legend moves into a column beside the plot by itself (a row per
@@ -164,12 +163,12 @@ are told apart by them.
   template) and *My places* (yours, in every session - ★ moves a place there). A click flies the camera there;
   the search box also takes a position; *Save this view* keeps the camera by name. The mouse readout says
   how far the nearest place is, and the relation box can compare the reference with a place.
-- **The Map's cameras**, named by what they do - each with a small picture and a line in its menu: *Free*
-  (move it yourself), *From above* (straight down, never follows an object), *Around it* (turn around the
-  object, the wheel towards it), *Behind it* (behind and above it, turning with its heading) and *Cockpit*
-  (from the object, looking where it points, rolling with it). Every change flies there; a session saved
-  earlier opens with the same camera as before. *Display* shows the flight display of the
-  object the camera is on (attitude, ground speed, altitude, heading; on by default Behind it and in Cockpit);
+- **The Map's camera** is *Free* (move it yourself) or *On the object*: the camera stays on the object as the
+  replay moves it; drag to turn around it, the wheel (or + / −) goes nearer or further - always towards the
+  object itself, all the way in to sitting on it (its own model is hidden there) and looking where you turned.
+  Every change flies there; a session saved with one of the earlier cameras (From above, Around it, Behind
+  it, Cockpit, Look at) opens Free, or On the object when it followed one. *Display* shows the flight display of the
+  object the camera is on (attitude, ground speed, altitude, heading);
   a mini-map shows the whole flight while the camera is near an object (a click flies there). When the
   reference and the compared object are one vehicle (truth and a navigation solution), an **error
   surface** between their tracks shows where the solution left the truth (its scale and toggle are in the
@@ -188,8 +187,8 @@ are told apart by them.
   and the keys work on it: arrows move it, + / − zoom, F follows, 0 fits everything (Shift+←/→ still
   step the cursor). *Settings → Camera following an object*: *Smooth* (default) eases after the object,
   so a noisy position does not shake the view; *Exact* stays right on it.
-  *Behind it* keeps the object's heading up; when the map is turned, the **N** button turns it back north.
-  *Look at* (the Map's extras) looks from one object towards the second. A line at the bottom says what the
+  Drawn flat, On the object has the **N** button: the map turns with the object (its heading up) and back
+  north again. A line at the bottom says what the
   mouse does.
 - **The map's background:** the *Map* button in the corner of every map (2D and 3D) shows each background
   as a picture of the place on screen - *Offline* (the default, shipped with the app), the online maps

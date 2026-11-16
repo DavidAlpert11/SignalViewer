@@ -268,17 +268,14 @@ export function isMapPlot(p: { mode?: string; objects?: MapObject[] }): boolean 
   return p.mode === "3d" || (p.mode === "geo" && (p.objects?.length ?? 0) > 0);
 }
 
-export type MapCamera = "free" | "top" | "centre" | "chase" | "lookat" | "cockpit";
+export type MapCamera = "free" | "object";
 
-/** P4: the Map's camera - General, From above, On the object, Chase (Look at: from one object to another).
- *  Saved values are unchanged: absent on a "geo" plot = From above (it was a 2D map), absent on a "3d" plot
- *  = General or, with a followed object, On the object (as before). */
-export function mapCamera(p: { mode?: string; camera?: string; followObject?: string | null }): MapCamera {
-  if (p.camera === "top") return "top";
-  if (p.camera === "free") return "free";
-  if (!p.camera && p.mode === "geo") return "top";
-  if (!p.followObject) return "free";
-  return p.camera === "chase" ? "chase" : p.camera === "lookat" ? "lookat" : p.camera === "cockpit" ? "cockpit" : "centre";
+/** The Map's camera (owner, 2026-11-16: "enough to mark whether the camera is free or on the object"): Free,
+ *  or On the object - it stays on the object as it moves; turn around it, nearer / further down to sitting on
+ *  it. Saved values are unchanged and read as these two: a followed object (whatever `camera` an older version
+ *  saved - Around it, Behind it, Cockpit, Look at, From above on an object) is On the object; else Free. */
+export function mapCamera(p: { followObject?: string | null }): MapCamera {
+  return p.followObject ? "object" : "free";
 }
 
 

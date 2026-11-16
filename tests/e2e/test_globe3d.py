@@ -166,7 +166,7 @@ def test_related_objects_distance_line_and_box(g3multi):
 def test_camera_on_the_object_zooms_towards_it(g3multi):
     pg = g3multi
     pg.locator(".globe3d .rel-panel select[aria-label='Reference']").select_option("B")
-    pg.locator(".globe3d-bar .g3-cam-centre").click()                          # M6: Around it
+    pg.locator(".globe3d-bar .g3-cam-object").click()                          # On the object
     probe = """(() => { const { widget: w, Cesium: C } = window.__svGlobe;
       const pos = C.Cartesian3.fromDegrees(34.51, 32.5, 500);
       const dir = C.Cartesian3.normalize(C.Cartesian3.subtract(pos, w.camera.positionWC, new C.Cartesian3()), new C.Cartesian3());
@@ -225,6 +225,57 @@ MODEL_LAT = """(() => { const { widget: w, Cesium: C } = window.__svGlobe; let m
 def at_lat(pg, lat, timeout=10000):
     """T2: the model is drawn at this latitude (instead of a fixed sleep)."""
     pg.wait_for_function(f"Math.abs({MODEL_LAT} - {lat}) < 2e-6", timeout=timeout)
+
+
+ON = """(() => { const { widget: w, Cesium: C } = window.__svGlobe; let m = null;
+  for (let i = 0; i < w.scene.primitives.length; i++) { const p = w.scene.primitives.get(i); if (p instanceof C.Model) m = p; }
+  const at = C.Matrix4.getTranslation(m.modelMatrix, new C.Cartesian3());
+  const dir = C.Cartesian3.normalize(C.Cartesian3.subtract(at, w.camera.positionWC, new C.Cartesian3()), new C.Cartesian3());
+  return { d: C.Cartesian3.distance(w.camera.positionWC, at), centre: C.Cartesian3.dot(dir, w.camera.directionWC), shown: m.show,
+           hdg: C.Math.toDegrees(w.camera.heading), lat: C.Math.toDegrees(C.Cartographic.fromCartesian(at).latitude) }; })()"""
+
+
+def test_on_the_object_down_to_sitting_on_it(g3move):
+    """Owner, 2026-11-16: On the object - the camera stays on it while the replay moves it; the wheel goes
+    towards the object itself, all the way to sitting on it (its own model hidden there); a drag turns the
+    look around it, and the turn is kept as it moves."""
+    pg = g3move
+    at_lat(pg, 32.0 + 20 * 1e-4)
+    pg.locator(".globe3d-bar .g3-cam-object").click()
+    pg.wait_for_function(f"{ON}.centre > 0.999", timeout=20000)
+    b = pg.locator(".globe3d-host").bounding_box()
+    cx, cy = b["x"] + b["width"] / 2, b["y"] + b["height"] / 2
+    pg.mouse.move(b["x"] + b["width"] * 0.8, b["y"] + b["height"] * 0.3)   # away from the middle: still towards it
+    for _ in range(40):
+        pg.mouse.wheel(0, -600)
+        if pg.evaluate(ON)["d"] < 4:
+            break
+    pg.wait_for_function(f"(() => {{ const c = {ON}; return c.d < 4 && !c.shown; }})()", timeout=20000)   # on it, its model hidden
+    for _ in range(3):
+        pg.locator(".globe3d-bar .geo-zoom-in").click()                         # + never goes past it
+    pg.wait_for_timeout(300)
+    c = pg.evaluate(ON)
+    assert 0.5 < c["d"] < 4 and c["centre"] > 0.99, c
+    # a drag turns the look around it
+    h0 = c["hdg"]
+    pg.mouse.move(cx, cy)
+    pg.mouse.down()
+    pg.mouse.move(cx - 250, cy, steps=10)
+    pg.mouse.up()
+    pg.wait_for_function(f"(() => {{ const c = {ON}; const d = Math.abs(((c.hdg - {h0}) % 360 + 540) % 360 - 180); return d > 20; }})()", timeout=10000)
+    c = pg.evaluate(ON)
+    assert c["d"] < 4, c
+    # the replay moves the object: the camera goes with it, turned the same way
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, t1: 80 } })")
+    at_lat(pg, 32.0 + 80 * 1e-4)
+    pg.wait_for_function(f"(() => {{ const c = {ON}; return c.d < 4 && Math.abs(c.lat - {32.0 + 80 * 1e-4}) < 1e-6; }})()", timeout=20000)
+    c2 = pg.evaluate(ON)
+    assert abs(((c2["hdg"] - c["hdg"]) % 360 + 540) % 360 - 180) < 1, (c, c2)
+    # out again with the wheel: the model shows
+    pg.mouse.move(cx, cy)
+    for _ in range(10):
+        pg.mouse.wheel(0, 600)
+    pg.wait_for_function(f"(() => {{ const c = {ON}; return c.d > 30 && c.shown; }})()", timeout=20000)
 
 
 def test_own_time_is_independent_of_the_timeline(g3move):
@@ -369,22 +420,16 @@ CAM = """(() => { const { widget: w, Cesium: C } = window.__svGlobe;
   return { a: toward(A), b: toward(B), e: d.x, n: d.y, u: d.z, dist: C.Cartesian3.distance(w.camera.positionWC, A) }; })()"""
 
 
-def test_camera_chase_and_look_at(g3multi):
-    """N6: Chase - behind and above the object along its heading (still objects head north), A in the
-    middle; Look at - from A towards B; both reached by a short flight, then held; the hint follows the mode."""
+def test_two_cameras(g3multi):
+    """Owner, 2026-11-16: the camera is Free or On the object - nothing else; the hint follows the mode."""
     pg = g3multi
-    pg.locator(".globe3d-bar .g3-cam-chase").click()
-    assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].camera") == "chase"
-    pg.wait_for_function(f"(() => {{ const c = {CAM}; return c.a > 0.999 && c.dist <= 610; }})()", timeout=20000)   # the flight has ended
-    c = pg.evaluate(CAM)
-    assert c["n"] > 0.9 and -0.35 < c["u"] < -0.1 and c["dist"] <= 610, c       # looking north, down ~12°
-    assert "behind the object" in pg.locator(".g3-cam-hint").inner_text()
-    pg.locator(".globe3d-bar .g3-cam-lookat").click()
-    assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].relatedObjects") == ["B"]   # something to look at
-    pg.wait_for_function(f"(() => {{ const c = {CAM}; return c.b > 0.9995 && c.dist < 60; }})()", timeout=20000)
-    c = pg.evaluate(CAM)
-    assert c["e"] > 0.9 and c["dist"] < 60, c                                     # from A, towards B (east)
-    pg.locator(".globe3d-bar .g3-cam-free").click()                            # M6: Free
+    seg = pg.locator(".globe3d-bar .g3-seg").first
+    assert seg.locator("button").all_inner_texts() == ["Free", "On the object"]
+    pg.locator(".globe3d-bar .g3-cam-object").click()
+    assert pg.evaluate("[window.__sv.state().ws.tabs[0].plots[0].followObject, window.__sv.state().ws.tabs[0].plots[0].camera ?? null]") == ["A", None]
+    pg.wait_for_function(f"(() => {{ const c = {CAM}; return c.a > 0.999; }})()", timeout=20000)   # A in the middle
+    assert "turn around the object" in pg.locator(".g3-cam-hint").inner_text()
+    pg.locator(".globe3d-bar .g3-cam-free").click()
     assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].followObject") is None
     assert "drag to move" in pg.locator(".g3-cam-hint").inner_text()
 
@@ -417,12 +462,13 @@ def test_primary_secondary_in_3d(g3multi):
 
 
 def test_the_map_from_above_and_the_mouse_readout(g3):
-    """P4: a 2D-era map (mode "geo" with objects) is drawn by the 3D view From above (straight down); the
+    """P4: a 2D-era map (mode "geo" with objects) is drawn by the 3D view (Free since the two cameras); the
     mouse's readout shows the latitude / longitude under it - within 0.01° of the object under the mouse -
     the ground height there, and hides when the mouse leaves."""
     pg, _ = g3
     pg.evaluate("window.__sv.setState({ ws: (() => { const ws = structuredClone(window.__sv.state().ws); ws.tabs[0].plots[0].mode = 'geo'; return ws; })() })")
-    pg.wait_for_function("""(() => { const g = window.__svGlobe; return g && g.widget && !g.widget.isDestroyed() && g.widget.camera.pitch < -1.45; })()""", timeout=90000)
+    pg.wait_for_function("""(() => { const g = window.__svGlobe; return g && g.widget && !g.widget.isDestroyed(); })()""", timeout=90000)
+    pg.wait_for_selector(".globe3d-readout", timeout=60000)
     xy = pg.evaluate("""(() => { const { widget: w, Cesium: C } = window.__svGlobe;
       const T = C.SceneTransforms.worldToWindowCoordinates || C.SceneTransforms.wgs84ToWindowCoordinates;
       const p = T(w.scene, C.Cartesian3.fromDegrees(34.5, 32.5, 0)); const b = w.canvas.getBoundingClientRect();
@@ -432,6 +478,6 @@ def test_the_map_from_above_and_the_mouse_readout(g3):
     r = pg.evaluate("window.__svReadout")
     assert abs(r["lat"] - 32.5) < 0.01 and abs(r["lon"] - 34.5) < 0.01, r
     assert "ground" in pg.inner_text(".g3-readout")
-    assert pg.locator(".map-bar .g3-cam-top.on").count() == 1
+    assert pg.locator(".map-bar .g3-cam-free.on").count() == 1
     pg.mouse.move(2, 2)
     pg.wait_for_function("!document.querySelector('.g3-readout')", timeout=10000)

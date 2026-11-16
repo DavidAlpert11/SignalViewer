@@ -65,7 +65,7 @@ function MapSection({ seg }: { seg: <V extends string | number>(value: V, opts: 
           <label key={c}>{t(`setCls_${c}` as TKey)} <select className={`set-icon-${c}`} value={m.icon[c]} onChange={(e) => setIconFor(c, e.target.value as never)}>
             {MAP_CHOICES.kinds.map((k) => <option key={k} value={k}>{t(`obj_${k}` as TKey)}</option>)}</select></label>
         ))}</span></div>
-      {row("setMapCamera", seg(m.camera, [["free", t("g3CamFree")], ["top", t("g3CamTop")], ["centre", t("g3CamCentre")], ["chase", t("g3CamChase")]], (v) => setMapPref("camera", v), t("setMapCamera")))}
+      {row("setMapCamera", seg(m.camera, [["free", t("g3CamFree")], ["centre", t("g3CamObject")]], (v) => setMapPref("camera", v), t("setMapCamera")))}
       {row("setMapDrawing", seg(m.drawing, [["auto", t("setMapDrawAuto")], ["flat", t("setMapDrawFlat")]], (v) => setMapPref("drawing", v), t("setMapDrawing")), "setMapDrawingHint")}
       {row("setMapRelation", seg(m.relation, [["shown", t("setShown")], ["hidden", t("setHidden")]], (v) => setMapPref("relation", v), t("setMapRelation")))}
       {row("setMapNames", seg(m.names, [["shown", t("setShown")], ["hidden", t("setHidden")]], (v) => setMapPref("names", v), t("setMapNames")))}

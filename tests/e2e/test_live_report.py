@@ -51,9 +51,9 @@ def test_one_map(pg):
 
 
 def test_one_bar(pg):
-    """P4 (adapted from test_one_bar_for_2d_and_3d): the Map's bar - camera General / From above / On the
-    object / Chase on the chosen object, + − fit, Relation; a 2D-era map opens From above; Chase in the flat
-    drawing is close and track up."""
+    """P4 (adapted from test_one_bar_for_2d_and_3d): the Map's bar - camera Free / On the object (owner,
+    2026-11-16: only these two) on the chosen object, + − fit, Relation; drawn flat, On the object can turn
+    the map with the object (track up)."""
     map_and_line(pg)
     geo = pg.locator(".plot").nth(1)
     geo.hover()                                       # review R3: the pointer on the Map - its whole bar shows
@@ -63,18 +63,17 @@ def test_one_bar(pg):
         return [b.locator(".g3-seg").first.locator("button").all_inner_texts(), b.locator(".geo-zoom-in, .geo-zoom-out, .geo-fit, .rel-toggle").count(),
                 b.locator("select.geo-follow option").all_inner_texts()]
     two = bar()
-    # M6: the cameras named by what they do; From above follows nothing, so the object picker shows with a following camera
-    assert two == [["Free", "From above", "Around it", "Behind it", "Cockpit"], 4, []], two   # P9: Cockpit
-    assert "on" in (geo.locator(".map-bar .g3-cam-top").get_attribute("class") or "")   # a 2D-era map: From above
-    geo.locator(".map-bar .g3-cam-chase").click()
-    pg.wait_for_function("(() => { const p = window.__sv.state().ws.tabs[0].plots[1]; return p.camera === 'chase' && p.followObject === 'o1'; })()")
+    # the object picker shows with the camera on an object
+    assert two == [["Free", "On the object"], 4, []], two
+    assert "on" in (geo.locator(".map-bar .g3-cam-free").get_attribute("class") or "")
+    geo.locator(".map-bar .g3-cam-object").click()
+    pg.wait_for_function("(() => { const p = window.__sv.state().ws.tabs[0].plots[1]; return !p.camera && p.followObject === 'o1'; })()")
     assert geo.locator(".map-bar select.geo-follow option").all_inner_texts() == ["Plane", "Chase"]
-    if geo.locator(".geo-up").count():
-        assert "on" in (geo.locator(".geo-up").get_attribute("class") or "")         # Behind it, drawn flat: track up
+    if geo.locator(".geo-up").count():                                              # drawn flat: the map can turn with it
+        geo.locator(".geo-up").click()
+        pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[1].mapUp === 'track'")
     geo.locator(".map-bar .g3-cam-free").click()
     pg.wait_for_function("(() => { const p = window.__sv.state().ws.tabs[0].plots[1]; return p.followObject === null && p.camera === 'free'; })()")
-    geo.locator(".map-bar .g3-cam-top").click()
-    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[1].camera === 'top'")
 
 
 def test_live_html_report_with_the_3d_view(pg):

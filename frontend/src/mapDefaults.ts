@@ -11,7 +11,7 @@ import { getPrefValue, setPref } from "./prefs";
 export type ObjClassKey = "truth" | "navigation" | "receiver" | "other";
 export interface MapPrefs {
   icon: Record<ObjClassKey, ObjectKind>;
-  camera: "free" | "top" | "centre" | "chase";
+  camera: "free" | "centre";                  // a new Map's camera: Free, or On its first object ("centre")
   drawing: "auto" | "flat";
   relation: "shown" | "hidden";
   names: "shown" | "hidden";
@@ -31,7 +31,7 @@ export const MAP_DEFAULTS: MapPrefs = {
 const KINDS: ObjectKind[] = ["aircraft", "uav", "drone", "missile", "ship", "vehicle"];
 export const MAP_CHOICES = {
   kinds: KINDS,
-  camera: ["free", "top", "centre", "chase"] as const,
+  camera: ["free", "centre"] as const,
   drawing: ["auto", "flat"] as const,
   relation: ["shown", "hidden"] as const,
   names: ["shown", "hidden"] as const,
@@ -53,7 +53,8 @@ export function readMapPrefs(): MapPrefs {
   for (const c of CLASSES) icon[c] = one(`icon.${c}`, KINDS, MAP_DEFAULTS.icon[c]);
   return {
     icon,
-    camera: one("camera", MAP_CHOICES.camera, MAP_DEFAULTS.camera),
+    // a setting kept by an older version: From above is Free, Behind it On the object
+    camera: one("camera", MAP_CHOICES.camera, getPrefValue<string>(KEY("camera")) === "chase" ? "centre" : MAP_DEFAULTS.camera),
     drawing: one("drawing", MAP_CHOICES.drawing, MAP_DEFAULTS.drawing),
     relation: one("relation", MAP_CHOICES.relation, MAP_DEFAULTS.relation),
     names: one("names", MAP_CHOICES.names, MAP_DEFAULTS.names),
@@ -100,11 +101,10 @@ export function newObjectLook(cls?: string | null): Pick<MapObject, "kind"> & { 
   const kind = m.icon[(CLASSES as string[]).includes(cls ?? "") ? (cls as ObjClassKey) : "other"];
   return { kind, ...(m.modelSize !== 26 ? { size: m.modelSize } : {}) };
 }
-/** A new Map's camera and relation box. `first`: its first object (On the object / Chase are on it). */
+/** A new Map's camera and relation box. `first`: its first object (On the object is on it). */
 export function newMapFields(first?: string | null): Partial<Plot> {
   const m = mapPrefs();
-  const cam: Partial<Plot> = m.camera === "free" ? {} : m.camera === "top" ? { camera: "top" }
-    : first ? { followObject: first, ...(m.camera === "chase" ? { camera: "chase" as const } : {}) } : {};
+  const cam: Partial<Plot> = m.camera === "centre" && first ? { followObject: first } : {};
   return { ...cam, ...(m.relation === "hidden" ? { relHidden: true } : {}) };
 }
 

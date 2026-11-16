@@ -13,6 +13,17 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 
 ## Current state
 
+- **2026-11-16 · M7 Two cameras (owner) - done.** First a *Look freely* toggle in Cockpit (da51c45); the owner then
+  asked for less: "enough to mark whether the camera is free or attached to the object; attached: nearer / further /
+  turn, every zoom towards the object itself" - reverted (3003e80) and replaced: the Map's camera is *Free · On the
+  object* in 2D and 3D. On the object (`Globe3D.tsx` update): `cam.lookAt` at the user's heading / pitch, the range
+  read in the object's frame (a time jump keeps it on it), down to 1 m; within `SIT_M` (15 m) its model is hidden
+  (checked after each frame drawn - `moveEnd` needs frames the request-render mode does not draw); + − never past it;
+  the flight display off by default (it caught the wheel in the view's middle). `mapCamera` = `"free" | "object"` by
+  `followObject` alone (old `camera` values unchanged in files); Settings: Free · On the object (an old `chase`
+  setting reads as On the object). Removed: From above (and its tilt guard and straight-down fit), Behind it, Cockpit,
+  Look at, their strings. The flat drawing: the N button turns track up on / off while on an object. Reports send
+  `"centre"` / `"free"`; the offline pages keep their own 5 buttons - **ask the owner** whether to make them two too.
 - **2026-11-16 · PLAN_2026-11-17 (the owner approved it) - in progress.** Order R, S1, S2, E1, M1, M3, M2 (plan §6).
   R done: the unreleased 1.27.0 and 1.28.0 are one release, **1.27.0** (CHANGELOG merged under `1.27.0 – unreleased`,
   the version files at 1.27.0, the docs' "1.28" -> "1.27"; history not rewritten). The owner tags v1.27.0 once the
@@ -274,3 +285,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-16 · **1.27.0 released by the owner** (tag v1.27.0 = c249489, with the Python package). CHANGELOG: 1.27.0 dated,
   a "Next – unreleased" section above it (the satellite no-data fix, 9ab4914). Next: the 3D view's free camera on
   the object (owner's request) - in a new session.
+
+- 2026-11-16 · M7 two cameras (see Current state). Tests: mapCamera.test.ts, mapDefaults.test.ts (+1); e2e
+  test_globe3d (test_two_cameras, test_on_the_object_down_to_sitting_on_it new; the chase / look-at test removed;
+  the 2D-era map test reads Free), test_live_report::test_one_bar, test_map_smooth (track up by the N); e2e run:
+  test_globe3d, test_live_report, test_map_objects, test_map_smooth, test_round_1112; quick_check.

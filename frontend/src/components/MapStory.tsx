@@ -31,11 +31,11 @@ export default function MapStory({ plot, objects }: { plot: Plot; objects: MapOb
   const btn = useRef<HTMLButtonElement>(null);
   const run = useRef({ raf: 0, last: 0, pauseUntil: 0, next: 0, saved: null as FlyTarget | null, list: [] as StoryMoment[] });
   const setCursor = (v: number) => { const c = useApp.getState().cursor; useApp.setState({ cursor: { ...c, on: true, t1: v, active: 1 } }); };
-  /** The reader chose a camera that keeps to an object (On the object, Chase, Look at, Cockpit): the story only
+  /** The reader chose the camera On the object: the story only
    *  moves the time - the camera goes on doing what was chosen (it used to fly back to a general view). */
   const bound = () => {
     const p = activeTabPlot(plot.id) ?? plot;
-    return !!p.followObject || p.camera === "chase" || p.camera === "lookat" || p.camera === "cockpit";
+    return !!p.followObject;
   };
   const focus = (m: StoryMoment) => {
     if (bound()) return;

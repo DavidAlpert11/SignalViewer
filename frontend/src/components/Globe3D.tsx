@@ -137,6 +137,7 @@ function ratesAt(o: MapObject, tr: Track3, t: number): { gs: number | null; vs: 
   return { gs: Number.isFinite(d) ? d / dt : null, vs: Number.isFinite(dh) ? dh / dt : null };
 }
 
+const SIT_M = 15;                               // On the object: nearer than this, the camera sits on it (its model hidden)
 const FLY_MS = 1200;                            // P9: every camera change flies (~1.2 s, eased)
 const reducedMotion = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
 
@@ -678,11 +679,11 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   }, [cz, placesKey, lightMode]);
 
   /* P7 (P9.3 makes every camera change fly): the one camera flight of this view - to a place, a saved view,
-     a typed position. A flight leaves the object-bound cameras for General (the user then looks around). */
+     a typed position. A flight leaves On the object for Free (the user then looks around). */
   const flyTo = (to: FlyTarget) => {
     const w = widgetRef.current;
     if (!cz || !w) return;
-    if (plot.followObject || (plot.camera && plot.camera !== "free")) {
+    if (plot.followObject) {
       ownFlight.current = true;
       actions.updatePlot(plot.id, { followObject: null, camera: "free" });
     }
@@ -827,9 +828,8 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
     }
     if (!pts.length) return;
     const bs = cz.BoundingSphere.fromPoints(pts);
-    // P4: From above - straight down, north up, the whole flight framed; General - from the south-west
-    const top = mapCamera(plot) === "top";
-    w.camera.flyToBoundingSphere(bs, { duration: fitFlies.current && !reducedMotion() ? 1.2 : 0, offset: new cz.HeadingPitchRange(0, cz.Math.toRadians(top ? -89.9 : -35), Math.max(bs.radius * (top ? 3.2 : 2.6), 1500)) });
+    // the whole flight framed, from the south
+    w.camera.flyToBoundingSphere(bs, { duration: fitFlies.current && !reducedMotion() ? 1.2 : 0, offset: new cz.HeadingPitchRange(0, cz.Math.toRadians(-35), Math.max(bs.radius * 2.6, 1500)) });
     scene3.current.fitted = true;
     fitFlies.current = true;                              // P9: every later Fit flies there
     w.scene.requestRender();
@@ -931,54 +931,19 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
       }
     }
     lastStates.current = states;
-    // the camera on the followed object (N6: chase it, or look from it at the second one), flying to a
-    // new mode / object over a moment instead of jumping
+    // On the object (owner, 2026-11-16: free, or on the object - nearer / further / turn, every zoom towards the
+    // object itself): the camera stays on it as it moves, at the user's angle and distance - the wheel goes in
+    // down to a metre, sitting on it; a change of object flies there over a moment instead of jumping
     const fs = follow ? states.get(follow) : undefined;
     const cam = w.camera;
     const fly = flyRef.current;
     const from = fly ? { pos: cam.positionWC.clone(), dir: cam.directionWC.clone(), up: cam.upWC.clone() } : null;
-    const camMode = mapCamera(plot);
-    if (camMode === "top") {
-      // P4: From above - on the chosen object (track up: its heading points up), straight down at the user's height
-      if (fs) {
-        const range = Math.max(60, cz.Cartesian3.distance(cam.positionWC, fs.pos));
-        const hdg = plot.mapUp === "track" && fs.hdg !== null && fs.hdg !== undefined ? cz.Math.toRadians(fs.hdg) : 0;
-        cam.lookAt(fs.pos, new cz.HeadingPitchRange(hdg, cz.Math.toRadians(-89.9), range));
-      }
-    } else if (fs) {
-      const range = cam.positionCartographic ? Math.max(30, cz.Cartesian3.distance(cam.positionWC, fs.pos)) : 2000;
-      const second = plot.camera === "lookat" ? states.get((plot.relatedObjects ?? []).find((x) => x !== fs.id) ?? "") : undefined;
-      if (plot.camera === "cockpit") {
-        // P9: the cockpit - at the object, looking along its heading and pitch, rolling with it
-        cam.lookAtTransform(cz.Matrix4.IDENTITY);
-        cam.setView({ destination: fs.pos, orientation: { heading: cz.Math.toRadians(fs.hdg ?? 0), pitch: cz.Math.toRadians(fs.pitch ?? 0), roll: cz.Math.toRadians(fs.roll ?? 0) } });
-      } else if (plot.camera === "chase") {
-        // behind and a little above, along its heading (eased while playing, so noise does not shake it)
-        const goal = fs.hdg ?? 0, now = performance.now(), last = chaseHdg.current;
-        let hdg = goal;
-        if (st.smoothFollow && st.playing && last && now - last.t < 250) {
-          const d = ((goal - last.h + 540) % 360) - 180;
-          hdg = last.h + d * (1 - Math.exp(-(now - last.t) / 200));
-        }
-        chaseHdg.current = { t: now, h: hdg };
-        // its distance: on entering, near enough to see it (60-600 m); then the user's (the wheel)
-        if (fly?.fresh || chaseRange.current === null) chaseRange.current = Math.min(Math.max(range, 60), 600);
-        else if (!fly) chaseRange.current = range;
-        const r0 = chaseRange.current;
-        cam.lookAt(fs.pos, new cz.HeadingPitchRange(cz.Math.toRadians(hdg), cz.Math.toRadians(-12), r0));
-      } else if (second) {
-        // from just behind and above the primary, looking at the second object
-        const dir = cz.Cartesian3.normalize(cz.Cartesian3.subtract(second.pos, fs.pos, new cz.Cartesian3()), new cz.Cartesian3());
-        const up = cz.Ellipsoid.WGS84.geodeticSurfaceNormal(fs.pos, new cz.Cartesian3());
-        const eye = cz.Cartesian3.add(cz.Cartesian3.multiplyByScalar(dir, -40, new cz.Cartesian3()), cz.Cartesian3.multiplyByScalar(up, 12, new cz.Cartesian3()), new cz.Cartesian3());
-        cz.Cartesian3.add(eye, fs.pos, eye);
-        const look = cz.Cartesian3.normalize(cz.Cartesian3.subtract(second.pos, eye, new cz.Cartesian3()), new cz.Cartesian3());
-        cam.lookAtTransform(cz.Matrix4.IDENTITY);
-        cam.setView({ destination: eye, orientation: { direction: look, up } });
-      } else {
-        // keep the followed object in the middle; the user's angle and distance stay
-        cam.lookAt(fs.pos, new cz.HeadingPitchRange(cam.heading, cam.pitch, range));
-      }
+    if (fs) {
+      // the distance kept on the object is the camera's in the object's frame (a jump of the time moves the
+      // frame with it); entering, the distance to it
+      const onIt = !cz.Matrix4.equals(cam.transform, cz.Matrix4.IDENTITY);
+      const range = Math.max(1, onIt ? cz.Cartesian3.magnitude(cam.position) : cam.positionCartographic ? cz.Cartesian3.distance(cam.positionWC, fs.pos) : 2000);
+      cam.lookAt(fs.pos, new cz.HeadingPitchRange(cam.heading, cam.pitch, range));
     }
     if (!follow) cam.lookAtTransform(cz.Matrix4.IDENTITY);
     if (fly && from) {
@@ -995,7 +960,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
         };
         cam.lookAtTransform(cz.Matrix4.IDENTITY);
         cam.setView({ destination: mix(s0.pos, to.pos, false), orientation: { direction: mix(s0.dir, to.dir, true), up: mix(s0.up, to.up, true) } });
-        if (fs && !plot.camera) {
+        if (fs) {
           // back on the object for the next frame (its own transform: turning goes around it)
           const r = cz.Cartesian3.distance(cam.positionWC, fs.pos);
           cam.lookAt(fs.pos, new cz.HeadingPitchRange(cam.heading, cam.pitch, r));
@@ -1003,21 +968,21 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
         if (!fly.raf) fly.raf = requestAnimationFrame(() => { fly.raf = 0; updateRef.current(); });
       } else flyRef.current = null;
     }
-    // P9: the cockpit hides its own model (and any within 20 m - a solution of the same vehicle would fill
-    // the view) and widens the view to 70°
-    const ck = plot.camera === "cockpit" && fs ? fs : null;
+    // sitting on the object (the camera within 15 m): its own model is hidden, and any within 20 m of it - a
+    // solution of the same vehicle would fill the view
+    const ck = fs && cz.Cartesian3.distance(cam.positionWC, fs.pos) < SIT_M ? fs : null;
     for (const [id, q] of states) {
       const m = S.models.get(id);
       if (m && ck) m.show = !(id === ck.id || cz.Cartesian3.distance(q.pos, ck.pos) < 20);
       const dr = S.drawn.get(id);
       if (dr?.label && ck && id === ck.id) dr.label.show = false;
     }
-    // P9: the models' shadows only while the camera is near an object (On the object, Chase, Cockpit, Look at):
-    // from far they are a pixel, and the shadow pass is the effects' largest cost
-    const nearCam = !lightMode && !!fs && camMode !== "top" && camMode !== "free";
+    // P9: the models' shadows only while the camera is on an object: from far they are a pixel, and the shadow
+    // pass is the effects' largest cost
+    const nearCam = !lightMode && !!fs;
     if (w.scene.shadowMap.enabled !== nearCam) w.scene.shadowMap.enabled = nearCam;
     const fr = cam.frustum as import("cesium").PerspectiveFrustum;
-    const fov = cz.Math.toRadians(ck ? 70 : 60);
+    const fov = cz.Math.toRadians(60);
     if (fr.fov !== undefined && Math.abs(fr.fov - fov) > 1e-6) fr.fov = fov;
     // P9: the sun where it was - the recording's own time when it has real dates (Unix seconds), else a
     // mid-morning sun (10:00 local solar time at an equinox, over the scene)
@@ -1108,16 +1073,13 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   const rootFocus = useRef(() => rootRef.current?.focus({ preventScroll: true }));
   // N6: a change of camera mode or of the object it is on flies there (FLY_MS) instead of jumping
   const flyRef = useRef<{ t0: number; fresh: boolean; raf: number; start: { pos: import("cesium").Cartesian3; dir: import("cesium").Cartesian3; up: import("cesium").Cartesian3 } | null } | null>(null);
-  const chaseHdg = useRef<{ t: number; h: number } | null>(null);
-  const chaseRange = useRef<number | null>(null);
-  const camKey = `${plot.followObject ?? ""}|${plot.camera ?? ""}|${plot.camera === "lookat" ? (plot.relatedObjects ?? [])[0] ?? "" : ""}`;
+  const camKey = plot.followObject ?? "";
   const camKeyRef = useRef(camKey);
   const ownFlight = useRef(false);          // P7: flyTo set the camera free itself - no blend from the old mode
   if (camKeyRef.current !== camKey) {
     camKeyRef.current = camKey;
     if (ownFlight.current) { ownFlight.current = false; flyRef.current = null; }
     else if (!reducedMotion()) { if (flyRef.current?.raf) cancelAnimationFrame(flyRef.current.raf); flyRef.current = { t0: performance.now(), fresh: true, raf: 0, start: null }; }
-    chaseHdg.current = null; chaseRange.current = null;
   }
   useEffect(() => {
     const w = widgetRef.current, host = hostRef.current;
@@ -1166,22 +1128,23 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
     host.addEventListener("pointerleave", leave);
     return () => { host.removeEventListener("pointermove", move); host.removeEventListener("pointerleave", leave); host.removeEventListener("contextmenu", ctx); if (raf) cancelAnimationFrame(raf); };
   }, [cz]);
-  // P4: choosing From above (no object) frames the whole flight from straight above; tilting there turns the
-  // camera to General (middle-drag or Ctrl+drag are Cesium's tilt)
-  const camTop = mapCamera(plot) === "top";
-  useEffect(() => { if (camTop && !plot.followObject && cz) reFit(); }, [camTop, plot.followObject, cz]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // On the object: a zoom in to sitting on it (or out again) hides / shows its model - checked after each frame
+  // drawn (the camera's moveEnd needs frames the request-render mode does not draw), the scene updated only
+  // when the camera crosses the line
   useEffect(() => {
-    const w = widgetRef.current, host = hostRef.current;
-    if (!w || !host || !cz) return;
-    w.scene.screenSpaceCameraController.enableTilt = !camTop;
-    if (!camTop) return;
-    const down = (e: PointerEvent) => { if (e.button === 1 || e.ctrlKey) actions.updatePlot(plot.id, { camera: "free", followObject: null }); };
-    host.addEventListener("pointerdown", down, true);
-    return () => host.removeEventListener("pointerdown", down, true);
-  }, [camTop, cz]);   // eslint-disable-line react-hooks/exhaustive-deps
+    const w = widgetRef.current, id = plot.followObject;
+    if (!w || !cz || !id) return;
+    let was: boolean | null = null;
+    return w.scene.postRender.addEventListener(() => {
+      const fs = lastStates.current.get(id);
+      if (!fs) return;
+      const near = cz.Cartesian3.distance(w.camera.positionWC, fs.pos) < SIT_M;
+      if (near !== was) { const first = was === null; was = near; if (!first) updateRef.current(); }
+    });
+  }, [cz, plot.followObject]);
   // N6: the time moves the scene without a React render (playback re-rendered this 2-3 times a frame)
   useEffect(() => useApp.subscribe((s, p) => { if (s.cursor !== p.cursor) updateRef.current(); }), []);
-  useEffect(() => { updateRef.current(); }, [cz, tracks, playMode, windowSec, plot.followObject, plot.camera, plot.primaryObject, plot.relatedObjects, objects, lang, ownT, pointerT, mapNames]);
+  useEffect(() => { updateRef.current(); }, [cz, tracks, playMode, windowSec, plot.followObject, plot.primaryObject, plot.relatedObjects, objects, lang, ownT, pointerT, mapNames]);
 
   /* the span of the objects' own tracks (the independent time runs over that) */
   const ownExt = useMemo((): [number, number] | null => {
@@ -1214,10 +1177,9 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   const keepOwn = (v: number) => actions.updatePlot(plot.id, { ownTime: v });
 
   const primaryId = pairOf(plot).primary ?? "";
-  // P9: the camera's object - its flight display (a toggle; by default in Chase and Cockpit) and the mini-map
-  const camNowMode = mapCamera(plot);
-  const close = camNowMode === "centre" || camNowMode === "chase" || camNowMode === "cockpit" || camNowMode === "lookat";
-  const dispOn = !!plot.followObject && (plot.display ?? (camNowMode === "chase" || camNowMode === "cockpit"));
+  // P9: the camera's object - its flight display (a toggle, off by default: it would cover the view's middle) and the mini-map
+  const close = mapCamera(plot) === "object";
+  const dispOn = close && !!plot.display;
   const dispSrc = plot.followObject ? lastStates.current.get(plot.followObject) : undefined;
   const dispState = dispOn && dispSrc ? { name: dispSrc.name, roll: dispSrc.roll, pitch: dispSrc.pitch, hdg: dispSrc.hdg, gs: dispSrc.gs, alt: dispSrc.alt, agl: dispSrc.agl } : null;
   const miniTracks = useMemo(() => objects.filter((o) => tracks[o.id]).map((o) => ({ color: o.color, lat: tracks[o.id].lat, lon: tracks[o.id].lon })), [objects, tracks]);
@@ -1230,7 +1192,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
   wowAll.__svWow = { ...wowAll.__svWow, [plot.id]: {
     light: lightMode, sky: !!wc?.scene.skyAtmosphere && !lightMode, lighting: !!wc?.scene.globe.enableLighting, shadows: !!wc?.scene.shadowMap?.enabled,
     sunMs: Number.isFinite(sunMs.current) ? sunMs.current : null, drop: [...scene3.current.drawn.values()].some((d) => d.drop?.show),
-    recent: [...scene3.current.drawn.values()].some((d) => d.recent?.show), cockpit: camNowMode === "cockpit", fov: (fovNow * 180) / Math.PI,
+    recent: [...scene3.current.drawn.values()].some((d) => d.recent?.show), fov: (fovNow * 180) / Math.PI,
     display: !!dispState, mini: close && miniTracks.length > 0, errorSurface: errInfo } };
   const centred = !!plot.followObject;
   const showBox = plot.showReadout !== false;
@@ -1243,8 +1205,8 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
     const fs = plot.followObject ? scene3.current.drawn.get(plot.followObject) : undefined;
     const c = w.camera, h = c.positionCartographic?.height ?? 1000;
     const d = fs && fs.label ? cz0.Cartesian3.distance(c.positionWC, fs.label.position) : h;
-    c.zoomIn(dir * Math.max(5, d * 0.35));
-    if (plot.camera === "chase") chaseRange.current = Math.max(20, (chaseRange.current ?? d) * (dir > 0 ? 0.65 : 1.5));
+    // on the object: towards it, down to 1.5 m - never past it (the wheel stops at its surface)
+    c.zoomIn(fs ? (dir > 0 ? Math.max(0, Math.min(d * 0.35, d - 1.5)) : -d * 0.35) : dir * Math.max(5, d * 0.35));
     updateRef.current();
   };
 
@@ -1260,13 +1222,8 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
       {cz && !objects.length && !places.length && <div className="plot-empty">{emptyText}</div>}
       {/* the camera, the primary object and the related ones, the data box */}
       {cz && objects.length > 0 && (
-        <MapBar plot={plot} objects={objects} className="globe3d-bar" chaseHint="g3CamChaseHint" onZoom={zoom3d}
+        <MapBar plot={plot} objects={objects} className="globe3d-bar" objectHint="g3CamObjectHint" onZoom={zoom3d}
           onFit={() => { actions.updatePlot(plot.id, { followObject: null, camera: undefined }); reFit(); }}>
-          {/* 3D only: from the reference, looking at the compared object */}
-          {objects.length > 1 && <button aria-pressed={centred && plot.camera === "lookat"} className={`g3-toggle g3-cam-lookat${centred && plot.camera === "lookat" ? " on" : ""}`}
-              title={t("g3CamLookAtHint")} onClick={() => actions.updatePlot(plot.id, { followObject: primaryId, camera: "lookat",
-                // looking needs something to look at: the first other object when none is chosen
-                ...((plot.relatedObjects ?? []).some((x) => x !== primaryId) ? {} : { relatedObjects: [objects.find((o) => o.id !== primaryId)!.id] }) })}>{t("g3CamLookAt")}</button>}
           {objects.length > 2 && (() => {
             // a third object: a second dashed line from the reference (the compared one is chosen in the picker)
             const sec = pairOf(plot).secondary;
@@ -1280,7 +1237,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
             );
           })()}
           <button className={`g3-toggle${showBox ? " on" : ""}`} aria-pressed={showBox} onClick={() => actions.updatePlot(plot.id, { showReadout: !showBox })}>{t("g3Data")}</button>
-          {/* P9: the flight display of the object the camera is on - by default in Chase and Cockpit */}
+          {/* P9: the flight display of the object the camera is on */}
           {centred && <button className={`g3-toggle g3-display${dispOn ? " on" : ""}`} aria-pressed={dispOn} title={t("g3DisplayHint")}
             onClick={() => actions.updatePlot(plot.id, { display: !dispOn })}>{t("g3Display")}</button>}
           {hasEvents && <button className={`g3-toggle${plot.showEvents !== false ? " on" : ""}`} aria-pressed={plot.showEvents !== false}
@@ -1296,7 +1253,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
       )}
       {cz && objects.length > 0 && !measuring && !detached && (
         (() => {   /* keyed by its text: a camera change shows it again (it fades after a few seconds - map.css) */
-          const hint = camTop ? t("g3CamTopHint") : t(!centred ? "g3HintFree" : plot.camera === "chase" ? "g3HintChase" : plot.camera === "cockpit" ? "g3CamCockpitHint" : plot.camera === "lookat" ? "g3HintLookAt" : "g3HintCentre");
+          const hint = t(centred ? "g3HintObject" : "g3HintFree");
           return <div key={hint} className="g3-cam-hint" role="note">{hint}</div>;
         })()
       )}
