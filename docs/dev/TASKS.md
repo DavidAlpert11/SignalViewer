@@ -80,7 +80,17 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   (one per scenario, compared). One home for the button: the set's details (SetDetail) and the re-run list
   (RerunList: today only Export) - not a third place. en + he, RTL; backend tests for the contract, e2e for the demo.
   **SW2 status:** (a) done by FL1 (the Sweeps data table's ticks + *Open n in Recordings*). **The owner's answers (2026-11-16, chat) for (b):** (1) which runs record is a **rule set in advance**, default *no recording*; (2) a simulation file takes **one run**, the wrapper **a parameter set** - choose accordingly; (3) the re-runs are **chained**, then a notice says a run is **ready to load** (not opened by itself); (4) a re-run whose summary row differs from the original is **loaded as another layer of results**.
-  Next: SW2 (b), then RV7 ... RV11 (ROADMAP M33).
+  **SW2 (b) - the reading of the answers (asked to confirm, 2026-11-16), code points found:** a study setting
+  `launcher.record` (new optional field, "" = no recording): which runs record, e.g. *the best set* after each round.
+  After a round ends (`launcher.submit` on_done / `loop.run_round`), the rule's sets are run again as a *record round*
+  (`Round.extra.kind = "record"`, proposals copied with new run_ids, `extra.record = round_dir/records/<run_id>.csv`);
+  `write_params` passes `{{record}}` (a JSON template without it gets `"record"` added; xml / raw: say to add it);
+  sim.py writes its time series there; the wrapper passes it through and takes `--record DIR` for hand runs. Its rows
+  are collected apart (`recorded_<table>.csv`, not the round's table); when done a notice *Recordings of <set> are
+  ready* + Open (openRecordings) - nothing opens by itself - and the rows are added to the study as another table
+  (a layer) when they differ from the original. Per kind: run mode (one run per call) records the set's runs; a
+  wrapper (round mode) gets the set's parameter files in one list.
+  Next: RV7 ... RV11 while the owner confirms SW2 (b)'s reading; then SW2 (b).
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
