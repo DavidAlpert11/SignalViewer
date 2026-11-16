@@ -104,6 +104,14 @@
 /* one set */
 .sw-detail { border-inline-start: 1px solid var(--line); border-inline-end: 0; }
 .sw-detail-body { overflow: auto; padding: 0 12px 12px; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.sw-rec-find { display: flex; flex-direction: column; gap: 6px; }
+.sw-rec-find summary { cursor: pointer; font-weight: 600; }
+.sw-rec-find .sw-row { flex-wrap: nowrap; }
+.sw-rec-find .sw-row > span:first-child { flex: none; min-width: 64px; }
+.sw-rec-find .sw-ellipsis { flex: 1; min-width: 0; }
+.sw-rec-find input { flex: 1; min-width: 0; }
+.sw-rec-find .btn { flex: none; }
+.sw-rec-find > .btn { align-self: flex-start; }
 .sw-badge { font-size: 0.8rem; padding: 2px 8px; border-radius: 10px; }
 .sw-badge.ok { color: var(--sw-ok); border: 1px solid var(--sw-ok); } .sw-badge.bad { color: var(--sw-bad); border: 1px solid var(--sw-bad); }
 .sw-params { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }

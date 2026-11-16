@@ -68,6 +68,8 @@ export interface SetDetail {
   recordings: string[];
   /** each run's recording, in the order of `runs` (null: none) */
   recordingPerRun: (string | null)[];
+  /** M3: the file names looked for and not found (the first 20) - only when found by a folder */
+  notFound?: string[];
 }
 /** A template: the roles, scales, question and view of a study, without its table - for the next
  *  table with the same columns. */
@@ -110,7 +112,8 @@ export const sweepApi = {
   raw: (id: string) => call<{ columns: WireCol[]; n: number; total: number; sampled: boolean }>("/api/sweep/raw", { id, question: {} }),
   evaluate: (id: string, question: WireQuestion, runs: boolean) =>
     call<WireAnswer>("/api/sweep/evaluate", { id, question, runs }),
-  set: (id: string, question: WireQuestion, set: number) => call<SetDetail>("/api/sweep/set", { id, question, set }),
+  set: (id: string, question: WireQuestion, set: number, recordings?: { folder: string; pattern: string }) =>
+    call<SetDetail>("/api/sweep/set", { id, question, set, ...(recordings ? { recordings } : {}) }),
   openRows: (name: string, columns: string[], rows: (string | number | null)[][]) => call<SweepOpened>("/api/sweep/open-rows", { name, columns, rows }),
   clusters: (id: string, question: WireQuestion, columns: string[], sets: number[] | null, method: string, k: number) =>
     call<ClustersResult>("/api/sweep/clusters", { id, question, columns, sets, method, k }),

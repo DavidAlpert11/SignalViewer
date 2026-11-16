@@ -591,6 +591,10 @@ overshoot, energy...), with a second, finer sweep to merge. The same answer on t
 - **Summarize a folder → Sweeps…**: the same measures for every recording in a folder, read one at a time in the
   background without opening them (progress, Cancel, memory of one file); `cli.py summarize` does the same from a
   script (*Save measures…* writes the file it reads).
+- **A run's recording by its number**: a Sweeps table without a column of file names - in a set's details, *Where
+  are the runs' recordings?* takes a folder and a name made from the row (`flight_{run_id}.bin`; `{column}` is that
+  column, `*` anything; empty: the name ends with the run's number). The set's runs then open in Recordings; the
+  folder is looked in only when a set is shown, and a missing file is named. Saved with the study.
 
 ### Export a part of a recording
 

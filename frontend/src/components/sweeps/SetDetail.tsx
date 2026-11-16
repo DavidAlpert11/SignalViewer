@@ -5,10 +5,10 @@ import { addedToNext } from "../../sweeps/notify";
 import { inRerun as inRerunNow } from "../../sweeps/split";
 import { useT } from "../../i18n";
 import { sweepApi, type SetDetail as Detail } from "../../sweeps/api";
-import type { Condition } from "../../sweeps/model";
+import type { Condition, RecordingsPlace } from "../../sweeps/model";
 import { fmtValue } from "../../sweeps/scales";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
-import { useApp } from "../../store";
+import { pickPath, useApp } from "../../store";
 import { openPaths } from "../../files";
 
 const breaks = (c: Condition, v: unknown) => {
@@ -22,14 +22,21 @@ export default function SetDetail({ study, set }: { study: Study; set: number })
   const { setView } = useSweeps.getState();
   const [d, setD] = useState<Detail | null>(null);
   const [err, setErr] = useState("");
+  const [recErr, setRecErr] = useState("");
+  const rec = study.question.recordings?.folder ? study.question.recordings : undefined;
   const qKey = JSON.stringify(wireQuestion(study));
+  const recKey = JSON.stringify(rec ?? null);
   useEffect(() => {
     let live = true;
-    setErr("");
-    sweepApi.set(study.tableId, wireQuestion(study), set).then((r) => { if (live) setD(r); }).catch((e) => { if (live) setErr((e as Error).message); });
+    setErr(""); setRecErr("");
+    const q = wireQuestion(study);
+    // the recordings' folder is looked in only now; a wrong folder or pattern is said, the rest still shows
+    sweepApi.set(study.tableId, q, set, rec)
+      .catch((e) => { if (!rec) throw e; if (live) setRecErr((e as Error).message); return sweepApi.set(study.tableId, q, set); })
+      .then((r) => { if (live) setD(r); }).catch((e) => { if (live) setErr((e as Error).message); });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [study.tableId, set, qKey]);
+  }, [study.tableId, set, qKey, recKey]);
   const col = (name: string) => study.answer?.sets.find((c) => c.name === name)?.values[set];
   const holds = col("#holds") === 1;
   const share = col("#neighbours"), tol = col("#tolerance");
@@ -86,12 +93,47 @@ export default function SetDetail({ study, set }: { study: Study; set: number })
           </div>
           {d.recordings.length > 0
             ? <button className="btn outline" onClick={() => openRecordings(d.recordings)}>{t("swOpenRecordings", { n: d.recordings.length })}</button>
-            : <p className="hint">{t("swNoRecordings")}</p>}
+            : !rec && <p className="hint">{t("swNoRecordings")}</p>}
+          {rec && d.notFound && d.notFound.length > 0 && <p className="sw-warn">{t("swRecNotFound", { folder: `\u2066${rec.folder}\u2069`, names: `\u2066${d.notFound.join(", ")}\u2069` })}</p>}
+          {recErr && <p className="sw-error">{recErr}</p>}
+          {(rec || d.recordings.length === 0) && <RecordingsFinder place={rec} />}
           <button className={`btn ${inRerun ? "outline" : "primary"}`} onClick={() => { useSweeps.getState().toggleRerun(set); if (!inRerun) addedToNext(t); }}>
             {inRerun ? t("swRemoveFromRerun") : t("swAddToRerun")}
           </button>
         </div>
       )}
     </aside>
+  );
+}
+
+/** M3: where the runs' recordings are when the table has no recording column - a folder and a file name made from
+ *  the row, saved in the study (one Undo); each run's file is looked for only when a set is shown. */
+function RecordingsFinder({ place }: { place?: RecordingsPlace }) {
+  const t = useT();
+  const [pattern, setPattern] = useState(place?.pattern ?? "");
+  useEffect(() => setPattern(place?.pattern ?? ""), [place?.pattern]);
+  const save = (p: RecordingsPlace | undefined) => useSweeps.getState().setQuestion({ recordings: p });
+  const choose = async () => {
+    const folder = await pickPath({ mode: "folder", title: t("swRecFind") });
+    if (folder) save({ folder, pattern });
+  };
+  return (
+    <details className="sw-rec-find" open={!place}>
+      <summary>{t("swRecFind")}</summary>
+      <div className="sw-row">
+        <span>{t("swRecFolder")}</span>
+        <bdi className="sw-ellipsis hint" dir="ltr" title={place?.folder}>{place?.folder ?? "–"}</bdi>
+        <button className="btn sm" onClick={() => { void choose(); }}>{t("swRecChoose")}</button>
+      </div>
+      <label className="sw-row">
+        <span>{t("swRecPattern")}</span>
+        <input className="input" dir="ltr" value={pattern} placeholder="flight_{run_id}.bin" aria-label={t("swRecPattern")}
+          onChange={(e) => setPattern(e.target.value)}
+          onBlur={() => { if (place && pattern !== place.pattern) save({ ...place, pattern }); }}
+          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+      </label>
+      <p className="hint">{t("swRecPatternHint")}</p>
+      {place && <button className="btn sm outline" onClick={() => save(undefined)}>{t("swRecForget")}</button>}
+    </details>
   );
 }

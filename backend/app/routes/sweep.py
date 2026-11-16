@@ -16,8 +16,10 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.common import SWEEP_AUTOSAVE, atomic_open, atomic_path, atomic_write, fail, read_autosave, write_autosave
+from app.filecheck import SUPPORTED_EXTS
 from app.routes.fs import EXAMPLES
 from svcore import sweep
+from svcore.sweep.recordings import RecordingsError, find_recordings
 
 router = APIRouter()
 
@@ -52,6 +54,7 @@ class SetReq(BaseModel):
     id: str
     question: Dict[str, Any]
     set: int
+    recordings: Optional[Dict[str, str]] = None   # M3: {folder, pattern} - each run's recording found by its row
 
 
 class ExportReq(BaseModel):
@@ -191,9 +194,21 @@ def sweep_evaluate(req: QuestionReq):
 def sweep_set(req: SetReq):
     p = _prepared(req.id, req.question)
     try:
-        return sweep.set_rows(p, req.question, req.set)
+        out = sweep.set_rows(p, req.question, req.set)
     except (sweep.QuestionError, ValueError) as e:
         fail(400, str(e))
+    folder = (req.recordings or {}).get("folder", "").strip()
+    if folder and not out["recordings"]:
+        # no recording column: found from the run's row in the folder, only now (nothing read ahead)
+        roles = req.question.get("roles") or {}
+        id_col = next((c for c, r in roles.items() if r == "id" and c in p.df.columns), None)
+        try:
+            per_run, wanted = find_recordings(p.df[p.set_id == req.set], id_col, folder,
+                                              (req.recordings or {}).get("pattern", ""), SUPPORTED_EXTS)
+        except RecordingsError as e:
+            fail(400, str(e))
+        out.update(recordingPerRun=per_run, recordings=[x for x in per_run if x], notFound=wanted[:20])
+    return out
 
 
 @router.post("/api/sweep/export")

@@ -193,6 +193,42 @@ def test_recording_column_and_folder_of_files(tmp_path):
     assert len(d) == 18 and set(d["_file"]) == {"stats_0.csv", "stats_1.csv", "stats_2.csv"}
 
 
+def test_recordings_found_from_the_row(tmp_path):
+    """M3: no recording column - a run's file found in a folder by a name made from its row, or by its number."""
+    from svcore.sweep.recordings import RecordingsError, find_recordings
+    for n in ("flight_3.bin", "flight_4.bin", "run_007.csv", "notes_7.txt"):
+        (tmp_path / n).write_text("x")
+    rows = pd.DataFrame({"run": [3.0, 4.0, 5.0], "wind": ["a", "b", "c"]})
+    per, missing = find_recordings(rows, "run", str(tmp_path), "flight_{run_id}.bin")
+    assert [os.path.basename(x) if x else None for x in per] == ["flight_3.bin", "flight_4.bin", None]
+    assert missing == ["flight_5.bin"]
+    per, _ = find_recordings(rows, "run", str(tmp_path), "FLIGHT_{run_id}")       # no extension, any case
+    assert per[0] and per[0].endswith("flight_3.bin")
+    per, _ = find_recordings(pd.DataFrame({"run": [7]}), "run", str(tmp_path), "", exts=(".csv", ".bin"))
+    assert per[0] and per[0].endswith("run_007.csv")                                # ends with the run's number
+    with pytest.raises(RecordingsError, match="Run id"):
+        find_recordings(rows, None, str(tmp_path), "f_{run_id}")
+    with pytest.raises(RecordingsError, match="no column nope"):
+        find_recordings(rows, "run", str(tmp_path), "f_{nope}")
+    with pytest.raises(RecordingsError, match="does not exist"):
+        find_recordings(rows, "run", str(tmp_path / "missing"), "")
+    # the route: a set's runs get their recordings only when asked
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app, base_url="http://127.0.0.1")
+    g = _grid().assign(run=range(18))
+    g.to_csv(tmp_path / "table.csv", index=False)
+    for i in range(18):
+        (tmp_path / f"sim_{i}_{g['scenario'][i]}.csv").write_text("t,x\n0,1\n")
+    r = c.post("/api/sweep/open", json={"path": str(tmp_path / "table.csv")}).json()
+    q = {"roles": {**ROLES, "run": "id"}}
+    d = c.post("/api/sweep/set", json={"id": r["id"], "question": q, "set": 0,
+                                       "recordings": {"folder": str(tmp_path), "pattern": "sim_{run_id}_{scenario}.csv"}}).json()
+    assert len(d["recordingPerRun"]) == len(d["runs"]) == 3 and all(d["recordingPerRun"]) and d["notFound"] == []
+    bad = c.post("/api/sweep/set", json={"id": r["id"], "question": q, "set": 0, "recordings": {"folder": str(tmp_path), "pattern": "x_{zz}"}})
+    assert bad.status_code == 400 and "zz" in bad.json()["detail"]
+
+
 def test_pareto_score_and_map():
     q = {"roles": ROLES, "objectives": [{"column": "out", "direction": "max"}, {"column": "risk", "direction": "min"}]}
     p = sweep.prepare(_grid(), q)

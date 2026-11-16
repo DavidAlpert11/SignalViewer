@@ -22,8 +22,9 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   condition holds, as recorded / a rate with linear + held + anti-alias, CSV / Parquet / MAT / HDF5 + .export.json;
   `svcore/subset.py` also writes the plot's Export CSV and `cli.py export`). M1 + M2 done (Runs matrix: measures per
   run + parameters from the names -> Open in Sweeps; Summarize a folder -> Sweeps as a background job, one file at a
-  time - memory measured flat; `cli.py summarize`). Next: M3 (a Sweeps row -> its recording by run number / fetch
-  command). Then P (setpoint pairs, plan §8), cleanup (§9), full e2e, propose the release.
+  time - memory measured flat; `cli.py summarize`). M3 done (a set's runs -> their recordings by a folder + a name
+  from the row; the fetch command dropped as heavy). Next: P (setpoint pairs, plan §8), then cleanup (§9), full e2e,
+  propose the release.
 - **2026-11-16 · Sweeps as one flow (PLAN_2026-11-16 §7a) - done.** Done: one stepper for every study (Data ·
   Columns · Goal · Results · Next runs; `sweeps/flow.ts`, `FlowNav.tsx`); the tables' column (Navigator) only in Data,
   resizable, a labelled *Remove from the study* with Undo; Next runs = the proposal + *Run from the app* (`NextStep.tsx`,
@@ -213,3 +214,14 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   50 parquet files x 2 M rows x 8 signals: RSS 536 MB first 10, 542 MB last 10, peak 555 MB - flat; 8.6 s / file ->
   the folder summary is in the app too (a background job), not CLI-only. Tests: pytest test_summary (4, new),
   e2e test_runs_matrix (3, +1) green; quick_check green.
+- 2026-11-16 · M3 done (plan §3a): `svcore/sweep/recordings.py` find_recordings(rows, id column, folder, pattern) -
+  `{run_id}` = the Run id column, `{col}` any column, `*` glob, case-insensitive, with or without the extension;
+  empty pattern = the stem ends with the run's number (leading zeros allowed); clear errors (no Run id column, a
+  column not in the table, a missing folder). `/api/sweep/set` takes `recordings: {folder, pattern}` and, only when
+  the table has no recording column, fills recordingPerRun + `notFound` (the folder listed when a set is shown,
+  nothing read ahead; supported extensions only). UI: SetDetail *Where are the runs' recordings?* (folder via the
+  file dialog, the name pattern, Forget), saved as the optional `question.recordings` (Undo, study file, autosave -
+  old studies open as before); a wrong folder / pattern is said and the set still shows. Placement: in the set's
+  details (*About this study* is a demo-only page). The fetch command (launcher.fetch) dropped - a new process to
+  wait on, heavy for little. Tests: pytest test_sweep::test_recordings_found_from_the_row (new), e2e
+  test_sweeps_flow -k recording (3, +1 test_a_runs_recording_found_by_its_number) green.

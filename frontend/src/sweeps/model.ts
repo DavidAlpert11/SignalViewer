@@ -77,7 +77,12 @@ export interface Question {
   split?: string;
   /** the active goal's ranking (see GoalVariant) */
   rankBy?: "score" | "pareto";
+  /** M3 (optional): where the runs' recordings are when the table has no recording column - a folder and a file
+   *  name made from the row (`flight_{run_id}.bin`; empty: the name ends with the run's number) */
+  recordings?: RecordingsPlace;
 }
+
+export interface RecordingsPlace { folder: string; pattern: string }
 
 export interface CellFix { row: number; column: string; value: string | number | null }
 

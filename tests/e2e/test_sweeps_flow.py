@@ -381,6 +381,38 @@ def test_a_sets_recordings_open_in_recordings(pg, tmp_path):
     pg.wait_for_function("document.querySelectorAll('.run-head').length >= 3")
 
 
+def test_a_runs_recording_found_by_its_number(pg, tmp_path):
+    """M3: no recording column - the folder and a name made from the row (flight_{run_id}.csv) once, then a set's
+    runs open their recordings; a run with no file is said with the name looked for."""
+    import shutil
+    ex = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "examples"))
+    recs = tmp_path / "recs"
+    recs.mkdir()
+    rows = ["run_id,gain,scenario,score"]
+    for i in range(6):
+        if i != 5:                                        # run 6 has no recording
+            shutil.copy(os.path.join(ex, f"run_{12 + i % 3:03d}.csv"), recs / f"flight_{i + 1}.csv")
+        rows.append(f"{i + 1},{1 + i // 3},{'abc'[i % 3]},{10 * (1 + i // 3) + i + 0.37}")
+    (tmp_path / "by_number.csv").write_text("\n".join(rows) + "\n")
+    _open_table(pg, tmp_path, "by_number.csv")
+    _step(pg, "roles")
+    pg.locator("input[aria-label='scenario: hold']").check()
+    if not pg.locator("input[aria-label='run_id: ident']").is_checked():
+        pg.locator("input[aria-label='run_id: ident']").check()
+    pg.locator(".sw-ident-kind").first.select_option("id")
+    _step(pg, "results")
+    pg.locator(".sw-table tbody tr", has_text="2").first.click()        # gain 2: runs 4, 5, 6
+    pg.wait_for_selector(".sw-detail .sw-rec-find")
+    pg.fill(".sw-rec-find input", "flight_{run_id}.csv")
+    pg.locator(".sw-rec-find .btn", has_text="Choose").click()
+    goto_folder(pg, str(recs))
+    pg.click(".dialog button:has-text('Use this folder')")
+    pg.wait_for_selector(".sw-detail .sw-warn:has-text('flight_6.csv')")
+    pg.locator(".sw-detail .btn", has_text="recordings in Recordings").click()
+    pg.wait_for_selector(".rail")
+    pg.wait_for_function("document.querySelectorAll('.run-head').length >= 2")
+
+
 def test_follow_the_file_and_templates(pg, tmp_path):
     f = tmp_path / "grow.csv"
     rows = ["scenario,p,out"] + [f"{sc},{p},{p * 10 + i * 0.37}" for i, (sc, p) in enumerate((s, p) for s in "ab" for p in (1, 2, 3))]
