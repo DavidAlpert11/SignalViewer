@@ -3,6 +3,7 @@
 ## Next – unreleased
 
 - Changed: **the plots take more of the window.** A plot's title, type and legend share one row when they fit (the legend takes its own line only when it does not); *PLOT 1 · ACTIVE* is gone – the ring around the plot says which one is active; a plot with a single line no longer shows its name twice (rename it from the plot's ⋯ menu); the time axis is lower and says its unit after the last number (*240 s*).
+- Changed: **at most two rows above the plots.** The automatic flags are drawn on the mode lane instead of on a row of their own, and a demo's line takes the place of the run-at-a-glance row until you act on it. Once its button was pressed the line goes (or says the next step) – it no longer keeps offering *Open Checks* after Checks is open.
 
 ## 1.28.0 – 2026-11-16
 

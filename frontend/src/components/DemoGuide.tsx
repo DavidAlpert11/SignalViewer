@@ -2,23 +2,25 @@ import { useState } from "react";
 import { useApp } from "../store";
 import { useT } from "../i18n";
 import { Icon } from "../icons";
-import { DEMO_STEPS } from "../demoGuide";
+import { DEMO_STEPS, demoLineUp } from "../demoGuide";
 
 /** RV5: a demo's line above the plots - what it shows, what to do next, and the click that does it. */
 export default function DemoGuide() {
   const t = useT();
   const g = useApp((s) => s.demoGuide);
-  const runs = useApp((s) => s.runs);
+  const up = useApp(demoLineUp);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const step = g && DEMO_STEPS[g.id];
-  if (!g || !step || !g.runs.every((id) => runs.some((r) => r.id === id))) return null;
+  if (!g || !step || !up) return null;
   const close = () => useApp.setState({ demoGuide: null });
   const go = async () => {
     setBusy(true); setFailed(false);
     try {
       await step.go?.(g.runs);
-      if (step.done) useApp.setState({ demoGuide: { ...g, done: true } });
+      // FR2: once its button was pressed the line says what happened (a step with a "done" text) or goes -
+      // it never keeps offering what was just done
+      useApp.setState({ demoGuide: step.done ? { ...g, done: true } : null });
     } catch { setFailed(true); }
     finally { setBusy(false); }
   };

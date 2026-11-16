@@ -1,4 +1,5 @@
 import { checksFileCounts, useChecksFile } from "./ChecksView";
+import { demoLineUp } from "../demoGuide";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type GlanceValue, type HealthReport, type LimitResult, type RunOverview } from "../api";
 import { actions, activeTab, fileLabel, rangeKey, useApp, type StripRow, type MenuItem } from "../store";
@@ -73,6 +74,7 @@ export default function OverviewStrip() {
   const dataVersion = useApp((s) => s.dataVersion);
   const condResults = useApp((s) => s.condResults);
   const sel = useApp((s) => s.stripSel);
+  const demoUp = useApp(demoLineUp);
   const theme = useApp((s) => s.theme);
   // U3 (owner): the plots' cursors - and the pointer over a plot - on the strip too, so it is clear
   // which part of the run is being looked at
@@ -150,7 +152,7 @@ export default function OverviewStrip() {
   }, [ov]);
   // RV7 (review §4.2): the how-to line is taught once - shown on the first file with something to click, then only
   // in the tooltip (it stays for this view; the next file or start no longer shows it)
-  const hintShown = !hintSeen && (clusters.length > 0 || rows.length > 0);
+  const hintShown = !hintSeen && !demoUp && (clusters.length > 0 || rows.length > 0);
   useEffect(() => { if (hintShown && !getPrefValue<boolean>("ovHintSeen")) setPref("ovHintSeen", true); }, [hintShown]);
 
   // the selection's stretches: "or" within a row, "and" across rows
@@ -286,9 +288,26 @@ export default function OverviewStrip() {
     useApp.setState({ stripSel: null, panel: "investigate" });
   };
 
+  // FR2: the automatic flags have no row of their own once the strip shows a lane - they are drawn on the first
+  // lane (one track above the plots, not two); a file with no lane keeps the flags' row
+  const flagsOver = rows.length > 0;
+  const flagsTrack = (
+    <div className={`ov-track ov-flags${flagsOver ? " over" : ""}`}>
+      {view && ov && <div className="ov-view" style={{ left: pct(view[0]), width: width(view[0], view[1]) }} title={t("ovView")} />}
+      {!flagsOver && curMarks}
+      {clusters.map((c, i) => (
+        <button key={i} className={`ov-flag${c.items.some((f) => bad(f.kind)) ? " bad" : ""}`} style={{ left: pct(c.a) }}
+          title={`${t("ovFlagPrefix")}\n${c.items.map(flagText).join("\n")}`} aria-label={c.items.map(flagText).join("; ")} onClick={() => { used(); go(c.a, c.b); }}>
+          {c.items.length > 1 ? c.items.length : ""}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
-    <div className="ov-strip" role="region" aria-label={t("ovTitle")}>
-      <div className="ov-head" title={hintSeen ? t("ovPickHint") : undefined}>
+    <div className={`ov-strip${demoUp ? " with-demo" : ""}`} role="region" aria-label={t("ovTitle")}>
+      {/* FR2: while a demo's line is up it is the row above the track - the run at a glance comes back when it goes */}
+      {!demoUp && <div className="ov-head" title={hintSeen ? t("ovPickHint") : undefined}>
         {files.length > 1 ? (
           <select className="ov-file" value={rid} onChange={(e) => { setChosen(e.target.value); useApp.setState({ stripSel: null }); }} aria-label={t("ovFile")}>
             {files.map((f) => <option key={f.id} value={f.id}>{fileLabel(runs, f.id)}</option>)}
@@ -326,20 +345,11 @@ export default function OverviewStrip() {
         {hintShown && <span className="ov-hint muted">{t("ovPickHint")}</span>}
         <button className="iconbtn sm ov-add" aria-label={t("ovAdd")} title={t("ovAdd")} onClick={addMenu}>+</button>
         <button className="iconbtn sm ov-hide" aria-label={t("ovHide")} title={t("ovHide")} onClick={() => { setPref("overviewOff", true); setHidden(true); }}>×</button>
-      </div>
+      </div>}
       <div className="ov-rows" ref={rowsRef}
         style={align ? { gridTemplateColumns: `${align.lab}px 1fr`, paddingRight: align.end } : undefined}>
-        <span className="ov-label muted" title={t("ovFlagsHint")}>{t("ovFlags")}</span>
-        <div className="ov-track ov-flags">
-          {view && ov && <div className="ov-view" style={{ left: pct(view[0]), width: width(view[0], view[1]) }} title={t("ovView")} />}
-          {curMarks}
-          {clusters.map((c, i) => (
-            <button key={i} className={`ov-flag${c.items.some((f) => bad(f.kind)) ? " bad" : ""}`} style={{ left: pct(c.a) }}
-              title={`${t("ovFlagPrefix")}\n${c.items.map(flagText).join("\n")}`} aria-label={c.items.map(flagText).join("; ")} onClick={() => { used(); go(c.a, c.b); }}>
-              {c.items.length > 1 ? c.items.length : ""}
-            </button>
-          ))}
-        </div>
+        {!flagsOver && <span className="ov-label muted" title={t("ovFlagsHint")}>{t("ovFlags")}</span>}
+        {!flagsOver && flagsTrack}
         {rows.map((r, i) => {
           const cond = r.kind === "cond" ? conds.find((c) => c.id === r.id) : undefined;
           return [
@@ -360,6 +370,7 @@ export default function OverviewStrip() {
                 );
               })}
               {rowMarks(r)}
+              {flagsOver && i === 0 && flagsTrack}
             </div>,
           ];
         })}

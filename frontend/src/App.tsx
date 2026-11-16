@@ -369,7 +369,7 @@ export default function App() {
         </Suspense>
         <main className="stage">
           <StageBar />
-          {runs.length > 0 && !startOpen && <DemoGuide />}
+          {runs.length > 0 && <DemoGuide />}
           {runs.length > 0 && <OverviewStrip />}
           {runs.length > 0 && <TabBand />}
           {!runs.length || startOpen ? <div className="stage-body"><Welcome /></div> : (

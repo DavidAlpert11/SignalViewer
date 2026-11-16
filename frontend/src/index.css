@@ -251,7 +251,7 @@ button, input, select { font: inherit; color: inherit; }
 .linkbtn { border: 0; background: none; padding: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
 .start-next .linklike { font-weight: 600; }   /* a sentence's next action (W3) */
 /* RV5: a demo's one line of what to do next, above the plots */
-.demo-guide { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-1_5) var(--sp-3) 0; padding: 5px 6px; padding-inline-start: var(--sp-3);
+.demo-guide { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-1) var(--sp-3) 0; padding: 3px 6px; padding-inline-start: var(--sp-3);
   border: 1px solid var(--info); border-radius: var(--r-m); background: var(--info-soft); color: var(--ink); font-size: var(--fs-base); }
 .demo-guide .demo-text { flex: 1; min-width: 0; }
 .demo-guide .btn { flex: none; }
@@ -1732,6 +1732,12 @@ input.fx-input { width: 100%; }
 .ov-flag { position: absolute; top: -1px; width: 12px; height: 12px; margin-left: -6px; padding: 0; cursor: pointer; border-radius: 50%;
   border: 2px solid var(--muted); background: var(--panel); color: var(--ink); font-size: var(--fs-glyph); line-height: 8px; font-weight: 700; }
 .ov-flag.bad { border-color: var(--danger); }
+/* FR2: the flags on the strip's first lane - one track above the plots. The lane's own buttons stay
+   clickable between the rings; the shown window is a line under the lane. */
+.ov-track.ov-flags.over { position: absolute; inset: 0; height: auto; pointer-events: none; }
+.ov-flags.over .ov-flag { pointer-events: auto; top: 2px; box-shadow: 0 0 0 1px var(--panel); }
+.ov-flags.over .ov-view { top: auto; bottom: -2px; height: 2px; background: var(--ink-strong); pointer-events: none; }
+.ov-strip.with-demo { padding-top: 2px; }
 .ov-sel-label { color: var(--danger); font-weight: 600; }
 .ov-selbar { display: flex; gap: var(--sp-2); align-items: center; font-size: var(--fs-xs); padding-inline-start: 128px; }
 .ov-seltext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

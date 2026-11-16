@@ -116,4 +116,5 @@ inside your lane's block.
 
 ## Milestone 34 (2026-11-16)
 
-- `test_plot_room.py` – FR1: the plots' share of the window on the ArduPilot demo (en / he / dark), the one-row head, a lone line's title not repeated.
+- `test_plot_room.py` – FR1: the plots' share of the window on the ArduPilot demo (>= 35 %, en / he / dark), the one-row head, a lone line's title not repeated; FR2: two rows above the plots, the first curve within 200 px, the flags on the first lane, a demo's line goes / changes after its button, a session's two lanes kept.
+- `test_tab_band.py` – FR2: `test_one_mode_row_with_cursors_and_hover` closes the demo's line before the strip's × (the head is folded while the line is up).

@@ -46,6 +46,7 @@ def test_one_mode_row_with_cursors_and_hover(pg):
     pg.wait_for_selector(".ov-row .ov-cur.hover .ov-cur-tag")
     # the strip hidden: the band above the plots takes the lane, with the same lines
     pg.mouse.move(5, 5)
+    pg.click(".demo-guide button[aria-label='Close']")       # FR2: the strip's head (its ×) is back once the demo's line goes
     pg.locator(".ov-hide").click()
     band = pg.locator(".tab-band")
     band.locator(".band-seg").first.wait_for(timeout=20000)

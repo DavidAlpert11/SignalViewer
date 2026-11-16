@@ -23,6 +23,11 @@ export const DEMO_STEPS: Partial<Record<ExampleId, Step>> = {
   investigate: { text: "demoInvestigate", act: "demoInvestigateAct", done: "demoInvestigateDone", go: cursorsOnFirstBump },
 };
 
+/** Is the demo's line on screen: a demo with a step, its files still open, the welcome screen not over the plots.
+ *  (FR2: the strip gives it the row of its own head - one rule for both.) */
+export const demoLineUp = (s: { demoGuide: DemoGuide | null; runs: { id: string }[]; startOpen: boolean }): boolean =>
+  !!s.demoGuide && !!DEMO_STEPS[s.demoGuide.id] && !s.startOpen && s.demoGuide.runs.every((id) => s.runs.some((r) => r.id === id));
+
 /** Called once a demo's files are open with their view: the demo's own setup, then its line. */
 export async function startDemoGuide(id: ExampleId, runs: string[]) {
   if (!runs.length || !DEMO_STEPS[id]) return;

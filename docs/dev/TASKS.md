@@ -19,8 +19,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 
   | Task | What | Status | Next step |
   |---|---|---|---|
-  | FR1 | Plots take the window (>= 35 % of it on the ArduPilot demo) | code done - 32.4 % alone (was 21.2 %) | the 35 % test is raised in FR2 |
-  | FR2 | One row above the plots (first curve <= 200 px from the top) | open | after FR1 |
+  | FR1 | Plots take the window (>= 35 % of it on the ArduPilot demo) | done - 36.3 % (with FR2) | - |
+  | FR2 | One row above the plots (first curve <= 200 px from the top) | done - first curve at 184 px | - |
   | FR3 | Cursor labels off the curve; double-click plots once | open | after FR2 |
   | FR4 | One colour rule for two runs (the file's colour) | open | after FR3 |
   | FR5 | A folder of recordings reads as recordings | open | after FR4 |
@@ -539,3 +539,5 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   30 s timeout under load; passes alone). 1.28.0 ready - waiting for the owner's tag.
 - 2026-11-16 · M34 opened (the owner's review of 2026-11-16): FR1-FR8 in ROADMAP and on the board; FR9-FR12 wait for the owner.
 - 2026-11-16 · FR1 (code): the plot card's head one row (legend beside the title when it fits, no PLOT n · ACTIVE, a lone line's title not repeated), time axis 22 px with its unit, value-axis gutter 8 px narrower. The ArduPilot demo: 21.2 % -> 32.4 % of the window inside the axes; the rest of the 35 % is the rows above (FR2), where test_plot_room's floor goes from 32 to 35. e2e ran: test_plot_room (new, en / he / dark), test_plot_polish, test_plot_menus, test_tab_band, test_overview_strip, test_aligned_plots, test_move_plots, test_move_plots_tabs, test_one_per_plot, test_owner_notes_1_20, test_flat_line_solo, test_plot_style, test_state_lanes, test_less_clutter, test_features, test_workflows, test_wheel, test_setpoint_pairs, test_setpoint_style, test_hover_ghost, test_perf_budget, test_navigation, test_first_minute, test_range_notes, test_what_changed, test_live_report, test_release_1_21, test_round_1112 - 246 green; quick_check green.
+- 2026-11-16 · FR1 ticked: with FR2's rows the ArduPilot demo's plots are 36.3 % of the window (test_plot_room asserts >= 35 in en / he / dark).
+- 2026-11-16 · FR2: one track above the plots (the flags on the first lane), the run at a glance gives its row to a demo's line while it is up, a demo's line goes (or says its next step) once its button was pressed. First curve at 184 px on the ArduPilot demo (was 271). e2e ran: test_plot_room, test_overview_strip, test_tab_band (one line: closes the demo's line before the strip's ×), test_checks_view, test_flat_line_solo, test_less_clutter, test_plot_polish, test_what_changed, test_welcome_cards, test_first_minute, test_judge_a_run, test_calm_screen, test_fresh_user, test_state_lanes, test_findings_report, test_event_navigation + the 29 files of views that gain space (test_features, test_workflows, test_wheel, test_live_report...) - 304 green; quick_check green.
