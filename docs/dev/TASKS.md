@@ -77,7 +77,22 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   needs an open recording to define measures on - offer *Summarize a folder* there directly (pick a folder; define
   the measures on its first file). (4) From a Sweeps table with a `recording` column: open several selected rows
   together in Recordings (Compare) - check what exists (SetDetail opens a set's runs).
-  Next after FL1: RV7 ... RV11 (ROADMAP M33).
+  **SW2 - the owner (2026-11-16): investigate chosen scenarios from Sweeps without loading everything.** "Many
+  scenarios are run without recording, only a summary row each; to investigate, the interesting ones are run again
+  with recording." Two ways from a set / selected rows of a Sweeps table, both on demand only (never load all):
+  (a) open their recordings directly when they exist (exists: *Where are the runs' recordings?* / a `recording`
+  column - make it one click for several rows: open them together in Recordings, Compare); (b) **Run again with
+  recording**: the same inputs, written to one JSON file per run with `"record": "<path>"` added (a time-series
+  file to write besides the summary row), run through the study's own way to run (this PC / the wrapper / the farm),
+  then the recordings opened together in Recordings. Contract (document it in sweep_wrapper.py, the README,
+  docs/launcher.md): a simulation that sees "record" writes its full time series there (CSV or any format the app
+  reads); the wrapper gets `--record DIR` (record = DIR/<run_id>.csv) for hand runs; in a study the record path is a
+  placeholder `{{record}}` the params template may use (the auto template adds it only for a recording run). The
+  demo: sim.py writes a time series when asked (the closed-form attitude step response: t, roll command, roll,
+  motor), so in the smart-sweep demo the best set -> *Run again with recording* -> its runs open in Recordings
+  (one per scenario, compared). One home for the button: the set's details (SetDetail) and the re-run list
+  (RerunList: today only Export) - not a third place. en + he, RTL; backend tests for the contract, e2e for the demo.
+  Next after FL1 and SW2: RV7 ... RV11 (ROADMAP M33).
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
@@ -413,3 +428,5 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-16 · SW1 sweep wrapper (owner). Tests: backend test_sweep_wrapper (new, 6); Vitest setup.test (+3); e2e
   test_study_loop (+1, the demo's how + the copy's command), run: test_study_loop, test_study_demo.
 - 2026-11-16 · Owner: Fleet dropped (FL1, RV6 cancelled) - the plan in Current state; handed to a new session (context).
+- 2026-11-16 · Owner: SW2 - from Sweeps, investigate chosen scenarios (open their recordings directly, or run them
+  again with recording); queued after FL1 in the session that does FL1.
