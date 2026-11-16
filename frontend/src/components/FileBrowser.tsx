@@ -162,7 +162,8 @@ export default function FileBrowser() {
         if (!n) return;
         let full = /^([a-zA-Z]:)?[\\/]/.test(n) ? n : `${path.replace(/[\\/]$/, "")}${sep}${n}`;
         const ext = picker.types?.[typeAt]?.ext ?? picker.exts?.[0];
-        if (ext && !full.toLowerCase().endsWith(ext)) full += ext;
+        // a name typed with another of the allowed extensions (x.parquet while CSV is chosen) is kept as typed
+        if (ext && ![ext, ...(picker.exts ?? [])].some((e) => full.toLowerCase().endsWith(e.toLowerCase()))) full += ext;
         close(full);
       } else if (paths[0]) close(paths[0]);
       return;

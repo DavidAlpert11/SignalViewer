@@ -17,7 +17,8 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   R done: the unreleased 1.27.0 and 1.28.0 are one release, **1.27.0** (CHANGELOG merged under `1.27.0 – unreleased`,
   the version files at 1.27.0, the docs' "1.28" -> "1.27"; history not rewritten). The owner tags v1.27.0 once the
   round is stable. S1 done (formula: if / compare / text / bins / rank / pct, a text column is a scenario, share per
-  set). Next: S2 (table tools + export). Then E1, M1, M3, M2, P (setpoint pairs, plan §8), cleanup (§9), full e2e.
+  set). S2 done (Table tools: drop Not used, keep runs where, name / unit, fixed values; export CSV / Parquet /
+  Excel as edited + recipe). Next: E1 (export a subset of a recording). Then M1, M3, M2, P (setpoint pairs, plan §8), cleanup (§9), full e2e.
 - **2026-11-16 · Sweeps as one flow (PLAN_2026-11-16 §7a) - done.** Done: one stepper for every study (Data ·
   Columns · Goal · Results · Next runs; `sweeps/flow.ts`, `FlowNav.tsx`); the tables' column (Navigator) only in Data,
   resizable, a labelled *Remove from the study* with Undo; Next runs = the proposal + *Run from the app* (`NextStep.tsx`,
@@ -173,3 +174,10 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   UI: the editor completes text columns and the new functions, shows a text result, *Use as*; the conditions' cards
   include the new scenarios. pytest test_sweep_formula (18, new) + sweep tests; e2e test_sweeps_data_columns (11,
   one new), test_sweeps_flow, test_sweeps_workspace - green; quick_check green.
+- 2026-11-16 · S2 (§2b, §2c): Question gets optional labels / units / rowFilter / cells (old studies open as before;
+  templates drop cells). Backend: `with_cells`, `_row_filter`, `kept_runs`, `table_as_edited` (evaluate.py); /evaluate
+  and /summary honour them ("n of m"); /export-table: csv | parquet | xlsx (Excel row limit said) as edited when a
+  question is sent, + `<file>.recipe.json`. UI: `TableTools.tsx` (Columns step fold), `editTable` (one Undo each),
+  colLabel shows the name + unit; the save dialog keeps another allowed extension typed. pytest
+  test_sweep_table_tools (6, new); e2e every test_sweeps_* + test_file_browser_edit + test_templates_recent_badfiles
+  (73) green; quick_check green.

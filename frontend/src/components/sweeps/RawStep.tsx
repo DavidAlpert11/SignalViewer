@@ -12,7 +12,7 @@ import { decodeCol } from "../../sweeps/decode";
 import type { Col, Filter } from "../../sweeps/model";
 import { keptMask } from "../../sweeps/filters";
 import { fmtValue, labelOf } from "../../sweeps/scales";
-import { useSweeps, type RawView, type Study, type StudyTable } from "../../sweeps/state";
+import { useSweeps, wireQuestion, type RawView, type Study, type StudyTable } from "../../sweeps/state";
 import { groupLabel, presetChoices } from "../../sweeps/view";
 import { PRESET_KEY } from "./PlotToolbar";
 import AxisMenu from "./AxisMenu";
@@ -32,19 +32,27 @@ function rolesOf(s: Study, tb: StudyTable) {
   return new Map(tb.opened.columns.map((c) => [c.name, c.role]));
 }
 
-/** A table to a file: the OS-like save dialog at once, CSV or HTML with the parallel plot (the one
- *  chosen first follows the tab on screen); the plot as it was left. */
+/** A table to a file: the OS-like save dialog at once, CSV / Parquet / Excel or HTML with the parallel
+ *  plot (the one chosen first follows the tab on screen); the plot as it was left. The table in use is
+ *  written as the study edits it (S2c: removed columns, new columns, the runs kept, fixed values,
+ *  names and units) with its recipe in a .recipe.json beside it; another table of the study as read. */
 export async function exportTable(t: TFn, study: Study, tb: StudyTable) {
   const st = useSweeps.getState();
   const html = st.dataTab === "plot";
-  const p = await pickPath({ mode: "save", title: t("swExportDataHint"), exts: [".csv", ".html"],
-    types: [{ label: "CSV (*.csv)", ext: ".csv" }, { label: t("swHtmlWithPlot"), ext: ".html" }], type: html ? 1 : 0,
+  const p = await pickPath({ mode: "save", title: t("swExportDataHint"), exts: [".csv", ".parquet", ".xlsx", ".html"],
+    types: [{ label: "CSV (*.csv)", ext: ".csv" }, { label: "Parquet (*.parquet)", ext: ".parquet" }, { label: "Excel (*.xlsx)", ext: ".xlsx" },
+      { label: t("swHtmlWithPlot"), ext: ".html" }], type: html ? 3 : 0,
     defaultName: stem(tb.name) + (html ? ".html" : ".csv") });
   if (!p) return;
-  const format = p.toLowerCase().endsWith(".html") ? "html" : "csv";
+  const ext = (/\.(csv|parquet|xlsx|html)$/i.exec(p)?.[1] ?? "csv").toLowerCase() as "csv" | "parquet" | "xlsx" | "html";
   const v = st.rawViews[tb.id];
+  const q = study.question;
+  const edited = ext !== "html" && tb.id === study.tableId
+    ? { question: { ...wireQuestion(study), removed: q.removed, labels: q.labels, units: q.units },
+      recipe: { app: "Signal Viewer", table: tb.name, from: tb.recipe, question: q } }
+    : {};
   try {
-    const r = await sweepApi.exportTable(tb.id, p, format, format === "csv" ? {} : {
+    const r = await sweepApi.exportTable(tb.id, p, ext, ext !== "html" ? edited : {
       title: tb.name, axes: v?.axes ?? defaultAxes(study, tb),
       labels: { "#shown": t("swShown", { n: "{n}", of: "{of}" }), "#clear": t("swRepClear"), "#hint": t("swRepHtmlHint"), "#colour": t("swColourByThis"), "#resetZoom": t("swResetZoom") },
       view: { colorBy: v?.colorBy ?? null, filters: v?.filters ?? {}, zoom: st.zooms[tb.id] ?? NO_ZOOM } });

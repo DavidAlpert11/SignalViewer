@@ -579,3 +579,9 @@
 .sw-tbl-pill .sw-ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sw-tbl-pill .x { display: inline-flex; opacity: .6; border-radius: 50%; }
 .sw-tbl-pill .x:hover { opacity: 1; background: var(--raised); }
+
+/* S2: the table's own tools (Columns step) */
+.sw-table-tools label { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.sw-table-tools .sw-row { flex-wrap: wrap; }
+.sw-table-tools .sw-row input, .sw-table-tools .sw-row select { min-width: 0; flex: 1 1 70px; }
+.sw-tt-group { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }

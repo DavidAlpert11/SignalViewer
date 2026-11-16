@@ -17,6 +17,8 @@ A question (JSON from the page):
     robust       {param: {mode: "pct" | "abs" | "steps", value}} - optional (S06): the sets within
                  the tolerance must hold too; only sets that hold robustly are ranked
     exclude      [table row]                  - runs left out (e.g. suspicious ones)
+    cells        [{row, column, value}]       - S2: a value fixed by hand (table row; the file is not changed)
+    rowFilter    "formula"                    - S2: keep only the runs where it holds (a missing answer: left out)
 
 A parameter set holds when it ran every combination of the kept must-hold-across values and every
 condition is met: "all" - in every combination, "atLeast" - in at least k, "only" - in every
@@ -83,7 +85,7 @@ def prepare(table: pd.DataFrame, q: Dict) -> Prepared:
     outputs = [c for c in table.columns if roles.get(c) == "output"]
     if not params:
         raise QuestionError("Choose at least one parameter column.")
-    df = table
+    df = with_cells(table, q.get("cells"))
     excluded = q.get("exclude") or []
     if excluded:                                          # runs left out by the user (suspicious ones)
         df = df[~df.index.isin(excluded)]
@@ -106,6 +108,7 @@ def prepare(table: pd.DataFrame, q: Dict) -> Prepared:
         df = df.assign(**new_cols)
         holds = holds + [n for n in new_holds if n not in holds]
         outputs = outputs + [n for n in new_cols if n not in outputs and n not in new_holds]
+    df = _row_filter(df, q.get("rowFilter"))
     hold_values = {n: _values(df[n]) for n in new_holds}
     keep = hold_mask(df, {c: v for c, v in (q.get("holdValues") or {}).items() if c in holds and v})
     if keep is not None:
@@ -131,6 +134,66 @@ def prepare(table: pd.DataFrame, q: Dict) -> Prepared:
                 raise QuestionError(f"Unknown operation: {op}")
             p.set_cols[name] = set_aggregate(df[col], set_id, n_sets, op, hold_mask(df, d.get("where")))
     return p
+
+
+def with_cells(table: pd.DataFrame, cells: Optional[List[Dict]]) -> pd.DataFrame:
+    """The table with the values fixed by hand (S2) - a copy; the table itself is kept as read."""
+    if not cells:
+        return table
+    df = table.copy()
+    for c in cells:
+        col, row = c.get("column"), c.get("row")
+        if col not in df.columns:
+            raise QuestionError(f"Fixed value: no column named {col!r}")
+        if row not in df.index:
+            raise QuestionError(f"Fixed value: no run {row} in the table")
+        v = c.get("value")
+        if pd.api.types.is_numeric_dtype(df[col]) and v is not None:
+            try:
+                v = float(v)
+            except (TypeError, ValueError):
+                raise QuestionError(f"Fixed value of {col}: {v!r} is not a number") from None
+        df.at[row, col] = np.nan if v is None and pd.api.types.is_numeric_dtype(df[col]) else v
+    return df
+
+
+def _row_filter(df: pd.DataFrame, expr: Optional[str]) -> pd.DataFrame:
+    """Only the runs where the formula holds (S2: "crashed == 0"); a missing answer leaves the run out."""
+    if not expr or not str(expr).strip():
+        return df
+    try:
+        v = row_formula(df, str(expr))
+    except DerivedError as e:
+        raise QuestionError(f"Keep runs where: {e}") from None
+    if v.dtype == object:
+        raise QuestionError("Keep runs where: the formula gives text - a condition is needed (x > 3, name == \"a\")")
+    return df[np.isfinite(v) & (v != 0)]
+
+
+def kept_runs(table: pd.DataFrame, q: Dict) -> pd.DataFrame:
+    """The runs the study keeps, with its per-run new columns: fixed values, runs left out, the new
+    columns, the keep-runs condition (S2) - the table's own index kept."""
+    df = with_cells(table, q.get("cells"))
+    if q.get("exclude"):
+        df = df[~df.index.isin(q["exclude"])]
+    new_cols: Dict[str, Any] = {}
+    for d in q.get("derived") or []:
+        if d.get("kind") == "row" and (d.get("name") or "").strip():
+            new_cols[d["name"].strip()] = row_formula(df.assign(**new_cols) if new_cols else df, d.get("expr") or "")
+    if new_cols:
+        df = df.assign(**new_cols)
+    return _row_filter(df, q.get("rowFilter"))
+
+
+def table_as_edited(table: pd.DataFrame, q: Dict) -> pd.DataFrame:
+    """The table as the study's recipe makes it (S2c, for export): the kept runs with the new columns,
+    without the removed columns; display names and units in the header."""
+    df = kept_runs(table, q)
+    removed = set(q.get("removed") or [])
+    df = df[[c for c in df.columns if c not in removed]]
+    labels, units = q.get("labels") or {}, q.get("units") or {}
+    names = {c: (labels.get(c) or c) + (f" [{units[c]}]" if units.get(c) else "") for c in df.columns}
+    return df.rename(columns=names).reset_index(drop=True)
 
 
 def _values(s: pd.Series, limit: int = 200) -> List[Any]:

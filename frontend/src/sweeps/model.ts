@@ -62,6 +62,13 @@ export interface Question {
   combine: "and" | "or";
   /** columns taken out in the cleaning step (constant, empty, or not wanted) */
   removed: string[];
+  /** S2, the table's own edits - steps of the study, the file never changes (all optional: older
+   *  studies open as they were): display names and units of columns, the runs kept by a condition,
+   *  values fixed by hand (`row`: the table's row, as `exclude`) */
+  labels?: Record<string, string>;
+  units?: Record<string, string>;
+  rowFilter?: string;
+  cells?: CellFix[];
   /** robust to these parameters (S06, optional): the sets within each one's tolerance must hold
    *  too, and the goal is their worst case - for every goal of the study */
   robust?: Record<string, Tolerance>;
@@ -71,6 +78,8 @@ export interface Question {
   /** the active goal's ranking (see GoalVariant) */
   rankBy?: "score" | "pareto";
 }
+
+export interface CellFix { row: number; column: string; value: string | number | null }
 
 /** How far a parameter may move: a percentage of its value, a value either way, or steps of the grid. */
 export interface Tolerance {

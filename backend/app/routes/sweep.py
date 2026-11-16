@@ -36,6 +36,9 @@ class SummaryReq(BaseModel):
     id: str
     roles: Dict[str, str]
     holdValues: Optional[Dict[str, List[Any]]] = None   # only the runs of these condition values
+    cells: Optional[List[Dict[str, Any]]] = None        # S2: values fixed by hand
+    rowFilter: Optional[str] = None                     # S2: only the runs where it holds
+    derived: Optional[List[Dict[str, Any]]] = None      # the new columns the filter may use
 
 
 class QuestionReq(BaseModel):
@@ -109,6 +112,11 @@ def sweep_summary(req: SummaryReq):
         fail(400, f"Unknown role: {bad[0]}")
     df = _get(req.id)["df"]
     total = int(len(df))
+    if req.cells or req.rowFilter:                       # S2: the table as the study edits it ("812 of 840")
+        try:
+            df = sweep.kept_runs(df, {"cells": req.cells, "rowFilter": req.rowFilter, "derived": req.derived})
+        except (sweep.QuestionError, sweep.DerivedError):
+            pass                                         # said by /evaluate, where the question is answered
     holds = {c: v for c, v in (req.holdValues or {}).items() if v and req.roles.get(c) == "hold" and c in df.columns}
     if holds:                                            # the runs the conditions' values keep ("640 of 1,922")
         from svcore.sweep.derived import hold_mask
@@ -132,7 +140,8 @@ def _prepared(tid: str, q: Dict):
     """The prepared table for a question; kept while roles, kept values and new columns stay the
     same (a new goal or condition does not read the table again)."""
     t = _get(tid)
-    key = json.dumps([q.get("roles"), q.get("holdValues"), q.get("derived"), q.get("exclude")], sort_keys=True, default=str)
+    key = json.dumps([q.get("roles"), q.get("holdValues"), q.get("derived"), q.get("exclude"), q.get("cells"), q.get("rowFilter")],
+                     sort_keys=True, default=str)
     if t.get("prepKey") != key:
         try:
             t["prep"] = sweep.prepare(t["df"], q)
@@ -897,27 +906,45 @@ def sweep_formula_preview(req: FormulaReq):
 class ExportTableReq(BaseModel):
     id: str
     path: str
-    format: str = "csv"                  # csv | html (the parallel plot, interactive, the data inside)
+    format: str = "csv"                  # csv | parquet | xlsx | html (the parallel plot, interactive, the data inside)
     title: str = ""
     axes: List[str] = []
     labels: Dict[str, str] = {}
     view: Dict[str, Any] = {}            # html: {colorBy, filters, zoom} - the plot as it was on screen
+    question: Optional[Dict[str, Any]] = None   # S2c: the table as the study's recipe edits it (+ the recipe beside it)
+    recipe: Optional[Dict[str, Any]] = None     # what to write in <file>.recipe.json (how the table was made)
 
 
 @router.post("/api/sweep/export-table")
 def sweep_export_table(req: ExportTableReq):
-    """A table of the Data step as a file: CSV, or an HTML page with its parallel plot."""
+    """A table of the Data step as a file: CSV, Parquet, Excel - as the study edits it when a question is
+    given, with the recipe in a JSON file beside it - or an HTML page with its parallel plot."""
     from app import sweep_report
-    if req.format not in ("csv", "html"):
+    if req.format not in ("csv", "parquet", "xlsx", "html"):
         fail(400, "Unknown export format.")
     ext = "." + req.format
     path = os.path.abspath(os.path.expanduser(req.path))
     if not path.lower().endswith(ext):
         path += ext
     df = _get(req.id)["df"]
+    if req.question is not None and req.format != "html":
+        try:
+            df = sweep.table_as_edited(df, req.question)
+        except (sweep.QuestionError, sweep.DerivedError) as e:
+            fail(400, str(e))
+    if req.format == "xlsx" and len(df) > 1_048_575:
+        fail(400, f"Excel holds at most 1,048,575 rows; this table has {len(df):,} - export it as CSV or Parquet.")
     try:
-        if req.format == "csv":
-            df.to_csv(path, index=False)
+        if req.format != "html":
+            with atomic_path(path) as tmp:
+                if req.format == "csv":
+                    df.to_csv(tmp, index=False)
+                elif req.format == "parquet":
+                    df.to_parquet(tmp, index=False)
+                else:
+                    df.to_excel(tmp, index=False, engine="openpyxl")
+            if req.recipe is not None:
+                atomic_write(path + ".recipe.json", json.dumps(req.recipe, indent=1, default=str))
             return {"path": path, "rows": int(len(df))}
         if len(df) > 50_000:
             df = df.sample(50_000, random_state=0)

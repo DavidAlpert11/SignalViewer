@@ -288,6 +288,8 @@ interface SweepsState {
   removeGoal: (i: number) => void;
   setActiveGoal: (i: number) => void;
   setRemoved: (columns: string[]) => void;
+  /** S2: the table's own edits (display names, units, the runs kept, values fixed) - one Undo each */
+  editTable: (patch: Partial<Pick<Question, "labels" | "units" | "rowFilter" | "cells">>) => void;
   /** a parameter's tolerance (null: not robust to it) */
   setRobust: (column: string, tol: Tolerance | null) => void;
   updateCondition: (i: number, patch: Partial<Condition>) => void;
@@ -349,6 +351,7 @@ export function wireQuestion(s: Study): WireQuestion {
   return { roles, combine: q.combine, holdValues, goal: q.goal, conditions: q.conditions, derived: q.derived,
     outputAgg: Object.fromEntries(outputs.map((o) => [o, q.outputAgg])), objectives: q.objectives, exclude: q.exclude,
     ...(q.robust && Object.keys(q.robust).length ? { robust: q.robust } : {}),
+    ...(q.cells?.length ? { cells: q.cells } : {}), ...(q.rowFilter?.trim() ? { rowFilter: q.rowFilter.trim() } : {}),
     ...(q.objectives.length >= 2 && q.rankBy === "pareto" ? { rankBy: "pareto" as const } : {}) };
 }
 
@@ -473,7 +476,8 @@ export const useSweeps = create<SweepsState>((set, get) => {
   const refreshSummary = () => {
     const s = get().studies[get().active];
     if (!s) return;
-    sweepApi.summary(s.tableId, wireQuestion(s).roles, s.question.holdValues)
+    const w = wireQuestion(s);
+    sweepApi.summary(s.tableId, w.roles, s.question.holdValues, w.cells || w.rowFilter ? { cells: w.cells, rowFilter: w.rowFilter, derived: w.derived } : undefined)
       .then((summary) => patch((x) => (x.tableId === s.tableId ? { ...x, summary } : x), false))
       .catch((e) => set({ error: (e as Error).message }));
   };
@@ -735,7 +739,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
       // every value of each condition, as known now: a value new to the template is then kept (not dropped)
       const holdAll = Object.fromEntries(s.columns.filter((c) => c.role === "hold" && c.values).map((c) => [c.name, c.values!]));
       const r = await sweepApi.saveTemplate(name, { columns: s.columns.map((c) => ({ name: c.name, role: c.role, scale: c.scale })),
-        question: { ...s.question, exclude: [], holdAll }, view });
+        question: { ...s.question, exclude: [], cells: undefined, holdAll }, view });   // fixed values belong to their table
       set({ templates: r.templates });
       patch((x) => ({ ...x, offer: null }), false);
     },
@@ -885,6 +889,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
     }),
     setActiveGoal: (i) => patchQ((q) => materialize({ ...q, active: i })),
     setRemoved: (columns) => patchQ((q) => ({ ...q, removed: columns })),
+    editTable: (patch) => { patchQ((q) => ({ ...q, ...patch })); refreshSummary(); },
     setRobust: (column, tol) => patchQ((q) => {
       const robust = { ...(q.robust ?? {}) };
       if (tol) robust[column] = tol; else delete robust[column];

@@ -15,6 +15,7 @@ import { templateSummary } from "../../sweeps/templates";
 import { newHoldColumns } from "../../sweeps/view";
 import { Stat } from "./Shape";
 import DerivedEditor from "./DerivedEditor";
+import TableTools from "./TableTools";
 import { fmtValue } from "../../sweeps/scales";
 import { StepFoot } from "./StepNav";
 import { notify, notifyError } from "../../sweeps/notify";
@@ -50,6 +51,7 @@ export function RolesSide({ study }: { study: Study }) {
       </details>
       <NothingBox study={study} />
       <NewColumns study={study} />
+      <TableTools study={study} />
       <StepFoot study={study} />
     </div>
   );

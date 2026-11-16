@@ -153,6 +153,36 @@ def test_a_text_column_is_a_scenario(pg):
     assert card.locator(".sw-pill", has_text="strong").count() == 1
 
 
+def test_table_tools_keep_runs_name_unit_drop_unused_and_undo(pg):
+    """S2: the table's own tools are steps of the study - the runs kept by a condition ("n of m"), a
+    column's shown name and unit, every Not used column dropped - each undone with Undo."""
+    _fresh(pg)
+    _step(pg, "roles")
+    tools = pg.locator(".sw-table-tools")
+    tools.locator("summary").click()
+    lead = pg.locator(".sw-shape-bar .sw-stat").first.locator(".sw-stat-value")
+    total = lead.inner_text()
+    f = tools.locator("label", has_text="Keep only the runs where").locator("input")
+    f.fill("scenario_wind_mps > 0"); f.press("Enter")
+    pg.wait_for_function("document.querySelector('.sw-shape-bar .sw-stat').innerText.includes(' of ')")
+    assert lead.inner_text().endswith(f"of {total}")
+    pg.locator(".sw-toolrow .btn", has_text="Undo").click()
+    pg.wait_for_function("!document.querySelector('.sw-shape-bar .sw-stat').innerText.includes(' of ')")
+    # a shown name and unit
+    tools.locator("select[aria-label='Column']").first.select_option("energy_wh")
+    tools.locator("input[aria-label='Shown as']").fill("energy")
+    tools.locator("input[aria-label='Unit']").fill("Wh")
+    tools.locator(".btn", has_text="Apply").first.click()
+    tools.locator(".sw-derived", has_text="energy [Wh]").wait_for()
+    # every Not used column out, then back
+    drop = tools.locator(".btn", has_text="Drop every Not used")
+    if drop.is_enabled():
+        drop.click()
+        tools.locator(".btn", has_text="Bring back the dropped").wait_for()
+        pg.locator(".sw-toolrow .btn", has_text="Undo").click()
+        tools.locator(".btn", has_text="Bring back the dropped").wait_for(state="detached")
+
+
 def test_a_narrow_window_folds_the_side_panel(pg):
     _fresh(pg)
     _step(pg, "roles")                              # C7: the Data step has no side panel (its tables are in the navigator)

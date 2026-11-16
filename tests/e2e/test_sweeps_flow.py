@@ -159,8 +159,8 @@ def test_raw_results_table_and_plot(pg, tmp_path):
     pg.locator(".pp-axis-name", has_text="energy_wh").click()
     pg.wait_for_selector(".sw-plotbar .hint:has-text('energy_wh')")
     # the table to a file: the save dialog at once, HTML first on the plot's tab - the plot as it was
-    pg.locator(".sw-nav button[aria-label^='Export as CSV or HTML']").click()
-    assert pg.locator(".savename select").input_value() == "1"
+    pg.locator(".sw-nav button[aria-label^='Export the table']").click()
+    assert pg.locator(".savename select").input_value() == "3"
     save_as(pg, "raw_plot.html")
     pg.wait_for_selector(".toast:has-text('raw_plot.html')")
     html = open(os.path.join(pg.env["out"], "raw_plot.html"), encoding="utf-8").read()
@@ -168,11 +168,18 @@ def test_raw_results_table_and_plot(pg, tmp_path):
     pg.locator(".sw-zoom .btn", has_text="Reset zoom").click()
     pg.wait_for_function("document.querySelector('.pp canvas')?.dataset.zoom === '1.00'")
     pg.locator(".sw-center-tabs button", has_text="Table").click()
-    pg.locator(".sw-nav button[aria-label^='Export as CSV or HTML']").click()
+    pg.locator(".sw-nav button[aria-label^='Export the table']").click()
     assert pg.locator(".savename select").input_value() == "0"
     save_as(pg, "raw.csv")
     pg.wait_for_selector(".toast:has-text('raw.csv')")
     assert len(open(os.path.join(pg.env["out"], "raw.csv")).read().splitlines()) == 811
+    # S2c: Parquet, the table as the study edits it, with its recipe beside it
+    pg.locator(".sw-nav button[aria-label^='Export the table']").click()
+    save_as(pg, "raw.parquet")
+    pg.wait_for_selector(".toast:has-text('raw.parquet')")
+    import pandas as pd
+    assert len(pd.read_parquet(os.path.join(pg.env["out"], "raw.parquet"))) == 810
+    assert os.path.exists(os.path.join(pg.env["out"], "raw.parquet.recipe.json"))
 
 
 def test_clean_scenarios_and_parameters(pg):

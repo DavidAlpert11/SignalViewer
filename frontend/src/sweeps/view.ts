@@ -106,8 +106,9 @@ export function colLabel(t: TFn, s: Study, name: string): string {
     return g ? t("swRobustGoalCol", { c: g.column }) : t("swRobustGoalCol", { c: "" });
   }
   if (c?.group === "condition" && c.label) return `${c.label} · ${t(c.part === "worst" ? "swWorst" : c.part === "margin" ? "swMargin" : "swPassed")}`;
-  if (c?.group === "output" && c.agg && s.view.mode === "sets") return `${name} · ${c.agg}`;
-  return name;
+  const shown = (s.question.labels?.[name] || name) + (s.question.units?.[name] ? ` [${s.question.units[name]}]` : "");
+  if (c?.group === "output" && c.agg && s.view.mode === "sets") return `${shown} · ${c.agg}`;
+  return shown;
 }
 
 export function scaleOf(s: Study, name: string, col?: Col): Scale {
@@ -163,7 +164,7 @@ export function reorderedAxes(s: Study, name: string, to: number): string[] {
 /** What a set number means: the parameter sets of these roles, kept values, new columns and left-out runs. */
 export function scopeKey(s: Study): string {
   const q = wireQuestion(s);
-  return JSON.stringify([q.roles, q.holdValues, q.derived, q.exclude]);
+  return JSON.stringify([q.roles, q.holdValues, q.derived, q.exclude, q.cells, q.rowFilter]);
 }
 
 /** 1 for each parameter set the keep / exclude steps leave on screen; null when there are none. */

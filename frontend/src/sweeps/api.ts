@@ -31,7 +31,7 @@ export interface SweepOpened {
 }
 
 import type { WireCol } from "./decode";
-import type { Condition, Derived, Objective, SetOp, Tolerance } from "./model";
+import type { CellFix, Condition, Derived, Objective, SetOp, Tolerance } from "./model";
 
 /** What the server is asked: the roles of the columns and the question. */
 export interface WireQuestion {
@@ -46,6 +46,8 @@ export interface WireQuestion {
   exclude: number[];
   robust?: Record<string, Tolerance>;
   rankBy?: "pareto";
+  cells?: CellFix[];
+  rowFilter?: string;
 }
 export interface WireAnswer {
   counts: { sets: number; holding: number; complete: number; combos: number; rows: number };
@@ -85,8 +87,9 @@ export interface Suggestion { params: Record<string, number | string | null>; ki
 
 export const sweepApi = {
   open: (path: string) => call<SweepOpened>("/api/sweep/open", { path }),
-  summary: (id: string, roles: Record<string, Role>, holdValues?: Record<string, (string | number)[]>) =>
-    call<SweepSummary>("/api/sweep/summary", { id, roles, ...(holdValues ? { holdValues } : {}) }),
+  summary: (id: string, roles: Record<string, Role>, holdValues?: Record<string, (string | number)[]>,
+    edits?: { cells?: CellFix[]; rowFilter?: string; derived?: Derived[] }) =>
+    call<SweepSummary>("/api/sweep/summary", { id, roles, ...(holdValues ? { holdValues } : {}), ...(edits ?? {}) }),
   combine: (ids: string[], spec: MergeSpec, name: string) => call<SweepOpened>("/api/sweep/combine", { ids, ...spec, name }),
   combinePreview: (ids: string[], spec: MergeSpec) =>
     call<{ rows: number; partial: string[]; common: string[]; error: string }>("/api/sweep/combine", { ids, ...spec, preview: true }),
@@ -95,7 +98,8 @@ export const sweepApi = {
   values: (id: string, column: string) => call<{ values: [string | number, number][]; total: number; numeric: boolean }>("/api/sweep/values", { id, column }),
   formulaPreview: (id: string, expr: string, derived: unknown[]) =>
     call<{ ok: boolean; value?: number | string | null; text?: boolean; error?: string }>("/api/sweep/formula-preview", { id, expr, derived }),
-  exportTable: (id: string, path: string, format: "csv" | "html", body: { title?: string; axes?: string[]; labels?: Record<string, string>; view?: unknown } = {}) =>
+  exportTable: (id: string, path: string, format: "csv" | "parquet" | "xlsx" | "html",
+    body: { title?: string; axes?: string[]; labels?: Record<string, string>; view?: unknown; question?: unknown; recipe?: unknown } = {}) =>
     call<{ path: string; rows: number }>("/api/sweep/export-table", { id, path, format, ...body }),
   example: () => call<{ path: string; refine: string }>("/api/sweep/example"),
   variants: (id: string, question: WireQuestion, variants: { goal: unknown; conditions: unknown; combine: string; objectives: unknown }[]) =>

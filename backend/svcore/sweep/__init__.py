@@ -40,7 +40,7 @@ from svcore.sweep.io import SweepError, read_table  # noqa: F401
 from svcore.sweep.shape import head, summary  # noqa: F401
 from svcore.sweep.derived import SET_OPS, DerivedError  # noqa: F401,E402
 from svcore.sweep.encode import encode  # noqa: F401,E402
-from svcore.sweep.evaluate import QuestionError, answer, prepare, run_rows, set_rows  # noqa: F401,E402
+from svcore.sweep.evaluate import QuestionError, answer, prepare, run_rows, set_rows, kept_runs, table_as_edited  # noqa: F401,E402
 from svcore.sweep.export import rerun_rows, rerun_rows_for, write_csv, write_rows  # noqa: F401,E402
 from svcore.sweep.analysis import KINDS, best_set, map_for, objectives, pair_map, slice_mask, suggest  # noqa: F401,E402
 from svcore.sweep.grid import Grid, stability  # noqa: F401,E402
