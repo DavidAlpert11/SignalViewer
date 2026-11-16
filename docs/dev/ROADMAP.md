@@ -991,4 +991,8 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] RV4 Notices do not cover the data (place, life, the informational ones quieter)
 - [ ] RV5 Each demo opens what its card promises, with one line saying what to do next (B4, B5, §4.4)
 - [ ] RV6 Fleet counts airframes, one line per vehicle, no duplicate numbers (B2, B3, B10)
-- [ ] RV7 One count of a log's findings (B6); plain labels for the file row's date / count and *Files 18*
+- [ ] RV7 One count of a log's findings (B6: pill / findings chip / report); the line of instructions above the plots shown once, not always (§4.2)
+- [ ] RV8 Report: one offline page instead of *Make a replay page…* and *Create interactive HTML* (§4.7)
+- [ ] RV9 Map bar: Camera, Fit, Story always; the rest under one ⋯ (no second row with the Inspector open) (§4.6)
+- [ ] RV10 Runs A / B colours further apart; a set point drawn above its measurement (§4.5)
+- [ ] RV11 Small ones: Space = the same meaning in the app and the report pages (B7); a formula's syntax error at its real position, an unknown function named (B8); *Camera following an object* under Map in Settings (B9)

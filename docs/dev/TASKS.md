@@ -33,6 +33,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   header count reads *n signals* (the word hidden below 330 px). DataPanel.tsx, index.css, i18n signals.
   RV4 done: the *text read as states* notice dropped (files.ts; `textColsRead` removed); a template's *opened* notice
   2.5 s (templates.ts, TemplateLibrary.tsx). The dock's place (bottom-left, with the start card) unchanged.
+  Next: RV5, RV6, RV7 ... RV11 (ROADMAP M33) - handed to a new session at RV5 (context).
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
