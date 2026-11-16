@@ -2303,20 +2303,24 @@ begin:</p>
 <ul>
 <li><strong>I have results</strong> – load a table of runs; the roles are guessed from its columns and fill the study's
   set-up (parameters and their ranges, scenarios, outputs), and the answer shows at once.</li>
-<li><strong>Start from nothing</strong> – a set-up page: what varies (ranges, steps, how many values in the first round),
-  the scenarios, what your program writes and what is good, and the command that runs one run on this PC
-  or your farm's launcher. Round 1 runs that grid; each next round is aimed by the results.</li>
+<li><strong>Start from nothing</strong> – <em>Send runs</em>: only what varies (values or ranges, steps, how many values in the
+  first round), the scenarios and how to run (the command for one run on this PC, a wrapper, or your farm's
+  launcher). No outputs and no goal: <strong>Send round 1</strong> runs that grid, and its results – even one row – open
+  as a regular table in Data; Columns (already filled: what varies, the scenarios, every other number an
+  output), Goal and Results follow as for any table. Each next round is aimed by the results.</li>
 </ul>
 <p>Every study goes through the same five steps: <strong>1 Data · 2 Columns · 3 Goal · 4 Results · 5 Next runs</strong>.
-<strong>Data</strong> defines the problem: on the left the study's tables – the layers of runs: each table, the tables
-merged into it and each round the loop has run (new ones marked); a click shows its data – and <em>Define the
-problem</em> (what varies, the scenarios, the outputs; how many of the three are filled). <em>About this study</em>
+<strong>Data</strong> holds the runs: on the left <em>Send runs</em> (what varies, the scenarios, how to run; how many of the
+three are filled) and the study's tables – the layers of runs: each table, the tables merged into it and
+each round the loop has run (new ones marked); a click shows its data. <em>About this study</em>
 explains a demo. When the study has two systems (tables) or more, <strong>Results</strong> has a tab <em>All systems
 together</em> – the values that hold for all of them. <strong>Next runs</strong> is the one place for the next parameter
 sets: the sets proposed from the results so far (export them to run outside the app) and <em>Run from the
-app</em> – what the next round will run (for round 1: sets × scenarios = runs) or what is still missing, <em>How
-to run</em> (this PC or the farm, the command), <strong>Run them</strong>, <em>Only write the files</em> (for a launcher of your
-own), the loop's <em>Next round</em>, <em>Run until converged</em> and <em>Stop</em>, its progress and how it converges.
+app</em> – what the next round will run or what is still missing, <strong>The goal of the loop</strong> (the loop ranks the
+sets, so it asks for a goal here, not before: the table's Goal step, or what to rank by), <strong>Run them</strong>, <em>Only
+write the files</em> (for a launcher of your own), the loop's <em>Next round</em>, <em>Run until converged</em> and <em>Stop</em>, its
+progress and how it converges. <em>Clear ▾ › Everything</em> closes the tables and the study file (the notice's Undo
+opens them again).
 Finished rounds come back as new tables in Data. <em>Study ▾</em> saves, undoes and closes the study, and
 <em>Report of the study…</em> writes one HTML page of the whole study. One Ctrl+Z undoes the last change anywhere
 in Sweeps.</p>

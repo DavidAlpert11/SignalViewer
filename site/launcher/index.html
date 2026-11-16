@@ -1412,7 +1412,7 @@ set of inputs. <code>examples/smart_sweep_demo/sweep_wrapper.py</code> is one to
 </code></pre></div>
 <p><code>run_as: "wrapper"</code> runs the round's command on this PC in the background (the app keeps showing the results as
 they come). Your simulation reads one JSON file (every input of one run, and <code>"out"</code>) and writes one CSV row there.
-In the app: <em>How to run</em> → <strong>A wrapper on this PC</strong>, and <em>Put the example wrapper beside the study</em>. The same
+In the app: <em>Send runs</em> → <em>How to run</em> → <strong>A wrapper on this PC</strong>, and <em>Put the example wrapper beside the study</em>. The same
 wrapper runs without the app – the inputs as <code>name: values</code> lines, MATLAB-style ranges:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>sweep_wrapper.py<span class="w"> </span>--spec<span class="w"> </span>grid.txt<span class="w"> </span>--out<span class="w"> </span>sweep.csv<span class="w">        </span><span class="c1"># grid.txt:  Kp: 0.5, 1, 2:0.5:4   wind: calm, gusty</span>
 python<span class="w"> </span>sweep_wrapper.py<span class="w"> </span>--inputs<span class="w"> </span>runs.csv<span class="w"> </span>--out<span class="w"> </span>sweep.csv<span class="w">      </span><span class="c1"># or a table, one run per row</span>
