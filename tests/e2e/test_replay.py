@@ -65,6 +65,7 @@ def test_replay_page(pg):
         assert "Made with Signal Viewer" in page.inner_text("footer")
         # one click on the second plot moves the first plot's value too (one time for the page)
         before = page.locator(".plot").first.locator(".legend .val").inner_text()
+        page.locator(".plot .u-over").nth(1).scroll_into_view_if_needed()     # RV8: the one page has the report's text above
         o = page.locator(".plot .u-over").nth(1).bounding_box()
         page.mouse.click(o["x"] + o["width"] * 0.8, o["y"] + o["height"] / 2)
         page.wait_for_function("window.__replay.t > 20")

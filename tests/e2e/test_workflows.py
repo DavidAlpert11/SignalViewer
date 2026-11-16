@@ -161,7 +161,7 @@ def test_share_report_and_session(page, server, tmp_path):
     page.locator(".sig", has_text="Speed").click()
     page.wait_for_selector(".plot .chip")
     page.click("[aria-label='Report']")
-    page.click("text=Create interactive HTML")
+    page.click(".replay-make")                         # RV8: the one offline page
     _save_as(page, str(tmp_path), "report.html")
     page.wait_for_selector(".toast:has-text('Saved')", timeout=30000)
     html = (tmp_path / "report.html").read_text(encoding="utf-8")

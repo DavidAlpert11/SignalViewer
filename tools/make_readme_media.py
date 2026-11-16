@@ -669,7 +669,7 @@ def img_20_sim_vs_flight(b, app):
 
 
 def img_32_replay(b, app):
-    """32: a replay page in the browser (Report > Send it as a replay); 33: the app as it was sent - two cursors
+    """32: a replay page in the browser (Report > Send it as one page); 33: the app as it was sent - two cursors
     with Δ in every chip, the plots' window on the timeline, the Report panel's replay card."""
     ctx, pg = page(b, app)
     _example(pg, "car", ".grid canvas", 1500)

@@ -6,7 +6,7 @@ import { translate, useT } from "../i18n";
 import { pagePlots, plotSpec } from "../plotSpec";
 import { runJob } from "../files";
 import { api } from "../api";
-import { makeReplay, replayInfo } from "../replay";
+import { replayFileName, replayInfo } from "../replay";
 import { Icon } from "../icons";
 
 const DEFAULT: ReportMeta = { title: "", intro: "", summary: "", lang: "he", theme: "light", scope: "tab" };
@@ -68,15 +68,19 @@ export default function ReportPanel() {
   };
   const make = async (format: "html" | "pdf" | "docx") => {
     const ext = { html: ".html", pdf: ".pdf", docx: ".docx" }[format];
-    const base = (meta.title || "report").replace(/[\\/:*?"<>|]+/g, "_").slice(0, 60);
-    const path = await pickPath({ mode: "save", title: t("saveReport"), exts: [ext], defaultName: base + ext });
+    const first = useApp.getState().runs.find((r) => r.format !== "derived");
+    const base = (meta.title || "").replace(/[\\/:*?"<>|]+/g, "_").slice(0, 60);
+    // RV8: without a title the page is named after the recording, as the replay page was
+    const name = base ? base + ext : format === "html" ? replayFileName(activeTab(ws).name, first?.name) : "report" + ext;
+    const path = await pickPath({ mode: "save", title: t("saveReport"), exts: [ext], defaultName: name });
     if (!path) return;
     setBusy(format);
     try {
       const body = await buildBody(format, path);
       if (!body.tabs.length && body.sections.length <= 1) throw new Error(t("reportEmpty"));
       const r = await runJob<{ path: string }>("report", body, translate(lang, "creatingReport"));
-      if (r) useApp.getState().toast({ kind: "info", text: translate(lang, "savedTo", { path: r.path }) });
+      if (r) useApp.getState().toast({ kind: "info", text: translate(lang, "savedTo", { path: r.path }), ms: format === "html" ? 12000 : undefined,
+        ...(format === "html" ? { action: { label: translate(lang, "replayOpen"), run: () => { api.openPage(r.path).catch(() => {}); } } } : {}) });
     } catch (e) {
       useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
     } finally { setBusy(null); }
@@ -85,11 +89,12 @@ export default function ReportPanel() {
     <aside className="side" aria-label={t("report")}>
       <div className="side-head"><h2>{t("report")}</h2></div>
       <div className="tree analysis">
-        {/* R1: the tab as a page to send - first, since it is the quickest thing to make here */}
+        {/* R1 / RV8 (review §4.7): the one offline page - the replay and the HTML report were two buttons for one page;
+            it carries the report's text below when written. PDF / Word at the end. */}
         <section className="card info replay-card" aria-labelledby="replay-h">
           <h3 id="replay-h" className="card-title"><Icon.Send aria-hidden="true" />{t("replayTitle")}</h3>
           <p className="card-meta">{t("replayText")}</p>
-          <button className="btn primary replay-make" disabled={!!busy} onClick={() => makeReplay()}>{t("replayMake")}</button>
+          <button className="btn primary replay-make" disabled={!!busy} onClick={() => make("html")}>{busy === "html" ? t("loading") : t("replayMake")}</button>
         </section>
         <label className="afield"><span>{t("reportTitle")}</span>
           <input key={"t" + meta.title} defaultValue={meta.title} onBlur={(e) => e.target.value !== meta.title && setMeta({ title: e.target.value })} /></label>
@@ -153,13 +158,10 @@ export default function ReportPanel() {
 
         <div className="arow">
           <button className="btn outline r-preview" disabled={!!busy} onClick={preview}>{busy === "preview" ? t("loading") : t("reportPreview")}</button>
-          <button className="btn primary" disabled={!!busy} onClick={() => make("html")}>{busy === "html" ? t("loading") : t("makeHtml")}</button>
-        </div>
-        <p className="hint r-htmlhint">{t("htmlHint")}</p>
-        <div className="arow">
           <button className="btn outline" disabled={!!busy} onClick={() => make("pdf")}>{busy === "pdf" ? t("loading") : "PDF"}</button>
           <button className="btn outline" disabled={!!busy} onClick={() => make("docx")}>{busy === "docx" ? t("loading") : "Word"}</button>
         </div>
+        <p className="hint r-htmlhint">{t("reportOther")}</p>
       </div>
     </aside>
   );

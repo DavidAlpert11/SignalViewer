@@ -803,7 +803,7 @@ def test_R01_to_R06_reports(pg):
     pg.click(".side .btn:has-text('Preview')")
     pg.wait_for_selector("iframe.preview-frame")
     pg.keyboard.press("Escape")
-    for label, name in (("Create interactive HTML", "r.html"), ("PDF", "r.pdf"), ("Word", "r.docx")):
+    for label, name in (("Save the page (HTML)", "r.html"), ("PDF", "r.pdf"), ("Word", "r.docx")):
         pg.locator(".side .btn", has_text=label).first.click(); save_as(pg, name)
         pg.wait_for_function(f"[...document.querySelectorAll('.toast')].some(t => t.innerText.includes('{name}'))", timeout=40000)
     html = open(os.path.join(pg.env["out"], "r.html"), encoding="utf-8").read()

@@ -73,6 +73,13 @@ def test_report_without_replay_is_unchanged(rid):
     assert "<footer>Signal Viewer</footer>" in text
 
 
+def test_the_one_page_carries_the_brand_line(rid):
+    """RV8: the Report panel's one offline page (the full report with its replay, not only the compact tab page)
+    ends with the same brand line as the replay page did."""
+    text = report.build_html(store, body(rid))
+    assert 'class="brand"' in text and "Made with Signal Viewer" in text
+
+
 def test_map_follows_the_page():
     """The map's own page listens for the replay's time and hides its slider there (one time control)."""
     from app import mapimage

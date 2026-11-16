@@ -569,7 +569,7 @@ overshoot, energy...), with a second, finer sweep to merge. The same answer on t
 
 ### Reports
 
-- **Send it as a replay** (Report panel; Ctrl+K): the tab as one HTML page that opens in any browser offline, on the moment shown - one cursor for every plot and map (a click on a plot or the page's timeline), Play (Space, ×0.5 - ×30) with the plots following, one zoom for every time plot, the log's errors / warnings, the findings and the notes as marks, `#t=` in the address keeps a moment, a *Made with Signal Viewer* line; *Open it* shows it in the browser (1.25)
+- **Send it as one page** (Report panel, *Save the page (HTML)…* - the replay and the HTML report are one page since RV8, the report's text below the plots when written; Ctrl+K *Send this view as a replay page*: the tab alone): one HTML page that opens in any browser offline, on the moment shown - one cursor for every plot and map (a click on a plot or the page's timeline), Play (Space, ×0.5 - ×30) with the plots following, one zoom for every time plot, the log's errors / warnings, the findings and the notes as marks, `#t=` in the address keeps a moment, a *Made with Signal Viewer* line; *Open it* shows it in the browser (1.25)
 - Preview in the app
 - Interactive offline HTML - **one live page** (1.26): one time bar for every plot, the map and the 3D view (Play, the log's marks); each plot keeps its zoom and statistics
 - The 3D view in reports: live in HTML (three.js, offline; its picture without WebGL), a picture in PDF / Word / PNG; its own offline HTML from its ⋯ menu

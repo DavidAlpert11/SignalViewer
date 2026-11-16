@@ -584,7 +584,7 @@ def build_html(store, req: Dict, progress=None) -> str:
         title=title, uplot_css=read("uPlot.min.css"), css=_fonts_css() + CSS + (REPLAY_CSS if replay else ""), generated=S["generated"],
         date=datetime.now().strftime("%Y-%m-%d %H:%M"), theme_label=S["theme"], intro=intro, hint=(S["rpHint"] if replay["compact"] else S["lvHint"]) if replay else S["hint"],
         nav=nav, panes="".join(panes), summary=summary, data=data_json, body_class=(' class="replay"' if replay["compact"] else ' class="live"') if replay else "",
-        bar=_replay_bar(S) if replay else "", footer=_brand_footer(S) if replay and replay["compact"] else "<footer>Signal Viewer</footer>",
+        bar=_replay_bar(S) if replay else "", footer=_brand_footer(S) if replay else "<footer>Signal Viewer</footer>",   # RV8: the one page sent carries the brand line
         uplot_js=read("uPlot.iife.min.js"), viewer_js=read("viewer.js"))
 
 

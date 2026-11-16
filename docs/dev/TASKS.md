@@ -92,7 +92,9 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   wrapper (round mode) gets the set's parameter files in one list.
   RV7 done: the findings chip says *n to look at* (the pill's word); the report's line names the log's own messages; the
   strip's how-to line shown on the first file only (`ovHintSeen` set once shown).
-  Next: RV8 ... RV11 while the owner confirms SW2 (b)'s reading; then SW2 (b).
+  RV8 done: the Report panel's one offline page (*Save the page (HTML)…* at the top = the HTML report with its replay and
+  brand line); Ctrl+K's compact tab page kept.
+  Next: RV9 ... RV11 while the owner confirms SW2 (b)'s reading; then SW2 (b).
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
@@ -437,3 +439,5 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   Owner's answers for SW2 recorded (TASKS Current state, ROADMAP M33).
 - 2026-11-16 · RV7 done. e2e run: test_less_clutter (also closes the demo line before counting - RV5 added 2 controls,
   it failed on main before RV7 too), test_workflows, test_flat_line_solo, test_features -k findings/health/report/strip.
+- 2026-11-16 · RV8 done. Tests: backend test_replay (+1); e2e test_replay (scrolls to the plot - the report's text is
+  above it now), test_live_report, test_workflows, test_features -k report/replay/html.

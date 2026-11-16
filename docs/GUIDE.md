@@ -392,7 +392,9 @@ shown change together – on the axis, in the list, in the legend – and it can
   restores your last work by itself when it starts.
 - **Templates** (the top bar): save a tab or a whole set of tabs as a template, and open it later on
   other files with the same signals.
-- **Send it as a replay** (Report, at the top; Ctrl+K): the tab as one HTML page for a colleague. It
+- **Send it as one page** (Report, at the top: *Save the page (HTML)…*; Ctrl+K: *Send this view as a replay
+  page* for the tab alone): one HTML page for a colleague, with the report's title, notes and conclusion below
+  when written. It
   opens in any browser with no install and no network, on the moment you were looking at; a click on
   any plot or on its timeline moves the cursor in every plot and on the map, **Play** (or Space) plays
   it, a drag zooms every plot, and the log's errors, warnings, findings and your notes are marks to jump
