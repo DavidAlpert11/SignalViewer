@@ -80,7 +80,28 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   (one per scenario, compared). One home for the button: the set's details (SetDetail) and the re-run list
   (RerunList: today only Export) - not a third place. en + he, RTL; backend tests for the contract, e2e for the demo.
   **SW2 status:** (a) done by FL1 (the Sweeps data table's ticks + *Open n in Recordings*). **The owner's answers (2026-11-16, chat) for (b):** (1) which runs record is a **rule set in advance**, default *no recording*; (2) a simulation file takes **one run**, the wrapper **a parameter set** - choose accordingly; (3) the re-runs are **chained**, then a notice says a run is **ready to load** (not opened by itself); (4) a re-run whose summary row differs from the original is **loaded as another layer of results**.
-  **SW2 spec - agreed answers, waiting for the owner's final yes (2026-11-16):**
+  **SF1 - NEXT (owner, 2026-11-16): Sweeps - one flow, runs sent from a side panel.** Before SW2 (SW2 builds on it).
+  The flow stays the five steps: 1 Data (load result tables; merge, split...) -> 2 Columns (which table goes on, the
+  roles) -> 3 Goal -> 4 Results -> 5 Next runs (proposals from the data). What was mixed in: *Define the problem* (Set up:
+  what varies, scenarios, outputs + goal, how to run) beside the steps, and round 1 shown "not ready" until outputs and
+  a goal are typed - with no table yet.
+  The owner's design:
+  - **Send runs** = a side panel (where *Define the problem* is now): ONLY what varies (values / ranges, MATLAB-style),
+    the scenarios and how to run (this PC / wrapper / farm). No outputs, no goal, no optimisation. Round 1 is ready
+    with params (+ ranges) and a command: `readiness` for round 1 must not list "output" / "goal".
+  - **The first results (even one row)** arrive as a regular table in step 1; from there the usual flow: Columns from
+    the table (roles pre-filled from Send runs: varies = param, scenario = hold, the rest = output), Goal, Results.
+  - **The loop until convergence** lives in step 5 and needs a goal - asked for there, not before.
+  - **Clear ▾ > everything** closes the study too (asks first, one Undo) - today Clear leaves the study until closed.
+  - Backward compatible: an old study with outputs / a goal typed in Set up keeps them and opens as before; the demo
+    and *I have results* keep working.
+  Code points found: `sweeps/setup.ts` readiness / setupDone (4 parts -> Send runs' 3; output/goal only for the loop),
+  `components/sweeps/SetupView.tsx` (its outputs+goal part out), `RunPanel.tsx` (round 1's card: missing = params /
+  range / command only), `FlowNav.tsx` (*Not ready* only for those), `NewStudy.tsx` / `Navigator.tsx` (the side's
+  *Define the problem* -> *Send runs*), SweepsArea's Clear menu. Check every caller first (CLAUDE.md); e2e: the
+  test_study_* / test_sweeps_* files.
+
+, waiting for the owner's final yes (2026-11-16):**
   - A run = one row (inputs + summary outputs); a recording = its full time series. Default: **no recording**.
   - **When to record = a rule set in advance** (Set up, beside *How to run*): none (default) / a rule on inputs or
     outputs (`wind >= 10`, `overshoot > 8`, *every failed run*) / always. Runs the rule picks are **chained**: after the
