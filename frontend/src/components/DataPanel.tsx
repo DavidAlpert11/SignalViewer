@@ -493,11 +493,11 @@ export default function DataPanel() {
                   onClick={(e) => { e.stopPropagation(); reloadRun(run.id); }}>↻ {shortClock(run.fileTime!, lang)}</button>
               : <span className="run-ftime" dir="ltr" title={tip} aria-label={tip}>{shortClock(run.fileTime!, lang)}</span>;
           })()}
-          <span className="run-meta">{fmtInt(run.signals.length, lang)}</span>
-          {run.format !== "derived" && <>
+          <span className="run-meta" title={t("nSignals", { n: fmtInt(run.signals.length, lang) })}>{fmtInt(run.signals.length, lang)}</span>
+          {run.format !== "derived" && <span className="run-acts">
             <button className="iconbtn" title={t("reload")} aria-label={t("reload")} onClick={(e) => { e.stopPropagation(); reloadRun(run.id); }}><Icon.Reload /></button>
             <button className="iconbtn" title={t("fileMenu")} aria-label={t("fileMenu")} onClick={(e) => { e.stopPropagation(); fileMenu(e, run); }}><Icon.More /></button>
-          </>}
+          </span>}
         </div>
       );
     }
@@ -654,7 +654,7 @@ export default function DataPanel() {
   return (
     <aside className="side" aria-label={t("data")}>
       <div className="side-head">
-        <h2>{t("files")}{nSignals > 0 && <> <span className="ph-count" title={t("signalsOpenN", { n: nSignals })}>{nSignals.toLocaleString(lang === "he" ? "he-IL" : "en-US")}</span></>}</h2>
+        <h2>{t("files")}{nSignals > 0 && <> <span className="ph-count" title={t("signalsOpenN", { n: nSignals })}>{nSignals.toLocaleString(lang === "he" ? "he-IL" : "en-US")}<span className="ph-word"> {t("signalsWord")}</span></span></>}</h2>
         {runs.some((r) => r.format !== "derived") && (
           <button className="iconbtn" onClick={() => { refreshAll(); }} title={`${t("refreshAll")} (F5)`} aria-label={t("refreshAll")}><Icon.Reload /></button>
         )}

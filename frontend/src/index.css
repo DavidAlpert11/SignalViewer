@@ -415,10 +415,12 @@ table.data tr.sel, table.data tr[aria-selected="true"] { background: var(--selec
 .run-head .chev { width: 16px; height: 16px; color: var(--faint); transition: transform .12s; flex: none; }
 .run-head.closed .chev { transform: rotate(-90deg); }
 [dir="rtl"] .run-head.closed .chev { transform: rotate(90deg); }
-.run-name { flex: 1; min-width: 0; font-weight: 500; color: var(--ink-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.run-name { flex: 1; min-width: min(9ch, 45%); font-weight: 500; color: var(--ink-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .run-meta { color: var(--faint); font-size: var(--fs-sm); white-space: nowrap; }
-.run-head .iconbtn { height: 24px; min-width: 24px; padding: 0; opacity: 0; }
-.run-head:hover .iconbtn, .run-head .iconbtn:focus-visible { opacity: 1; }
+.run-head .iconbtn { height: 24px; min-width: 24px; padding: 0; }
+/* RV3: the row's buttons take room only on hover - hidden they still took the name's room (it shrank to nothing) */
+.run-head .run-acts { display: flex; gap: 2px; flex: none; width: 0; overflow: hidden; }
+.run-head:hover .run-acts, .run-head .run-acts:focus-within { width: auto; overflow: visible; }
 .sig {
   display: flex; align-items: center; gap: var(--sp-2); width: 100%; height: 26px; padding-inline: 22px 8px;
   border: 0; border-radius: var(--r-s); background: none; text-align: start; cursor: pointer; color: var(--ink);
@@ -1517,6 +1519,9 @@ input.fx-input { width: 100%; }
 .sig.in .sig-spark { opacity: 1; }
 @container (max-width: 300px) { .sig .sig-rate { display: none; } }
 @container (max-width: 230px) { .sig .sig-spark { display: none; } }
+/* RV3: a narrow list keeps the file's name - its format is in the tooltip and the name's extension */
+@container (max-width: 380px) { .run-head .badge-fmt { display: none; } }
+@container (max-width: 330px) { .side-head .ph-word { display: none; } }
 
 /* T15 video mode */
 .video-view { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; min-height: 0; }

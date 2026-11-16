@@ -85,7 +85,7 @@ def test_quick_chips_and_the_count_for_a_big_file(pg):
     pg.locator(".filter input").focus()
     pg.wait_for_selector(".quick-chips .chipbtn[data-group]")
     n = S(pg, "s.runs.reduce((a, r) => a + r.signals.length, 0)")
-    assert pg.locator(".side-head .ph-count").inner_text().replace(",", "") == str(n)
+    assert pg.locator(".side-head .ph-count").inner_text().replace(",", "") in (f"{n} signals", str(n))     # RV3: says what it counts (the word goes when narrow)
     used = S(pg, "[...new Set(s.ws.tabs.find((t) => t.id === s.ws.activeTab).plots.flatMap((p) => p.signals.map((x) => x.sig.split('/')[1].split('.')[0])))]")
     first = pg.locator(".quick-chips .chipbtn[data-group]").first     # the groups' chips (pinned searches come first)
     assert first.inner_text() in used

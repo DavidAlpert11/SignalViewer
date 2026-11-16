@@ -987,7 +987,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 
 - [x] RV1 A drag zooms by its direction (sideways = time, up / down = values, diagonal = a box) - the zoom-mode button, its menu, the Z key and the palette's three zoom commands removed (the owner); the link button says *Link time*, not "X"
 - [x] RV2 Checks says what was checked: "no limits set" instead of "0 failed"; the pump demo opens with its limits (S1)
-- [ ] RV3 A file's name is never squeezed away by its badges (B1)
+- [x] RV3 A file's name is never squeezed away by its badges (B1)
 - [ ] RV4 Notices do not cover the data (place, life, the informational ones quieter)
 - [ ] RV5 Each demo opens what its card promises, with one line saying what to do next (B4, B5, §4.4)
 - [ ] RV6 Fleet counts airframes, one line per vehicle, no duplicate numbers (B2, B3, B10)

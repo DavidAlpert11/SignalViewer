@@ -28,6 +28,9 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   (+ `checksFileCounts`): a *Checks file* card in Checks, counted in the verdict and in the strip's pill; the pill says
   *No limits set* / *none failed* / *n failed* by what was checked. Touches: app/checks.py (CLI unchanged), routes/files.py,
   api.ts, ChecksView.tsx, OverviewStrip.tsx, i18n flightlog / plots.
+  RV3 done: `.run-name` min-width min(9ch, 45%); the row's reload / ⋯ in `.run-acts` (width 0 until hover - an
+  overlay hid the amber *newer* time under them); `.badge-fmt` hidden below a 380 px list (container query); the
+  header count reads *n signals* (the word hidden below 330 px). DataPanel.tsx, index.css, i18n signals.
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
@@ -344,3 +347,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 - 2026-11-16 · M33 RV2 (the checks file beside a recording runs in the window; an honest pill). Tests:
   backend test_checks (+1); e2e test_checks_view (+1), test_plot_polish (the cursors next to Reset zoom - RV1); e2e
   run: test_checks_view, test_plot_polish, test_welcome_cards.
+
+- 2026-11-16 · M33 RV3 (a file's name keeps its room; *n signals*). e2e test_name_tree (the header count), run:
+  test_name_tree, test_data_quality, test_refresh_feedback, test_templates_recent_badfiles, test_compare_params,
+  test_judge_a_run, test_workflows, test_trust_badges.
