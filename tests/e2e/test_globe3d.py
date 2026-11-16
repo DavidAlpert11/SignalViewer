@@ -471,9 +471,10 @@ def test_camera_keys_double_click_and_palette(g3multi):
             continue
     assert pg.evaluate(f"{P}.followObject") == "C"
     # Ctrl+K: the camera on B, then Free
-    pg.keyboard.press("Control+k"); pg.fill(".palette-input", "Map camera: on B"); pg.keyboard.press("Enter")
+    # (the command clicked, not Enter: Enter can come before the list is filtered and run the recent one)
+    pg.keyboard.press("Control+k"); pg.fill(".palette-input", "Map camera: on B"); pg.locator('.pal-item[data-cmd="camon-B"]').click()
     pg.wait_for_function(f"{P}.followObject === 'B'")
-    pg.keyboard.press("Control+k"); pg.fill(".palette-input", "Map camera: Free"); pg.keyboard.press("Enter")
+    pg.keyboard.press("Control+k"); pg.fill(".palette-input", "Map camera: Free"); pg.locator('.pal-item[data-cmd="camfree"]').click()
     pg.wait_for_function(f"{P}.followObject === null")
 
 
