@@ -468,9 +468,13 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
 
     const drawCursor = (u: uPlot, ctx: CanvasRenderingContext2D) => {
       const c = cursorRef.current;
-      if (!c.on) return;
+      if (!c.on) { delete ctx.canvas.dataset.flags; return; }
       const { left, top, width, height } = u.bbox;
       ctx.save();
+      const boxes: number[][] = [];
+      // FR3: the cursors' times are written in the time axis' margin, under the plot - not on the curves. One
+      // cursor: centred on its line; two: each on the outer side of its line, so nothing sits between them
+      const both = c.dual && c.t1 !== null && c.t2 !== null;
       for (const [tv, tag] of [[c.t1, "1"], [c.dual ? c.t2 : null, "2"]] as [number | null, string][]) {
         if (tv === null) continue;
         const x = Math.round(u.valToPos(tv, "x", true)) + 0.5;
@@ -481,10 +485,13 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         ctx.setLineDash(tag === "1" ? [4 * dpr(), 3 * dpr()] : [2 * dpr(), 3 * dpr()]);
         ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, top + height); ctx.stroke();
         ctx.setLineDash([]);
-        // cursor 1's flag at the top, cursor 2's at the bottom: they never overlap
-        const fy = tag === "1" ? top : top + height - 17 * dpr() * uiScale();
-        flag(ctx, x, fy, (c.dual ? `${tag}  ` : "") + fmtNum(tv, "en", 7), pt.amber, pt.amberInk, { left, width });
+        const other = tag === "1" ? c.t2 : c.t1;
+        const place = !both ? "centre" : tv < other! || (tv === other && tag === "1") ? "before" : "after";
+        const fy = Math.min(top + height + 2 * dpr(), ctx.canvas.height - 17 * dpr() * uiScale());
+        boxes.push(flag(ctx, x, fy, (c.dual ? `${tag}  ` : "") + fmtNum(tv, "en", 7), pt.amber, pt.amberInk, { left: 0, width: ctx.canvas.width }, 1, place).map((v) => Math.round(v / dpr())));
       }
+      // where the labels are, in CSS px of this layer (for the tests: they must stay off the plot area)
+      ctx.canvas.dataset.flags = JSON.stringify(boxes);
       ctx.restore();
     };
 

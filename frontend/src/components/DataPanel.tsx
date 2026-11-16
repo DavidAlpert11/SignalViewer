@@ -615,6 +615,12 @@ export default function DataPanel() {
           }
           if (e.ctrlKey || e.metaKey) { togglePick(s.id); return; }
           if (e.altKey) { actions.addSignalToNewPlot(s.id); return; }
+          // FR3: a double-click plots the signal - its second click never takes away what the first one added
+          // (it added and removed); on a plotted signal the pair removes and puts it back
+          if (e.detail >= 2) {
+            const w = useApp.getState().ws, tab = w.tabs.find((x) => x.id === w.activeTab);
+            if (tab?.plots[tab.active]?.signals.some((x) => x.sig === s.id)) return;
+          }
           if (colorOf.has(s.id)) actions.toggleSignal(s.id); else actions.addSignalLinked(s.id);
         }}
         onContextMenu={(e) => sigMenu(e, s, row.ugroup)}

@@ -118,3 +118,4 @@ inside your lane's block.
 
 - `test_plot_room.py` – FR1: the plots' share of the window on the ArduPilot demo (>= 35 %, en / he / dark), the one-row head, a lone line's title not repeated; FR2: two rows above the plots, the first curve within 200 px, the flags on the first lane, a demo's line goes / changes after its button, a session's two lanes kept.
 - `test_tab_band.py` – FR2: `test_one_mode_row_with_cursors_and_hover` closes the demo's line before the strip's × (the head is folded while the line is up).
+- `test_cursor_labels.py` – FR3: the cursor labels' boxes (the layer's `data-flags`) are under the plot area in the investigate demo and with one cursor; a double-click on a signal leaves one chip, a single click as before.

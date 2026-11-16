@@ -75,20 +75,22 @@ export const dpr = () => window.devicePixelRatio || 1;
 
 /** Draw a small filled label (used for the cursor flag and state values). */
 export function flag(ctx: CanvasRenderingContext2D, x: number, top: number, text: string, bg: string, fg: string,
-  bounds: { left: number; width: number }, alpha = 1) {
+  bounds: { left: number; width: number }, alpha = 1, place: "after" | "before" | "centre" = "after"): [number, number, number, number] {
   const r = dpr();
   ctx.font = `${11 * r * uiScale()}px ${monoFamily()}`;
   ctx.textBaseline = "middle";
   ctx.textAlign = "left"; // uPlot leaves textAlign set by its axis labels
   const tw = ctx.measureText(text).width + 10 * r, th = 17 * r * uiScale();
-  let fx = x + 1;
-  if (fx + tw > bounds.left + bounds.width) fx = x - tw;
+  let fx = place === "after" ? x + 1 : place === "before" ? x - tw : x - tw / 2;
+  if (place === "after") { if (fx + tw > bounds.left + bounds.width) fx = x - tw; }
+  else fx = Math.max(bounds.left, Math.min(bounds.left + bounds.width - tw, fx));      // kept whole inside the bounds
   ctx.globalAlpha = alpha;
   ctx.fillStyle = bg;
   ctx.fillRect(fx, top, tw, th);
   ctx.globalAlpha = 1;
   ctx.fillStyle = fg;
   ctx.fillText(text, fx + 5 * r, top + th / 2 + r);
+  return [fx, top, tw, th];
 }
 
 /** Lines that connect points in the given order (X need not be monotonic). For X-Y plots. */
