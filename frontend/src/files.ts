@@ -312,7 +312,7 @@ export function currentState() {
     runs: st.runs.filter((r) => r.format !== "derived").map((r) => ({
       id: r.id, path: r.path, name: r.name, importSettings: r.importSettings, timeOffset: r.timeOffset, tag: r.tag, color: r.color,
     })),
-    ui: { theme: st.theme, lang: st.lang, uiScale: st.uiScale, linkRuns: st.linkRuns, linkEdits: st.linkEdits, zoomMode: st.zoomMode,
+    ui: { theme: st.theme, lang: st.lang, uiScale: st.uiScale, linkRuns: st.linkRuns, linkEdits: st.linkEdits,
       liveAutoStop: st.liveAutoStop, liveNewFiles: st.liveNewFiles, geoBase: st.geoBase, geoBorders: st.geoBorders,
       playMode: st.playMode, playSpeed: st.playSpeed, windowSec: st.windowSec, timelineOpen: st.timelineOpen },
     transforms: Object.fromEntries(st.runs.flatMap((r) => r.signals.filter((x) => x.transform).map((x) => [x.id, x.transform]))),
@@ -335,7 +335,7 @@ export async function applyState(state: any, opts: { announce?: boolean } = {}) 
     // Q87, optional: sessions saved before it have none, and operations stay unlinked
     useApp.setState({ linkEdits: state.ui?.linkEdits === true });
     useApp.setState({ journal: Array.isArray(state.journal) ? state.journal : [] });
-    if (["x", "y", "xy"].includes(state.ui?.zoomMode)) useApp.setState({ zoomMode: state.ui.zoomMode });
+    // ui.zoomMode (sessions before 2026-11-16) is read as nothing: a drag now zooms by its direction
     // the timeline (sessions saved before it have none of these: the defaults stay)
     if (["cursor", "draw", "window"].includes(state.ui?.playMode)) useApp.setState({ playMode: state.ui.playMode });
     if (typeof state.ui?.playSpeed === "number" && state.ui.playSpeed > 0 && state.ui.playSpeed <= 1000) useApp.setState({ playSpeed: state.ui.playSpeed });

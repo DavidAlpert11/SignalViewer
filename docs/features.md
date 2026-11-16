@@ -229,7 +229,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Zoom
 
-- X / Y / XY (the zoom menu in the stage bar, `Z` cycles): drag zooms time, values, or a box (a nearly flat drag in XY zooms one axis); for one drag Shift = values, Ctrl = a box, whatever the mode
+- A drag zooms by its direction: nearly sideways = time, nearly up or down = values, diagonal = a box (no mode to set); for one drag Shift = values, Ctrl = always a box. The wheel zooms time (over the value axis, or with Shift: values)
 - Wheel over the value axis zooms values only, over the time axis time only; Shift+wheel values only, Ctrl+wheel both, Alt+wheel time only
 - Alt+drag pans (follows the mode)
 - The wheel follows the size of the scroll (a trackpad zooms smoothly; a sideways swipe moves along the time) and one gesture is one step back
@@ -667,7 +667,6 @@ overshoot, energy...), with a second, finer sweep to merge. The same answer on t
 | ← → (Shift = ×10) | Move the cursor from one recorded sample to the next (no interpolation; only the mouse interpolates) |
 | 1–9 | Select plot |
 | R | Reset zoom (to the axis limits, if set) |
-| Z | Zoom mode X → Y → XY (for one drag: Shift = values, Ctrl = a box, Alt = pan) |
 | N | Note at the cursor |
 | F5 / Ctrl+R | Refresh all files |
 | Backspace | Previous zoom |

@@ -49,7 +49,6 @@ export function useShortcuts() {
       if (e.key === " ") { e.preventDefault(); actions.toggleCursor(); }
       else if (e.key.toLowerCase() === "d") actions.toggleDual();
       else if (e.key.toLowerCase() === "r") actions.resetZoom();
-      else if (e.key.toLowerCase() === "z") actions.cycleZoomMode();
       else if (e.key.toLowerCase() === "m") useApp.setState({ soloPlot: !st.soloPlot });   // one plot at a time (1-9 then flips through them)
       else if (e.key.toLowerCase() === "n") { e.preventDefault(); actions.addNoteAtCursor(); }
       else if ((e.key === "]" || e.key === "[") && st.condFocus) { e.preventDefault(); stepOccurrence(st.condFocus, e.key === "]" ? 1 : -1); }

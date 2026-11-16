@@ -3,7 +3,7 @@ import { api, type RunInfo } from "../../api";
 import { revealInspector } from "../inspector";
 import { activeTab, rangeKey, recordingExtent } from "../selectors";
 import { useApp } from "../state";
-import type { Range, ZoomMode, ZoomStep } from "../types";
+import type { Range, ZoomStep } from "../types";
 
 let _pendingSteps = 0, _stepping = false;
 
@@ -35,7 +35,6 @@ export const viewActions = {
     const st = useApp.getState();
     useApp.setState({ zoomHistory: { ...st.zoomHistory, [xKey]: [...(st.zoomHistory[xKey] ?? []).slice(-49), step] } });
   },
-  setZoomMode(m: ZoomMode) { useApp.setState({ zoomMode: m }); },
   /** Both cursors on [a, b] and every plot of the tab zoomed to it (with some margin). */
   showSpan(a: number, b: number) {
     const st = useApp.getState();
@@ -57,11 +56,6 @@ export const viewActions = {
       if (r && (t < r[0] || t > r[1])) { const w = r[1] - r[0]; ranges[key] = [t - w / 2, t + w / 2]; }
     }
     useApp.setState({ ranges, cursor: { ...st.cursor, on: true, t1: t, active: 1 } });
-  },
-  cycleZoomMode() {
-    const order: ZoomMode[] = ["x", "y", "xy"];
-    const st = useApp.getState();
-    useApp.setState({ zoomMode: order[(order.indexOf(st.zoomMode) + 1) % order.length] });
   },
   /** Play / pause. Starts from the beginning of the shown range in draw mode, or
    *  when the cursor already reached the end. */

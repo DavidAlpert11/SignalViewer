@@ -1088,13 +1088,12 @@ def test_fft_motor_orders(pg):
 
 
 def test_zoom_keys_layout_button_and_split(pg):
-    """T19: for one drag Shift zooms the values and Ctrl a box, whatever the zoom mode; T20: one
+    """T19: for one drag Shift zooms the values and Ctrl a box, whatever the direction; T20: one
     layout button with the common layouts and any size; dropping a signal on a plot's right edge
     splits it."""
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
     pg.wait_for_selector(".plot .u-over")
-    assert S(pg, "s.zoomMode") == "x"
     box = pg.locator(".plot .u-over").first.bounding_box()
     cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
 
@@ -1942,21 +1941,27 @@ def test_reload_redraws_the_graph(pg, env=None):
 
 
 # =========================================================== zoom modes, refresh all, live, text values
-def test_zoom_y_only_and_back(pg):
+def test_zoom_by_the_drag_direction(pg):
+    """The owner (2026-11-16): no zoom-mode button - sideways = time, up / down = values, diagonal = a box."""
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
-    pg.click(".stage-bar .zoom-btn")                                         # T19: the zoom mode is in a menu
-    pg.locator(".zoom-seg button", has_text="Y").first.click()
-    assert S(pg, "s.zoomMode") == "y"
+    assert pg.locator(".stage-bar .zoom-btn").count() == 0
     box = pg.locator(".plot .u-over").first.bounding_box()
-    pg.mouse.move(box["x"] + 100, box["y"] + 30); pg.mouse.down()
-    pg.mouse.move(box["x"] + 130, box["y"] + 120, steps=6); pg.mouse.up()
+    def drag(x0, y0, x1, y1):
+        pg.mouse.move(box["x"] + x0, box["y"] + y0); pg.mouse.down()
+        pg.mouse.move(box["x"] + x1, box["y"] + y1, steps=8); pg.mouse.up()
+    drag(100, 20, 130, 140)                                             # down (a little sideways): values only
     pg.wait_for_function("Object.values(window.__sv.state().yRanges).some(r => r)")
     assert not any(S(pg, "Object.values(s.ranges)"))                  # time window untouched
     pg.keyboard.press("Backspace")
     pg.wait_for_function("!Object.values(window.__sv.state().yRanges).some(r => r)")
-    pg.keyboard.press("z")                                              # Y -> XY
-    assert S(pg, "s.zoomMode") == "xy"
+    drag(100, 60, 400, 80)                                              # sideways (a little down): time only
+    pg.wait_for_function("Object.values(window.__sv.state().ranges).some(r => r)")
+    assert not any(S(pg, "Object.values(s.yRanges)"))
+    pg.keyboard.press("r")
+    pg.wait_for_function("!Object.values(window.__sv.state().ranges).some(r => r)")
+    drag(100, 20, 300, 140)                                             # diagonal: a box
+    pg.wait_for_function("Object.values(window.__sv.state().ranges).some(r => r) && Object.values(window.__sv.state().yRanges).some(r => r)")
 
 
 def test_refresh_all_reads_changed_files(pg):

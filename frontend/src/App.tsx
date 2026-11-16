@@ -112,7 +112,6 @@ export default function App() {
   useEffect(() => { if (useApp.getState().startOpen) useApp.setState({ startOpen: false }); }, [runIds]);
   const ws = useApp((s) => s.ws);
   const streaming = useApp((s) => s.streaming);
-  const zoomMode = useApp((s) => s.zoomMode);
   const logMarkers = useApp((s) => s.logMarkers);
   const syncFor = useApp((s) => s.syncFor);
   const geoBase = useApp((s) => s.geoBase);
@@ -179,7 +178,7 @@ export default function App() {
     if (!restored.current) return;
     const h = window.setTimeout(() => { api.putAutosave(currentState()).catch(() => {}); }, 800);
     return () => window.clearTimeout(h);
-  }, [ws, runs, theme, lang, uiScale, zoomMode, liveAutoStop, liveNewFiles, logMarkers, geoBase, geoBorders]);
+  }, [ws, runs, theme, lang, uiScale, liveAutoStop, liveNewFiles, logMarkers, geoBase, geoBorders]);
   // an autopilot log and a telemetry log of the same flight, not aligned: offer to align them
   useEffect(() => { if (runs.some((r) => r.format === "tlog")) detectSameFlight(); }, [runs]);
   // flight-log data: fetched only for files that have it, when the panel or the plot markers need it

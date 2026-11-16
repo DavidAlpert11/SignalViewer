@@ -74,24 +74,6 @@ function GridPicker({ rows, cols, anchor, onPick, onClose, solo, onSolo }: { row
   );
 }
 
-/** A small popover under its button, closed by a click outside or Escape. */
-function Popover({ anchor, onClose, label, children }: { anchor: DOMRect | null; onClose: () => void; label: string; children: React.ReactNode }) {
-  const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const off = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node) && !(e.target as HTMLElement).closest?.(".zoom-btn")) onClose(); };
-    // F18: Esc closes it wherever the focus is (it worked only with the focus inside)
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
-    window.addEventListener("mousedown", off);
-    window.addEventListener("keydown", esc, true);
-    return () => { window.removeEventListener("mousedown", off); window.removeEventListener("keydown", esc, true); };
-  }, [onClose]);
-  const rtl = document.documentElement.dir === "rtl";
-  const style: React.CSSProperties = anchor ? { position: "fixed", top: anchor.bottom + 4,
-    ...(rtl ? { right: window.innerWidth - anchor.right } : { left: anchor.left }) } : {};
-  return <div className="gridpick bar-pop" ref={box} style={style} role="dialog" aria-label={label}
-    onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}>{children}</div>;
-}
-
 export default function StageBar() {
   countRender("StageBar");
   const t = useT();
@@ -104,10 +86,7 @@ export default function StageBar() {
   const canBack = useApp((s) => !!plot && (s.zoomHistory[rangeKey(tab, plot)]?.length ?? 0) > 0);
   const [picker, setPicker] = useState(false);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
-  const zoomMode = useApp((s) => s.zoomMode);
   const solo = useApp((s) => s.soloPlot) && tab.plots.length > 1;
-  const [zoomMenu, setZoomMenu] = useState(false);
-  const [zoomAnchor, setZoomAnchor] = useState<DOMRect | null>(null);
 
   return (
     <div className="stage-bar">
@@ -127,28 +106,11 @@ export default function StageBar() {
           solo={solo} onSolo={tab.plots.length > 1 ? () => { useApp.setState({ soloPlot: !solo }); setPicker(false); } : undefined} />}
       </span>
       <span className="sep" />
-      <button className="btn" aria-pressed={tab.linkX} onClick={actions.toggleLinkX} title={t("linkX")}><Icon.Link /> X</button>
+      {/* review 2026-11-16: a word, not "X" (it read like a close button) */}
+      <button className="btn link-x" aria-pressed={tab.linkX} onClick={actions.toggleLinkX} title={t("linkX")}><Icon.Link /><span>{t("linkXShort")}</span></button>
       {/* W16: linking the value axes is rare - in the More menu (and the palette); shown here while it is on */}
-      {tab.linkY && <button className="btn" aria-pressed onClick={actions.toggleLinkY} title={t("linkY")}><Icon.Link /> Y</button>}
+      {tab.linkY && <button className="btn" aria-pressed onClick={actions.toggleLinkY} title={t("linkY")}><Icon.Link /><span className="hide-narrow">{t("linkYShort")}</span></button>}
       <span className="sep" />
-      {/* T19: the zoom mode in a menu; for one drag Shift = values, Ctrl = a box */}
-      <span className="pick-wrap">
-        <button className="btn zoom-btn" aria-expanded={zoomMenu} aria-haspopup="menu" title={t("zoomModeHint")}
-          onClick={(e) => { setZoomAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()); setZoomMenu(!zoomMenu); }}>
-          <Icon.Search /><span>{t("zoom")}:</span> {zoomMode === "x" ? "X" : zoomMode === "y" ? "Y" : "XY"}
-        </button>
-        {zoomMenu && <Popover anchor={zoomAnchor} onClose={() => setZoomMenu(false)} label={t("zoomMode")}>
-          <span className="seg zoom-seg" role="group" aria-label={t("zoomMode")}>
-            {(["x", "y", "xy"] as const).map((m) => (
-              <button key={m} className={zoomMode === m ? "on" : ""} aria-pressed={zoomMode === m}
-                title={`${t(m === "x" ? "zoomX" : m === "y" ? "zoomY" : "zoomXY")} (Z)`} onClick={() => { actions.setZoomMode(m); setZoomMenu(false); }}>
-                {m === "x" ? "X" : m === "y" ? "Y" : "XY"}
-              </button>
-            ))}
-          </span>
-          <p className="hint">{t("zoomKeysHint")}</p>
-        </Popover>}
-      </span>
       <button className="btn" onClick={actions.resetZoom} title={`${t("resetZoom")} (R)`}><Icon.Reset /><span className="hide-narrow">{t("resetZoom")}</span></button>
       {/* T49 item 10: the cursors next to the zoom (they are used together), icon + name, key in the tooltip */}
       <span className="sep" />

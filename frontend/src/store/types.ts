@@ -1,7 +1,6 @@
 export type Range = [number, number] | null;
 /** One step of zoom history: the x window before it, and the value-axis window if that changed too. */
 export interface ZoomStep { x: Range; y?: { key: string; r: Range } }
-export type ZoomMode = "x" | "y" | "xy";
 export type NewFilesMode = "ask" | "auto" | "ignore";
 export interface CursorState { on: boolean; dual: boolean; t1: number | null; t2: number | null; active?: 1 | 2 }
 export interface Toast { id: string; kind: "info" | "error"; text: string; action?: { label: string; run: () => void }; ms?: number;

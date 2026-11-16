@@ -26,3 +26,16 @@ describe("ink", () => {
     expect(lum(out)).toBeLessThan(lum("#F0E442"));
   });
 });
+
+describe("a drag zooms by its direction", () => {
+  test("sideways = time, up / down = values, diagonal = a box", async () => {
+    const { dragAxes } = await import("./chartUtil");
+    expect(dragAxes(300, 0)).toBe("x");
+    expect(dragAxes(300, 60)).toBe("x");        // a wobbly sideways drag stays on time
+    expect(dragAxes(10, 200)).toBe("y");
+    expect(dragAxes(70, 250)).toBe("y");
+    expect(dragAxes(300, 200)).toBe("xy");
+    expect(dragAxes(150, 150)).toBe("xy");
+    expect(dragAxes(8, 5)).toBe("x");           // tiny: the longer side
+  });
+});

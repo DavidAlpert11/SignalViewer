@@ -573,7 +573,7 @@ def test_clearer_controls(page, server):
     page.locator(".sig", has_text="Speed").first.click(button="right")
     page.locator(".menu.ctx button", has_text="Remove from the active plot").click()
     page.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 0")
-    assert "Zoom" in page.locator(".zoom-btn").inner_text()
+    assert "Link time" in page.locator(".stage-bar .link-x").inner_text()
     page.locator(".area-tools [aria-label='Clear']").click(); page.locator(".menu.ctx button", has_text="Clear everything").click()
     ok = page.locator(".dialog .btn.primary")
     assert ok.inner_text() == "Clear everything" and "danger" in ok.get_attribute("class")

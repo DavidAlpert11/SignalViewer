@@ -1,12 +1,11 @@
 /* How the data is looked at: time and value windows, cursors, playback, map layer. Not undoable. */
-import type { CursorState, LogMarkers, PlayMode, PreviewLine, Range, ZoomMode, ZoomStep } from "../types";
+import type { CursorState, LogMarkers, PlayMode, PreviewLine, Range, ZoomStep } from "../types";
 import type { GeoBase } from "../../mapBase";
 
 export interface ViewSlice {
   ranges: Record<string, Range>;      // key: tab id (linked) or plot id (unlinked)
   cursor: CursorState;
   zoomHistory: Record<string, ZoomStep[]>;
-  zoomMode: ZoomMode;              // what drag / wheel zoom: time only, values only, or both
   yRanges: Record<string, Range>;  // value-axis zoom; key: plot id, or "<tab id>:y" when the tab links Y
   yExtents: Record<string, [number, number]>;   // per plot, for linked value axes
   hover: { plotId: string; t: number; vals: Record<string, number | null> } | null;
@@ -42,7 +41,6 @@ export const viewSlice = (): ViewSlice => ({
   ranges: {},
   cursor: { on: false, dual: false, t1: null, t2: null },
   zoomHistory: {},
-  zoomMode: "x",
   yRanges: {},
   yExtents: {},
   hover: null,

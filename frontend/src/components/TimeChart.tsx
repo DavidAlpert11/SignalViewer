@@ -9,7 +9,7 @@ import { inkOn, labelsOf, labelText, stateColor, runsDataKey } from "../values";
 import { fmtNum, translate } from "../i18n";
 import { signalUnit } from "../units";
 import { DASH, fade, lineLook, setpointsIn } from "../desired";
-import { axisStyle, tickValues, dpr, flag, ink, PLOT_THEME, PREVIEW_DASH, publishXView, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
+import { axisStyle, tickValues, dpr, DRAG_UNI_MIN, dragUni, flag, ink, PLOT_THEME, PREVIEW_DASH, publishXView, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
 
 interface Props {
   tab: Tab; plot: Plot; index: number; onLoading: (b: boolean) => void;
@@ -41,7 +41,6 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   const key = rangeKey(tab, plot);
   const yKey = yRangeKey(tab, plot);
   const yZoom = useApp((s) => s.yRanges[yKey] ?? null);
-  const zoomMode = useApp((s) => s.zoomMode);
   const yZoomRef = useRef<Range>(yZoom);
   /* flight-log events (ArduPilot .bin) of the files in this plot, as markers along the top */
   const logs = useApp((s) => s.logs);
@@ -634,8 +633,9 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       focus: { alpha: 0.18 },
       // 26.U2: the hover points as rings in each line's colour on the plot's background (a dot hid the line's own value)
       cursor: { y: false, points: { size: 8, width: 2, fill: () => PLOT_THEME[theme].bg }, focus: { prox: -1 },
-        // zoom by dragging: a time window, a value window, or a box (a nearly flat drag zooms one axis)
-        drag: { x: zoomMode !== "y", y: zoomMode !== "x", uni: zoomMode === "xy" ? 20 : undefined, setScale: false } },
+        // zoom by dragging, chosen by the drag's direction (the owner, 2026-11-16: no zoom-mode button): sideways =
+        // time, up / down = values, diagonal = a box (uni is set during the drag - see dragUni)
+        drag: { x: true, y: true, uni: DRAG_UNI_MIN, setScale: false } },
       scales: {
         // the time window is read when drawing (the plot is no longer rebuilt for each new window)
         x: { time: false, auto: () => !rangeRef.current,
@@ -737,7 +737,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
           (u) => {
             const sel = { ...u.select };           // a copy: setSelect below resets u.select itself
             const W = u.over.clientWidth, H = u.over.clientHeight;
-            const g = gestRef.current;                 // this drag's mode (the zoom mode, or by its modifier key)
+            const g = gestRef.current;                 // this drag: by its direction, or Shift = values only
             const useX = g !== "y" && sel.width >= 4 && sel.width < W - 1;
             const useY = g !== "x" && sel.height >= 4 && sel.height < H - 1;
             u.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false);
@@ -756,8 +756,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     u.over.addEventListener("mouseleave", () => { if (useApp.getState().hover?.plotId === plot.id) useApp.setState({ hover: null }); });
 
     /* wheel: over the value axis -> values only; over the time axis -> time only; inside the plot ->
-       the zoom mode (X / Y / XY); for one gesture Shift = values only, Ctrl / Cmd = both, Alt = time
-       only - the same keys as for dragging (T19) */
+       time; for one gesture Shift = values only, Ctrl / Cmd = both, Alt = time only (T19) */
     let lastWheel = 0;
     const onWheel = (e: WheelEvent) => {
       const rect = u.over.getBoundingClientRect();
@@ -778,7 +777,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         actions.setView(key, [min + dv, max + dv], yKey, undefined, { history });
         return;
       }
-      let doX = zoomMode !== "y", doY = zoomMode !== "x";
+      let doX = true, doY = false;                // inside the plot the wheel zooms time
       if (onYAxis || e.shiftKey) { doX = false; doY = true; }
       else if (onXAxis || e.altKey) { doX = true; doY = false; }
       else if (e.ctrlKey || e.metaKey) { doX = true; doY = true; }
@@ -890,15 +889,22 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         }
         return;
       }
-      // T19: a drag zooms by the zoom mode, or for this one gesture Shift = values (Y), Ctrl / Cmd =
-      // a box (XY); uPlot reads these drag settings live, the selection rectangle follows
-      const g: "x" | "y" | "xy" = e.shiftKey ? "y" : e.ctrlKey || e.metaKey ? "xy" : zoomMode;
+      // a drag zooms by its direction (dragUni); for this one gesture Shift = values only, Ctrl / Cmd =
+      // always a box. uPlot reads these drag settings live, the selection rectangle follows
+      const g: "x" | "y" | "xy" = e.shiftKey ? "y" : "xy";
       gestRef.current = g;
-      u.cursor.drag!.x = g !== "y"; u.cursor.drag!.y = g !== "x"; u.cursor.drag!.uni = g === "xy" ? 20 : undefined;
+      const box = e.ctrlKey || e.metaKey;
+      u.cursor.drag!.x = g !== "y"; u.cursor.drag!.y = true; u.cursor.drag!.uni = g === "xy" && !box ? DRAG_UNI_MIN : undefined;
+      if (g === "xy" && !box && e.button === 0) {
+        const x0 = e.clientX, y0 = e.clientY;
+        const move = (ev: MouseEvent) => { u.cursor.drag!.uni = dragUni(Math.abs(ev.clientX - x0), Math.abs(ev.clientY - y0)); };
+        const up = () => { window.removeEventListener("mousemove", move, true); window.removeEventListener("mouseup", up, true); };
+        window.addEventListener("mousemove", move, true); window.addEventListener("mouseup", up, true);
+      }
       if (e.altKey && !cursorRef.current.on || e.button === 1) {       // pan (Alt + drag, or the middle button)
         e.stopPropagation(); e.preventDefault();
-        // pan follows the zoom mode: time, values, or both
-        const panX = zoomMode !== "y", panY = zoomMode !== "x" && !onlyStates;
+        // pan moves time; the values too once they are zoomed (a value window to move)
+        const panX = true, panY = !onlyStates && !!useApp.getState().yRanges[yKey];
         const x0 = e.clientX, y0 = e.clientY, min0 = u.scales.x.min!, max0 = u.scales.x.max!;
         const ymin0 = u.scales.y.min!, ymax0 = u.scales.y.max!;
         const rect0 = u.over.getBoundingClientRect();
@@ -954,7 +960,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       uRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [structKey, theme, scale, size.w > 0 && size.h > 0, plot.ylim?.[0], plot.ylim?.[1], linkY, yUnion, zoomMode, stateKey, labelsKey, gutter[0], gutter[1]]);
+  }, [structKey, theme, scale, size.w > 0 && size.h > 0, plot.ylim?.[0], plot.ylim?.[1], linkY, yUnion, stateKey, labelsKey, gutter[0], gutter[1]]);
 
   /* new data for the same series: into the existing plot (no rebuild) */
   useEffect(() => {

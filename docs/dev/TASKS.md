@@ -13,6 +13,15 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
 
 ## Current state
 
+- **2026-11-16 · Milestone 33 - clear to a human (owner: "fix everything you think helps a human understand and
+  benefit") - in progress.** From the fresh review (`docs/dev/REVIEW_2026-11-16.md`). Order RV1..RV7 (ROADMAP M33).
+  RV1 done: a drag on a time plot zooms by its direction - `chartUtil.dragUni` sets uPlot's `drag.uni` during the drag
+  to 0.4 × the longer side (within ~22° of an axis = that axis only; diagonal = a box); Shift = values only, Ctrl =
+  always a box; the wheel zooms time (value axis / Shift: values); pan moves time, and the values once they are
+  zoomed. `zoomMode` (state, actions, StageBar menu, Z, Ctrl+K x3, Help row) removed; an old session's `ui.zoomMode`
+  is ignored. The link button reads *Link time* (always visible), not "X". Touches: TimeChart.tsx, StageBar.tsx,
+  CommandPalette.tsx, shortcuts.ts, Help.tsx, files.ts, App.tsx, store view slice / actions / types, i18n plots /
+  flightlog, docs/features.md.
 - **2026-11-16 · The 3D map went black every ~10 s while moving (owner) - fixed.** Cause: each terrarium tile fetched
   in the background bumps `basemap.terrain_version()`; the view polled it every 4 s and replaced
   `scene.terrainProvider` - Cesium drops every tile on screen (the globe blank until reloaded). Now one provider; its
@@ -322,3 +331,7 @@ tick the task in `ROADMAP.md`, add the user-facing line to `CHANGELOG.md`, and a
   checks.json fails 2 of 4 in the CLI. Bugs B1-B10 (file name squeezed away, Fleet "1 vehicle", demo cards that
   promise more than opens...), clarity issues, and a prioritised list for the owner to choose from. Checks run:
   quick_check green, `tools/benchmark.py --synthetic --samples 2000000 --check 3` all met; no e2e (review only).
+- 2026-11-16 · M33 RV1 (zoom by the drag's direction, no zoom mode; *Link time*). Tests: chartUtil.test.ts (+1);
+  e2e test_features::test_zoom_by_the_drag_direction (replaces test_zoom_y_only_and_back), test_zoom_keys...,
+  test_workflows::test_clearer_controls; e2e run: test_aligned_plots, test_timeline, test_wheel, test_workflows,
+  test_features -k zoom/drag/wheel/pan/... (51 green).

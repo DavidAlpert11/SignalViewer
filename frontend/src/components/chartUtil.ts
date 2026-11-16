@@ -201,3 +201,17 @@ export function wheelZoom(e: WheelEvent): number | null {
 }
 /** Wheel steps in one gesture (closer than this) make one zoom-history step, not one each. */
 export const WHEEL_GESTURE_MS = 400;
+
+/* A drag on a time plot zooms by its direction (the owner, 2026-11-16 - no zoom-mode button): nearly sideways =
+   time only, nearly up / down = values only, diagonal = a box. uPlot's `drag.uni` is a pixel threshold - an axis
+   zooms when the drag along it reaches it - so it is set during the drag to a share of the longer side: a drag
+   within about 22° of an axis stays on that axis, whatever its length. */
+export const DRAG_UNI_MIN = 20;
+export const DRAG_STRAIGHT = 0.4;
+export const dragUni = (dx: number, dy: number) => Math.max(DRAG_UNI_MIN, DRAG_STRAIGHT * Math.max(dx, dy));
+/** What a drag of (dx, dy) pixels zooms, as uPlot decides it with dragUni (for tests and hints). */
+export function dragAxes(dx: number, dy: number): "x" | "y" | "xy" {
+  const uni = dragUni(dx, dy);
+  const x = dx >= uni, y = dy >= uni;
+  return x && y ? "xy" : x ? "x" : y ? "y" : dy > dx ? "y" : "x";
+}

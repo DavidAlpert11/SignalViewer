@@ -1035,7 +1035,6 @@ body.resizing { cursor: col-resize; user-select: none; }
 .txt-badge { flex: none; margin-inline-start: auto; padding: 0 4px; border-radius: var(--r-s); font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); background: var(--panel-2); }
 .state-pill { display: inline-block; max-width: 100%; padding: 0 6px; border-radius: var(--r-s); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
 .vals .text-row td { max-width: 140px; }
-.zoom-seg button { min-width: 26px; font-weight: 600; }
 
 /* ---------------------------------------------------------------- flight log panel (ArduPilot) */
 .rail-log { position: relative; }
@@ -1494,7 +1493,6 @@ input.fx-input { width: 100%; }
 .gridpick-quick { display: flex; flex-wrap: wrap; gap: var(--sp-0_5); padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
 .bar-pop { display: flex; flex-direction: column; gap: var(--sp-1_5); max-width: 260px; }
 .bar-pop .hint { margin: 0; font-size: var(--fs-sm); color: var(--muted); }
-.zoom-btn { font-variant-numeric: tabular-nums; }
 /* T20: dragging a signal to a plot's right / bottom edge splits it - the edge that will open */
 .plot.split-right::after, .plot.split-bottom::after { content: ""; position: absolute; pointer-events: none; z-index: 5;
   background: var(--amber-soft); border: 2px dashed var(--amber); border-radius: var(--r-m); }
