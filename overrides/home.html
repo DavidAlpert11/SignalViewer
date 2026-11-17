@@ -1,0 +1,31 @@
+{#- RD5: the site's home page (docs/index.md: template: home.html) - a full-width hero under the tabs, then the
+    page's own Markdown without the docs-page parts (title, edit button). Paths go through `url` so the
+    page works at any site root. -#}
+{% extends "main.html" %}
+
+{% block tabs %}
+  {{ super() }}
+  <section class="sv-landing">
+    <div class="sv-landing__inner md-grid md-typeset">
+      <p class="sv-eyebrow">Offline · Open source (MIT) · English and עברית</p>
+      <h1 class="sv-headline">Find what went wrong.<br>Prove what is right.<br><span>Send the answer.</span></h1>
+      <p class="sv-lead">An engineering workbench for time-series and measurement data – test runs, simulation
+        output, logs and parameter sweeps – on your own machine. No account, no cloud, no telemetry.</p>
+      <div class="sv-cta">
+        <a href="https://github.com/DavidAlpert11/SignalViewer/releases/latest" class="md-button md-button--primary">Download</a>
+        <a href="{{ 'install/' | url }}" class="md-button">Get started</a>
+        <a href="{{ 'GUIDE.he/' | url }}" class="md-button" lang="he">מדריך בעברית</a>
+      </div>
+      <p class="sv-pip"><code>pip install signalviewer</code></p>
+      <p class="sv-formats">CSV · Parquet · HDF5 · MATLAB .mat · CAN + .dbc · ROS 2 .mcap · ArduPilot .bin · MAVLink .tlog · PX4 .ulg · your own formats</p>
+      <div class="sv-window">
+        <img src="{{ 'images/00_hero.png' | url }}" width="3200" height="1800"
+             alt="A flight judged against its simulation: roll and pitch overlaid, the differences within a ±3° tolerance, the cursor on the worst moment, and Compare's verdict">
+      </div>
+    </div>
+  </section>
+{% endblock %}
+
+{% block content %}
+  {{ page.content }}
+{% endblock %}

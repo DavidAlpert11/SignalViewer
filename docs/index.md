@@ -1,126 +1,182 @@
 ---
+template: home.html
+title: Signal Viewer
 hide:
   - navigation
   - toc
+  - footer
 ---
 
-<div class="sv-hero" markdown>
+<!-- RD5: the hero (title, buttons, first picture) is in overrides/home.html; this is the rest of the home page. -->
 
-<img class="sv-logo" src="assets/icon.png" alt="">
+<div class="sv-section" markdown>
 
-# Signal Viewer
+<p class="sv-kicker">See it work</p>
 
-<p class="sv-tagline"><b>Find what went wrong. Prove what is right. Send the answer.</b> An offline engineering data
-analysis and validation workbench for any time-series data – flight, vehicle and bench tests, simulation output,
-ROS 2 and CAN recordings, parameter sweeps – on your own machine, with every computation validated. Flight logs
-(ArduPilot, PX4) are one kind of data it reads, and its example data, not its limit.</p>
+## From a question to an answer you can defend
 
-[:material-download: Download for Windows](https://github.com/DavidAlpert11/SignalViewer/releases/latest){ .md-button .md-button--primary }
-[:material-rocket-launch: Get started](install.md){ .md-button }
-[:material-translate: מדריך בעברית](GUIDE.he.md){ .md-button }
+<div class="sv-row" markdown>
+<div class="sv-row__text" markdown>
 
-<p class="sv-formats">CSV · MATLAB .mat · ArduPilot .bin · MAVLink .tlog · PX4 .ulg · ROS 2 .mcap · HDF5 · Parquet · CAN + .dbc · your own formats</p>
+### What changed?
+
+Put two cursors around the moment and ask. Every signal that left its usual range comes back in time order,
+the likeliest cause first, with who led whom. Then name the event and find every time it happened.
+
+[:octicons-arrow-right-24: Tutorial: what went wrong, in ten minutes](investigate-tutorial.md)
+
+</div>
+<div class="sv-row__media" markdown>
+![What changed? as it happens: two cursors pulled around the roll's first jump, the question asked, and the answer - five signals changed, the first is Wind, who leads whom as arrows](images/47_what_changed.gif){ loading=lazy }
+</div>
+</div>
+
+<div class="sv-row" markdown>
+<div class="sv-row__text" markdown>
+
+### One verdict per file
+
+Your limits per phase or mode, a golden run with a tolerance per signal, the data's own quality (gaps, stuck
+values, spikes) and a log's health check – each finding a click from its moment. The same checks run headless
+in CI, with JUnit XML.
+
+[:octicons-arrow-right-24: A simulation against its flight, start to finish](sim-vs-flight.md)
+
+</div>
+<div class="sv-row__media" markdown>
+![Checks: one verdict for the file, the data quality and the log's health findings as tinted cards, each a click from its moment](images/09_health_check.png){ loading=lazy }
+</div>
+</div>
+
+<div class="sv-row" markdown>
+<div class="sv-row__text" markdown>
+
+### Parameters that hold everywhere
+
+**Sweeps** reads a table of results, a folder of recordings, or just the parameters and their ranges. Filter on
+any axis and the count and the table follow; it finds the sets that hold in every scenario, and can run your
+simulation round after round until the best stops changing.
+
+[:octicons-arrow-right-24: The smart-sweep demo](smart-sweep-demo.md)
+
+</div>
+<div class="sv-row__media" markdown>
+![Sweeps, All runs: a filter on energy and then on roll error narrows the 810 runs step by step; the count above the plot follows each step](images/45_sweeps_filter.gif){ loading=lazy }
+</div>
+</div>
+
+<div class="sv-row" markdown>
+<div class="sv-row__text" markdown>
+
+### See it in space
+
+Any recording with positions, on satellite photos or the offline map, in 3D over the real terrain. Play it: the
+vehicle moves along its track while the cursor moves in every plot. Online maps are opt-in; offline is the default.
+
+[:octicons-arrow-right-24: Map and 3D](maps-and-3d.md)
+
+</div>
+<div class="sv-row__media" markdown>
+![A flight in 3D over satellite photos and the terrain, played through: the vehicle moves along its track while the cursor moves in the altitude and roll plots](images/46_satellite_replay.gif){ loading=lazy }
+</div>
+</div>
+
+<div class="sv-row" markdown>
+<div class="sv-row__text" markdown>
+
+### Send the answer
+
+One HTML file that opens with **the process in brief** – the data, what was checked, what it shows, the
+conclusion – then the plots, map and 3D on one time bar. Any browser, no install; PDF and Word too.
+
+[:octicons-arrow-right-24: Gallery](gallery.md)
+
+</div>
+<div class="sv-row__media" markdown>
+![A report opening with 'The process in brief', then the plots with their statistics](images/42_report_process.png){ loading=lazy }
+</div>
+</div>
 
 </div>
 
-![Signal Viewer, dark theme: a flight judged against its simulation - the model (the golden run) and the flight overlaid for roll and pitch, the differences with the ±3° tolerance, the cursor on the worst place, and Compare's verdict: 2 of 7 signals outside the tolerance](images/00_hero.png){ .sv-shot }
+<div class="sv-section" markdown>
 
-## Try it in one minute
+<p class="sv-kicker">And more</p>
 
-Every part of the app has a demo with a known answer on the welcome screen – a flight, a flight log's
-health check, a simulation against its flight, a fault to find, a parameter sweep, the loop that picks the
-next runs, a folder of flights summed up in one table, and a pump on a test bench with its pass / fail checks. One click each; nothing to prepare.
+## Everything in one place
 
-![The welcome screen: the examples grouped by area - Recordings and Sweeps - each with a picture of what it opens](images/38_welcome_cards.png){ .sv-shot }
+<div class="grid cards sv-cards" markdown>
 
-## What you do with it
+-   :material-compare-horizontal: **[Compare runs](features.md#compare)**
 
-<div class="grid cards sv-two" markdown>
+    Different clocks and rates aligned; every shared signal ranked by how much it differs.
 
--   :material-magnify:{ .lg } **Find what went wrong**
+-   :material-folder-multiple: **[A folder of recordings](GUIDE.md#folder)**
 
-    ---
+    The same numbers measured in each recording, one row each – the trend over weeks.
 
-    Two cursors around the moment, then **What changed?** – every signal that left its usual range, in
-    time order, the likeliest cause first, who led whom. Name the event and find every time it happened.
+-   :material-function-variant: **[Formulas and analysis](features.md#math)**
 
-    [:octicons-arrow-right-24: Tutorial: what went wrong](investigate-tutorial.md)
+    Derived signals, filters, spectra and statistics – formulas through a whitelist, never `eval`.
 
--   :material-check-decagram:{ .lg } **Judge a run against a golden one**
+-   :material-access-point: **[Live data](features.md#files)**
 
-    ---
+    A file that is still being written, or a live MAVLink link, drawn as it arrives.
 
-    A tolerance per signal, pass or fail, the worst moment and the verdict for the report – and the same
-    check in CI (`signalviewer-cli compare`, `check`, JUnit XML).
+-   :material-view-dashboard-outline: **[Templates and sessions](features.md#reports)**
 
-    [:octicons-arrow-right-24: Simulation against flight, start to finish](sim-vs-flight.md)
+    The same view on the next run; the whole workspace saved, every change undoable.
 
--   :material-airplane:{ .lg } **Review a flight – map, 3D, story**
+-   :material-console: **[Command line and Python](command-line.md)**
 
-    ---
+    `signalviewer-cli` for CI and `import signalviewer` for scripts and notebooks.
 
-    ArduPilot, PX4 and MAVLink logs with an automatic health check; every object on an offline map or in 3D
-    over real terrain; **▶ Story** flies the camera to each moment that matters.
+-   :material-puzzle-outline: **[Your own formats](command-line.md#your-own-formats)**
 
-    [:octicons-arrow-right-24: Offline map and 3D](maps-and-3d.md)
+    A Python reader of a few lines, binary packet layouts (ICD), CAN with `.dbc`.
 
--   :material-tune-variant:{ .lg } **Choose parameters that hold everywhere**
+-   :material-translate: **[English and Hebrew](GUIDE.he.md)**
 
-    ---
-
-    Which parameter sets hold in every scenario, how the runs spread over each scenario, one set for several
-    systems – and **the loop** that runs your program (or your farm) until the best stops changing.
-
-    [:octicons-arrow-right-24: The smart-sweep demo](smart-sweep-demo.md)
-
--   :material-folder-multiple:{ .lg } **A whole folder of recordings**
-
-    ---
-
-    The same numbers measured in every recording of a folder, one row each in Sweeps: which number is
-    growing over the weeks – and open the ones that need a look, together.
-
-    [:octicons-arrow-right-24: A folder of recordings](GUIDE.md#folder)
-
--   :material-file-chart:{ .lg } **Send the answer**
-
-    ---
-
-    One HTML page that opens with **the process in brief** – the data, what was checked, what it shows, the
-    conclusion – then every plot, map and 3D view on one time bar. PDF and Word too.
-
-    [:octicons-arrow-right-24: Gallery](gallery.md)
+    The whole app and its guide in both, right to left where it should be; light and dark.
 
 </div>
 
-## Numbers you can trust
+</div>
 
-Every computation is checked against a reference that does not come from the app – a closed-form
-result, a definition (WGS84) or an independent textbook computation – and the readers are checked
-against logs from real vehicles, field by field, with their projects' own readers.
+<div class="sv-section" markdown>
 
-<div class="grid cards" markdown>
+<p class="sv-kicker">Numbers you can trust</p>
 
--   :material-sine-wave: **Validation** – spectra, filters, statistics, Compare, conditions, formulas and frames, plot speed, 29 cases,
-    with the expected and measured values. Run them yourself: `signalviewer-cli validate`.
-    [:octicons-arrow-right-24: Validation](validation.md)
+## Checked against references that do not come from the app
 
--   :material-speedometer: **Performance** – multi-gigabyte recordings open in seconds; every sample
-    stays available at full resolution; display decimation keeps every spike; a sweep of a million runs
-    opens with its answer in about 2 s.
-    [:octicons-arrow-right-24: Performance](performance.md)
+<div class="sv-stats" markdown>
+<div markdown><b>29</b><span>validation cases with expected and measured values – run them yourself: `signalviewer-cli validate`</span></div>
+<div markdown><b>≈ 2 s</b><span>for a sweep of a million runs to open with its answer</span></div>
+<div markdown><b>All the data</b><span>in every number; a picture is reduced only so that every spike is still drawn</span></div>
+<div markdown><b>Offline</b><span>no account, no telemetry – the map and the 3D terrain too</span></div>
+</div>
 
--   :material-alert-circle-outline: **Known limitations** – what it does not do yet, said plainly.
-    [:octicons-arrow-right-24: Known limitations](limitations.md)
+[:octicons-arrow-right-24: Validation](validation.md) ·
+[:octicons-arrow-right-24: Performance](performance.md) ·
+[:octicons-arrow-right-24: Known limitations, said plainly](limitations.md)
 
 </div>
 
-## Install
+<div class="sv-section" markdown>
+
+<p class="sv-kicker">Install</p>
+
+## Running in a minute
 
 === "Windows"
 
     `SignalViewer-Setup-X.Y.Z.exe` from the [latest release](https://github.com/DavidAlpert11/SignalViewer/releases/latest) –
     for your user only, no administrator rights – or the portable `.zip`.
+
+=== "Linux / macOS"
+
+    The portable `.7z` from the [latest release](https://github.com/DavidAlpert11/SignalViewer/releases/latest)
+    (macOS: Apple silicon), or with Python.
 
 === "Python (any system)"
 
@@ -136,8 +192,21 @@ against logs from real vehicles, field by field, with their projects' own reader
     cd SignalViewer && pip install -r requirements.txt && python run.py
     ```
 
-Nothing needs the internet at run time – not the map, not the 3D terrain. No account, no telemetry;
-nothing is sent unless you choose an online map background ([what that sends](maps-and-3d.md#the-network)).
-[More about installing](install.md).
+Nothing needs the internet at run time; nothing is sent unless you choose an online map background
+([what that sends](maps-and-3d.md#the-network)). [More about installing](install.md).
+
+</div>
+
+<div class="sv-end" markdown>
+
+## Try it on a known answer
+
+Six examples on the welcome screen – a flight log, a fault to find, a simulation against its flight, two runs of
+one mission, a folder of recordings, a smart sweep – each with its answer and the next step.
+
+[Download](https://github.com/DavidAlpert11/SignalViewer/releases/latest){ .md-button .md-button--primary }
+[Read the guide](GUIDE.md){ .md-button }
 
 <p class="sv-small">Source, releases and issues on <a href="https://github.com/DavidAlpert11/SignalViewer">GitHub</a> · MIT License · English and Hebrew.</p>
+
+</div>
