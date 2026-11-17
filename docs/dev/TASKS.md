@@ -526,3 +526,8 @@ answer has conditions; `scales.labelOf` reads ✓ / ✗ on a flag column.
   (needs the internet). README rebuilt after a look at PlotJuggler, Rerun, marimo, uv, Polars, napari, DuckDB READMEs:
   a one-command trial at the top, *Why* with bold-lead highlights, the tour as a 2 x 2 grid + the satellite picture +
   the report, CI lines with the validate result, limitations linked from trust. Links checked; no code changed.
+- 2026-11-17 · RD3 (owner: pictures that show something happening): two README films, captured frame by frame
+  (crisp, repeatable) and joined by ffmpeg into GIFs - 45_sweeps_filter (Show: All, then filters on energy and roll
+  error: 810 -> 581 -> 194 ... lines, 661 KB) and 46_satellite_replay (the cursor runs 30 -> 230 s: the vehicle along
+  its track over the photos, the cursor in altitude and roll, 2.3 MB). The hero and the other tour pictures stay
+  still. 44 (the still) moved to the gallery. mkdocs --strict green; links checked.
