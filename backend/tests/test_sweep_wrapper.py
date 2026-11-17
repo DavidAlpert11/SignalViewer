@@ -89,3 +89,12 @@ def test_the_demo_runs_its_rounds_through_the_wrapper():
         L = json.load(f)["launcher"]
     assert L["run_as"] == "wrapper" and L["submit_mode"] == "round" and "{{params_files}}" in L["submit"]
     assert "sweep_wrapper.py" in " ".join(L["submit"]) and not L.get("local_workers")
+
+
+def test_the_sim_command_is_split_as_each_system_does(W):
+    """1.28.0 tag on Windows: a quoted program path kept its quotes ("cannot find the file"); backslashes are paths there."""
+    cmd = '"C:\\Program Files\\Python\\python.exe" "D:\\a\\b c\\sim.py" {params} --tag \'x y\''
+    assert W.split_command(cmd, "C:\\t\\run_0001.json", windows=True) == [
+        "C:\\Program Files\\Python\\python.exe", "D:\\a\\b c\\sim.py", "C:\\t\\run_0001.json", "--tag", "x y"]
+    assert W.split_command('"/usr/bin/python 3" sim.py {params}', "/t/r.json", windows=False) == ["/usr/bin/python 3", "sim.py", "/t/r.json"]
+    assert W.split_command("matlab -batch run_one('{params}')", "C:\\t\\r.json", windows=True) == ["matlab", "-batch", "run_one('C:\\t\\r.json')"]

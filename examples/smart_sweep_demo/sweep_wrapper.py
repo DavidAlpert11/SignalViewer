@@ -113,12 +113,21 @@ def read_table(path: str) -> List[Dict[str, Any]]:
 
 # ------------------------------------------------------------------ one run
 
+def split_command(command: str, params_path: str, windows: bool = os.name == "nt") -> List[str]:
+    """The --sim command as a program and its arguments, {params} put in. Windows: its own rules - backslashes are
+    path separators, not escapes - and a quoted part ("C:\\Program Files\\python.exe") loses its quotes, which
+    shlex keeps there (the program was looked for with the quotes in its name: "cannot find the file")."""
+    parts = shlex.split(command, posix=not windows)
+    if windows:
+        parts = [p[1:-1] if len(p) >= 2 and p[0] == p[-1] and p[0] in "\"'" else p for p in parts]
+    return [p.replace("{params}", params_path) for p in parts]
+
+
 def sim_runner(command: Optional[str]) -> Callable[[str], None]:
     """How one simulation runs: the --sim command, else sim.py beside this file in this process."""
     if command:
         def run(params_path: str) -> None:
-            args = [a.replace("{params}", params_path) for a in shlex.split(command, posix=os.name != "nt")]
-            cp = subprocess.run(args, capture_output=True, text=True)
+            cp = subprocess.run(split_command(command, params_path), capture_output=True, text=True)
             if cp.returncode != 0:
                 raise RuntimeError((cp.stderr or cp.stdout).strip()[-300:] or f"exit code {cp.returncode}")
         return run
