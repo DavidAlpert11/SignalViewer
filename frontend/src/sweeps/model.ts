@@ -290,7 +290,10 @@ export interface Answer {
   counts: { sets: number; holding: number; complete: number; combos: number; rows: number };
   conditions: { label: string; column: string; met: number; needed?: number }[];
   sets: Col[];
-  runs?: { columns: Col[]; sampled: boolean; total: number; n: number };
+  /** the runs drawn (1.29): every one up to the Settings cap (`cap`, 0 = none), else a sample of those the brush
+   *  keeps; `kept`: how many runs of the whole table the brush keeps (sent with a sample); `selKey`: the brush
+   *  the sample was taken for (sweeps/selection.ts) */
+  runs?: { columns: Col[]; sampled: boolean; total: number; n: number; cap?: number; kept?: number; selKey?: string };
   seconds: number;
   /** new columns used as scenarios: every value of each (S1) */
   newHolds?: Record<string, (string | number)[]>;

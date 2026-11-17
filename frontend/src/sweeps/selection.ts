@@ -14,6 +14,17 @@ import { useSweeps, wireQuestion, type Study } from "./state";
 export type WireFilter = Filter | { kind: "labels"; labels: string[] };
 export interface RunSelection { filters: Record<string, WireFilter>; sets: number[] | null }
 
+/** A filter as the server reads it: a text column's by the labels it keeps (its codes are the page's own). */
+export const wireFilter = (c: Col, f: Filter): WireFilter =>
+  c.kind === "cat" ? { kind: "labels", labels: (c.labels ?? []).filter((_, i) => keeps(f, i)) } : f;
+
+/** The filters on columns the lines have, as the server reads them (the Data step). */
+export function wireFilters(cols: Map<string, Col>, filters: Record<string, Filter>): Record<string, WireFilter> {
+  const out: Record<string, WireFilter> = {};
+  for (const [name, f] of Object.entries(filters)) { const c = cols.get(name); if (c) out[name] = wireFilter(c, f); }
+  return out;
+}
+
 /** columns of All runs that are one value per set: decided here, over the sets */
 const PER_SET = new Set(["#set", "#holds", "#group"]);
 
@@ -30,9 +41,7 @@ export function describeRuns(runCols: Map<string, Col>, filters: Record<string, 
       m ??= new Uint8Array(nSets).fill(1);
       const v = name === "#set" ? null : setCols.get(name)?.values;
       for (let i = 0; i < nSets; i++) if (m[i] && !keeps(f, v ? v[i] : i)) m[i] = 0;
-    } else if (c.kind === "cat") {
-      out[name] = { kind: "labels", labels: (c.labels ?? []).filter((_, i) => keeps(f, i)) };
-    } else out[name] = f;
+    } else out[name] = wireFilter(c, f);
   }
   if (!m) return { filters: out, sets: null };
   const sets: number[] = [];

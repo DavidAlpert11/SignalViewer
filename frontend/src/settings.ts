@@ -8,7 +8,7 @@ import { getPrefValue, offlineForcedByEnv, setPref } from "./prefs";
 const KEYS = [
   "theme", "lang", "uiScale", "timeFormat", "liveAutoStop", "liveNewFiles", "tplTabChoice", "offlineOnly", "smoothFollow", "lineWidth", "lineStyle",
   "clickPlacesCursor",
-  "askBeforeClose", "bandInCard",
+  "askBeforeClose", "bandInCard", "sweepLines",
 ] as const;
 type Key = (typeof KEYS)[number];
 
@@ -27,6 +27,7 @@ const VALID: Record<Key, (v: unknown) => boolean> = {
   clickPlacesCursor: (v) => typeof v === "boolean",
   askBeforeClose: (v) => typeof v === "boolean",
   bandInCard: (v) => typeof v === "boolean",
+  sweepLines: (v) => typeof v === "number" && Number.isInteger(v) && v >= 0,
 };
 
 /** True when the user has chosen this setting (a session file then leaves it alone). */

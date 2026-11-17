@@ -10,6 +10,8 @@ import { create } from "zustand";
 import { getPrefValue, setPref } from "../prefs";
 import { sweepApi, type MergeSpec, type Role, type Scale, type SweepColumn, type SweepOpened, type SweepSummary, type SweepTemplate, type TableRecipe, type WireQuestion } from "./api";
 import { decodeCol } from "./decode";
+import { runSelection, type RunSelection } from "./selection";
+import { useApp } from "../store";
 import { emptyQuestion, emptyView, materialize, newGoal, upgradeQuestion, type Answer, type Condition, type Derived, type Filter, type GoalVariant, type Iteration, type LogEntry, type LogKind, type Question, type Tolerance, type View } from "./model";
 import { changes, entry, withEntry, withIteration } from "./journal";
 import type { CommonResult, DemoProgress, LauncherStatusResult, LauncherSubmitResult, LoopProgress, NextRunsResult, Study as StudyFile } from "./studyTypes";
@@ -323,6 +325,8 @@ interface SweepsState {
   setAxes: (axes: string[]) => void;
   // the answer
   evaluate: () => void;
+  /** All runs above the cap (1.29): the runs drawn again for the brush now (a sample of those it keeps) */
+  refreshRuns: () => void;
   /** the active table's summary (its parameters / scenarios / outputs) asked again - after its roles were set from outside */
   refreshSummary: () => void;
   exportRerun: (path: string) => Promise<{ path: string; rows: number }>;
@@ -427,6 +431,13 @@ function onTable(s: Study, i: number, from?: Record<string, { role: Role; scale:
 
 let timer = 0;
 let seq = 0;
+let runsSeq = 0;           // the last refreshRuns asked for (an older answer is dropped)
+/** What All runs asks to draw: the Settings cap, the brush (sweeps/selection.ts), the open set; `key` says
+ *  which brush a sample was taken for. */
+export function drawOf(s: Study): { cap: number; select: RunSelection; pinned: number | null; key: string } {
+  const cap = useApp.getState().sweepLines, select = runSelection(s), pinned = s.view.pinned ?? null;
+  return { cap, select, pinned, key: JSON.stringify([cap, select, pinned]) };
+}
 let askPending = false;      // W11: an evaluate asked for, still in its debounce
 
 export const useSweeps = create<SweepsState>((set, get) => {
@@ -1008,11 +1019,12 @@ export const useSweeps = create<SweepsState>((set, get) => {
       if (!s) return;
       const my = ++seq;
       patch((x) => ({ ...x, evaluating: true }), false);
-      sweepApi.evaluate(s.tableId, wireQuestion(s), s.view.mode === "runs").then((w) => {
+      const draw = s.view.mode === "runs" ? drawOf(s) : undefined;
+      sweepApi.evaluate(s.tableId, wireQuestion(s), s.view.mode === "runs", draw).then((w) => {
         if (my !== seq) return;
         const answer: Answer = { counts: w.counts, conditions: w.conditions, seconds: w.seconds, newHolds: w.newHolds,
           sets: w.sets.map((c) => decodeCol(c)),
-          runs: w.runs && { ...w.runs, columns: w.runs.columns.map((c) => decodeCol(c, "run")) } };
+          runs: w.runs && { ...w.runs, columns: w.runs.columns.map((c) => decodeCol(c, "run")), selKey: draw?.key } };
         // the iteration (the tables merged so far) with this answer: how many hold, the best goal
         const rank = answer.sets.find((c) => c.name === "#rank")?.values, goalCol = answer.sets.find((c) => c.name === "#goal")?.values;
         let best: number | null = null;
@@ -1025,6 +1037,16 @@ export const useSweeps = create<SweepsState>((set, get) => {
         if (my !== seq) return;
         patch((x) => ({ ...x, evaluating: false, evalError: (e as Error).message }), false);
       });
+    },
+    refreshRuns: () => {
+      const s = get().studies[get().active];
+      if (!s?.answer || s.view.mode !== "runs") return;
+      const my = ++runsSeq, draw = drawOf(s);
+      sweepApi.evaluate(s.tableId, wireQuestion(s), true, draw).then((w) => {
+        if (my !== runsSeq || !w.runs) return;
+        const runs = { ...w.runs, columns: w.runs.columns.map((c) => decodeCol(c, "run")), selKey: draw.key };
+        patch((x) => (x.tableId !== s.tableId || !x.answer ? x : { ...x, answer: { ...x.answer, runs } }), false);
+      }).catch(() => { /* the next change asks again; the answer on screen stays */ });
     },
     exportRerun: (path) => {
       const s = get().studies[get().active];
@@ -1068,6 +1090,7 @@ useSweeps.subscribe((st, prev) => {
   saved: () => !savePending,
   doc: () => useSweeps.getState().saved(),          // the active study as a .svsweep document (the examples are made from it)
   show: (part: Part) => useSweeps.setState({ part }),   // C6: a part of the study shown (the navigator's clicks, C7)
+  rawViews: () => useSweeps.getState().rawViews,       // the Data step's plots: their filters (a drag's exact range)
   // an exact brush on an axis of the plot on screen (a text column's by its labels), as a drag would set it
   filter: (name: string, f: Filter | { kind: "labels"; labels: string[] }) => {
     const s = useSweeps.getState().studies[useSweeps.getState().active];

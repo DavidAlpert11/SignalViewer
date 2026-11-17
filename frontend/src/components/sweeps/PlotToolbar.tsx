@@ -16,7 +16,7 @@ export const PRESET_KEY: Record<ColumnPreset, TKey> = { all: "swShowAll", "param
 import { openMenu } from "../Overlays";
 
 export default function PlotToolbar({ study, shown, total, onKeep, onExclude, onExport, onExportPlot }:
-  { study: Study; shown: number; total: number; onKeep: () => void; onExclude: () => void; onExport: () => void; onExportPlot: () => void }) {
+  { study: Study; shown: number | null; total: number; onKeep: () => void; onExclude: () => void; onExport: () => void; onExportPlot: () => void }) {
   const canUndo = useCanUndo(), canRedo = useCanRedo();
   const t = useT();
   const { setView } = useSweeps.getState();
@@ -42,10 +42,11 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
       <button className={`btn outline${v.fitAxes ? " on" : ""}`} aria-pressed={!!v.fitAxes} onClick={() => setView({ fitAxes: !v.fitAxes })}
         title={t("swFitAxesHint")}>{t("swFitAxes")}</button>
       <ColourKey study={study} />
-      <span className="hint sw-count">{t("swShown", { n: shown.toLocaleString(), of: total.toLocaleString() })}</span>
+      {/* null: All runs above the cap while the count of the brush now is on its way (1.29) */}
+      <span className="hint sw-count" data-exact={shown === null ? "0" : "1"}>{shown === null ? "…" : t("swShown", { n: shown.toLocaleString(), of: total.toLocaleString() })}</span>
       {nFilters > 0 && <button className="btn outline" onClick={() => setView({ filters: {} })}>{t("swClearFilters", { n: nFilters })}</button>}
       {/* HiPlot's Keep / Exclude / Restore: narrow what is shown to the selection, step by step */}
-      <button className="btn outline" disabled={!nFilters || !shown} onClick={onKeep} title={t("swKeepHint")}>{t("swKeepSel")}</button>
+      <button className="btn outline" disabled={!nFilters || shown === 0} onClick={onKeep} title={t("swKeepHint")}>{t("swKeepSel")}</button>
       <button className="btn outline" disabled={!nFilters || shown === total} onClick={onExclude} title={t("swExcludeHint")}>{t("swExcludeSel")}</button>
       {scoped > 0 && <>
         <button className="btn outline" onClick={() => useSweeps.getState().restore(false)} title={t("swStepBackHint")}>{t("swStepBack")}</button>
@@ -54,7 +55,7 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
       {/* undo / redo beside them (also Ctrl+Z / Ctrl+Y and the bar above) */}
       <button className="iconbtn sw-undo" aria-label={t("undo")} title={t("undo")} disabled={!canUndo} onClick={() => useSweeps.getState().undo()}>↶</button>
       <button className="iconbtn sw-redo" aria-label={t("redo")} title={t("redo")} disabled={!canRedo} onClick={() => useSweeps.getState().redo()}>↷</button>
-      <button className="btn outline" disabled={!shown} onClick={onExport} title={t("swExportShownHint")}>{t("swExportShown")}</button>
+      <button className="btn outline" disabled={shown === 0} onClick={onExport} title={t("swExportShownHint")}>{t("swExportShown")}</button>
       <button className="btn outline" onClick={onExportPlot} title={t("swExportPlotHint")}>{t("swExportPlot")}</button>
       {/* S15: the axes taken off lately, one click each to bring back */}
       {off.length > 0 && (

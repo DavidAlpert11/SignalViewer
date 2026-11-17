@@ -3,14 +3,15 @@
    picked in the list, as a table (page by page, sortable) or as a parallel plot; every action is in
    the study's navigator (C7, Navigator.tsx): the tables (tick to merge, a click works on one, export,
    close) and the merge. */
-import { useEffect, useMemo, useState } from "react";
-import { pickPath } from "../../store";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { pickPath, useApp } from "../../store";
 import { useT, type TFn } from "../../i18n";
 import { Icon } from "../../icons";
 import { sweepApi, type MergeSpec } from "../../sweeps/api";
 import { decodeCol } from "../../sweeps/decode";
 import type { Col, Filter } from "../../sweeps/model";
 import { keptMask } from "../../sweeps/filters";
+import { wireFilters } from "../../sweeps/selection";
 import { fmtValue, labelOf } from "../../sweeps/scales";
 import { useSweeps, wireQuestion, type RawView, type Study, type StudyTable } from "../../sweeps/state";
 import { groupLabel, presetChoices } from "../../sweeps/view";
@@ -244,15 +245,31 @@ export function RawPlot({ study, tb }: { study: Study; tb: StudyTable }) {
   const [err, setErr] = useState("");
   const v: RawView = saved ?? { axes: defaultAxes(study, tb), filters: {}, colorBy: null, scales: {}, reversed: {}, picked: null };
   const put = (p: Partial<RawView>) => st.setRawView(tb.id, { ...v, ...p });
-  useEffect(() => {
-    let live = true;
-    sweepApi.raw(tb.id).then((r) => {
-      if (!live) return;
+  // every run up to the Settings cap; above it a sample of the runs the filters keep, asked again when they or
+  // the picked run change (1.29) - the codes of a text column stay the same from one sample to the next
+  const cap = useApp((s) => s.sweepLines);
+  const [drawn, setDrawn] = useState<{ sampled: boolean; total: number; kept: number; key: string } | null>(null);
+  const wantKey = cols ? JSON.stringify([cap, wireFilters(cols, v.filters), v.picked ?? null]) : "";
+  const ask = useRef(0);
+  const load = () => {
+    const my = ++ask.current;
+    const filters = cols ? wireFilters(cols, v.filters) : undefined;
+    sweepApi.raw(tb.id, { cap, filters, picked: v.picked }).then((r) => {
+      if (my !== ask.current) return;
       setCols(new Map(r.columns.map((w) => { const c = decodeCol(w, "run"); return [c.name, c] as [string, Col]; })));
       setN(r.n);
-    }).catch((e) => live && setErr((e as Error).message));
-    return () => { live = false; };
-  }, [tb.id, tb.opened.rows]);
+      setDrawn({ sampled: r.sampled, total: r.total, kept: r.kept, key: JSON.stringify([cap, filters ?? {}, v.picked ?? null]) });
+    }).catch((e) => my === ask.current && setErr((e as Error).message));
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [tb.id, tb.opened.rows, cap]);
+  // above the cap: the sample asked again for the brush and the picked run, once the brush rests
+  useEffect(() => {
+    if (!drawn?.sampled || drawn.key === wantKey) return;
+    const h = window.setTimeout(load, 250);
+    return () => window.clearTimeout(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantKey, drawn]);
   const rowCol = cols?.get("#row")?.values;
   // the run picked, by its row of the table, drawn thick
   const highlight = useMemo(() => {
@@ -261,7 +278,10 @@ export function RawPlot({ study, tb }: { study: Study; tb: StudyTable }) {
     for (let i = 0; i < n; i++) if (rowCol[i] === v.picked) h[i] = 1;
     return h;
   }, [rowCol, v.picked, n]);
-  const shown = useMemo(() => { if (!cols) return 0; const m = keptMask(cols, v.filters, n); let k = 0; for (let i = 0; i < n; i++) k += m[i]; return k; }, [cols, v.filters, n]);
+  const drawnKept = useMemo(() => { if (!cols) return 0; const m = keptMask(cols, v.filters, n); let k = 0; for (let i = 0; i < n; i++) k += m[i]; return k; }, [cols, v.filters, n]);
+  // the counts are of the whole table: the page's own below the cap, the server's above it
+  const exact = !drawn?.sampled || drawn.key === wantKey;
+  const shown = drawn?.sampled ? drawn.kept : drawnKept, total = drawn?.sampled ? drawn.total : n;
   if (!cols) return <p className="hint">{err || t("swReading")}</p>;
   const axes = v.axes.filter((a) => cols.has(a));
   const scaleOf = (a: string) => v.scales[a] ?? tb.opened.columns.find((c) => c.name === a)?.scale ?? "linear";
@@ -273,7 +293,8 @@ export function RawPlot({ study, tb }: { study: Study; tb: StudyTable }) {
         <ColumnPicker options={rawOptions(t, study, tb, [...cols.keys()].filter((c) => c !== "#row"))} value={axes} onChange={(a) => put({ axes: a })}
           presets={presetChoices(t, study, [...cols.keys()], PRESET_KEY, ["params-goal"])} />
         <span className="hint">{v.colorBy ? `${t("swColourBy")}: ${v.colorBy}` : t("swRawColourHint")}</span>
-        <span className="hint sw-count">{t("swShown", { n: shown.toLocaleString(), of: n.toLocaleString() })}</span>
+        <span className="hint sw-count" data-exact={exact ? "1" : "0"}>{exact ? t("swShown", { n: shown.toLocaleString(), of: total.toLocaleString() }) : "…"}</span>
+        {drawn?.sampled && exact && drawn.kept > drawnKept && <span className="hint sw-sampled">{t("swSampled", { n: n.toLocaleString(), of: total.toLocaleString() })}</span>}
         {Object.keys(v.filters).length > 0 && <button className="btn outline" onClick={() => put({ filters: {} })}>{t("swClearFilters", { n: Object.keys(v.filters).length })}</button>}
         <ZoomButtons zoom={zoom} onZoom={(z) => st.setZoom(tb.id, z)} />
       </div>

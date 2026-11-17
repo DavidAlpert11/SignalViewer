@@ -463,23 +463,23 @@ def set_rows(p: Prepared, q: Dict, set_index: int) -> Dict:
             "rows": [int(x) for x in p.row_id[m]], "recordings": recordings, "recordingPerRun": per_run}
 
 
-def run_rows(p: Prepared, holds_per_set: np.ndarray, max_rows: int = 50_000, seed: int = 0) -> Dict:
-    """Every kept run (a sample when there are more than max_rows): the row's set and whether that
-    set holds, for drawing a line per run. 50,000 lines draw the same picture as 200,000 at a quarter of the
-    bytes and the drawing time (owner, 2026-11-13: big tables got stuck switching to All runs); the sample
-    keeps one run of every set first, so no set is missing from the picture by chance."""
+def run_rows(p: Prepared, holds_per_set: np.ndarray, max_rows: int = 200_000, seed: int = 0,
+             keep: Optional[np.ndarray] = None, must_sets: Optional[List[int]] = None) -> Dict:
+    """Every kept run up to max_rows (0: no cap) - the row's set and whether that set holds, for drawing a
+    line per run. Above the cap a sample (svcore/sweep/select.sample_rows): of the runs the brush keeps
+    (`keep`, a mask over the runs) when there is one, one run of every set first so no set is missing by
+    chance, with a little background; the runs of `must_sets` (the open set) always. What a brush selects
+    is never read from this sample (select.py)."""
+    from svcore.sweep.select import sample_rows
     n = len(p.df)
-    idx = np.arange(n)
-    sampled = n > max_rows
-    if sampled:
-        rng = np.random.default_rng(seed)
-        _, first = np.unique(p.set_id, return_index=True)          # one run of each set
-        if len(first) >= max_rows:
-            idx = np.sort(rng.choice(first, max_rows, replace=False))
-        else:
-            rest = np.setdiff1d(idx, first, assume_unique=True)
-            idx = np.sort(np.concatenate([first, rng.choice(rest, max_rows - len(first), replace=False)]))
-    return {"index": idx, "set": p.set_id[idx], "holds": holds_per_set[p.set_id[idx]], "sampled": sampled, "total": n}
+    _, first = np.unique(p.set_id, return_index=True)          # one run of each set
+    must = None
+    if must_sets:
+        ok = np.zeros(p.n_sets + 1, dtype=bool)
+        ok[[s for s in must_sets if 0 <= s < p.n_sets]] = True
+        must = np.flatnonzero(ok[p.set_id])[:5000]
+    idx = sample_rows(n, max_rows, keep, first, must, seed)
+    return {"index": idx, "set": p.set_id[idx], "holds": holds_per_set[p.set_id[idx]], "sampled": len(idx) < n, "total": n}
 
 
 def _py(v):

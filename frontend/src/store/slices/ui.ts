@@ -118,6 +118,7 @@ export interface UiSlice {
   smoothFollow: boolean;           // N6: a camera following an object eases after it (Settings; default on)
   lineWidth: number;               // N3: a new line's width (Settings; 0.5-6, default 1.5)
   askBeforeClose: boolean;
+  sweepLines: number;              // 1.29: Sweeps - the most lines a parallel plot draws, a sample above it (Settings; 0 = no limit)
   clickPlacesCursor: boolean;      // W5: the first click on a plot places the cursor (Settings; default off)         // W10: Save / Don't save / Cancel when closing with unsaved work (Settings; default on)
   lineStyle: "solid" | "dash" | "dot" | "dashdot";   // N3: a new line's style (Settings; default solid)
   /** U1: a template with several tabs opened from its chip - ask which tabs, or open its default tabs */
@@ -221,6 +222,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   smoothFollow: true,
   lineWidth: 1.5,
   askBeforeClose: true,
+  sweepLines: 200_000,
   clickPlacesCursor: false,
   lineStyle: "solid",
   tplTabChoice: "ask",

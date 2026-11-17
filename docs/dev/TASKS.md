@@ -29,10 +29,10 @@ What is open, in order (the finished history is in the Log and in git: `git show
 | Stability on Windows with a GPU (Out of Memory, the 3D shader) | waiting for numbers | the owner runs `tools/measure_maps.py --gpu`; the e2e suite's memory |
 | Films in Hebrew + a narration script; GitHub About texts | offered / with the owner | his choice; he pastes the About texts |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
-| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | in progress | FT1, FT2 done; FT3 (the cap in Settings) next, then FT4, FT5 (ROADMAP only) |
+| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | in progress | FT1-FT3 done; FT4 (HTML export) next, FT5 (ROADMAP only), then the end of the round |
 | M35 FT1 - the brush of All runs resolved on the whole table | done | - |
 | M35 FT2 - ParallelPlot in layers, progressive; measured | done | - |
-| M35 FT3 - all rows up to the Settings cap, sample from kept rows, exact counts | open | default cap from FT2's numbers |
+| M35 FT3 - all rows up to the Settings cap, sample from kept rows, exact counts | done | - |
 | M35 FT4 - HTML export of a table: all rows up to the cap | open | - |
 
 **Decision (owner, 2026-11-17), M35:** the Sweeps tables are an exception to CLAUDE.md's "the UI receives

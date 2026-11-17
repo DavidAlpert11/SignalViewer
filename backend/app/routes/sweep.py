@@ -19,6 +19,7 @@ from app.common import SWEEP_AUTOSAVE, atomic_open, atomic_path, atomic_write, f
 from app.filecheck import SUPPORTED_EXTS
 from app.routes.fs import EXAMPLES
 from svcore import sweep
+from svcore.sweep.encode import category_labels
 from svcore.sweep.recordings import RecordingsError, find_recordings
 
 router = APIRouter()
@@ -48,6 +49,12 @@ class QuestionReq(BaseModel):
     question: Dict[str, Any]
     runs: bool = False                  # also every run (a line per run), not only per set
     columns: Optional[List[str]] = None  # runs: which columns (default: every used one)
+    # 1.29 - what is drawn: every run up to `cap` (Settings, Most lines to draw; 0 = no cap, None = the default);
+    # above it a sample of the runs the brush keeps (`select`: svcore/sweep/select.py), with these always in
+    cap: Optional[int] = None
+    select: Optional[Dict[str, Any]] = None    # runs: {filters, sets}; raw: {filters}
+    pinned: Optional[int] = None               # runs: the open set
+    picked: Optional[int] = None               # raw: the picked run (its row in the table)
 
 
 class SetReq(BaseModel):
@@ -178,21 +185,54 @@ def sweep_evaluate(req: QuestionReq):
     if p.new_holds:                     # new columns used as scenarios: their values, for the kept-values pickers
         out["newHolds"] = p.new_holds
     if req.runs:
-        r = sweep.run_rows(p, a["data"]["#holds"], RUNS_MAX)
+        from svcore.sweep.select import run_mask
+        cap = _cap(req.cap)
+        sel = req.select or {}
+        # the brush matters only above the cap (below it every run is sent and the page filters them itself)
+        keep = run_mask(p, sel.get("filters"), sel.get("sets")) if cap and len(p.df) > cap and req.select is not None else None
+        r = sweep.run_rows(p, a["data"]["#holds"], cap, keep=keep, must_sets=[req.pinned] if req.pinned is not None else None)
         idx = r["index"]
         names = req.columns or (p.params + p.holds + p.outputs)
-        cols = [{"name": c, **sweep.encode(p.df[c].iloc[idx].reset_index(drop=True), p.df[c])} for c in names if c in p.df.columns]
+        cols = [{"name": c, **_encode_part(t, ("prep", t.get("prepKey")), p.df, c, idx)} for c in names if c in p.df.columns]
         cols.append({"name": "#set", **sweep.encode(r["set"].astype(float))})
         cols.append({"name": "#row", **sweep.encode(p.row_id[idx].astype(float))})
         cols.append({"name": "#holds", **sweep.encode(r["holds"])})
-        out["runs"] = {"columns": cols, "sampled": r["sampled"], "total": r["total"], "n": int(len(idx))}
+        out["runs"] = {"columns": cols, "sampled": r["sampled"], "total": r["total"], "n": int(len(idx)), "cap": cap,
+                       **({"kept": int(keep.sum())} if keep is not None else {})}
     out["seconds"] = round(time.perf_counter() - t0, 3)
     return out
 
 
-# All runs: the most runs sent to draw (a sample of them above it). What the brush selects never comes
-# from what was drawn: /api/sweep/select resolves it on every run (1.29).
-RUNS_MAX = 50_000
+# The most lines sent to draw (All runs, the Data step, a table's HTML page) when the page does not say
+# (Settings: Most lines to draw); above it a sample. What the brush selects never comes from what was
+# drawn: /api/sweep/select resolves it on every run (1.29).
+RUNS_MAX = 200_000
+
+
+def _cap(cap: Optional[int]) -> int:
+    """The page's cap (0 = no cap), or the default."""
+    return RUNS_MAX if cap is None else max(0, int(cap))
+
+
+def _drawn(df: pd.DataFrame, cap: Optional[int]) -> pd.DataFrame:
+    """The rows an HTML page of a table carries to draw: every one up to the cap, else a sample (in table order)."""
+    from svcore.sweep.select import sample_rows
+    return df.iloc[sample_rows(len(df), _cap(cap))]
+
+
+def _encode_part(t: Dict, key: Any, df: pd.DataFrame, col: str, idx: np.ndarray) -> Dict:
+    """Some rows of a column, encoded; a text column's labels from the whole column, worked out once per
+    table and version of it (a brush above the cap asks for a new sample at every change)."""
+    s = df[col]
+    if pd.api.types.is_numeric_dtype(s) and not pd.api.types.is_bool_dtype(s):
+        return sweep.encode(s.iloc[idx].reset_index(drop=True))
+    cache = t.setdefault("cats", {})
+    k = (key, id(df), col)
+    if k not in cache:
+        if len(cache) > 256:
+            cache.clear()
+        cache[k] = category_labels(s)
+    return sweep.encode(s.iloc[idx].reset_index(drop=True), labels=cache[k])
 
 
 class SelectReq(BaseModel):
@@ -671,6 +711,7 @@ class ReportReq(BaseModel):
     style: Optional[Dict[str, Any]] = None              # S12: the plots' style (colour map, point size, grid...)
     colorBy: Optional[str] = None                        # the colour column of the plots
     raw: bool = False                    # plot: the raw table's runs instead of the parameter sets
+    cap: Optional[int] = None            # raw: the most runs in the page (Settings; 0 = all), a sample above it
 
 
 @router.post("/api/sweep/report")
@@ -684,9 +725,7 @@ def sweep_report(req: ReportReq):
     if not path.lower().endswith(ext):
         path += ext
     if req.raw:                                        # the raw results' plot: the table's runs, no question
-        df = _get(req.id)["df"]
-        if len(df) > 50_000:
-            df = df.sample(50_000, random_state=0)
+        df = _drawn(_get(req.id)["df"], req.cap)
         names = [c for c in (req.axes or list(df.columns)) if c in df.columns]
         try:
             atomic_write(path, sweep_report._html(sweep_report.plot_data(df, names), {**req.model_dump(), "axes": names, "plotOnly": True}, []))
@@ -781,22 +820,24 @@ def sweep_rows(id: str, offset: int = 0, limit: int = 100, sort: Optional[str] =
             "rows": sweep.head(page, len(page)), "index": [int(i) for i in page.index]}
 
 
-RAW_MAX = 50_000
-
-
 @router.post("/api/sweep/raw")
 def sweep_raw(req: QuestionReq):
-    """Every column of every run (a sample above 50 000 - the picture is the same, the page stays quick), for
-    a parallel plot of the raw results - before any role or goal."""
-    df = _get(req.id)["df"]
-    idx = np.arange(len(df))
-    sampled = len(df) > RAW_MAX
-    if sampled:
-        idx = np.sort(np.random.default_rng(0).choice(len(df), RAW_MAX, replace=False))
+    """Every column of every run up to the cap, for a parallel plot of the raw results - before any role or
+    goal. Above the cap a sample of the runs the filters keep (`select.filters`) with a little background,
+    the picked run always in; `kept` is how many runs of the whole table the filters keep."""
+    from svcore.sweep.select import frame_mask, sample_rows
+    t = _get(req.id)
+    df = t["df"]
+    cap = _cap(req.cap)
+    filters = (req.select or {}).get("filters")
+    keep = frame_mask(df, filters) if filters else None
+    must = np.flatnonzero(df.index.to_numpy() == req.picked)[:1] if req.picked is not None else None
+    idx = sample_rows(len(df), cap, keep if cap and len(df) > cap else None, None, must)
     names = [c for c in (req.columns or list(df.columns)) if c in df.columns]
-    cols = [{"name": c, **sweep.encode(df[c].iloc[idx].reset_index(drop=True), df[c])} for c in names]
+    cols = [{"name": c, **_encode_part(t, "raw", df, c, idx)} for c in names]
     cols.append({"name": "#row", **sweep.encode(df.index.to_numpy()[idx].astype(float))})
-    return {"columns": cols, "n": int(len(idx)), "total": int(len(df)), "sampled": sampled}
+    return {"columns": cols, "n": int(len(idx)), "total": int(len(df)), "sampled": len(idx) < len(df), "cap": cap,
+            "kept": int(keep.sum()) if keep is not None else int(len(df))}
 
 
 class UnmergeReq(BaseModel):
@@ -955,6 +996,7 @@ class ExportTableReq(BaseModel):
     view: Dict[str, Any] = {}            # html: {colorBy, filters, zoom} - the plot as it was on screen
     question: Optional[Dict[str, Any]] = None   # S2c: the table as the study's recipe edits it (+ the recipe beside it)
     recipe: Optional[Dict[str, Any]] = None     # what to write in <file>.recipe.json (how the table was made)
+    cap: Optional[int] = None                   # html: the most runs in the page (Settings; 0 = all), a sample above it
 
 
 @router.post("/api/sweep/export-table")
@@ -993,8 +1035,7 @@ def sweep_export_table(req: ExportTableReq):
             if req.recipe is not None:
                 atomic_write(path + ".recipe.json", json.dumps(req.recipe, indent=1, default=str))
             return {"path": path, "rows": int(len(df))}
-        if len(df) > 50_000:
-            df = df.sample(50_000, random_state=0)
+        df = _drawn(df, req.cap)
         names = [c for c in (req.axes or list(df.columns)) if c in df.columns]
         a = sweep_report.plot_data(df, names)
         with open(path, "w", encoding="utf-8") as f:

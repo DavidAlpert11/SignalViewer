@@ -102,3 +102,66 @@ def test_category_codes_are_the_same_whatever_the_cap(client, monkeypatch):
         e = client.post("/api/sweep/evaluate", json={"id": tid, "question": q, "runs": True}).json()
         labels.append(next(c for c in e["runs"]["columns"] if c["name"] == "terrain")["labels"])
     assert labels[0] == labels[1] == ["flat", "hill", "ridge", "sea", "urban"]
+
+
+# ----------------------------------------------------------------------------- FT3: what is drawn above the cap
+def _decode(col):
+    return np.frombuffer(__import__("base64").b64decode(col["data"]), dtype=np.float32)
+
+
+def test_runs_above_the_cap_are_a_sample_of_the_runs_kept(client):
+    from app.routes import sweep as route
+    tid = route._register(_big(), "", "big", 0.0)["id"]
+    q = {"roles": ROLES}
+    sel = {"filters": {"out": {"kind": "ranges", "ranges": [[2, 3]]}}}
+    e = client.post("/api/sweep/evaluate", json={"id": tid, "question": q, "runs": True, "cap": 1000, "select": sel, "pinned": 7}).json()
+    r = e["runs"]
+    out = _decode(next(c for c in r["columns"] if c["name"] == "out"))
+    sets = _decode(next(c for c in r["columns"] if c["name"] == "#set"))
+    prep = sweep.prepare(_big(), q)
+    kept = ((prep.df.out.astype(np.float32) >= 2) & (prep.df.out.astype(np.float32) <= 3)).to_numpy()
+    assert r["sampled"] and r["total"] == 12_000 and r["kept"] == int(kept.sum())        # the count of the whole table
+    inside = (out >= 2) & (out <= 3)
+    assert int(inside.sum()) >= 900 - 30 and r["n"] <= 1000 + 30                          # 90 % of the cap kept lines, 10 % background
+    assert (sets == 7).sum() == (prep.set_id == 7).sum()                                  # the open set: every run of it
+    # a narrow filter: every run it keeps is drawn
+    sel2 = {"filters": {"out": {"kind": "ranges", "ranges": [[2, 2.05]]}}}
+    r2 = client.post("/api/sweep/evaluate", json={"id": tid, "question": q, "runs": True, "cap": 1000, "select": sel2}).json()["runs"]
+    out2 = _decode(next(c for c in r2["columns"] if c["name"] == "out"))
+    assert int(((out2 >= 2) & (out2 <= 2.05)).sum()) == r2["kept"] < 900
+    # no cap: every run, as read
+    r3 = client.post("/api/sweep/evaluate", json={"id": tid, "question": q, "runs": True, "cap": 0}).json()["runs"]
+    assert not r3["sampled"] and r3["n"] == 12_000
+
+
+def test_raw_above_the_cap_samples_the_rows_kept_and_keeps_the_picked_run(client):
+    from app.routes import sweep as route
+    df = _big()
+    tid = route._register(df, "", "big", 0.0)["id"]
+    f = {"terrain": {"kind": "labels", "labels": ["sea"]}}
+    r = client.post("/api/sweep/raw", json={"id": tid, "question": {}, "cap": 3000, "select": {"filters": f}, "picked": 11}).json()
+    assert r["sampled"] and r["total"] == 12_000 and r["kept"] == int((df.terrain == "sea").sum()) == 2400
+    ter = next(c for c in r["columns"] if c["name"] == "terrain")
+    codes = _decode(ter)
+    assert int((codes == ter["labels"].index("sea")).sum()) == 2400                       # all of them fit: all drawn
+    assert 11 in _decode(next(c for c in r["columns"] if c["name"] == "#row")).tolist()
+    full = client.post("/api/sweep/raw", json={"id": tid, "question": {}}).json()       # the default cap: all 12,000
+    assert not full["sampled"] and full["n"] == 12_000
+    assert next(c for c in full["columns"] if c["name"] == "terrain")["labels"] == ter["labels"]
+
+
+def test_html_page_of_a_table_carries_every_row_up_to_the_cap(client, tmp_path):
+    """FT4: the exported page draws what the app would - every row up to the cap, a sample above it."""
+    import json as js
+    import re
+    from app.routes import sweep as route
+    tid = route._register(_big(), "", "big", 0.0)["id"]
+
+    def rows_in(cap):
+        p = tmp_path / f"t{cap}.html"
+        body = {"id": tid, "path": str(p), "format": "html", "axes": ["p", "k", "out"], **({"cap": cap} if cap is not None else {})}
+        assert client.post("/api/sweep/export-table", json=body).status_code == 200
+        return js.loads(re.search(r"const D=(\{.*?\});\n", p.read_text(encoding="utf-8")).group(1))["n"]
+    assert rows_in(None) == 12_000                       # the default cap (200,000): all of them
+    assert rows_in(5000) == 5000
+    assert rows_in(0) == 12_000                          # no limit

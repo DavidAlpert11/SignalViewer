@@ -30,7 +30,7 @@ import FlowNav, { flowTitle, goFlow, useFlowStep } from "./FlowNav";
 import { useLeftHidden } from "../../sweeps/narrow";
 import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
-import { recipeFiles, savedOf, useCanRedo, useCanUndo, useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
+import { drawOf, recipeFiles, savedOf, useCanRedo, useCanUndo, useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
 import { emptyView, newGoal, materialize } from "../../sweeps/model";
 import { notify, notifyError, say } from "../../sweeps/notify";
 import { activeParams, colLabel, reorderedAxes, scaleOf, scopedColumns, scopeKey, showMask, shownAxes } from "../../sweeps/view";
@@ -527,7 +527,21 @@ function ResultsCenter({ study }: { study: Study }) {
     return m;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cols, v.filters, n, showM, index, v.mode]);
-  const shown = useMemo(() => { let k = 0; for (let i = 0; i < n; i++) k += keep[i]; return k; }, [keep, n]);
+  const drawnKept = useMemo(() => { let k = 0; for (let i = 0; i < n; i++) k += keep[i]; return k; }, [keep, n]);
+  // All runs (1.29): every run up to the Settings cap, else a sample of those the brush keeps - asked again when
+  // the brush, the open set or the cap change, once it rests; the count is then the server's, of every run
+  const cap = useApp((s) => s.sweepLines);
+  const runs = v.mode === "runs" ? study.answer?.runs : undefined;
+  const wantKey = runs ? drawOf(study).key : "";
+  useEffect(() => {
+    if (!runs || runs.selKey === wantKey || (!runs.sampled && runs.cap === cap)) return;
+    const h = window.setTimeout(() => st.refreshRuns(), 250);
+    return () => window.clearTimeout(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantKey, runs, cap]);
+  const exact = !runs?.sampled || runs.selKey === wantKey;
+  const shown = runs?.sampled && runs.kept !== undefined ? runs.kept : drawnKept;
+  const total = runs?.sampled ? runs.total : n;
   const highlight = useMemo(() => {
     if (v.pinned === null || !n) return null;
     const h = new Uint8Array(n);
@@ -573,7 +587,7 @@ function ResultsCenter({ study }: { study: Study }) {
       )}
       {v.center === "lines" && !(v.mode === "runs" && study.answer && !study.answer.runs) && (study.answer ? (
         <>
-          <PlotToolbar study={study} shown={shown} total={n}
+          <PlotToolbar study={study} shown={exact ? shown : null} total={total}
             onKeep={() => void narrow("keep")}
             onExclude={() => void narrow("exclude")}
             onExport={exportShown}
@@ -581,7 +595,7 @@ function ResultsCenter({ study }: { study: Study }) {
           <p className="hint sw-what-line">{v.mode === "sets" ? t("swPerSetHint") : t("swPerRunHint")}
             <ZoomButtons zoom={zoom} onZoom={(z) => useSweeps.getState().setZoom(zoomKey, z)} /></p>
           {v.mode === "runs" && study.answer.counts.rows === study.answer.counts.sets && <p className="hint">{t("swRunsSameAsSets")}</p>}
-          {study.answer.runs?.sampled && v.mode === "runs" && <p className="hint">{t("swSampled", { n: study.answer.runs.n.toLocaleString(), of: study.answer.runs.total.toLocaleString() })}</p>}
+          {runs?.sampled && exact && (runs.kept === undefined || runs.kept > drawnKept) && <p className="hint sw-sampled">{t("swSampled", { n: runs.n.toLocaleString(), of: runs.total.toLocaleString() })}</p>}
           {axes.length ? (
             <ParallelPlot sliderLabel={(a, b, n) => t("swAxesOnScreen", { a, b, n })} cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
               filters={v.filters} keep={keep} highlight={highlight} labelOf={(a) => colLabel(t, study, a)} fit={!!v.fitAxes}

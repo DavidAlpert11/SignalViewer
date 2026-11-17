@@ -11,6 +11,18 @@ pytest.importorskip("playwright.sync_api")
 from test_features import env, pg, save_as  # noqa: E402,F401
 from test_sweeps_flow import _idle, _open_table, _step, _tab  # noqa: E402
 
+RAW_PLOT = "Parallel plot"
+CAP_SEL = ".settings .set-sweep-lines [role=radio]"
+
+
+def _cap(pg, label):
+    """Settings - Sweeps: most lines to draw."""
+    pg.click(".topbar [aria-label='Settings']")
+    pg.locator(CAP_SEL, has_text=label).click()
+    pg.wait_for_function(f"document.querySelector(\"{CAP_SEL}[aria-checked=true]\").innerText === {label!r}")
+    pg.keyboard.press("Escape")
+    pg.wait_for_selector(".settings", state="detached")
+
 TERRAINS = ["flat", "hill", "urban", "sea", "ridge", "dune", "marsh", "snow", "rock", "lake"]
 
 
@@ -39,16 +51,20 @@ def _expected(df: pd.DataFrame, lo: float, hi: float, terrain: str):
 def test_all_runs_keep_group_and_export_are_of_the_whole_table(pg, tmp_path):
     df = _big_table(tmp_path)
     want_sets, want_runs = _expected(df, 9.0, 9.5, "urban")
+    _cap(pg, "50,000")
     _open_table(pg, tmp_path, "big_sweep.csv")
     _step(pg, "results")
     pg.locator(".sw-show select").select_option("all")
     _tab(pg, "runs")
     pg.wait_for_selector(".sw-what-line:has-text('A line per run')")
     _idle(pg)
-    pg.wait_for_selector(".hint:has-text('runs, picked at random')")                     # the cap: a sample drawn
+    pg.wait_for_selector(".sw-sampled:has-text('Drawing 50,000 of 200,000 runs')")       # the cap: a sample drawn
     pg.evaluate("window.__svSweeps.filter('error', {kind: 'ranges', ranges: [[9.0, 9.5]]})")
     pg.evaluate("window.__svSweeps.filter('scenario_terrain', {kind: 'labels', labels: ['urban']})")
     pg.wait_for_selector(".sw-plotbar .btn:has-text('Clear 2 filters')")
+    # the count is of the whole table; the filter is narrow - every run it keeps is drawn: no sample said
+    pg.wait_for_selector(f".sw-plotbar .sw-count:has-text('{want_runs:,} of 200,000')")
+    pg.wait_for_selector(".sw-sampled", state="detached")
     # Export shown: every matching run of the table, not of the runs drawn
     pg.locator(".sw-plotbar .btn", has_text="Export shown").click()
     save_as(pg, "shown_big.csv")
@@ -69,3 +85,45 @@ def test_all_runs_keep_group_and_export_are_of_the_whole_table(pg, tmp_path):
     pg.wait_for_selector(".sw-plotbar .btn:has-text('Restore all (1)')")
     kept = pg.evaluate("window.__svSweeps.doc().view.scope.steps[0].sets")
     assert sorted(kept) == want_sets
+
+
+def test_data_step_counts_the_whole_table_and_the_cap_in_settings(pg, tmp_path):
+    df = _big_table(tmp_path)
+    _cap(pg, "50,000")
+    _open_table(pg, tmp_path, "big_sweep.csv")
+    pg.locator("[role=tab]", has_text=RAW_PLOT).first.click()
+    pg.wait_for_selector(".pp canvas")
+    pg.wait_for_selector(".sw-sampled:has-text('Drawing 50,000 of 200,000 runs')")
+    assert pg.locator(".sw-plotbar .sw-count").inner_text() == "200,000 of 200,000 lines"
+    # a drag on the error axis: the count is every run of the table in that range
+    ax = pg.locator(".pp-axis-name", has_text="error").bounding_box()
+    b = pg.locator(".pp canvas").bounding_box()
+    x = ax["x"] + ax["width"] / 2
+    pg.mouse.move(x, b["y"] + 120); pg.mouse.down(); pg.mouse.move(x, b["y"] + 200, steps=5); pg.mouse.up()
+    f = pg.wait_for_function("Object.values(window.__svSweeps.rawViews())[0]?.filters?.error").json_value()
+    lo, hi = f["ranges"][0]
+    e = df.error.astype(np.float32)
+    want = int(((e >= lo) & (e <= hi)).sum())
+    pg.wait_for_selector(f".sw-plotbar .sw-count[data-exact='1']:has-text('{want:,} of 200,000 lines')")
+    # no limit: every run drawn, no sample said
+    _cap(pg, "No limit")
+    pg.wait_for_function("document.querySelector('.pp canvas') && !document.querySelector('.sw-sampled')")
+    pg.wait_for_selector(f".sw-plotbar .sw-count:has-text('{want:,} of 200,000 lines')")
+    assert int(pg.locator(".pp canvas").get_attribute("data-shown")) == want     # every kept run is a line now
+
+
+def test_html_page_of_the_table_draws_every_row(pg, tmp_path):
+    """FT4: the Data step's plot saved as a page carries every row up to the cap and draws them a frame at a time."""
+    _big_table(tmp_path)
+    _cap(pg, "No limit")
+    _open_table(pg, tmp_path, "big_sweep.csv")
+    pg.locator("[role=tab]", has_text=RAW_PLOT).first.click()
+    pg.wait_for_selector(".pp canvas")
+    pg.locator(".sw-nav-row button[aria-label^='Export']").first.click()
+    save_as(pg, "big_plot.html")
+    pg.wait_for_selector(".toast:has-text('big_plot.html')")
+    page = pg.context.new_page()
+    page.goto("file://" + os.path.join(pg.env["out"], "big_plot.html"))
+    page.wait_for_function("document.getElementById('cv').dataset.drawing === '0'", timeout=120000)
+    assert "200000 of 200000" in page.locator("#count").inner_text()
+    page.close()

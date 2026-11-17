@@ -89,6 +89,10 @@ function MapSection({ seg }: { seg: <V extends string | number>(value: V, opts: 
   );
 }
 
+/** Most lines to draw (1.29): the default (200,000 - measured: the full picture in a few seconds without a
+ *  graphics card) and room to raise it; 0 = no limit. */
+const SWEEP_LINES = [50_000, 200_000, 500_000, 1_000_000, 0];
+
 /* T18: Settings - kept between starts (prefs.ts / settings.ts), and a session file opened later
    does not change them. Each choice has ONE place: the language stays a button in the top bar,
    live mode's choices stay in Live ▾ (both are kept between starts the same way). */
@@ -105,6 +109,7 @@ export default function SettingsDialog() {
   const tplTabChoice = useApp((s) => s.tplTabChoice);
   const offlineOnly = useApp((s) => s.offlineOnly);
   const offlineForced = useApp((s) => s.offlineForced);
+  const sweepLines = useApp((s) => s.sweepLines);
   const close = () => useApp.setState({ settingsOpen: false });
   useEscape(close, true);
   const seg = <V extends string | number>(value: V, opts: [V, string][], set: (v: V) => void, label: string) => (
@@ -144,6 +149,11 @@ export default function SettingsDialog() {
             {seg(tplTabChoice, [["ask", t("setTabChoiceAsk")], ["defaults", t("setTabChoiceDefaults")]], (v) => useApp.setState({ tplTabChoice: v }), t("setTabChoice"))}</div>
                     <div className="set-row"><span>{t("setAskClose")}<small>{t("setAskCloseHint")}</small></span>
             {seg(askBeforeClose ? "on" : "off", [["on", t("setAskCloseOn")], ["off", t("setAskCloseOff")]], (v) => useApp.setState({ askBeforeClose: v === "on" }), t("setAskClose"))}</div>
+          {/* 1.29: one cap for the Sweeps plots (the Data step, All runs, a table's HTML page) - counts and actions are of
+              the whole table whatever it is */}
+          <div className="set-row set-sweep-lines"><span>{t("setSweepLines")}<small>{t(sweepLines === 0 || sweepLines > 1_000_000 ? "setSweepLinesWarn" : "setSweepLinesHint")}</small></span>
+            {seg(sweepLines, SWEEP_LINES.map((n) => [n, n ? n.toLocaleString() : t("setSweepLinesAll")] as [number, string]),
+              (v) => useApp.setState({ sweepLines: v }), t("setSweepLines"))}</div>
           <h3 className="set-group-title">{t("setGrpNet")}</h3>
           <div className="set-row"><span>{t("setOffline")}<small>{t(offlineForced ? "setOfflineForced" : "setOfflineHint")}</small></span>
             {offlineForced

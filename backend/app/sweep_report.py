@@ -515,31 +515,49 @@ document.getElementById('zreset').textContent=D.ui['#resetZoom']||'Reset zoom';
 function toPlot(x,y){return[(x-Z.x)/Z.k,(y-Z.y)/Z.k]}
 function zoomAt(f,x,y){const k=Math.max(1,Math.min(40,Z.k*f));Z.x=x-(x-Z.x)*k/Z.k;Z.y=y-(y-Z.y)*k/Z.k;Z.k=k;if(k===1){Z.x=0;Z.y=0}draw()}
 function col(n){return D.cols[n]}
-function scale(n){const c=col(n);if(c.kind==='cat'){const k=c.labels.length;return v=>v==null?NaN:(v+.5)/k}
- let lo=Infinity,hi=-Infinity;for(const v of c.v)if(v!=null){lo=Math.min(lo,v);hi=Math.max(hi,v)}if(!(hi>lo)){lo-=1;hi+=1}return v=>v==null?NaN:(v-lo)/(hi-lo)}
-function inv(n,t){const c=col(n);let lo=Infinity,hi=-Infinity;for(const v of c.v)if(v!=null){lo=Math.min(lo,v);hi=Math.max(hi,v)}return lo+t*(hi-lo)}
+const RG={};function range(n){if(RG[n])return RG[n];let lo=Infinity,hi=-Infinity;for(const v of col(n).v)if(v!=null){if(v<lo)lo=v;if(v>hi)hi=v}if(!(hi>lo)){lo-=1;hi+=1}return RG[n]=[lo,hi]}
+function scale(n){const c=col(n);if(c.kind==='cat'){const k=c.labels.length;return v=>v==null?NaN:(v+.5)/k}const[lo,hi]=range(n);return v=>v==null?NaN:(v-lo)/(hi-lo)}
+function inv(n,t){const[lo,hi]=range(n);return lo+t*(hi-lo)}
 function keeps(i){for(const n in filters){const v=col(n).v[i];if(v==null)return false;if(!filters[n].some(([a,b])=>v>=a&&v<=b))return false}return true}
 function ax(i){const k=D.axes.length;return k<2?W/2:PX+i*(W-2*PX)/(k-1)}
 function ramp(t){const S=[[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]];if(!isFinite(t))return'#999';const x=Math.max(0,Math.min(1,t))*4,i=Math.min(3,Math.floor(x)),f=x-i;return'rgb('+S[i].map((a,k)=>Math.round(a+(S[i+1][k]-a)*f)).join(',')+')'}
 const PAL=['#2f6fd0','#e8961e','#8e5cd9','#1a9e6a','#d64550','#2bb0b8','#b08a2e'];
 function colour(i){if(!colorBy)return'#e8961e';const c=col(colorBy),v=c.v[i];if(colorBy==='#holds'||colorBy==='#pareto')return v===1?'#e8961e':'#8a96a6';
  if(c.kind==='cat')return v==null?'#999':PAL[v%PAL.length];return ramp(scale(colorBy)(v))}
-function draw(){W=wrap.clientWidth;const dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+// the lines in two layers (left out, kept) drawn a few ms a frame in a shuffled order, put together under the
+// axes, filters and the brush - which alone are redrawn while a brush is dragged (1.29, as in the app)
+const ORD=new Int32Array(N);for(let i=0;i<N;i++)ORD[i]=i;{let s=1;for(let i=N-1;i>0;i--){s=(Math.imul(s,1664525)+1013904223)>>>0;const j=s%(i+1),t=ORD[i];ORD[i]=ORD[j];ORD[j]=t}}
+let keep=new Uint8Array(N),shown=0,lay=[],job=0;
+function refilter(){shown=0;for(let i=0;i<N;i++){keep[i]=keeps(i)?1:0;shown+=keep[i]}
+ document.getElementById('count').textContent=D.ui['#shown'].replace('{n}',shown).replace('{of}',N);rows(keep);layers()}
+function layers(){const my=++job;W=wrap.clientWidth;const LD=N>20000?1:(window.devicePixelRatio||1),h=H-T-B;
+ const mk=()=>{const c=document.createElement('canvas');c.width=Math.round(W*LD);c.height=Math.round(H*LD);const x=c.getContext('2d');x.setTransform(LD*Z.k,0,0,LD*Z.k,LD*Z.x,LD*Z.y);return[c,x]};
+ const[bc,bx]=mk(),[fc,fx]=mk();lay=[bc,fc];
+ const sc=D.axes.map(scale),xs=D.axes.map((_,k)=>ax(k)),vs=D.axes.map(n=>col(n).v);
+ const yy=(k,i)=>{const t=sc[k](vs[k][i]);return isFinite(t)?T+(1-t)*h:H-10};
+ bx.globalAlpha=N-shown>60000?.07:.15;fx.globalAlpha=shown>100000?.06:shown>20000?.12:shown>3000?.3:shown>300?.55:.85;
+ const bk=new Map(),out=[];for(const i of ORD){if(keep[i]){const c=colour(i);let b=bk.get(c);if(!b)bk.set(c,b=[]);b.push(i)}else out.push(i)}
+ const ps=[[bx,'#ccd',out],...[...bk].map(([c,r])=>[fx,c,r])];let p=0,at=0;cv.dataset.drawing='1';
+ const step=()=>{if(my!==job)return;const t0=performance.now();
+  while(p<ps.length){const[x,c,r]=ps[p];if(at>=r.length){p++;at=0;continue}x.strokeStyle=c;x.beginPath();const e=Math.min(r.length,at+500);
+   for(let j=at;j<e;j++){const i=r[j];x.moveTo(xs[0],yy(0,i));for(let k=1;k<xs.length;k++)x.lineTo(xs[k],yy(k,i))}
+   x.stroke();x.getImageData(0,0,1,1);at=e;if(performance.now()-t0>8)break}
+  if(p>=ps.length)cv.dataset.drawing='0';show();if(p<ps.length)requestAnimationFrame(step)};
+ if(D.axes.length>1)step();else{cv.dataset.drawing='0';show()}}
+function show(){const dpr=window.devicePixelRatio||1,w=Math.round(W*dpr),hh=Math.round(H*dpr);if(cv.width!==w||cv.height!==hh){cv.width=w;cv.height=hh}cv.style.height=H+'px';
+ ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,w,hh);for(const l of lay)ctx.drawImage(l,0,0,w,hh);
  ctx.setTransform(dpr*Z.k,0,0,dpr*Z.k,dpr*Z.x,dpr*Z.y);
- const h=H-T-B,sc=D.axes.map(scale);const y=(k,i)=>{const t=sc[k](col(D.axes[k]).v[i]);return isFinite(t)?T+(1-t)*h:H-10};
- let shown=0;const keep=new Uint8Array(N);for(let i=0;i<N;i++)if(keeps(i)){keep[i]=1;shown++}
- ctx.globalAlpha=.15;ctx.strokeStyle='#ccd';ctx.beginPath();for(let i=0;i<N;i++)if(!keep[i]){ctx.moveTo(ax(0),y(0,i));for(let k=1;k<D.axes.length;k++)ctx.lineTo(ax(k),y(k,i))}ctx.stroke();
- ctx.globalAlpha=shown>3000?.3:shown>300?.55:.85;for(let i=0;i<N;i++)if(keep[i]){ctx.strokeStyle=colour(i);ctx.beginPath();ctx.moveTo(ax(0),y(0,i));for(let k=1;k<D.axes.length;k++)ctx.lineTo(ax(k),y(k,i));ctx.stroke()}
+ const h=H-T-B,sc=D.axes.map(scale);
  ctx.globalAlpha=1;ctx.font='11px system-ui';ctx.fillStyle='#667';
  D.axes.forEach((n,k)=>{const x=ax(k);ctx.strokeStyle='#889';ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,T+h);ctx.stroke();const c=col(n);ctx.textAlign='right';
   if(c.kind==='cat')c.labels.forEach((l,j)=>ctx.fillText(l,x-4,T+(1-(j+.5)/c.labels.length)*h+4));else{ctx.fillText(fmt(inv(n,1)),x-4,T+8);ctx.fillText(fmt(inv(n,0)),x-4,T+h)}
   (filters[n]||[]).forEach(([a,b])=>{const s=sc[k];const y1=T+(1-s(a))*h,y2=T+(1-s(b))*h;ctx.fillStyle='rgba(232,150,30,.25)';ctx.fillRect(x-6,Math.min(y1,y2),12,Math.abs(y2-y1)||2);ctx.fillStyle='#667'});
   if(brush&&brush.k===k){ctx.fillStyle='rgba(47,111,208,.25)';ctx.fillRect(x-7,Math.min(brush.y0,brush.y1),14,Math.abs(brush.y1-brush.y0));ctx.fillStyle='#667'}});
- document.getElementById('count').textContent=D.ui['#shown'].replace('{n}',shown).replace('{of}',N);
- names();rows(keep)}
+ names()}
+const draw=layers;
 function fmt(v){if(v==null||!isFinite(v))return'–';const a=Math.abs(v);return a&&(a>=1e6||a<1e-3)?v.toExponential(2):String(+v.toPrecision(4))}
 function names(){wrap.querySelectorAll('.ax').forEach(e=>e.remove());D.axes.forEach((n,k)=>{const b=document.createElement('button');b.className='ax'+(colorBy===n?' on':'');b.textContent=col(n).label;b.title=D.ui['#colour'];
- b.style.left=(Z.x+ax(k)*Z.k)+'px';b.onclick=()=>{colorBy=colorBy===n?'#holds':n;draw()};wrap.appendChild(b)})}
+ b.style.left=(Z.x+ax(k)*Z.k)+'px';b.onclick=()=>{colorBy=colorBy===n?'#holds':n;layers()};wrap.appendChild(b)})}
 function cell(n,i){const c=col(n),v=c.v[i];if(n==='#holds')return v===1?'<td class="ok">✓</td>':'<td class="bad">✗</td>';if(c.kind==='cat')return'<td>'+(v==null?'–':c.labels[v])+'</td>';return'<td class="n">'+fmt(v)+'</td>'}
 function rows(keep){const r=D.cols['#rank'].v;let idx=[];
  if(D.rows)idx=D.rows.filter(i=>keep[i]);else{for(let i=0;i<N;i++)if(keep[i])idx.push(i);
@@ -547,13 +565,13 @@ function rows(keep){const r=D.cols['#rank'].v;let idx=[];
  const cols=D.table.includes('#holds')?D.table:[...D.table,'#holds'];document.getElementById('tb').innerHTML='<tr>'+cols.map(n=>'<th>'+col(n).label+'</th>').join('')+'</tr>'+idx.slice(0,300).map(i=>'<tr>'+cols.map(n=>cell(n,i)).join('')+'</tr>').join('')}
 cv.onpointerdown=e=>{const r=cv.getBoundingClientRect(),[x,y]=toPlot(e.clientX-r.left,e.clientY-r.top);for(let k=0;k<D.axes.length;k++)if(Math.abs(x-ax(k))<12/Z.k){brush={k,y0:y,y1:y,add:e.shiftKey};cv.setPointerCapture(e.pointerId);return}
  if(Z.k>1){pan={x0:e.clientX,y0:e.clientY,zx:Z.x,zy:Z.y};cv.setPointerCapture(e.pointerId)}};
-cv.onpointermove=e=>{if(pan){Z.x=pan.zx+e.clientX-pan.x0;Z.y=pan.zy+e.clientY-pan.y0;draw();return}if(!brush)return;const r=cv.getBoundingClientRect();brush.y1=Math.max(T,Math.min(H-B,toPlot(0,e.clientY-r.top)[1]));draw()};
-cv.onpointerup=()=>{if(pan){pan=null;return}if(!brush)return;const b=brush;brush=null;const n=D.axes[b.k],h=H-T-B;if(Math.abs(b.y1-b.y0)<3){delete filters[n];draw();return}
+cv.onpointermove=e=>{if(pan){Z.x=pan.zx+e.clientX-pan.x0;Z.y=pan.zy+e.clientY-pan.y0;draw();return}if(!brush)return;const r=cv.getBoundingClientRect();brush.y1=Math.max(T,Math.min(H-B,toPlot(0,e.clientY-r.top)[1]));show()};
+cv.onpointerup=()=>{if(pan){pan=null;return}if(!brush)return;const b=brush;brush=null;const n=D.axes[b.k],h=H-T-B;if(Math.abs(b.y1-b.y0)<3){delete filters[n];refilter();return}
  const t0=1-(Math.min(b.y0,b.y1)-T)/h,t1=1-(Math.max(b.y0,b.y1)-T)/h,c=col(n);let rg;
  if(c.kind==='cat'){const k=c.labels.length;const lo=Math.ceil(t1*k-.5),hi=Math.floor(t0*k-.5);rg=[lo,hi]}else rg=[inv(n,t1),inv(n,t0)];
- filters[n]=b.add&&filters[n]?[...filters[n],rg]:[rg];draw()};
-document.getElementById('clear').onclick=()=>{filters={};draw()};window.onresize=draw;
+ filters[n]=b.add&&filters[n]?[...filters[n],rg]:[rg];refilter()};
+document.getElementById('clear').onclick=()=>{filters={};refilter()};window.onresize=layers;
 cv.addEventListener('wheel',e=>{e.preventDefault();const r=cv.getBoundingClientRect();zoomAt(e.deltaY<0?1.2:1/1.2,e.clientX-r.left,e.clientY-r.top)},{passive:false});
 document.getElementById('zin').onclick=()=>zoomAt(1.25,W/2,H/2);document.getElementById('zout').onclick=()=>zoomAt(0.8,W/2,H/2);
-document.getElementById('zreset').onclick=()=>{Z={k:1,x:0,y:0};draw()};draw();
+document.getElementById('zreset').onclick=()=>{Z={k:1,x:0,y:0};layers()};refilter();
 </script></body></html>"""
