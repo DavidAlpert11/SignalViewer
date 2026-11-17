@@ -18,34 +18,44 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/DavidAlpert11/SignalViewer/releases/latest"><b>Download</b></a>
-  &nbsp;·&nbsp; <a href="#quick-start"><b>Quick start</b></a>
+  <a href="https://github.com/DavidAlpert11/SignalViewer/releases/latest"><b>Download</b></a> (Windows, Linux, macOS)
   &nbsp;·&nbsp; <a href="https://davidalpert11.github.io/SignalViewer/"><b>Documentation</b></a>
   &nbsp;·&nbsp; <a href="https://davidalpert11.github.io/SignalViewer/GUIDE.he/"><b>מדריך בעברית</b></a>
+  &nbsp;·&nbsp; 🎬 <a href="docs/media/demo_simulation.mp4">90-second demo</a>
 </p>
+
+```bash
+pip install signalviewer && signalviewer        # the app, with its examples - nothing else to prepare
+```
 
 <p align="center">
   <img src="docs/images/00_hero.png" alt="A flight judged against its simulation: roll and pitch overlaid, the differences within a ±3° tolerance, the cursor on the worst moment, and Compare's verdict" width="100%">
 </p>
 
-**Signal Viewer** is a desktop app for test engineers (flight, vehicle, bench) and simulation engineers. Open a
-recording or a simulation's output, see every signal on one time axis, compare it with the run it should match,
-find what changed and why, check it against your limits, choose parameters from a sweep of runs – and send a
-report anyone can open. It runs entirely on your machine: no account, no cloud, no telemetry, no internet needed.
+## Why Signal Viewer
 
-- **Any time-series data** – CSV, Parquet, HDF5, MATLAB `.mat`, CAN + `.dbc`, ROS 2 `.mcap`, flight logs
-  (ArduPilot, PX4, MAVLink), or your own format through a short Python reader.
-- **Windows, Linux and macOS** – an installer or a portable package, or `pip install signalviewer`.
+Open a recording or a simulation's output and see every signal on one time axis. Compare it with the run it
+should match, find what changed and why, check it against your limits, choose parameters from a sweep of
+runs – and send a report anyone can open. It is made for test engineers (flight, vehicle, bench) and
+simulation engineers, and it runs entirely on your machine: no account, no cloud, no telemetry, no internet.
+
+- **Any time-series data** – CSV, Parquet, HDF5, MATLAB `.mat`, CAN + `.dbc`, ROS 2 `.mcap`, flight logs, or your
+  own format through a short Python reader ([formats](#supported-formats)).
+- **Runs side by side** – different clocks and rates aligned; every shared signal ranked by how much it differs.
+- **What changed?** – the signals that left their usual range, in time order, and which one led which.
+- **Pass / fail you can defend** – limits, a golden run with tolerances, data quality; the same checks headless in CI.
+- **Sweeps** – the parameter sets that hold in every scenario, and a loop that runs your simulation until the best
+  stops changing.
+- **No point left out** – numbers always use all the data; plots are reduced only so that every spike is still drawn.
+- **One file to send** – an offline HTML report that opens with how the conclusion was reached; PDF and Word too.
 - **English and Hebrew** (right to left), light and dark themes.
-
-🎬 [Simulation vs. reality – 90-second demo](docs/media/demo_simulation.mp4) · 🎓 [Training film – nine short chapters](docs/media/training.mp4)
 
 ## Quick start
 
 | | |
 |---|---|
 | **Windows** | `SignalViewer-Setup-X.Y.Z.exe` or the portable `.zip` from the [latest release](https://github.com/DavidAlpert11/SignalViewer/releases/latest) – no administrator rights |
-| **Linux / macOS** | the portable `.7z` from the [latest release](https://github.com/DavidAlpert11/SignalViewer/releases/latest) (macOS: Apple silicon), or with Python below |
+| **Linux / macOS** | the portable `.7z` from the [latest release](https://github.com/DavidAlpert11/SignalViewer/releases/latest) (macOS: Apple silicon), or Python below |
 | **Python 3.9+** | `pip install signalviewer`, then `signalviewer` (the app) or `signalviewer-cli` (the command line) |
 | **From source** | `git clone`, `pip install -r requirements.txt`, `python run.py` – the first start builds the UI (Node.js LTS, about half a minute) |
 
@@ -54,68 +64,50 @@ flight, the same mission flown twice, a folder of recordings, a smart sweep. Eac
 what to do next; more (a car, a pump on a test bench, a results table, three drones) are in *Help → Examples*.
 The packages are not code-signed yet – [what to do the first time](docs/install.md#first-start-windows-and-macos-warnings).
 
-## What you can do
+## A tour
 
-### Find what went wrong
+<table>
+<tr>
+<td width="50%" valign="top">
+<b>Find what went wrong</b><br>
+Two cursors around the moment, then <i>What changed?</i> – who moved first and who led whom.
+<a href="https://davidalpert11.github.io/SignalViewer/investigate-tutorial/">Tutorial</a><br><br>
+<a href="docs/images/43_what_changed.png"><img src="docs/images/43_what_changed.png" alt="Investigate: What changed first - five signals changed, the first is Wind at -0.44 s; who leads whom drawn as arrows; two runs overlaid, the two cursors around the roll's first jump"></a>
+</td>
+<td width="50%" valign="top">
+<b>One verdict per file</b><br>
+Your limits per phase or mode, the data's quality and a log's health check – each a click from its moment.
+<a href="https://davidalpert11.github.io/SignalViewer/sim-vs-flight/">Sim vs. flight</a><br><br>
+<a href="docs/images/09_health_check.png"><img src="docs/images/09_health_check.png" alt="Checks: one verdict for the file, the data quality and the log's health findings as tinted cards, each a click from its moment"></a>
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<b>Plots that read like instruments</b><br>
+Values at the cursor with their units, statistics of what is on screen, modes as a band.
+<a href="https://davidalpert11.github.io/SignalViewer/GUIDE/">User guide</a><br><br>
+<a href="docs/images/01_overview.png"><img src="docs/images/01_overview.png" alt="Several plots on one time axis: the legend with values at the cursor and their units, the modes as a band inside the plot"></a>
+</td>
+<td width="50%" valign="top">
+<b>Choose parameters that hold everywhere</b><br>
+Which sets hold in every scenario, the best one, and the next runs to make.
+<a href="https://davidalpert11.github.io/SignalViewer/smart-sweep-demo/">Smart-sweep demo</a><br><br>
+<a href="docs/images/41_sweeps_all_runs.png"><img src="docs/images/41_sweeps_all_runs.png" alt="Sweeps: 12 of 45 parameter sets hold in all 18 combinations; the runs on a parallel plot, the holding sets in green, the best set on the left"></a>
+</td>
+</tr>
+</table>
 
-Put two cursors around the moment and ask **What changed?** – every signal that left its usual range, in
-time order, the likeliest cause first, and which one led which. Name the event (`abs(Roll - DesRoll) > 5`),
-find every time it happened and line them up. [Tutorial: what went wrong, in ten minutes](https://davidalpert11.github.io/SignalViewer/investigate-tutorial/)
+**See it in space.** Any recording with positions, on satellite photos or an offline map, in 3D over the real
+terrain – the cursor's moment on the track and in every plot at once. Online maps are opt-in; offline is the
+default. [Map and 3D](https://davidalpert11.github.io/SignalViewer/maps-and-3d/)
 
-<p align="center"><img src="docs/images/43_what_changed.png" alt="Investigate: What changed first - five signals changed, the first is Wind at -0.44 s; who leads whom drawn as arrows; two runs overlaid, the two cursors around the roll's first jump" width="100%"></p>
+<p align="center"><a href="docs/images/44_satellite_flight.png"><img src="docs/images/44_satellite_flight.png" alt="A flight in 3D over satellite photos and the terrain: the track coloured by flight mode, the vehicle at the cursor in the middle of the track, and under it altitude and roll on the same time, the cursor at 140.4 s" width="100%"></a></p>
 
-### Judge a run against its limits and a golden run
+**Send the answer.** One HTML file that opens with the process in brief – the data, what was checked, what it
+shows, the conclusion – then the plots, map and 3D on one time bar. Any browser, no install.
+A folder of recordings becomes one table too: the same numbers measured in each, one row per recording.
 
-One verdict per file: your limits (per phase or mode), the data's own quality (gaps, stuck values, spikes) and
-a log's health check. A golden run with a tolerance per signal judges the next one – runs on different clocks
-and rates are aligned first. The same checks run headless in CI:
-
-```bash
-signalviewer-cli check   runs/*.parquet --checks checks.json --junit results.xml   # limits, per phase
-signalviewer-cli compare golden.csv runs/*.csv --tol-pct 2                          # against a golden run
-```
-
-<p align="center"><img src="docs/images/09_health_check.png" alt="Checks: one verdict for the file, the data quality and the log's health findings as tinted cards, each a click from its moment" width="100%"></p>
-
-### Plots that read like instruments
-
-Cursor values in the legend with their units, the change between two cursors, the statistics of what is on
-screen, modes as a colour band in the plot. Multi-gigabyte recordings open in seconds, and the display never
-leaves a point out: it is reduced min/max per pixel, so a single spike is always drawn.
-
-<p align="center"><img src="docs/images/01_overview.png" alt="Several plots on one time axis: the legend with values at the cursor and their units, the modes as a band inside the plot" width="100%"></p>
-
-### Choose parameters that hold in every scenario
-
-**Sweeps** starts from a table of results, from a folder of recordings, or from nothing but the parameters and
-their ranges. It finds the parameter sets that hold in every scenario, one set for several systems, the Pareto
-front – and can run the loop for you: propose the next runs, start your program or your farm's launcher, read
-the results, until the best stops changing. Every run of a big table is drawn, and Keep, Exclude, counts and
-exports use the whole table. [The smart-sweep demo](https://davidalpert11.github.io/SignalViewer/smart-sweep-demo/)
-
-<p align="center"><img src="docs/images/41_sweeps_all_runs.png" alt="Sweeps: 12 of 45 parameter sets hold in all 18 combinations; the runs on a parallel plot, the holding sets in green, the best set on the left" width="100%"></p>
-
-### A folder of recordings, one table
-
-Point it at a folder: the same numbers measured in every recording (the highest vibration, the lowest battery
-voltage…) and parameters read from the file names, one row per recording – the trend over weeks, the one that
-needs a look, opened with a click.
-
-### See it in space
-
-Any recording with positions – on an offline map or in 3D over real terrain: tracks compared, a height profile
-along the distance, wind or velocity as arrows along the path. Online maps and your own tiles are opt-in;
-offline is the default. [Map and 3D](https://davidalpert11.github.io/SignalViewer/maps-and-3d/)
-
-<p align="center"><img src="docs/images/05_map_and_3d.png" alt="A flight on the offline map and in 3D side by side: the camera bar, the data box as an instrument, the modes on the timeline" width="100%"></p>
-
-### Send the answer
-
-One HTML file that **opens with the process in brief** – the data, what was checked, what it shows, the
-conclusion – then the plots, map and 3D on one time bar. Any browser, no install; PDF and Word too. Sessions
-and templates bring the same view back on the next run.
-
-<p align="center"><img src="docs/images/42_report_process.png" alt="A report opening with 'The process in brief', then the plots with their statistics" width="100%"></p>
+<p align="center"><a href="docs/images/42_report_process.png"><img src="docs/images/42_report_process.png" alt="A report opening with 'The process in brief', then the plots with their statistics" width="80%"></a></p>
 
 ## Supported formats
 
@@ -130,9 +122,9 @@ and templates bring the same view back on the next run.
 | Anything else | a Python reader of a few lines | `signalviewer-cli readers --example` writes one to start from |
 
 `pip install signalviewer` reads all of them; `signalviewer-lite` is the core, with extras for the rest
-([install](docs/install.md)). What is not read yet is in [known limitations](docs/limitations.md).
+([install](docs/install.md)).
 
-## From Python and the command line
+## In scripts and CI
 
 ```python
 import signalviewer as sv
@@ -141,8 +133,14 @@ t, p = rec.signal("Pressure")                          # numpy arrays; the unit 
 df = rec.to_dataframe(["Pressure", "MotorTemp"], t0=100, t1=500)
 ```
 
-`signalviewer-cli` checks, compares, exports, summarises a sweep and validates the app's own computations –
-with exit codes and JUnit XML for CI. [Command line and Python](https://davidalpert11.github.io/SignalViewer/command-line/)
+```bash
+signalviewer-cli check   runs/*.parquet --checks checks.json --junit results.xml   # limits, per phase
+signalviewer-cli compare golden.csv runs/*.csv --tol-pct 2                          # against a golden run
+signalviewer-cli validate                                                           # 29 passed, 0 failed
+```
+
+Exit codes and JUnit XML for CI; also export, a Sweeps table from a folder of recordings and a sweep's answer.
+[Command line and Python](https://davidalpert11.github.io/SignalViewer/command-line/)
 
 ## Numbers you can trust
 
@@ -151,6 +149,7 @@ with exit codes and JUnit XML for CI. [Command line and Python](https://davidalp
 - Numbers – counts, statistics, checks, exports – are always computed on all the data, never on what is drawn.
 - Raw data is never changed: derived signals, offsets and alignments are recorded and undoable.
 - Formulas run through a whitelist, never `eval`. The app listens on `127.0.0.1` only.
+- What it does not do yet is written down: [known limitations](docs/limitations.md).
 
 ## Where it fits
 
@@ -168,7 +167,8 @@ with exit codes and JUnit XML for CI. [Command line and Python](https://davidalp
 [Command line and Python](docs/command-line.md) ·
 [Validation](docs/validation.md) ·
 [Known limitations](docs/limitations.md) ·
-[What's new](CHANGELOG.md)
+[What's new](CHANGELOG.md) ·
+🎓 [Training film, nine short chapters](docs/media/training.mp4)
 
 ## בעברית בקצרה
 
@@ -179,9 +179,9 @@ with exit codes and JUnit XML for CI. [Command line and Python](https://davidalp
 - **מוצאים מה השתבש:** שני סמנים סביב הרגע ו*מה השתנה?* – מה זז ראשון ומי הוביל את מי.
 - **שופטים ריצה:** מגבלות, טולרנסים מול ריצת ייחוס ואיכות נתונים – פסיקה אחת לכל קובץ, ואותן בדיקות גם ב־CI.
 - **בוחרים פרמטרים (Sweeps):** אילו סטים עומדים בכל תרחיש, סט אחד לכמה מערכות, ולולאה שמריצה את הקוד שלכם עד התכנסות.
-- **תיקייה של הקלטות:** אותם מדדים מכל הקלטה, שורה לכל הקלטה – מה הולך ומשתנה לאורך שבועות.
-- **מפה ותלת־ממד:** מפה ותלת־ממד לא מקוונים מעל פני שטח אמיתיים.
-- **שולחים את התשובה:** דוח HTML אחד שנפתח ב"התהליך בקצרה", וגם PDF ו־Word.
+- **אף נקודה לא נעלמת:** המספרים תמיד על כל הנתונים, והגרף מוקטן רק כך שכל קפיצה עדיין מצוירת.
+- **מפה ותלת־ממד:** תצלומי לוויין או מפה לא מקוונת, מעל פני השטח האמיתיים – הרגע של הסמן על המסלול ובכל הגרפים יחד.
+- **שולחים את התשובה:** דוח HTML אחד שנפתח ב"התהליך בקצרה", וגם PDF ו־Word. תיקייה של הקלטות – טבלה אחת, שורה לכל הקלטה.
 
 **התקנה:** מ־[השחרור האחרון](https://github.com/DavidAlpert11/SignalViewer/releases/latest) (Windows, Linux, macOS), או <code dir="ltr">pip install signalviewer</code>. **מדריך:** [docs/GUIDE.he.md](docs/GUIDE.he.md).
 
@@ -201,4 +201,5 @@ If you use Signal Viewer in published work, please cite it – GitHub's *Cite th
 
 [MIT](LICENSE) – free to use, change and ship, also commercially. Third-party parts keep their own licences:
 uPlot (MIT), three.js (MIT), the report fonts (SIL OFL), CesiumJS (Apache-2.0), map data from OpenStreetMap
-(ODbL), Natural Earth and the AWS Terrain Tiles ([details](docs/maps-and-3d.md#offline-map-data)).
+(ODbL), Natural Earth and the AWS Terrain Tiles; the satellite photos are Esri's, fetched only when you choose
+them ([details](docs/maps-and-3d.md#offline-map-data)).
