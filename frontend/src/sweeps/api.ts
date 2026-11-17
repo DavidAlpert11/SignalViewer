@@ -102,7 +102,7 @@ export const sweepApi = {
   formulaPreview: (id: string, expr: string, derived: unknown[]) =>
     call<{ ok: boolean; value?: number | string | null; text?: boolean; error?: string }>("/api/sweep/formula-preview", { id, expr, derived }),
   exportTable: (id: string, path: string, format: "csv" | "parquet" | "xlsx" | "html",
-    body: { title?: string; axes?: string[]; labels?: Record<string, string>; view?: unknown; question?: unknown; recipe?: unknown } = {}) =>
+    body: { title?: string; axes?: string[]; labels?: Record<string, string>; view?: unknown; question?: unknown; recipe?: unknown; cap?: number } = {}) =>
     call<{ path: string; rows: number }>("/api/sweep/export-table", { id, path, format, ...body }),
   example: () => call<{ path: string; refine: string }>("/api/sweep/example"),
   variants: (id: string, question: WireQuestion, variants: { goal: unknown; conditions: unknown; combine: string; objectives: unknown }[]) =>

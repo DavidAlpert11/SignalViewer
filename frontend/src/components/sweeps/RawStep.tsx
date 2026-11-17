@@ -55,7 +55,7 @@ export async function exportTable(t: TFn, study: Study, tb: StudyTable) {
     : {};
   try {
     const r = await sweepApi.exportTable(tb.id, p, ext, ext !== "html" ? edited : {
-      title: tb.name, axes: v?.axes ?? defaultAxes(study, tb),
+      title: tb.name, axes: v?.axes ?? defaultAxes(study, tb), cap: useApp.getState().sweepLines,   // as many rows as the app draws (1.29)
       labels: { "#shown": t("swShown", { n: "{n}", of: "{of}" }), "#clear": t("swRepClear"), "#hint": t("swRepHtmlHint"), "#colour": t("swColourByThis"), "#resetZoom": t("swResetZoom") },
       view: { colorBy: v?.colorBy ?? null, filters: v?.filters ?? {}, zoom: st.zooms[tb.id] ?? NO_ZOOM } });
     notify(t("swExported", { n: r.rows, path: r.path }));

@@ -2,6 +2,8 @@
 
 ## Next – unreleased
 
+- Changed: **a Sweeps table saved as an HTML page carries every row up to *most lines to draw*** (it carried a 50,000-row sample) and draws them the way the app does – the first picture at once, the rest filling in, dragging a filter smooth.
+
 - New: **Settings → Sweeps: most lines to draw** (50,000 · 200,000 · 500,000 · 1,000,000 · No limit; 200,000 by default). The Data step's plot and All runs draw every run up to it – they drew at most 50,000. Above it they draw a sample **of the runs your filters keep** (taken again as you move a filter, so a narrow filter shows every run it keeps), with the run you picked or the set you opened always in, and say so under the plot. The count above the plot (*1,234 of 200,000*) is always of the whole table.
 
 - Changed: **Sweeps' parallel plot stays smooth with hundreds of thousands of lines.** Lines are drawn a few at a time, so the page answers at once – the first picture in a fraction of a second, the rest filling in – and hovering a line or dragging a filter on an axis no longer redraws every line (with 200,000 lines a drag froze the page for about a second at each move; now it follows the pointer). The lines a filter leaves out are drawn faint at any number (they disappeared above 60,000).

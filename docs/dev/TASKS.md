@@ -29,11 +29,12 @@ What is open, in order (the finished history is in the Log and in git: `git show
 | Stability on Windows with a GPU (Out of Memory, the 3D shader) | waiting for numbers | the owner runs `tools/measure_maps.py --gpu`; the e2e suite's memory |
 | Films in Hebrew + a narration script; GitHub About texts | offered / with the owner | his choice; he pastes the About texts |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
-| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | in progress | FT1-FT3 done; FT4 (HTML export) next, FT5 (ROADMAP only), then the end of the round |
+| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | in progress | FT1-FT4 done, FT5 in ROADMAP; the end of the round (whole e2e suite, quick_check) |
 | M35 FT1 - the brush of All runs resolved on the whole table | done | - |
 | M35 FT2 - ParallelPlot in layers, progressive; measured | done | - |
 | M35 FT3 - all rows up to the Settings cap, sample from kept rows, exact counts | done | - |
-| M35 FT4 - HTML export of a table: all rows up to the cap | open | - |
+| M35 FT4 - HTML export of a table: all rows up to the cap | done | - |
+| M35 FT5 - backend density drawing beyond the cap | follow-up only (ROADMAP) | not now (owner) |
 
 **Decision (owner, 2026-11-17), M35:** the Sweeps tables are an exception to CLAUDE.md's "the UI receives
 decimated data only": every row goes to the page once up to the cap set in Settings (*Most lines to draw*), and is
@@ -420,3 +421,7 @@ drawn. Backend density drawing (2D histograms) is a follow-up only (FT5).
   (before, the lines left out were not drawn above 60,000; at DPR 2 it did not finish in the prototype). The open's
   long frame is the answer's decode and the first table, not the drawing. e2e: test_sweeps_flow, _groups, _charts,
   _data_columns, _big_table, _workspace - 65 green. Vitest progressive.test.ts (3).
+- 2026-11-17 · M35 FT3: the cap in Settings (*Sweeps: most lines to draw*, 200,000), the sample of the runs kept, exact counts.
+  Backend 1421 green; e2e test_sweeps_flow, _groups, _charts, _data_columns, _big_table, _workspace, test_settings - 69 green.
+- 2026-11-17 · M35 FT4: a table's HTML page carries every row up to the cap and draws in layers. e2e test_sweeps_big_table (3),
+  test_sweeps_flow, test_sweeps_charts - green. FT5 written in ROADMAP as a follow-up.
