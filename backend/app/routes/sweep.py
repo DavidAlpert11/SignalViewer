@@ -204,8 +204,9 @@ def sweep_evaluate(req: QuestionReq):
         dens = None
         if above and req.over == "density" and keep is not None:
             codes = None
-            if (req.colour or {}).get("sets") is not None:                   # a per-set colour (holds, a group)
-                codes = np.asarray(req.colour["sets"], dtype=np.int64)[p.set_id]
+            per_set_codes = (req.colour or {}).get("sets")
+            if per_set_codes is not None:                                     # a per-set colour (holds, a group)
+                codes = np.asarray(per_set_codes, dtype=np.int64)[p.set_id]
             dens, idx = _density(p.df, col, keep, req, codes)
             if must:
                 idx = np.union1d(idx, np.flatnonzero(np.isin(p.set_id, must))[:5000])
@@ -273,7 +274,7 @@ def _density(base: pd.DataFrame, col, keep: np.ndarray, req: "QuestionReq", code
     from svcore.sweep import density
     axes, specs = [], []
     for a in req.axes or []:
-        name = a.get("column")
+        name = str(a.get("column") or "")
         try:
             s = col(name)
         except KeyError:
@@ -414,8 +415,8 @@ def sweep_run_charts(req: RunChartsReq):
             for j in range(len(names)):
                 if i >= j:
                     continue
-                ax = {"edges": np.linspace(*ranges[j], 41).tolist()}
-                ay = {"edges": np.linspace(*ranges[i], 41).tolist()}
+                ax = {"edges": np.linspace(ranges[j][0], ranges[j][1], 41).tolist()}
+                ay = {"edges": np.linspace(ranges[i][0], ranges[i][1], 41).tolist()}
                 g = density.grid2d(col(names[j])[keep].reset_index(drop=True), col(names[i])[keep].reset_index(drop=True),
                                    ax, ay, np.ones(int(keep.sum()), bool), series[keep], n_ser, max_sparse=1500)
                 sp = g["sparse"]

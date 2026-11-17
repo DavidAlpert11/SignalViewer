@@ -59,6 +59,8 @@ def test_path_thin_keeps_every_extreme():
     assert len(idx) <= 22_000 and np.all(np.diff(idx) > 0)
     assert 777_777 in idx and 12_345 in idx and idx[0] == 0 and idx[-1] == len(a) - 1
     assert len(path_thin([a], 10_000_000)) == len(a)                    # fewer than asked: every sample
+    for n, want in ((19_250, 100), (1_000_003, 20_000), (7_777, 4000)):   # about as many as asked, never much more
+        assert len(path_thin([np.sin(np.arange(n) / 9.0)], want)) <= want + 6
 
 
 def test_time_plot(rid):

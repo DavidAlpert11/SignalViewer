@@ -300,6 +300,11 @@ def path_thin(cols: Sequence[np.ndarray], n_out: int) -> np.ndarray:
         bad = ~np.isfinite(a)
         keep.append(starts + np.where(bad, np.inf, a).argmin(axis=1))
         keep.append(starts + np.where(bad, -np.inf, a).argmax(axis=1))
-    if m * k < n:                                  # the rest: kept whole (shorter than a chunk)
-        keep.append(np.arange(m * k, n))
+    if m * k < n:                                  # the rest, shorter than a chunk: its ends and extremes too
+        s0 = m * k
+        keep.append(np.array([s0, n - 1]))
+        for c in cols:
+            a = np.asarray(c, dtype=np.float64)[s0:]
+            if np.isfinite(a).any():
+                keep.append(np.array([s0 + int(np.nanargmin(a)), s0 + int(np.nanargmax(a))]))
     return np.unique(np.concatenate(keep))

@@ -449,3 +449,10 @@ drawn. Backend density drawing (2D histograms) is a follow-up only (FT5).
   choice; axes from the whole table's domain. e2e test_needle (2), test_sweeps_big_table (4) green; backend sweep tests green.
 - 2026-11-17 · M35 FT6 done: Charts of All runs on every run above the cap (/api/sweep/run-charts); the matrix's stride gone also
   below it. e2e test_sweeps_big_table (4), test_needle (2) green.
+- 2026-11-17 · End of round: whole e2e suite 509 passed (0 failed). quick_check found two of mine, fixed: `path_thin` kept the
+  last partial chunk whole (192 points where ~100 were asked - test_api_parity; the needle test now checks the count too)
+  and 5 mypy errors in routes/sweep.py (Optional narrowing). quick_check green.
+- 2026-11-17 · Owner's questions (sets <-> runs): per-set results / best set are on every run (checked). Found: a filter
+  made in Parameter sets is applied by name in All runs - on an output it becomes a per-run filter, on the goal / a
+  condition / rank / score it is ignored, unsaid. Proposed (waiting for the owner): filters per tab - a sets filter
+  means "every run of the sets it keeps" in All runs (a chip says so); a holds axis by default (✓ / ✗); see the reply.
