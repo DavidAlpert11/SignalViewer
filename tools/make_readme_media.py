@@ -10,8 +10,9 @@ and takes the shots. Run it before a release so the pictures show the current in
 
 Needs: playwright (+ a Chromium). The films are made by make_demo_video.py / make_training_video.py.
 Not made here (kept from a real screen): 06_3d_terrain.png - a headless browser draws the 3D view
-on software WebGL. The map scenes (00_hero, 05, 28) use OpenStreetMap's tiles: run them on a computer
-with the internet (`--only 00 05 28`, then tools/make_social_preview.py), else the map is empty.
+on software WebGL. The map scenes (05, 28, 31) use OpenStreetMap's tiles and 44 Esri's satellite photos with the
+terrain: run them on a computer with the internet (`--only 05 28 31 44`, then tools/make_social_preview.py),
+else the map is empty.
 Every picture is in the dark theme (owner, 1.22.0).
 """
 import argparse
@@ -612,6 +613,62 @@ def img_31_flight_map_3d(b, app):
     pg.add_style_tag(content=".globe3d-bar { display: none !important }")      # a clean picture (the 3D's bar is in 28)
     pg.wait_for_timeout(8000)                                                   # the terrain, the map tiles, the 3D model
     shot(pg, "31_flight_map_3d"); ctx.close()
+
+
+def img_44_satellite_flight(b, app):
+    """RD2 (owner, 2026-11-17): the README's map picture - the ArduPilot example over the satellite photos in 3D,
+    on the real terrain, the tiles all loaded; the cursor in the middle of the track (the vehicle there) and,
+    under the map on the same time, altitude and roll (desired vs actual) with the flight modes. Needs the
+    internet (Esri's photos, the AWS terrain); without it the map is empty."""
+    reset(app)
+    ctx = b.new_context(viewport={"width": W, "height": H}, device_scale_factor=2, color_scheme="dark")
+    pg = ctx.new_page()
+    pg.goto(app.url); pg.wait_for_selector(".app"); pg.wait_for_timeout(400)
+    pg.evaluate("window.__sv.setState({ theme: 'dark' })")
+    pg.locator(".ex-card[data-example='ardupilot']").click()
+    pg.wait_for_selector(".findings-dock", timeout=60000)
+    pg.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.name === 'Flight')")
+    rid = S(pg, "s.runs.find((r) => r.format === 'bin').id")
+    pg.evaluate("""(rid) => window.__sv.state().commit((ws) => {
+      const tab = ws.tabs.find((t) => t.name === 'Flight');
+      const sig = (n) => `${rid}/${n}`;
+      const line = (n, color, width = 1.5) => ({ sig: sig(n), color, width, scale: 1, offset: 0 });
+      const map = tab.plots[0];
+      for (const o of map.objects || []) { o.trackColor = 'state'; o.colorSig = sig('MODE.Mode'); o.trail = true; }
+      if (map.mode === '3d') { map.showReadout = false; map.showEvents = false; map.followObject = null; }
+      tab.plots = [map,
+        { id: 'sat-alt', title: 'Altitude', signals: [line('CTUN.DAlt [m]', '#8FA3B8', 1.25), line('CTUN.Alt [m]', '#58A6FF', 1.75)] },
+        { id: 'sat-roll', title: 'Roll', signals: [line('ATT.DesRoll [deg]', '#8FA3B8', 1.25), line('ATT.Roll [deg]', '#F2A33A', 1.75)] }];
+      tab.rows = 3; tab.cols = 1; tab.rowSizes = [2.8, 1, 1]; tab.linkX = true;
+      tab.sharedStates = [sig('MODE.Mode')];
+      ws.activeTab = tab.id; tab.active = 1;
+      return ws; })""", rid)
+    pg.evaluate("() => window.__sv.setState({ panel: null, startCard: null, findingsOpen: false, geoBase: 'satellite' })")
+    cursors(pg, 140.4, 140.4)
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, dual: false, t2: null } })")
+    no_toasts(pg)
+    pg.wait_for_function("!!window.__svGlobe && window.__svGlobe.widget.scene.globe.tilesLoaded", timeout=120000)
+    xy = pg.evaluate("""() => { const { widget: w, Cesium: C } = window.__svGlobe; const pts = [];
+      const walk = (c) => { for (let i = 0; i < c.length; i++) { const p = c.get(i);
+        if (p instanceof C.PolylineCollection) for (let j = 0; j < p.length; j++) pts.push(...p.get(j).positions);
+        else if (p instanceof C.PrimitiveCollection) walk(p); } };
+      walk(w.scene.primitives);
+      if (!pts.length) return null;
+      const s = C.SceneTransforms.worldToWindowCoordinates(w.scene, C.BoundingSphere.fromPoints(pts).center);
+      const r = w.canvas.getBoundingClientRect();
+      return s ? { x: r.left + s.x, y: r.top + s.y } : null; }""")
+    g = pg.locator(".plot:has(.globe3d)").locator("canvas").first.bounding_box()
+    pg.mouse.move(*((xy["x"], xy["y"]) if xy else (g["x"] + g["width"] / 2, g["y"] + g["height"] * 0.55)))
+    for _ in range(int(os.environ.get("SV_SAT_ZOOM", "1"))):
+        pg.mouse.wheel(0, -240); pg.wait_for_timeout(200)
+    pg.mouse.move(5, H - 5)
+    # a clean picture: the photo uncovered (the 3D bar, the vehicle's numbers box and the demo's line hidden)
+    pg.add_style_tag(content=".globe3d-bar, .globe3d-readout, .demo-guide { display: none !important }")
+    # the photos at full detail: wait until the globe has every tile, then a little longer
+    pg.wait_for_timeout(3000)
+    pg.wait_for_function("window.__svGlobe.widget.scene.globe.tilesLoaded", timeout=180000)
+    pg.wait_for_timeout(int(os.environ.get("SV_SAT_WAIT", "15000")))
+    shot(pg, "44_satellite_flight"); ctx.close()
 
 
 def _pareto(pg):
