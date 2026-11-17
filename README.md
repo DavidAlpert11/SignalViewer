@@ -139,7 +139,8 @@ with plots, map and 3D on one time bar. Any browser, no install. PDF and Word to
 
 - **Windows:** the installer or the portable `.zip` from the [latest release](https://github.com/DavidAlpert11/SignalViewer/releases/latest) – no administrator rights.
 - **Linux / macOS:** `pip install signalviewer`, then `signalviewer` (Python 3.9+).
-- **From source:** `git clone`, `pip install -r requirements.txt`, `python run.py`.
+- **From source:** `git clone`, `pip install -r requirements.txt`, `python run.py` – the first start builds the UI
+  (Node.js LTS needed, about half a minute).
 
 ```python
 import signalviewer as sv

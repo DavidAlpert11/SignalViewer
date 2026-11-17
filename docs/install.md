@@ -69,7 +69,8 @@ tag such as `v1.0.0` to also get a draft Release with every file and a "which fi
 package described above; Linux / macOS: the PyInstaller folder (`SignalViewer.spec`) - extract it and run
 `SignalViewer/SignalViewer`.
 
-Build it yourself: `build.bat` (Windows) or `./build.sh` (Linux / macOS) → `dist/SignalViewer[.exe]`.
+Build it yourself: `build.bat` (Windows) or `./build.sh` (Linux / macOS) → `dist/SignalViewer[.exe]` - with Node.js
+installed: the UI is not kept in git, so the script builds it first.
 
 ## Run from source
 

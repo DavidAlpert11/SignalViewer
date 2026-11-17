@@ -191,7 +191,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 ### Legend names
 
 - One data file → signal name only
-- Several files → each file has a colour and a short tag (A, B… – rename it in *File options*, click it in the file list to change the colour): the legend, cursor values, statistics and signal pickers show the tag; the tooltip has the full name and path; the same signal from several files in one plot is coloured by file (*Colour by file* in the plot menu for all)
+- Several files → each file has a colour and a short tag (A, B… – rename it in *File options*, click it in the file list to change the colour): the legend, cursor values, statistics and signal pickers show the tag; the tooltip has the full name and path; the same signal from several files in one plot is coloured by file - in every way such a plot is made (Compare, templates, the demos; a unit after one file's name, `ATT.Roll` and `ATT.Roll [deg]`, is the same signal); a colour set by hand stays (*Colour by file* in the plot menu for all)
 - Exports and reports name the file (“signal · file”), with as many parent folders as needed (“A/test.csv”, “x/A/test.csv”)
 
 ### Legend place
@@ -287,7 +287,8 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 - Space on/off
 - Click / drag
-- Two cursors with ΔT, Δ and Δ/ΔT
+- Two cursors with ΔT, Δ and Δ/ΔT; their times are written under the plot, in the time axis' margin - never on the curves
+- A plot's head is one row while it fits: title, type, legend; a plot with one line shows its name once (in its chip; *Rename the plot…* in its menu); the active plot has a ring; the time axis shows its unit after its last number
 - With two cursors each line's chip in the legend shows its change between them (Δ, cursor 2 − cursor 1, in its unit) beside its value (1.25)
 - Values at full resolution
 - Values drawn on the plot (optional)
@@ -319,6 +320,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Autocomplete while typing (Tab / Enter)
 - `+ - * / ^ %`, comparisons (1 / 0), `abs sqrt exp log log10 sin cos tan asin acos atan atan2 sign floor ceil round min max clip where deriv integ smooth smooth_s lowpass highpass` (`lowpass(Speed, 5)`: −3 dB cut-off in Hz, filtered in time - never across a gap, the same after a change of logging rate; `smooth_s(Speed, 0.5)`: a centred average over 0.5 s; `smooth(x, n)`: over n samples), `t`, `pi`, `e`
 - Signals from different files are aligned in time
+- One set of rules for every formula (a signal's, a Sweeps column's, a study's constraints): no `eval`, a closed list of what may be written; a name with `__`, an attribute or an index is refused with a clear message
 - A state signal (a flight mode, a gear, a text column, a few whole numbers) is read as the value in force at each moment - never interpolated between two modes (the same in conditions: `Mode == 5` starts when the mode was entered); which numeric signals are states is detected (a few whole-number levels) and can be corrected by name in the signal list: right-click ▸ *Read between samples as ▸ Automatic (what was detected) / A state (held) / A value (interpolated)* - saved with the session, undoable, followed by the cursor values, formulas, conditions and operations; a derived signal saved with `"hold": false` keeps the old alignment - derived signals in a session saved before 1.23 are restored so, their numbers unchanged
 - Clear errors (“Unknown signal: Spede. Did you mean Speed?”)
 - Evaluated safely on the server (a closed list of operations, no code execution)
@@ -495,7 +497,8 @@ For any recording, not only flight logs (1.27: the Log panel became *Checks*).
 - **Sweeps ▸ Data ▸ *From a folder of recordings…*** (also Sweeps' *Open ▾*, Ctrl+K and *Investigate ▸ Runs matrix ▸ Summarize a folder*): one row per recording of a folder - the same measures in each (max / min / mean / rms / final… of a signal, optionally only *where* a condition holds) and parameters from the file name (`{vehicle}_{date}`); read one file at a time (memory: one file's), any format, sub-folders not included
 - A `measures.json` beside the recordings (the Runs matrix's *Save measures*: `{"measures": [...], "pattern": "..."}`) is used at once; without one, the folder's first recording opens with the Runs matrix to define the measures on it, and its *Summarize a folder* remembers the folder. The same file runs from the command line: `signalviewer-cli summarize <folder> --measures measures.json`
 - The table opens in Sweeps with a *recording* column: tick rows and *Open in Recordings* opens them together (Compare-ready); a set's detail opens its runs' recordings
-- The welcome card *A folder of recordings* (`examples/folder_of_flights`, ten flights of two copters with its `measures.json`): X8-A's vibration grows flight after flight (18 → 67), X8-B's battery drops on its last flight
+- A table of recordings reads as one (2026-11-17): steps *Data → Columns → Limits → Results*, counted in recordings - no *Send runs*, no *Next runs*
+- The welcome card *A folder of recordings* (`examples/folder_of_flights`, ten flights of two copters with its `measures.json`): X8-A's vibration grows flight after flight (18 → 67), X8-B's battery drops on its last flight; the demo's line names it and *Show X8-A* puts its six flights on top, ticked
 
 ## Map and 3D { #map }
 
@@ -552,6 +555,7 @@ overshoot, energy...), with a second, finer sweep to merge. The same answer on t
 
 ### Studies, templates and undo
 
+- The empty Sweeps screen (2026-11-17): three equal starts - **I have results** (a table of runs), **Start from nothing** (*Send runs*) and **A folder of recordings** - each one click, with their examples under them; when the loop converges its page writes the answer in words (*Kp = …, Ki = …, Kd = …* and its value)
 - One *Open ▾*: *New study…*, a table, a folder and *Open a saved study* (a table's `.svsweep` or a study file, `.svstudy.json`). *New study…*: **I have results** (a table of runs; its columns fill the study's set-up and the answer shows at once) or **Start from nothing** (*Send runs*: what varies - ranges, steps and how many values in the first round -, the scenarios and how to run - this PC, a wrapper or the farm's launcher; no outputs, no goal; *Send round 1* runs that grid and its results open as a regular table, each next round is aimed)
 - Data's column: *Send runs* (what varies, scenarios, how to run - how many of the three are filled), the *Tables* - each table, the tables merged into it and each round the loop has run (new ones marked; a round opens as its table, with the study's roles and goal) - and *About this study*
 - Results › *All systems together* (two systems or more, ranked together; a study with one table is ranked on its own)
