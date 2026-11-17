@@ -29,14 +29,20 @@ What is open, in order (the finished history is in the Log and in git: `git show
 | Stability on Windows with a GPU (Out of Memory, the 3D shader) | waiting for numbers | the owner runs `tools/measure_maps.py --gpu`; the e2e suite's memory |
 | Films in Hebrew + a narration script; GitHub About texts | offered / with the owner | his choice; he pastes the About texts |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
-| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | in progress | FT1-FT4 done, FT5 in ROADMAP; the end of the round (whole e2e suite, quick_check) |
+| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | in progress | FT1-FT4 done; FT8, FT7, FT6, FT5 (owner, 2026-11-17) then 1.29.0 |
 | M35 FT1 - the brush of All runs resolved on the whole table | done | - |
 | M35 FT2 - ParallelPlot in layers, progressive; measured | done | - |
 | M35 FT3 - all rows up to the Settings cap, sample from kept rows, exact counts | done | - |
 | M35 FT4 - HTML export of a table: all rows up to the cap | done | - |
-| M35 FT5 - backend density drawing beyond the cap | follow-up only (ROADMAP) | not now (owner) |
-| M35 FT6 - exact Charts in All runs above the cap (now: said) | proposed | the owner's yes |
-| M35 FT7 - X-Y / 3D plots thin a long recording by stride, unsaid | proposed | the owner's choice |
+| M35 FT8 - the rule "no point left out of a picture" + the needle e2e tests | open (next) | write test_needle.py; see which views fail |
+| M35 FT7 - X-Y / 3D: extreme-keeping thinning instead of a stride | open | after FT8 |
+| M35 FT6 - exact Charts in All runs (server statistics, scatter as density + outliers) | open | after FT7 |
+| M35 FT5 - parallel plot above the cap: density by default, the sample a Settings choice | open | after FT6; then release 1.29.0 (one version, owner) |
+
+**Decision (owner, 2026-11-17), the rule:** no point is ever left out of a picture - numbers on all the data, a
+picture reduced only so every point counts (min/max per pixel, extreme-keeping thinning, density per pixel with the
+sparse points drawn); a sample only when chosen, and said (CLAUDE.md). Above the cap the parallel plot draws density
+by default, the sample stays a Settings choice. Everything goes into ONE release, 1.29.0, after these fixes.
 
 **Decision (owner, 2026-11-17), M35:** the Sweeps tables are an exception to CLAUDE.md's "the UI receives
 decimated data only": every row goes to the page once up to the cap set in Settings (*Most lines to draw*), and is

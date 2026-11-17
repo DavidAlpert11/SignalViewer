@@ -36,6 +36,12 @@ when you stop in the middle of a task.
 - Sessions, templates and autosave stay **backward compatible**: old files must still open.
   New fields are optional with defaults; never rename or repurpose a saved field.
 - Heavy work stays in the backend; the UI receives decimated data only.
+- **No point is ever left out of a picture (owner, 2026-11-17).** Numbers (counts, statistics, conditions, exports)
+  are always computed on all the data. What is drawn may be reduced only so that every point still counts: min/max
+  per pixel (time plots), extreme-keeping thinning along a path (X-Y, 3D), or density per pixel with the sparse
+  points drawn one by one (parallel plots, scatters). Never a random sample or a plain stride. Where a sample is
+  unavoidable (or chosen in Settings) the screen says so. The "needle" e2e tests (`tests/e2e/test_needle.py`) put
+  one extreme point / short spike into a big table or recording and check it is drawn in every view.
 - The app works fully offline and listens only on 127.0.0.1.
 - Formulas are evaluated with the AST whitelist in `svcore/formula.py` — never `eval`.
 - English and Hebrew (RTL): every user-visible string goes through `frontend/src/i18n/` - one file per
