@@ -24,7 +24,7 @@ What is open, in order (the finished history is in the Log and in git: `git show
 | M34 FR11 - welcome cards 11 -> 6, the rest under Help -> Examples | done (owner: yes, one Sweeps) | - |
 | M34 FR12 - e2e files named by feature, not by round | done (owner: yes) | - |
 | Release 1.28.0 (with SF1 and M34; CHANGELOG 2026-11-17) | ready, not tagged | the owner tags v1.28.0 |
-| RD1 - README redesigned (owner, 2026-11-17; branch `claude/readme-redesign`) | done on the branch, not merged | the owner reviews the branch's README; on his yes: fast-forward main, he deletes the branch |
+| RD1 / RD2 - README redesigned + the satellite picture (owner, 2026-11-17) | done, on main | the owner deletes the branch `claude/readme-redesign` (refused from a cloud session) |
 | SW2 (b) - Run again with recording | spec agreed in parts | the owner's final yes on "Open specs" below - do not implement before |
 | BR1 - the app as one process (README, docs home, welcome groups) | proposed | the owner's yes on the wording below |
 | Stability on Windows with a GPU (Out of Memory, the 3D shader) | waiting for numbers | the owner runs `tools/measure_maps.py --gpu`; the e2e suite's memory |
@@ -520,3 +520,9 @@ answer has conditions; `scales.labelOf` reads ✓ / ✗ on a flag column.
   Every relative link checked. Fixed on the way: command-line.md said validate prints "23 passed" (29), features.md
   said five welcome examples (six since 1.28). BR1 wording not used as the tagline - still waits for the owner.
   mkdocs build --strict green; no code changed, so no e2e run.
+- 2026-11-17 · RD1 merged to main (owner: straight to main, no PR). RD2 (owner: "redo the whole README"; his idea of a
+  satellite picture): new scene `img_44_satellite_flight` in tools/make_readme_media.py - the ArduPilot example in 3D over
+  Esri's satellite photos and the terrain, every tile loaded, the cursor at 140.4 s mid-track, altitude and roll under it
+  (needs the internet). README rebuilt after a look at PlotJuggler, Rerun, marimo, uv, Polars, napari, DuckDB READMEs:
+  a one-command trial at the top, *Why* with bold-lead highlights, the tour as a 2 x 2 grid + the satellite picture +
+  the report, CI lines with the validate result, limitations linked from trust. Links checked; no code changed.
