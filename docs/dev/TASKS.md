@@ -540,3 +540,10 @@ answer has conditions; `scales.labelOf` reads ✓ / ✗ on a flag column.
   added), a closing call to action. extra.css: the landing styles for light and dark, phone widths stack.
   docs.yml also builds on overrides/** and the hooks. mkdocs 1.6.1 + material 9.7.7 (as CI) build --strict
   green; checked at 1440 light / dark and 390 phone.
+- 2026-11-17 · RD6 (owner: "continue"): the docs site's other pages. extra.css for every page: bold page titles
+  (Material's are thin grey), calmer tables, code in a table breaks between words, a wider grid (72rem) so the long
+  tables get room. install.md reorganised for users first - one line on offline, tabs (Windows / Linux-macOS /
+  Python / source), the unsigned-package warning as a box (anchor kept), the light install's extras as a table,
+  From scripts, If the window does not open (moved up from the build part); then For developers (the build table
+  as a list - its paths broke letter by letter). Stale counts fixed: ~1,450 server tests and ~510 browser tests
+  (~30 min) - were ~980 / ~320. Nothing removed. mkdocs --strict green; checked at 1440 dark.
