@@ -38,6 +38,7 @@ export function makeScale(col: Col, kind: Scale, reversed = false): AxisScale {
   if (col.kind === "cat" || kind === "category" || kind === "ordinal") {
     let places: number[];
     if (col.kind === "cat") places = (col.labels ?? []).map((_, i) => i);
+    else if (col.domain?.places) places = col.domain.places;           // every value of the whole table
     else {
       const set = new Set<number>();
       for (let i = 0; i < vals.length && set.size <= 400; i++) if (Number.isFinite(vals[i])) set.add(vals[i]);
@@ -56,7 +57,10 @@ export function makeScale(col: Col, kind: Scale, reversed = false): AxisScale {
   }
   let lo = Infinity, hi = -Infinity;
   const log = kind === "log";
-  for (let i = 0; i < vals.length; i++) {
+  const d = col.domain;
+  if (d && d.lo !== undefined && d.hi !== undefined) {               // the whole table's range (1.29)
+    lo = log ? d.loPos ?? Infinity : d.lo; hi = d.hi;
+  } else for (let i = 0; i < vals.length; i++) {
     const v = vals[i];
     if (!Number.isFinite(v) || (log && v <= 0)) continue;
     if (v < lo) lo = v;

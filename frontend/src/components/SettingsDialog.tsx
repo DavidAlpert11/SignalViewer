@@ -110,6 +110,7 @@ export default function SettingsDialog() {
   const offlineOnly = useApp((s) => s.offlineOnly);
   const offlineForced = useApp((s) => s.offlineForced);
   const sweepLines = useApp((s) => s.sweepLines);
+  const sweepOver = useApp((s) => s.sweepOver);
   const close = () => useApp.setState({ settingsOpen: false });
   useEscape(close, true);
   const seg = <V extends string | number>(value: V, opts: [V, string][], set: (v: V) => void, label: string) => (
@@ -154,6 +155,8 @@ export default function SettingsDialog() {
           <div className="set-row set-sweep-lines"><span>{t("setSweepLines")}<small>{t(sweepLines === 0 || sweepLines > 1_000_000 ? "setSweepLinesWarn" : "setSweepLinesHint")}</small></span>
             {seg(sweepLines, SWEEP_LINES.map((n) => [n, n ? n.toLocaleString() : t("setSweepLinesAll")] as [number, string]),
               (v) => useApp.setState({ sweepLines: v }), t("setSweepLines"))}</div>
+          <div className="set-row set-sweep-over"><span>{t("setSweepOver")}<small>{t(sweepOver === "density" ? "setSweepOverDensityHint" : "setSweepOverSampleHint")}</small></span>
+            {seg(sweepOver, [["density", t("setSweepOverDensity")], ["sample", t("setSweepOverSample")]], (v) => useApp.setState({ sweepOver: v }), t("setSweepOver"))}</div>
           <h3 className="set-group-title">{t("setGrpNet")}</h3>
           <div className="set-row"><span>{t("setOffline")}<small>{t(offlineForced ? "setOfflineForced" : "setOfflineHint")}</small></span>
             {offlineForced

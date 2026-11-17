@@ -15,9 +15,11 @@ RAW_PLOT = "Parallel plot"
 CAP_SEL = ".settings .set-sweep-lines [role=radio]"
 
 
-def _cap(pg, label):
-    """Settings - Sweeps: most lines to draw."""
+def _cap(pg, label, over=None):
+    """Settings - Sweeps: most lines to draw (and above it: "Every run (density)" - the default - or "A sample")."""
     pg.click(".topbar [aria-label='Settings']")
+    if over:
+        pg.locator(".settings .set-sweep-over [role=radio]", has_text=over).click()
     pg.locator(CAP_SEL, has_text=label).click()
     pg.wait_for_function(f"document.querySelector(\"{CAP_SEL}[aria-checked=true]\").innerText === {label!r}")
     pg.keyboard.press("Escape")
@@ -51,7 +53,7 @@ def _expected(df: pd.DataFrame, lo: float, hi: float, terrain: str):
 def test_all_runs_keep_group_and_export_are_of_the_whole_table(pg, tmp_path):
     df = _big_table(tmp_path)
     want_sets, want_runs = _expected(df, 9.0, 9.5, "urban")
-    _cap(pg, "50,000")
+    _cap(pg, "50,000", "A sample")
     _open_table(pg, tmp_path, "big_sweep.csv")
     _step(pg, "results")
     pg.locator(".sw-show select").select_option("all")
@@ -89,7 +91,7 @@ def test_all_runs_keep_group_and_export_are_of_the_whole_table(pg, tmp_path):
 
 def test_data_step_counts_the_whole_table_and_the_cap_in_settings(pg, tmp_path):
     df = _big_table(tmp_path)
-    _cap(pg, "50,000")
+    _cap(pg, "50,000", "A sample")
     _open_table(pg, tmp_path, "big_sweep.csv")
     pg.locator("[role=tab]", has_text=RAW_PLOT).first.click()
     pg.wait_for_selector(".pp canvas")
@@ -132,7 +134,7 @@ def test_html_page_of_the_table_draws_every_row(pg, tmp_path):
 def test_charts_of_all_runs_say_they_are_of_the_sample(pg, tmp_path):
     """Charts of All runs above the cap are drawn from the sample - said above them, not hidden."""
     _big_table(tmp_path)
-    _cap(pg, "50,000")
+    _cap(pg, "50,000", "A sample")
     _open_table(pg, tmp_path, "big_sweep.csv")
     _step(pg, "results")
     _tab(pg, "runs")

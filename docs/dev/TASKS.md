@@ -34,10 +34,10 @@ What is open, in order (the finished history is in the Log and in git: `git show
 | M35 FT2 - ParallelPlot in layers, progressive; measured | done | - |
 | M35 FT3 - all rows up to the Settings cap, sample from kept rows, exact counts | done | - |
 | M35 FT4 - HTML export of a table: all rows up to the cap | done | - |
-| M35 FT8 - the rule "no point left out of a picture" + the needle tests | backend part done (tests/test_needle.py) | the Sweeps needle e2e with FT5 / FT6 |
+| M35 FT8 - the rule "no point left out of a picture" + the needle tests | done | - |
 | M35 FT7 - X-Y / 3D: extreme-keeping thinning instead of a stride | done | - |
-| M35 FT6 - exact Charts in All runs (server statistics, scatter as density + outliers) | in progress | svcore/sweep/density.py (statistics, grid2d) written; the endpoint and the page next |
-| M35 FT5 - parallel plot above the cap: density by default, the sample a Settings choice | in progress | server done (density.parallel, /evaluate and /raw `over`, domains); the page's drawing next; then 1.29.0 |
+| M35 FT6 - exact Charts in All runs (server statistics, scatter as density + outliers) | in progress (next) | svcore/sweep/density.py (statistics, grid2d) written; the endpoint and the page next; then 1.29.0 |
+| M35 FT5 - parallel plot above the cap: density by default, the sample a Settings choice | done | - |
 
 **Decision (owner, 2026-11-17), the rule:** no point is ever left out of a picture - numbers on all the data, a
 picture reduced only so every point counts (min/max per pixel, extreme-keeping thinning, density per pixel with the
@@ -445,3 +445,5 @@ drawn. Backend density drawing (2D histograms) is a follow-up only (FT5).
 - 2026-11-17 · The owner's rule (CLAUDE.md): no point left out of a picture. FT8: backend needle tests (tests/test_needle.py) -
   failed on X-Y, the map track, the objects' error trace and the envelope (the time plot kept it). FT7 done: `path_thin` /
   `pathThin` everywhere a stride was (list in ROADMAP); e2e 208 green.
+- 2026-11-17 · M35 FT5 done: density by default above the cap (every run a shade, the outliers lines), the sample a Settings
+  choice; axes from the whole table's domain. e2e test_needle (2), test_sweeps_big_table (4) green; backend sweep tests green.

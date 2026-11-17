@@ -8,7 +8,8 @@ import type { Col, Filter } from "./model";
 import { hasFilter, keeps } from "./filters";
 import { sweepApi } from "./api";
 import { groupColumn } from "./groups";
-import { activeParams, modeColumns, scopeMask, showMask } from "./view";
+import { activeParams, modeColumns, scaleOf, scopeMask, shownAxes, showMask } from "./view";
+import { FLAG_COLS } from "./colors";
 import { useSweeps, wireQuestion, type Study } from "./state";
 
 export type WireFilter = Filter | { kind: "labels"; labels: string[] };
@@ -79,4 +80,28 @@ export async function saveBrushGroup(s: Study, frozen: boolean, name: string): P
   for (const i of r.sets) if (i < n) m[i] = 1;
   st.addFrozenGroup(name, m);
   st.setView({ filters: {} });
+}
+
+/** The colouring of the lines as the server counts it per series in a density picture (1.29): a run's own text
+ *  column by its labels; a per-set flag (holds, Pareto) or the groups as one code per set; none for a number (the
+ *  density is then one colour; the lines drawn one by one keep their colours). */
+export function colourSpec(s: Study): { column?: string; sets?: number[]; n: number } | undefined {
+  const a = s.answer, by = s.view.colorBy;
+  if (!a || !by) return undefined;
+  const run = a.runs?.columns.find((c) => c.name === by);
+  if (run && run.kind === "cat" && !by.startsWith("#")) return { column: by, n: (run.labels?.length ?? 0) + 1 };
+  const set = by === "#group" && s.view.groups?.length ? groupColumn(a, s.view.groups) : a.sets.find((c) => c.name === by);
+  if (!set) return undefined;
+  if (FLAG_COLS.has(by)) return { sets: Array.from(set.values, (v) => (v === 1 ? 1 : 0)), n: 2 };
+  if (set.kind === "cat") {
+    const n = set.labels?.length ?? 0;
+    return { sets: Array.from(set.values, (v) => (Number.isFinite(v) ? v : n)), n: n + 1 };
+  }
+  return undefined;
+}
+
+/** The plot's axes and their scales, as the server cuts them into cells for a density picture. */
+export function axesSpec(s: Study): { column: string; scale: string }[] {
+  const { cols } = modeColumns(s);
+  return shownAxes(s).map((a) => ({ column: a, scale: scaleOf(s, a, cols.get(a)) }));
 }

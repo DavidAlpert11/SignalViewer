@@ -10,7 +10,7 @@ import { create } from "zustand";
 import { getPrefValue, setPref } from "../prefs";
 import { sweepApi, type MergeSpec, type Role, type Scale, type SweepColumn, type SweepOpened, type SweepSummary, type SweepTemplate, type TableRecipe, type WireQuestion } from "./api";
 import { decodeCol } from "./decode";
-import { runSelection, type RunSelection } from "./selection";
+import { axesSpec, colourSpec, runSelection, type RunSelection } from "./selection";
 import { useApp } from "../store";
 import { emptyQuestion, emptyView, materialize, newGoal, upgradeQuestion, type Answer, type Condition, type Derived, type Filter, type GoalVariant, type Iteration, type LogEntry, type LogKind, type Question, type Tolerance, type View } from "./model";
 import { changes, entry, withEntry, withIteration } from "./journal";
@@ -432,11 +432,17 @@ function onTable(s: Study, i: number, from?: Record<string, { role: Role; scale:
 let timer = 0;
 let seq = 0;
 let runsSeq = 0;           // the last refreshRuns asked for (an older answer is dropped)
+let runsPending = false;   // ... and still on its way (the e2e tests wait for it: __svSweeps.idle)
 /** What All runs asks to draw: the Settings cap, the brush (sweeps/selection.ts), the open set; `key` says
  *  which brush a sample was taken for. */
-export function drawOf(s: Study): { cap: number; select: RunSelection; pinned: number | null; key: string } {
-  const cap = useApp.getState().sweepLines, select = runSelection(s), pinned = s.view.pinned ?? null;
-  return { cap, select, pinned, key: JSON.stringify([cap, select, pinned]) };
+export function drawOf(s: Study): DrawSpec {
+  const { sweepLines: cap, sweepOver: over } = useApp.getState();
+  const select = runSelection(s), pinned = s.view.pinned ?? null, axes = axesSpec(s), colour = colourSpec(s);
+  return { cap, select, pinned, over, axes, colour, key: JSON.stringify([cap, over, select, pinned, axes, colour ?? null]) };
+}
+export interface DrawSpec {
+  cap: number; select: RunSelection; pinned: number | null; over: "density" | "sample";
+  axes: { column: string; scale: string }[]; colour?: { column?: string; sets?: number[]; n: number }; key: string;
 }
 let askPending = false;      // W11: an evaluate asked for, still in its debounce
 
@@ -1042,7 +1048,8 @@ export const useSweeps = create<SweepsState>((set, get) => {
       const s = get().studies[get().active];
       if (!s?.answer || s.view.mode !== "runs") return;
       const my = ++runsSeq, draw = drawOf(s);
-      sweepApi.evaluate(s.tableId, wireQuestion(s), true, draw).then((w) => {
+      runsPending = true;
+      sweepApi.evaluate(s.tableId, wireQuestion(s), true, draw).finally(() => { if (my === runsSeq) runsPending = false; }).then((w) => {
         if (my !== runsSeq || !w.runs) return;
         const runs = { ...w.runs, columns: w.runs.columns.map((c) => decodeCol(c, "run")), selKey: draw.key };
         patch((x) => (x.tableId !== s.tableId || !x.answer ? x : { ...x, answer: { ...x.answer, runs } }), false);
@@ -1086,7 +1093,7 @@ useSweeps.subscribe((st, prev) => {
 /* W11: what the e2e tests wait on instead of a sleep - an answer asked for (the 200 ms debounce
    before evaluate, when `evaluating` is still false) or on its way, and the autosave written. */
 (window as unknown as { __svSweeps: unknown }).__svSweeps = {
-  idle: () => !askPending && !useSweeps.getState().studies.some((s) => s.evaluating) && !useSweeps.getState().busy,
+  idle: () => !askPending && !runsPending && !useSweeps.getState().studies.some((s) => s.evaluating) && !useSweeps.getState().busy,
   saved: () => !savePending,
   doc: () => useSweeps.getState().saved(),          // the active study as a .svsweep document (the examples are made from it)
   show: (part: Part) => useSweeps.setState({ part }),   // C6: a part of the study shown (the navigator's clicks, C7)

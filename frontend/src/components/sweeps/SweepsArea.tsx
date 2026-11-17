@@ -531,17 +531,19 @@ function ResultsCenter({ study }: { study: Study }) {
   // All runs (1.29): every run up to the Settings cap, else a sample of those the brush keeps - asked again when
   // the brush, the open set or the cap change, once it rests; the count is then the server's, of every run
   const cap = useApp((s) => s.sweepLines);
+  const over = useApp((s) => s.sweepOver);
   const runs = v.mode === "runs" ? study.answer?.runs : undefined;
+  const partial = !!(runs?.sampled || runs?.density);               // not every run is a line on the page
   const wantKey = runs ? drawOf(study).key : "";
   useEffect(() => {
-    if (!runs || runs.selKey === wantKey || (!runs.sampled && runs.cap === cap)) return;
+    if (!runs || runs.selKey === wantKey || (!partial && runs.cap === cap)) return;
     const h = window.setTimeout(() => st.refreshRuns(), 250);
     return () => window.clearTimeout(h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wantKey, runs, cap]);
-  const exact = !runs?.sampled || runs.selKey === wantKey;
-  const shown = runs?.sampled && runs.kept !== undefined ? runs.kept : drawnKept;
-  const total = runs?.sampled ? runs.total : n;
+  }, [wantKey, runs, cap, over]);
+  const exact = !partial || runs!.selKey === wantKey;
+  const shown = partial && runs!.kept !== undefined ? runs!.kept : drawnKept;
+  const total = partial ? runs!.total : n;
   const highlight = useMemo(() => {
     if (v.pinned === null || !n) return null;
     const h = new Uint8Array(n);
@@ -596,9 +598,11 @@ function ResultsCenter({ study }: { study: Study }) {
             <ZoomButtons zoom={zoom} onZoom={(z) => useSweeps.getState().setZoom(zoomKey, z)} /></p>
           {v.mode === "runs" && study.answer.counts.rows === study.answer.counts.sets && <p className="hint">{t("swRunsSameAsSets")}</p>}
           {runs?.sampled && exact && (runs.kept === undefined || runs.kept > drawnKept) && <p className="hint sw-sampled">{t("swSampled", { n: runs.n.toLocaleString(), of: runs.total.toLocaleString() })}</p>}
+          {runs?.density && <p className="hint sw-density">{t("swDensityHint", { of: runs.total.toLocaleString(), n: runs.density.sparse.toLocaleString() })}</p>}
           {axes.length ? (
             <ParallelPlot sliderLabel={(a, b, n) => t("swAxesOnScreen", { a, b, n })} cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
               filters={v.filters} keep={keep} highlight={highlight} labelOf={(a) => colLabel(t, study, a)} fit={!!v.fitAxes}
+              density={runs?.density ?? null} keptTotal={partial && exact ? shown : undefined}
               zoom={zoom} onZoom={(z) => useSweeps.getState().setZoom(zoomKey, z)}
               onPick={(r) => st.setView({ pinned: setOfRow(r) })}
               onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={(name, at) => setMenu({ name, at })}

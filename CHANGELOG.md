@@ -2,6 +2,8 @@
 
 ## Next – unreleased
 
+- New: **Sweeps draws every run, however many there are.** Above *most lines to draw* the parallel plot no longer shows a sample: every run is in the picture – where many runs pass, a shade (darker = more); the rare runs, the outliers, as their own lines – so a single run far from the rest is always seen. *Settings → Sweeps: above it, draw* can still choose a sample (said under the plot). The axes now always span the whole table (with a sample, a run missing from it could shrink an axis).
+
 - Fixed: **a short spike is never left out of a picture.** X-Y plots, the 3D plot, an object's track on the map (2D and 3D), the objects' error traces, the Monte-Carlo envelope's band and What changed's small curves drew a long recording by keeping every n-th sample, so a glitch of one sample could be missing from the picture. They now keep, of each stretch, its highest and lowest values – every excursion is drawn – as the time plots always did. The error along a track (its median and 95th percentile) is now worked out on every sample.
 
 - Changed: Sweeps' **Charts in All runs** say when they are drawn from a sample of the runs (above *most lines to draw*): their counts and statistics are then of the sample. Parameter sets' charts use every set, as before.

@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { category, FAILS, FLAG_COLS, HOLDS, ramp } from "../../sweeps/colors";
 import { hasFilter, keptMask } from "../../sweeps/filters";
-import type { Col, Filter, Scale } from "../../sweeps/model";
+import type { Col, Density, Filter, Scale } from "../../sweeps/model";
 import { labelOf, makeScale, type AxisScale } from "../../sweeps/scales";
 import { NO_ZOOM, zoomAt, type Zoom } from "../../sweeps/zoom";
 import { drawOrder, runProgressive, type Pass } from "../../sweeps/progressive";
@@ -26,6 +26,11 @@ export interface ParallelPlotProps {
   /** the rows left, when something else decides it (Explore's draft, S23): the filters are then
    *  only drawn; missing: the rows the filters keep */
   keep?: Uint8Array | null;
+  /** above the cap (1.29): every run counted per cell of each pair of axes, drawn as shaded bands under the lines
+   *  (which are then the outliers and the open set); null: every run is a line */
+  density?: Density | null;
+  /** how many runs the filters keep in the whole table, when not every run is a line here */
+  keptTotal?: number;
   /** rows drawn on top, thick (the set open on the right; in runs mode all its runs) */
   highlight: Uint8Array | null;
   labelOf: (name: string) => string;
@@ -157,11 +162,40 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     return out;
   }, [p.highlight, p.n]);
   // each axis's histogram of the kept lines - once per filter, not per hover
-  const hists = useMemo(() => ys.map((y) => {
+  // a density picture's cells as places on the plot: per pair of neighbouring axes on screen, each cell's y on
+  // either axis, its count and colour series - kept and left out apart
+  const dens = useMemo(() => {
+    const d = p.density;
+    if (!d) return null;
+    const cy = d.axes.map((a) => {
+      const i = p.axes.indexOf(a.column);
+      if (i < 0) return null;
+      const sc = scales[i];
+      return { i, y: [...a.centers.map((v) => { const t = sc.norm(v); return Number.isFinite(t) ? PAD_TOP + (1 - t) * plotH : missingY; }), missingY],
+        band: Math.max(1, Math.min(3, (plotH / Math.max(1, a.centers.length)) * 0.6)) };
+    });
+    const pairs: { ia: number; ya: number[]; yb: number[]; band: number; kept: Density["pairs"][number]["kept"]; out: Density["pairs"][number]["out"] }[] = [];
+    d.pairs.forEach((pr, j) => {
+      const A = cy[j], B = cy[j + 1];
+      if (A && B && B.i === A.i + 1) pairs.push({ ia: A.i, ya: A.y, yb: B.y, band: Math.min(A.band, B.band), kept: pr.kept, out: pr.out });
+    });
+    let max = 1;
+    for (const pr of pairs) for (const v of pr.kept.n) if (v > max) max = v;
+    return { pairs, max, cy };
+  }, [p.density, p.axes, scales, plotH, missingY]);
+  const hists = useMemo(() => ys.map((y, i) => {
     const bins = new Float32Array(24);
-    for (let r = 0; r < p.n; r++) if (kept[r] && y[r] < missingY - 1) bins[Math.min(23, Math.floor(((y[r] - PAD_TOP) / plotH) * 24))]++;
+    const at = (yy: number, k: number) => { if (yy < missingY - 1) bins[Math.min(23, Math.max(0, Math.floor(((yy - PAD_TOP) / plotH) * 24)))] += k; };
+    // a density picture: every run's cell (from the pair on its right, or on its left for the last axis)
+    const pr = dens?.pairs.find((x) => x.ia === i) ?? dens?.pairs.find((x) => x.ia === i - 1);
+    if (pr) {
+      const left = pr.ia === i;
+      pr.kept.n.forEach((k, c) => at(left ? pr.ya[pr.kept.a[c]] : pr.yb[pr.kept.b[c]], k));
+      return bins;
+    }
+    for (let r = 0; r < p.n; r++) if (kept[r]) at(y[r], 1);
     return bins;
-  }), [ys, kept, p.n, missingY, plotH]);
+  }), [ys, kept, p.n, missingY, plotH, dens]);
 
   /* Three layers (1.29): the lines left out and the lines kept are drawn - a few milliseconds a frame - into
      two canvases of their own, only when the data, axes, zoom or filters change; the canvas on screen puts
@@ -208,6 +242,39 @@ export default function ParallelPlot(p: ParallelPlotProps) {
       onDone: () => { drawing.current[which] = false; compositeRef.current(); },
     });
   };
+  // a density series' colour, as the lines of that series are coloured
+  const seriesColour = (sr: number): string => {
+    const c = p.colorBy ? p.cols.get(p.colorBy) : undefined;
+    if (!c || !p.density || p.density.series < 2) return HOLDS;
+    if (FLAG_COLS.has(p.colorBy!)) return sr === 1 ? HOLDS : FAILS;
+    return sr < (c.labels?.length ?? 0) ? category(sr) : FAILS;
+  };
+  /** A density picture's cells as bands: grouped by colour and by one of a few shades (log of the count), each group
+   *  one stroke - every run counts: a single run is a faint band, many a dark one. */
+  const bandPasses = (ctx: CanvasRenderingContext2D, xs: number[], which: "kept" | "out", colour: (s: number) => string, top: number): Pass[] => {
+    if (!dens) return [];
+    const LEVELS = 6, groups = new Map<string, { c: string; lv: number; w: number; seg: number[] }>();
+    const lmax = Math.log1p(dens.max);
+    for (const pr of dens.pairs) {
+      const cells = pr[which], x0 = xs[pr.ia], x1 = xs[pr.ia + 1];
+      for (let c = 0; c < cells.n.length; c++) {
+        const lv = Math.min(LEVELS - 1, Math.floor((Math.log1p(cells.n[c]) / lmax) * LEVELS));
+        const col = colour(cells.s[c]), key = `${col}|${lv}|${pr.band}`;
+        let g = groups.get(key);
+        if (!g) groups.set(key, (g = { c: col, lv, w: pr.band, seg: [] }));
+        g.seg.push(x0, pr.ya[cells.a[c]], x1, pr.yb[cells.b[c]]);
+      }
+    }
+    return [...groups.values()].sort((a, b) => a.lv - b.lv).map((g) => ({
+      n: g.seg.length / 4,
+      begin: () => { ctx.strokeStyle = g.c; ctx.lineWidth = g.w; ctx.globalAlpha = top * (0.04 + (0.5 * (g.lv + 1)) / LEVELS); },
+      draw: (from: number, to: number) => {
+        ctx.beginPath();
+        for (let k = from; k < to; k++) { ctx.moveTo(g.seg[4 * k], g.seg[4 * k + 1]); ctx.lineTo(g.seg[4 * k + 2], g.seg[4 * k + 3]); }
+        ctx.stroke();
+      },
+    }));
+  };
   const strokeRows = (ctx: CanvasRenderingContext2D, xs: number[], rows: ArrayLike<number>) => (from: number, to: number) => {
     ctx.beginPath();
     for (let j = from; j < to; j++) {
@@ -220,18 +287,22 @@ export default function ParallelPlot(p: ParallelPlotProps) {
   // the lines left out: faint, under the rest
   useEffect(() => lineLayer(bgLayer, "bg", (ctx, xs) => {
     const css = getComputedStyle(canvas.current!);
-    ctx.strokeStyle = css.getPropertyValue("--line-strong").trim() || "#444";
+    const grey = css.getPropertyValue("--line-strong").trim() || "#444";
+    ctx.strokeStyle = grey;
     ctx.globalAlpha = leftOut.length > 60000 ? 0.07 : 0.18; ctx.lineWidth = 1;
-    return [{ n: leftOut.length, draw: strokeRows(ctx, xs, leftOut) }];
+    return [...bandPasses(ctx, xs, "out", () => grey, 0.35), { n: leftOut.length, begin: () => { ctx.strokeStyle = grey; ctx.globalAlpha = leftOut.length > 60000 ? 0.07 : 0.18; ctx.lineWidth = 1; },
+      draw: strokeRows(ctx, xs, leftOut) }];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [width, height, ys, leftOut, z.k, z.x, z.y, lineDpr]);
-  // the lines kept, a stroke per colour; fainter the more there are
+  }), [width, height, ys, leftOut, z.k, z.x, z.y, lineDpr, dens]);
+  // the lines kept, a stroke per colour; fainter the more there are (a density picture: its bands first, under them)
   useEffect(() => lineLayer(fgLayer, "fg", (ctx, xs) => {
-    ctx.globalAlpha = keptCount > 100000 ? 0.06 : keptCount > 20000 ? 0.12 : keptCount > 3000 ? 0.3 : keptCount > 300 ? 0.55 : 0.85;
-    ctx.lineWidth = keptCount > 3000 ? 1 : 1.4;
-    return buckets.map(([colour, rows]) => ({ n: rows.length, begin: () => { ctx.strokeStyle = colour; }, draw: strokeRows(ctx, xs, rows) }));
+    const alpha = dens ? 0.9 : keptCount > 100000 ? 0.06 : keptCount > 20000 ? 0.12 : keptCount > 3000 ? 0.3 : keptCount > 300 ? 0.55 : 0.85;
+    const width = dens ? 1.2 : keptCount > 3000 ? 1 : 1.4;
+    return [...bandPasses(ctx, xs, "kept", seriesColour, 0.9),
+      ...buckets.map(([colour, rows]) => ({ n: rows.length, begin: () => { ctx.strokeStyle = colour; ctx.globalAlpha = alpha; ctx.lineWidth = width; },
+        draw: strokeRows(ctx, xs, rows) }))];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [width, height, ys, buckets, keptCount, z.k, z.x, z.y, lineDpr]);
+  }), [width, height, ys, buckets, keptCount, z.k, z.x, z.y, lineDpr, dens]);
 
   overlay.current = (ctx: CanvasRenderingContext2D) => {
     const cv = canvas.current!;
@@ -364,7 +435,7 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     <div className="pp-scroll" ref={scroller} onScroll={(e) => setScrollX((e.currentTarget as HTMLDivElement).scrollLeft)}>
     <div className="pp" style={{ height, width }}>
       <canvas ref={canvas} className={brush ? "brushing" : pan?.moved ? "panning" : z.k > 1 ? "zoomed" : ""} onPointerMove={onMove} onPointerDown={onDown} onPointerUp={onUp}
-        onPointerLeave={() => setHover(null)} role="img" data-shown={keptCount} data-zoom={z.k.toFixed(2)} aria-label={p.axes.map(p.labelOf).join(", ")} />
+        onPointerLeave={() => setHover(null)} role="img" data-shown={p.keptTotal ?? keptCount} data-density={p.density ? "1" : "0"} data-zoom={z.k.toFixed(2)} aria-label={p.axes.map(p.labelOf).join(", ")} />
       {p.axes.map((a, i) => {
         const dragging = dragAxis?.name === a;
         const moved = dragging && Math.abs(dragAxis!.x - dragAxis!.x0) > 4;

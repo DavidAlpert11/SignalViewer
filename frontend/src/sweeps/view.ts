@@ -196,7 +196,14 @@ export function scopedColumns(s: Study): { cols: Map<string, Col>; n: number; in
   for (let i = 0; i < n; i++) if (m[setOf ? setOf[i] : i]) idx.push(i);
   const index = Int32Array.from(idx);
   const out = new Map<string, Col>();
-  for (const [k, c] of cols) { const v = new Float32Array(index.length); for (let j = 0; j < index.length; j++) v[j] = c.values[index[j]]; out.set(k, { ...c, values: v }); }
+  // every run on the page: the axes rescale to what is left (its own values); a sample or a density picture keeps
+  // the whole table's range (the runs it has are not all of them)
+  const partial = s.view.mode === "runs" && !!(s.answer?.runs?.sampled || s.answer?.runs?.density);
+  for (const [k, c] of cols) {
+    const v = new Float32Array(index.length);
+    for (let j = 0; j < index.length; j++) v[j] = c.values[index[j]];
+    out.set(k, { ...c, values: v, domain: partial ? c.domain : undefined });
+  }
   return { cols: out, n: index.length, index };
 }
 

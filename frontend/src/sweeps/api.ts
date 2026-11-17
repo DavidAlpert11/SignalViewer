@@ -32,7 +32,7 @@ export interface SweepOpened {
 
 import type { WireCol } from "./decode";
 import type { RunSelection, WireFilter } from "./selection";
-import type { CellFix, Condition, Derived, Objective, SetOp, Tolerance } from "./model";
+import type { CellFix, Condition, Density, Derived, Objective, SetOp, Tolerance } from "./model";
 
 /** What the server is asked: the roles of the columns and the question. */
 export interface WireQuestion {
@@ -54,7 +54,7 @@ export interface WireAnswer {
   counts: { sets: number; holding: number; complete: number; combos: number; rows: number };
   conditions: { label: string; column: string; met: number }[];
   sets: WireCol[];
-  runs?: { columns: WireCol[]; sampled: boolean; total: number; n: number; cap?: number; kept?: number };
+  runs?: { columns: WireCol[]; sampled: boolean; total: number; n: number; cap?: number; kept?: number; density?: Density };
   seconds: number;
   newHolds?: Record<string, (string | number)[]>;
 }
@@ -111,13 +111,17 @@ export const sweepApi = {
     call<{ total: number; offset: number; columns: string[]; rows: (string | number | null)[][]; index: number[] }>(
       `/api/sweep/rows?id=${encodeURIComponent(id)}&offset=${offset}&limit=${limit}${sort ? `&sort=${encodeURIComponent(sort)}&desc=${!!desc}` : ""}`),
   /** the Data step's lines: every run up to `cap`, else a sample of those `filters` keep (+ the picked run) */
-  raw: (id: string, draw: { cap: number; filters?: Record<string, WireFilter>; picked?: number | null }) =>
-    call<{ columns: WireCol[]; n: number; total: number; sampled: boolean; cap: number; kept: number }>("/api/sweep/raw",
-      { id, question: {}, cap: draw.cap, ...(draw.filters ? { select: { filters: draw.filters } } : {}), ...(draw.picked != null ? { picked: draw.picked } : {}) }),
+  raw: (id: string, draw: { cap: number; filters?: Record<string, WireFilter>; picked?: number | null; over?: string;
+    axes?: { column: string; scale: string }[]; colour?: unknown }) =>
+    call<{ columns: WireCol[]; n: number; total: number; sampled: boolean; cap: number; kept: number; density?: Density }>("/api/sweep/raw",
+      { id, question: {}, cap: draw.cap, ...(draw.filters ? { select: { filters: draw.filters } } : {}), ...(draw.picked != null ? { picked: draw.picked } : {}),
+        over: draw.over ?? "density", axes: draw.axes ?? [], ...(draw.colour ? { colour: draw.colour } : {}) }),
   /** `draw` with runs: the cap, the brush (above the cap the sample is of the runs it keeps) and the open set */
-  evaluate: (id: string, question: WireQuestion, runs: boolean, draw?: { cap: number; select?: RunSelection; pinned?: number | null }) =>
+  evaluate: (id: string, question: WireQuestion, runs: boolean, draw?: { cap: number; select?: RunSelection; pinned?: number | null;
+    over?: string; axes?: { column: string; scale: string }[]; colour?: unknown }) =>
     call<WireAnswer>("/api/sweep/evaluate", { id, question, runs, ...(runs && draw ? { cap: draw.cap, ...(draw.select ? { select: draw.select } : {}),
-      ...(draw.pinned != null ? { pinned: draw.pinned } : {}) } : {}) }),
+      ...(draw.pinned != null ? { pinned: draw.pinned } : {}), over: draw.over ?? "density", axes: draw.axes ?? [],
+      ...(draw.colour ? { colour: draw.colour } : {}) } : {}) }),
   set: (id: string, question: WireQuestion, set: number, recordings?: { folder: string; pattern: string }) =>
     call<SetDetail>("/api/sweep/set", { id, question, set, ...(recordings ? { recordings } : {}) }),
   openRows: (name: string, columns: string[], rows: (string | number | null)[][]) => call<SweepOpened>("/api/sweep/open-rows", { name, columns, rows }),

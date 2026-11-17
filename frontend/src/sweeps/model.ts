@@ -284,7 +284,24 @@ export interface Col {
   condition?: number;
   constant?: boolean;
   flat?: boolean;
+  /** a number column of the runs: its range over the whole table (1.29) - the axis is built from it, not from the
+   *  runs sent to draw (a sample, or the outliers of a density picture) */
+  domain?: ColDomain;
 }
+
+export interface ColDomain { lo?: number; hi?: number; loPos?: number; places?: number[] }
+
+/** Above the cap (1.29, the default): every run counted per cell of each pair of neighbouring axes - the runs kept
+ *  by colour series, those left out apart - for the plot to draw as shaded bands; the runs of the sparse cells come
+ *  as lines (backend svcore/sweep/density.py). `axes[i].centers`: each cell's value (a text column: its code). */
+export interface Density {
+  axes: { column: string; centers: number[] }[];
+  pairs: { kept: DensityCells; out: DensityCells }[];
+  series: number;
+  sparseAt: number;
+  sparse: number;
+}
+export interface DensityCells { a: number[]; b: number[]; s: number[]; n: number[] }
 
 export interface Answer {
   counts: { sets: number; holding: number; complete: number; combos: number; rows: number };
@@ -293,7 +310,7 @@ export interface Answer {
   /** the runs drawn (1.29): every one up to the Settings cap (`cap`, 0 = none), else a sample of those the brush
    *  keeps; `kept`: how many runs of the whole table the brush keeps (sent with a sample); `selKey`: the brush
    *  the sample was taken for (sweeps/selection.ts) */
-  runs?: { columns: Col[]; sampled: boolean; total: number; n: number; cap?: number; kept?: number; selKey?: string };
+  runs?: { columns: Col[]; sampled: boolean; total: number; n: number; cap?: number; kept?: number; selKey?: string; density?: Density };
   seconds: number;
   /** new columns used as scenarios: every value of each (S1) */
   newHolds?: Record<string, (string | number)[]>;

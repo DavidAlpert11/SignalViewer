@@ -4,6 +4,7 @@ import type { Col } from "./model";
 export interface WireCol {
   name: string; type: "num" | "cat"; data: string; labels?: string[];
   group?: Col["group"]; agg?: string; label?: string; part?: Col["part"]; condition?: number; constant?: boolean; flat?: boolean;
+  domain?: Col["domain"];
 }
 
 export function f32(b64: string): Float32Array {
@@ -15,5 +16,6 @@ export function f32(b64: string): Float32Array {
 
 export function decodeCol(w: WireCol, group: Col["group"] = "run"): Col {
   return { name: w.name, kind: w.type, values: f32(w.data), labels: w.labels, group: w.group ?? group,
-    agg: w.agg, label: w.label, part: w.part, condition: w.condition, constant: w.constant, flat: w.flat };
+    agg: w.agg, label: w.label, part: w.part, condition: w.condition, constant: w.constant, flat: w.flat,
+    ...(w.domain ? { domain: w.domain } : {}) };
 }

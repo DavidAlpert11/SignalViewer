@@ -9,7 +9,7 @@ import { useT, type TFn } from "../../i18n";
 import { Icon } from "../../icons";
 import { sweepApi, type MergeSpec } from "../../sweeps/api";
 import { decodeCol } from "../../sweeps/decode";
-import type { Col, Filter } from "../../sweeps/model";
+import type { Col, Density, Filter } from "../../sweeps/model";
 import { keptMask } from "../../sweeps/filters";
 import { wireFilters } from "../../sweeps/selection";
 import { fmtValue, labelOf } from "../../sweeps/scales";
@@ -248,24 +248,33 @@ export function RawPlot({ study, tb }: { study: Study; tb: StudyTable }) {
   // every run up to the Settings cap; above it a sample of the runs the filters keep, asked again when they or
   // the picked run change (1.29) - the codes of a text column stay the same from one sample to the next
   const cap = useApp((s) => s.sweepLines);
-  const [drawn, setDrawn] = useState<{ sampled: boolean; total: number; kept: number; key: string } | null>(null);
-  const wantKey = cols ? JSON.stringify([cap, wireFilters(cols, v.filters), v.picked ?? null]) : "";
+  const over = useApp((s) => s.sweepOver);
+  const [drawn, setDrawn] = useState<{ sampled: boolean; total: number; kept: number; key: string; density?: Density } | null>(null);
+  // what to ask for: the brush, the picked run, and - for a density picture - the axes' scales and the colour
+  const rawScale = (a: string) => v.scales[a] ?? tb.opened.columns.find((c) => c.name === a)?.scale ?? "linear";
+  const spec = () => {
+    const cc = v.colorBy ? cols?.get(v.colorBy) : undefined;
+    return { cap, over, filters: cols ? wireFilters(cols, v.filters) : {}, picked: v.picked ?? null,
+      axes: v.axes.map((a) => ({ column: a, scale: rawScale(a) })),
+      colour: cc?.kind === "cat" ? { column: v.colorBy!, n: (cc.labels?.length ?? 0) + 1 } : undefined };
+  };
+  const wantKey = cols ? JSON.stringify(spec()) : "";
   const ask = useRef(0);
   const load = () => {
-    const my = ++ask.current;
-    const filters = cols ? wireFilters(cols, v.filters) : undefined;
-    sweepApi.raw(tb.id, { cap, filters, picked: v.picked }).then((r) => {
+    const my = ++ask.current, sp = spec();
+    sweepApi.raw(tb.id, sp).then((r) => {
       if (my !== ask.current) return;
       setCols(new Map(r.columns.map((w) => { const c = decodeCol(w, "run"); return [c.name, c] as [string, Col]; })));
       setN(r.n);
-      setDrawn({ sampled: r.sampled, total: r.total, kept: r.kept, key: JSON.stringify([cap, filters ?? {}, v.picked ?? null]) });
+      setDrawn({ sampled: r.sampled, total: r.total, kept: r.kept, key: JSON.stringify(sp), density: r.density });
     }).catch((e) => my === ask.current && setErr((e as Error).message));
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(load, [tb.id, tb.opened.rows, cap]);
-  // above the cap: the sample asked again for the brush and the picked run, once the brush rests
+  useEffect(load, [tb.id, tb.opened.rows, cap, over]);
+  // above the cap: asked again for the brush, the picked run, the axes and the colour, once the brush rests
+  const partial = !!(drawn?.sampled || drawn?.density);
   useEffect(() => {
-    if (!drawn?.sampled || drawn.key === wantKey) return;
+    if (!partial || drawn!.key === wantKey) return;
     const h = window.setTimeout(load, 250);
     return () => window.clearTimeout(h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -280,8 +289,8 @@ export function RawPlot({ study, tb }: { study: Study; tb: StudyTable }) {
   }, [rowCol, v.picked, n]);
   const drawnKept = useMemo(() => { if (!cols) return 0; const m = keptMask(cols, v.filters, n); let k = 0; for (let i = 0; i < n; i++) k += m[i]; return k; }, [cols, v.filters, n]);
   // the counts are of the whole table: the page's own below the cap, the server's above it
-  const exact = !drawn?.sampled || drawn.key === wantKey;
-  const shown = drawn?.sampled ? drawn.kept : drawnKept, total = drawn?.sampled ? drawn.total : n;
+  const exact = !partial || drawn!.key === wantKey;
+  const shown = partial ? drawn!.kept : drawnKept, total = partial ? drawn!.total : n;
   if (!cols) return <p className="hint">{err || t("swReading")}</p>;
   const axes = v.axes.filter((a) => cols.has(a));
   const scaleOf = (a: string) => v.scales[a] ?? tb.opened.columns.find((c) => c.name === a)?.scale ?? "linear";
@@ -295,11 +304,13 @@ export function RawPlot({ study, tb }: { study: Study; tb: StudyTable }) {
         <span className="hint">{v.colorBy ? `${t("swColourBy")}: ${v.colorBy}` : t("swRawColourHint")}</span>
         <span className="hint sw-count" data-exact={exact ? "1" : "0"}>{exact ? t("swShown", { n: shown.toLocaleString(), of: total.toLocaleString() }) : "…"}</span>
         {drawn?.sampled && exact && drawn.kept > drawnKept && <span className="hint sw-sampled">{t("swSampled", { n: n.toLocaleString(), of: total.toLocaleString() })}</span>}
+        {drawn?.density && <span className="hint sw-density">{t("swDensityHint", { of: total.toLocaleString(), n: drawn.density.sparse.toLocaleString() })}</span>}
         {Object.keys(v.filters).length > 0 && <button className="btn outline" onClick={() => put({ filters: {} })}>{t("swClearFilters", { n: Object.keys(v.filters).length })}</button>}
         <ZoomButtons zoom={zoom} onZoom={(z) => st.setZoom(tb.id, z)} />
       </div>
       <ParallelPlot sliderLabel={(a, b, k) => t("swAxesOnScreen", { a, b, n: k })} cols={cols} n={n} axes={axes} scaleOf={scaleOf} reversed={v.reversed}
         colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null} filters={v.filters} highlight={highlight}
+        density={drawn?.density ?? null} keptTotal={partial && exact ? shown : undefined}
         labelOf={(a) => a} onPick={(r) => put({ picked: rowCol ? rowCol[r] : r })} onFilter={setFilter}
         onAxisClick={(a) => put({ colorBy: v.colorBy === a ? null : a })}
         onAxisMenu={(name, at) => setMenu({ name, at })} zoom={zoom} onZoom={(z) => st.setZoom(tb.id, z)}
