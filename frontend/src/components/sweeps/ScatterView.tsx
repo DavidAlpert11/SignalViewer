@@ -1,6 +1,7 @@
 /* Any two columns as points (a point per set, or per run), coloured like the lines and with the
    same filters: a chart kind of the Charts tab (S05, MF02). */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRunCharts } from "../../sweeps/runCharts";
 import { useApp } from "../../store";
 import type { Filter } from "../../sweeps/model";
 import { useT } from "../../i18n";
@@ -31,6 +32,12 @@ export function ScatterPanel({ study, pair, onChange, onRemove, group, objective
     if (g) for (let r = 0; r < n; r++) k[r] &= g[r];
     return k;
   }, [cols, v.filters, n, study, group, index]);
+  // not every run on the page (All runs above the cap): every run from the server - counted per cell, the sparse
+  // cells' runs as points (FT6; CLAUDE.md: no point left out of a picture)
+  const srv = useRunCharts(study, group, { scatter: { x: xName, y: yName, xScale: scaleOf(study, xName, cols.get(xName)),
+    yScale: scaleOf(study, yName, cols.get(yName)), size: pair.size || undefined,
+    colourValue: v.colorBy && cols.get(v.colorBy)?.kind === "num" && !FLAG_COLS.has(v.colorBy) ? v.colorBy : undefined } });
+  const many = srv.data?.scatter;
   // a rectangle dragged on the plot keeps what is in it (S19): the lines' filters on its two columns
   const [drag, setDrag] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const at = (e: React.PointerEvent) => {
@@ -116,12 +123,39 @@ export function ScatterPanel({ study, pair, onChange, onRemove, group, objective
     const zs = zc && zc.kind === "num" ? makeScale(zc, "linear") : null;
     const radius = (r: number) => (zs ? (sz / 2) * Math.sqrt(1 + 15 * Math.max(0, Math.min(1, zs.norm(zc!.values[r]) || 0))) : sz / 2);
     const jitter = (s: typeof sx) => (s.places ? (Math.random() - 0.5) * 6 : 0);
-    ctx.globalAlpha = style.opacity ?? (n > 20000 ? 0.25 : n > 2000 ? 0.5 : 0.85);
-    for (let r = 0; r < n; r++) {
-      if (!kept[r]) continue;
-      const X = px(xc.values[r]) + jitter(sx), Y = py(yc.values[r]) + jitter(sy);
-      if (!Number.isFinite(X) || !Number.isFinite(Y)) continue;
-      ctx.fillStyle = colour(r); ctx.beginPath(); ctx.arc(X, Y, radius(r), 0, Math.PI * 2); ctx.fill();
+    if (many) {
+      // every run: each cell a square, darker the more runs; the runs of the sparse cells as points
+      const cw = (W - L - R) / Math.max(1, many.cells[0] - 1), chh = (H - B - T) / Math.max(1, many.cells[1] - 1);
+      const lm = Math.log1p(Math.max(1, ...many.n));
+      const serColour = (s: number) => (!cc || cc.kind === "num" ? HOLDS : FLAG_COLS.has(v.colorBy ?? "") ? (s === 1 ? HOLDS : FAILS)
+        : s < (cc.labels?.length ?? 0) ? category(s) : FAILS);
+      many.n.forEach((k, q) => {
+        const cxv = many.cx[many.x[q]], cyv = many.cy[many.y[q]];
+        if (cxv === undefined || cyv === undefined) return;                    // the "no value" cell: not on the plot
+        const X = px(cxv), Y = py(cyv);
+        if (!Number.isFinite(X) || !Number.isFinite(Y)) return;
+        ctx.globalAlpha = 0.1 + 0.6 * (Math.log1p(k) / lm);
+        ctx.fillStyle = serColour(many.s[q]); ctx.fillRect(X - cw / 2, Y - chh / 2, Math.max(1, cw), Math.max(1, chh));
+      });
+      const P = many.points;
+      ctx.globalAlpha = style.opacity ?? 0.85;
+      P.x.forEach((xv, q) => {
+        const X = px(xv) + jitter(sx), Y = py(P.y[q]) + jitter(sy);
+        if (!Number.isFinite(X) || !Number.isFinite(Y)) return;
+        const cv2 = P.c?.[q];
+        ctx.fillStyle = cs && cv2 !== null && cv2 !== undefined ? ramp(cs.norm(cv2)) : serColour(P.s[q]);
+        const z = P.size?.[q];
+        const rad = zs && z !== null && z !== undefined ? (sz / 2) * Math.sqrt(1 + 15 * Math.max(0, Math.min(1, zs.norm(z) || 0))) : sz / 2;
+        ctx.beginPath(); ctx.arc(X, Y, rad, 0, Math.PI * 2); ctx.fill();
+      });
+    } else {
+      ctx.globalAlpha = style.opacity ?? (n > 20000 ? 0.25 : n > 2000 ? 0.5 : 0.85);
+      for (let r = 0; r < n; r++) {
+        if (!kept[r]) continue;
+        const X = px(xc.values[r]) + jitter(sx), Y = py(yc.values[r]) + jitter(sy);
+        if (!Number.isFinite(X) || !Number.isFinite(Y)) continue;
+        ctx.fillStyle = colour(r); ctx.beginPath(); ctx.arc(X, Y, radius(r), 0, Math.PI * 2); ctx.fill();
+      }
     }
     ctx.globalAlpha = 1;
     // two objectives against each other: the Pareto front's sets ringed and joined (S19)
@@ -157,7 +191,7 @@ export function ScatterPanel({ study, pair, onChange, onRemove, group, objective
         ctx.fillText(t("swKnee"), X + 12, Y - 8);
       }
     }
-  }, [cols, n, kept, xName, yName, pair.size, v.colorBy, study, t]);
+  }, [cols, n, kept, xName, yName, pair.size, v.colorBy, study, t, many]);
   const sel = (key: "x" | "y" | "size", val: string | undefined) => (
     <select value={val ?? ""} onChange={(e) => onChange({ [key]: e.target.value })}>
       {choices.map((c) => <option key={c} value={c}>{colLabel(t, study, c)}</option>)}

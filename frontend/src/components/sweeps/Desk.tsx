@@ -5,6 +5,7 @@
    a rectangle on the points, a bar of the broken conditions - the lines, the table and every other
    pane follow. */
 import { useMemo, useRef, useState } from "react";
+import { useRunCharts } from "../../sweeps/runCharts";
 import { api } from "../../api";
 import { pickPath } from "../../store";
 import { Icon } from "../../icons";
@@ -151,9 +152,6 @@ export default function Desk({ study }: { study: Study }) {
             onClick={() => { setBig(null); set({ perRow: n, layout: n }); }}>{t("swDeskPerRow", { n })}</button>)}
         </div>
       </div>
-      {/* All runs above the cap: the charts are of the runs drawn - said, not hidden (1.29; exact charts: ROADMAP FT6) */}
-      {study.view.mode === "runs" && (study.answer?.runs?.sampled || study.answer?.runs?.density) && (
-        <p className="hint sw-sampled sw-charts-sampled">{t("swChartsSampled", { n: study.answer.runs.n.toLocaleString(), of: study.answer.runs.total.toLocaleString() })}</p>)}
       {!desk.panes.length && <p className="empty-note">{t("swNoCharts")}</p>}
       <div className={`sw-desk-grid per${big !== null ? 1 : desk.perRow}`}>
         {shown.map((i) => (
@@ -303,12 +301,15 @@ function Histogram({ study, column, group }: { study: Study; column: string; gro
   const c = cols.get(column);
   const ser = seriesOf(cols, study.view.colorBy, t);
   const [drag, setDrag] = useState<[number, number] | null>(null);
+  // not every run on the page (All runs above the cap): the counts of every run, from the server (FT6)
+  const srv = useRunCharts(study, group, { hist: { column, bins: BINS } });
   if (!c) return <p className="empty-note">{t("swNoAxes")}</p>;
+  if (srv.partial && !srv.data?.hist) return <p className="empty-note">{t("swReading")}</p>;
   const cat = c.kind === "cat";
-  const [lo, hi] = cat ? [-0.5, (c.labels?.length ?? 1) - 0.5] : extentOf(c);
-  const bins = cat ? c.labels?.length ?? 1 : BINS;
-  const codes = Float32Array.from({ length: n }, (_, r) => ser.code(r));
-  const h = histogram(c.values, lo, hi, bins, kept, codes, ser.names.length);
+  const sh = srv.data?.hist;
+  const [lo, hi] = sh ? [sh.lo, sh.hi] : cat ? [-0.5, (c.labels?.length ?? 1) - 0.5] : extentOf(c);
+  const bins = sh ? sh.bins : cat ? c.labels?.length ?? 1 : BINS;
+  const h = sh ? sh.counts : histogram(c.values, lo, hi, bins, kept, Float32Array.from({ length: n }, (_, r) => ser.code(r)), ser.names.length);
   const tot = h[0].map((_, b) => h.reduce((s, row) => s + row[b], 0));
   const max = Math.max(1, ...tot);
   const bw = (HW - HL - HR) / bins;
@@ -367,11 +368,20 @@ function BoxPlot({ study, column, group }: { study: Study; column: string; group
   const { cols, n, kept } = useRows(study, group);
   const c = cols.get(column);
   const ser = seriesOf(cols, study.view.colorBy, t);
+  const srv = useRunCharts(study, group, { box: { column } });            // every run, when the page has only some (FT6)
   if (!c || c.kind !== "num") return <p className="empty-note">{t("swPaneNeedsNumber")}</p>;
-  const groups: number[][] = ser.names.map(() => []);
-  for (let r = 0; r < n; r++) if (kept[r]) { const s = ser.code(r); if (groups[s]) groups[s].push(c.values[r]); }
-  const boxes = groups.map((g, i) => ({ i, b: boxStats(g) })).filter((x) => x.b);
-  const [lo, hi] = extentOf(c, kept);
+  if (srv.partial && !srv.data?.box) return <p className="empty-note">{t("swReading")}</p>;
+  let boxes: { i: number; b: ReturnType<typeof boxStats> }[], lo: number, hi: number;
+  if (srv.data?.box) {
+    boxes = srv.data.box.map((b, i) => ({ i, b })).filter((x) => x.b);
+    [lo, hi] = srv.data.boxRange ?? [0, 1];
+    if (lo === hi) { lo -= 0.5; hi += 0.5; }
+  } else {
+    const groups: number[][] = ser.names.map(() => []);
+    for (let r = 0; r < n; r++) if (kept[r]) { const s = ser.code(r); if (groups[s]) groups[s].push(c.values[r]); }
+    boxes = groups.map((g, i) => ({ i, b: boxStats(g) })).filter((x) => x.b);
+    [lo, hi] = extentOf(c, kept);
+  }
   const Y = (v: number) => HH - HB - ((v - lo) / (hi - lo)) * (HH - HB - HT);
   const bw = (HW - HL - HR) / Math.max(1, boxes.length);
   return (
@@ -406,18 +416,53 @@ function Matrix({ study, columns, corr, group }: { study: Study; columns: string
   const ser = seriesOf(cols, study.view.colorBy, t);
   const cs = columns.map((c) => cols.get(c)).filter((c): c is Col => !!c);
   const k = cs.length;
-  const coef = useMemo(() => cs.map((a) => cs.map((b) => (corr === "spearman" ? spearman(a.values, b.values, kept) : pearson(a.values, b.values, kept)))),
-    [cs.map((c) => c.name).join("|"), corr, kept, cols]); // eslint-disable-line react-hooks/exhaustive-deps
+  // not every run on the page (All runs above the cap): the numbers and each cell's points of every run (FT6)
+  const srv = useRunCharts(study, group, { corr: { columns: cs.map((c) => c.name), method: corr } });
+  const sc = srv.data?.corr;
+  const at = (name: string) => sc?.columns.indexOf(name) ?? -1;
+  const coef = useMemo(() => cs.map((a) => cs.map((b) => {
+    if (sc) { const v = sc.coef[at(a.name)]?.[at(b.name)]; return v ?? NaN; }
+    return corr === "spearman" ? spearman(a.values, b.values, kept) : pearson(a.values, b.values, kept);
+  })), [cs.map((c) => c.name).join("|"), corr, kept, cols, sc]); // eslint-disable-line react-hooks/exhaustive-deps
   if (k < 2) return <p className="empty-note">{t("swMatrixPick")}</p>;
+  if (srv.partial && !sc) return <p className="empty-note">{t("swReading")}</p>;
   const S = 100, PAD = 4;
-  // at most 1500 points a cell: every m-th kept row
+  // a cell's points: every kept run (a cell of 100 px holds them) - never every m-th one (CLAUDE.md: no point left
+  // out of a picture); above about 3,000 runs the cell is drawn as shades of how many fall in each spot plus the rare ones
   const rows: number[] = [];
   for (let r = 0; r < n; r++) if (kept[r]) rows.push(r);
-  const step = Math.max(1, Math.ceil(rows.length / 1500));
-  const sample = rows.filter((_, i) => i % step === 0);
-  const ext = cs.map((c) => extentOf(c, kept));
-  const nx = (j: number, v: number) => PAD + ((v - ext[j][0]) / (ext[j][1] - ext[j][0])) * (S - 2 * PAD);
-  const ny = (i: number, v: number) => S - PAD - ((v - ext[i][0]) / (ext[i][1] - ext[i][0])) * (S - 2 * PAD);
+  const ext = cs.map((c) => (sc && at(c.name) >= 0 ? sc.ranges[at(c.name)] : extentOf(c, kept)) as [number, number]);
+  const K = 40;
+  /** A cell's picture (column j across, column i up): squares - how many runs in each of K x K spots - and the
+   *  points of the spots with at most 3 runs; with few runs, every point. */
+  const cellOf = (i: number, j: number): { sq: { x: number; y: number; n: number }[]; pts: { x: number; y: number; s: number }[]; max: number } => {
+    const cell = sc?.cells[at(cs[i].name)]?.[at(cs[j].name)];
+    const fx = (v: number) => (v - ext[j][0]) / (ext[j][1] - ext[j][0]), fy = (v: number) => (v - ext[i][0]) / (ext[i][1] - ext[i][0]);
+    if (cell) {
+      let max = 1;
+      const sq = cell.x.map((x, q) => { max = Math.max(max, cell.n[q]); return { x: (x + 0.5) / cell.k, y: (cell.y[q] + 0.5) / cell.k, n: cell.n[q] }; })
+        .filter((q) => q.x <= 1 && q.y <= 1);
+      return { sq, max, pts: cell.px.map((x, q) => ({ x: fx(x), y: fy(cell.py[q]), s: cell.ps[q] })) };
+    }
+    const a = cs[j].values, b = cs[i].values;
+    if (rows.length <= 3000) return { sq: [], max: 1, pts: rows.map((r) => ({ x: fx(a[r]), y: fy(b[r]), s: ser.code(r) })) };
+    const cnt = new Map<number, number[]>();
+    for (const r of rows) {
+      const x = fx(a[r]), y = fy(b[r]);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      const key = Math.min(K - 1, Math.floor(x * K)) * K + Math.min(K - 1, Math.floor(y * K));
+      const g = cnt.get(key);
+      if (g) g.push(r); else cnt.set(key, [r]);
+    }
+    let max = 1;
+    const sq: { x: number; y: number; n: number }[] = [], pts: { x: number; y: number; s: number }[] = [];
+    for (const [key, rs] of cnt) {
+      max = Math.max(max, rs.length);
+      sq.push({ x: (Math.floor(key / K) + 0.5) / K, y: ((key % K) + 0.5) / K, n: rs.length });
+      if (rs.length <= 3) for (const r of rs) pts.push({ x: fx(a[r]), y: fy(b[r]), s: ser.code(r) });
+    }
+    return { sq, pts, max };
+  };
   return (
     <div className="sw-matrix-wrap">
       <svg viewBox={`0 0 ${k * S + 60} ${k * S + 60}`} className="sw-chart sw-matrix" role="img" aria-label={t("swPaneMatrix")}>
@@ -425,7 +470,7 @@ function Matrix({ study, columns, corr, group }: { study: Study; columns: string
           const x0 = 60 + j * S, y0 = i * S;
           if (i === j) {
             const [lo, hi] = ext[i];
-            const h = histogram(a.values, lo, hi, 12, kept)[0], mx = Math.max(1, ...h), w = (S - 2 * PAD) / 12;
+            const h = sc && at(a.name) >= 0 ? sc.hists[at(a.name)] : histogram(a.values, lo, hi, 12, kept)[0], mx = Math.max(1, ...h), w = (S - 2 * PAD) / 12;
             return <g key={`${i}${j}`} transform={`translate(${x0},${y0})`}><rect width={S} height={S} className="sw-matrix-cell" />
               {h.map((v, q) => <rect key={q} x={PAD + q * w} y={S - PAD - (v / mx) * (S - 2 * PAD)} width={w - 1} height={(v / mx) * (S - 2 * PAD)} fill={HOLDS} />)}</g>;
           }
@@ -436,10 +481,13 @@ function Matrix({ study, columns, corr, group }: { study: Study; columns: string
               <title>{`${corr === "spearman" ? "ρ" : "r"}(${colLabel(t, study, a.name)}, ${colLabel(t, study, b.name)}) = ${Number.isFinite(coef[i][j]) ? coef[i][j].toFixed(3) : "–"}`}</title>
             </g>
           );
+          const cd = cellOf(i, j), span = S - 2 * PAD, q = span / K, lm = Math.log1p(cd.max);
           return (
             <g key={`${i}${j}`} transform={`translate(${x0},${y0})`}><rect width={S} height={S} className="sw-matrix-cell" />
-              {sample.map((r) => { const X = nx(j, b.values[r]), Y = ny(i, a.values[r]);
-                return Number.isFinite(X) && Number.isFinite(Y) ? <circle key={r} cx={X} cy={Y} r={1.4} fill={ser.colours[ser.code(r)] ?? HOLDS} /> : null; })}</g>
+              {cd.sq.map((c, z) => <rect key={`q${z}`} x={PAD + c.x * span - q / 2} y={S - PAD - c.y * span - q / 2} width={q} height={q}
+                fill={HOLDS} fillOpacity={0.12 + 0.6 * (Math.log1p(c.n) / lm)} />)}
+              {cd.pts.map((p2, z) => { const X = PAD + p2.x * span, Y = S - PAD - p2.y * span;
+                return Number.isFinite(X) && Number.isFinite(Y) ? <circle key={z} cx={X} cy={Y} r={1.4} fill={ser.colours[p2.s] ?? HOLDS} /> : null; })}</g>
           );
         }))}
         {cs.map((c, i) => <text key={`l${i}`} x={56} y={i * S + S / 2} textAnchor="end" className="sw-ax">{short(colLabel(t, study, c.name))}</text>)}
@@ -494,9 +542,14 @@ function LinesPane({ study, group }: { study: Study; group?: string }) {
   const scale = useMemo(() => (name: string) => scaleOf(study, name, cols.get(name)), [study, cols]);
   if (!axes.length) return <p className="empty-note">{t("swNoAxes")}</p>;
   const setOf = (r: number) => (v.mode === "runs" ? cols.get("#set")?.values[r] ?? r : index ? index[r] : r);
+  // above the cap the lines are the outliers and the density is every run of the main plot: a pane of one group
+  // cannot show every run of it - said, not drawn from the outliers alone (CLAUDE.md: no point left out of a picture)
+  const runs = v.mode === "runs" ? study.answer?.runs : undefined;
+  if (group && group !== "all" && (runs?.sampled || runs?.density)) return <p className="empty-note">{t("swPaneGroupAboveCap")}</p>;
   return (
     <ParallelPlot cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
       filters={v.filters} keep={group ? kept : null} highlight={null} labelOf={(a) => colLabel(t, study, a)} fit height={280}
+      density={runs?.density ?? null} keptTotal={runs?.density || runs?.sampled ? runs.kept : undefined}
       onPick={(r) => st.setView({ pinned: setOf(r) })} onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={() => {}}
       onMoveAxis={(name, to) => st.setAxes(reorderedAxes(study, name, to))} />
   );
@@ -508,23 +561,40 @@ function History({ study, column, group }: { study: Study; column: string; group
   const t = useT();
   const { cols, n, kept } = useRows(study, group);
   const c = cols.get(column);
-  if (!c || c.kind !== "num") return <p className="empty-note">{t("swPaneNeedsNumber")}</p>;
-  const rows: number[] = [];
-  for (let r = 0; r < n; r++) if (kept[r] && Number.isFinite(c.values[r])) rows.push(r);
-  if (!rows.length) return <p className="empty-note">{t("swNoSetsShown")}</p>;
-  const [lo, hi] = extentOf(c, kept);
-  const X = (k: number) => HL + (rows.length > 1 ? k / (rows.length - 1) : 0.5) * (HW - HL - HR);
-  const Y = (v: number) => HH - HB - ((v - lo) / (hi - lo)) * (HH - HB - HT);
   const dir = column === "#goal" ? study.question.goal?.direction : undefined;
-  let best = NaN;
-  const bestPts = dir ? rows.map((r, k) => { const v = c.values[r]; best = !Number.isFinite(best) || (dir === "max" ? v > best : v < best) ? v : best; return `${X(k)},${Y(best)}`; }) : [];
+  // not every run on the page (All runs above the cap): every run from the server, every peak kept (FT6)
+  const srv = useRunCharts(study, group, { history: { column, direction: dir } });
+  if (!c || c.kind !== "num") return <p className="empty-note">{t("swPaneNeedsNumber")}</p>;
+  if (srv.partial && !srv.data?.history) return <p className="empty-note">{t("swReading")}</p>;
+  // the points to draw, by their place in the order (k) and value
+  let pts: [number, number][], count: number, bestXY: [number, number][] = [];
+  const sh = srv.data?.history;
+  if (sh) {
+    pts = sh.x.map((x, q) => [x, sh.y[q]]);
+    count = sh.n;
+    if (sh.bx && sh.by) bestXY = sh.bx.map((x, q) => [x, sh.by![q]]);
+  } else {
+    const rows: number[] = [];
+    for (let r = 0; r < n; r++) if (kept[r] && Number.isFinite(c.values[r])) rows.push(r);
+    pts = rows.map((r, k) => [k, c.values[r]]);
+    count = rows.length;
+    let best = NaN;
+    if (dir) bestXY = rows.map((r, k) => { const v = c.values[r]; best = !Number.isFinite(best) || (dir === "max" ? v > best : v < best) ? v : best; return [k, best]; });
+  }
+  if (!count) return <p className="empty-note">{t("swNoSetsShown")}</p>;
+  let lo = Infinity, hi = -Infinity;
+  for (const [, v] of pts) if (Number.isFinite(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  if (!(hi > lo)) { lo -= 0.5; hi += 0.5; }
+  const X = (k: number) => HL + (count > 1 ? k / (count - 1) : 0.5) * (HW - HL - HR);
+  const Y = (v: number) => HH - HB - ((v - lo) / (hi - lo)) * (HH - HB - HT);
+  const bestPts = bestXY.map(([k, v]) => `${X(k)},${Y(v)}`);
   return (
     <svg viewBox={`0 0 ${HW} ${HH}`} className="sw-chart" role="img" aria-label={t("swPaneHistoryOf", { c: colLabel(t, study, column) })}>
       <line x1={HL} y1={HH - HB} x2={HW - HR} y2={HH - HB} className="sw-ax-line" />
       <line x1={HL} y1={HT} x2={HL} y2={HH - HB} className="sw-ax-line" />
       <text x={HL - 4} y={HT + 8} textAnchor="end" className="sw-ax">{fmtValue(hi)}</text>
       <text x={HL - 4} y={HH - HB} textAnchor="end" className="sw-ax">{fmtValue(lo)}</text>
-      {rows.map((r, k) => <circle key={r} cx={X(k)} cy={Y(c.values[r])} r={2} fill={FAILS} />)}
+      {pts.map(([k, v], q) => <circle key={q} cx={X(k)} cy={Y(v)} r={2} fill={FAILS} />)}
       {bestPts.length > 0 && <polyline points={bestPts.join(" ")} fill="none" stroke={HOLDS} strokeWidth={2} className="sw-history-best" />}
       <text x={(HL + HW - HR) / 2} y={HH - 4} textAnchor="middle" className="sw-ax">{t("swHistoryX", { c: colLabel(t, study, column) })}</text>
     </svg>

@@ -328,6 +328,159 @@ def sweep_select(req: SelectReq):
     return {"sets": r["sets"], "runs": r["runs"], "total": int(len(p.df))}
 
 
+class RunChartsReq(BaseModel):
+    id: str
+    question: Dict[str, Any]
+    filters: Dict[str, Dict[str, Any]] = {}   # the brush on the runs' columns (svcore/sweep/select.py)
+    sets: Optional[List[int]] = None          # the sets the chart shows (the keep / exclude steps, its group)
+    colour: Optional[Dict[str, Any]] = None   # the series: {column} a text column, or {sets: [code per set], n}
+    hist: Optional[Dict[str, Any]] = None     # {column, bins}
+    box: Optional[Dict[str, Any]] = None      # {column}
+    corr: Optional[Dict[str, Any]] = None     # {columns, method}: the matrix - coefficients, histograms, the cells' points
+    scatter: Optional[Dict[str, Any]] = None  # {x, y, xScale, yScale, size?, colourValue?}
+    history: Optional[Dict[str, Any]] = None  # {column, direction?}: the runs in table order, and the best so far
+
+
+@router.post("/api/sweep/run-charts")
+def sweep_run_charts(req: RunChartsReq):
+    """The Charts of All runs on every run (1.29, FT6): when the page has only some of the runs (above the cap) its
+    histogram counts, box statistics and correlations come from here, and a scatter of every run - counted per cell,
+    the sparse cells' runs one by one (CLAUDE.md: no point is ever left out of a picture)."""
+    from svcore.sweep import density
+    from svcore.sweep.select import run_mask
+    p, a = _answer(req.id, req.question)
+    holds = np.asarray(a["data"]["#holds"], dtype=float)
+    per_set = {"#set": np.arange(p.n_sets, dtype=float), "#holds": holds}
+
+    def col(c: str) -> pd.Series:
+        if c in per_set:
+            return pd.Series(per_set[c][p.set_id])
+        if c not in p.df.columns:
+            fail(400, f"No column named {c!r}")
+        return p.df[c]
+
+    def num(c: str, m: np.ndarray) -> np.ndarray:
+        return pd.to_numeric(col(c)[m], errors="coerce").to_numpy(dtype=np.float32, na_value=np.nan).astype(np.float64)
+
+    scope = run_mask(p, None, req.sets)                 # the runs the chart is about (its extent)
+    keep = run_mask(p, req.filters, req.sets)           # ... and of those, the ones the brush keeps
+    series, n_ser = np.zeros(len(p.df), dtype=np.int64), 1
+    cs = req.colour or {}
+    if cs.get("sets") is not None:
+        series, n_ser = np.asarray(cs["sets"], dtype=np.int64)[p.set_id], int(cs.get("n") or 1)
+    elif cs.get("column"):
+        labs = _kept(p.df, "labels", cs["column"], lambda: category_labels(col(cs["column"])))
+        series, n_ser = density.cells(col(cs["column"]), {"labels": labs}), len(labs) + 1
+    out: Dict[str, Any] = {"kept": int(keep.sum()), "total": int(len(p.df)), "series": n_ser}
+
+    def text(c: str) -> bool:
+        s = col(c)
+        return not pd.api.types.is_numeric_dtype(s) or pd.api.types.is_bool_dtype(s)
+
+    if req.hist:
+        c, bins = req.hist["column"], int(req.hist.get("bins") or 30)
+        if text(c):
+            labs = _kept(p.df, "labels", c, lambda: category_labels(col(c)))
+            v = density.cells(col(c), {"labels": labs})[keep].astype(float)
+            v[v >= len(labs)] = np.nan
+            lo, hi, bins = -0.5, len(labs) - 0.5, max(1, len(labs))
+        else:
+            ext = num(c, scope)
+            ext = ext[np.isfinite(ext)]
+            lo, hi = (float(ext.min()), float(ext.max())) if len(ext) else (0.0, 1.0)
+            if lo == hi:
+                lo, hi = lo - 0.5, hi + 0.5
+            v = num(c, keep)
+        out["hist"] = {"lo": lo, "hi": hi, "bins": bins, "counts": density.histogram(v, lo, hi, bins, series[keep], n_ser)}
+    if req.box:
+        v, sk = num(req.box["column"], keep), series[keep]
+        out["box"] = [density.box(v[sk == k]) for k in range(n_ser)]
+        ext = v[np.isfinite(v)]
+        out["boxRange"] = [float(ext.min()), float(ext.max())] if len(ext) else [0.0, 1.0]
+    if req.corr:
+        names = [c for c in req.corr.get("columns") or [] if not text(c)][:8]
+        vals = [num(c, keep) for c in names]
+        out["corr"] = {"columns": names, "coef": density.correlation(vals, req.corr.get("method") or "pearson")}
+        hists, ranges = [], []
+        for v in vals:
+            f = v[np.isfinite(v)]
+            lo, hi = (float(f.min()), float(f.max())) if len(f) else (0.0, 1.0)
+            if lo == hi:
+                lo, hi = lo - 0.5, hi + 0.5
+            ranges.append([lo, hi])
+            hists.append(density.histogram(v, lo, hi, 12, np.zeros(len(v), dtype=np.int64), 1)[0])
+        out["corr"].update(hists=hists, ranges=ranges, cells=[[None] * len(names) for _ in names])
+        for i in range(len(names)):                     # the points of each cell below the diagonal... drawn above it
+            for j in range(len(names)):
+                if i >= j:
+                    continue
+                ax = {"edges": np.linspace(*ranges[j], 41).tolist()}
+                ay = {"edges": np.linspace(*ranges[i], 41).tolist()}
+                g = density.grid2d(col(names[j])[keep].reset_index(drop=True), col(names[i])[keep].reset_index(drop=True),
+                                   ax, ay, np.ones(int(keep.sum()), bool), series[keep], n_ser, max_sparse=1500)
+                sp = g["sparse"]
+                out["corr"]["cells"][i][j] = {"x": g["x"], "y": g["y"], "s": g["s"], "n": g["n"], "k": 40,
+                                              "px": vals[j][sp].tolist(), "py": vals[i][sp].tolist(), "ps": series[keep][sp].tolist()}
+    if req.history:
+        from svcore.decimate import minmax_decimate
+        v = num(req.history["column"], keep)
+        v = v[np.isfinite(v)]
+        k = np.arange(len(v), dtype=np.float64)
+        hx, hy = minmax_decimate(k, v, 2000) if len(v) > 4000 else (k, v)   # every peak kept, as a time plot
+        h: Dict[str, Any] = {"n": int(len(v)), "x": hx.tolist(), "y": hy.tolist()}
+        d = req.history.get("direction")
+        if d in ("max", "min") and len(v):
+            best = np.maximum.accumulate(v) if d == "max" else np.minimum.accumulate(v)
+            bx, by = minmax_decimate(k, best, 2000) if len(v) > 4000 else (k, best)
+            h.update(bx=bx.tolist(), by=by.tolist())
+        out["history"] = h
+    if req.scatter:
+        sc = req.scatter
+        xs, ys = col(sc["x"]), col(sc["y"])
+        axes = []
+        for name, s, scale in ((sc["x"], xs, sc.get("xScale") or "linear"), (sc["y"], ys, sc.get("yScale") or "linear")):
+            if text(name):
+                axes.append(density.axis_cells({}, "category", _kept(p.df, "labels", name, lambda s=s: category_labels(s))))
+            else:
+                dom = _kept(p.df, "domain", name, lambda s=s: density.domain(s))
+                cut = dict(density.axis_cells(dom, scale))
+                if scale not in ("category", "ordinal"):     # a scatter's cells: finer than an axis's
+                    lo, hi = dom.get("loPos" if scale == "log" else "lo", 0.0), dom.get("hi", 1.0)
+                    if hi == lo:
+                        lo, hi = lo - 0.5, hi + 0.5
+                    e = np.geomspace(lo, hi, 121) if scale == "log" and lo > 0 else np.linspace(lo, hi, 121)
+                    cut = {"edges": e.tolist(), "centers": ((e[:-1] + e[1:]) / 2).tolist()}
+                axes.append(cut)
+        g = density.grid2d(xs, ys, axes[0], axes[1], keep, series, n_ser)
+        sp = g["sparse"]
+
+        def at(c: Optional[str]):
+            if not c:
+                return None
+            if text(c):
+                labs = _kept(p.df, "labels", c, lambda: category_labels(col(c)))
+                return density.cells(col(c), {"labels": labs})[sp].astype(float).tolist()
+            return pd.to_numeric(col(c).iloc[sp], errors="coerce").to_numpy(dtype=float, na_value=np.nan).tolist()
+        out["scatter"] = {"x": g["x"], "y": g["y"], "s": g["s"], "n": g["n"], "cells": g["cells"],
+                          "cx": axes[0]["centers"], "cy": axes[1]["centers"],
+                          "points": {"x": at(sc["x"]), "y": at(sc["y"]), "s": series[sp].tolist(), "size": at(sc.get("size")),
+                                     "c": at(sc.get("colourValue"))}}
+    return _jsonable(out)
+
+
+def _jsonable(o: Any) -> Any:
+    """NaN / inf as null (JSON has neither); numpy numbers as Python's."""
+    if isinstance(o, dict):
+        return {k: _jsonable(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_jsonable(v) for v in o]
+    if isinstance(o, (float, np.floating)):
+        return float(o) if np.isfinite(o) else None
+    if isinstance(o, np.integer):
+        return int(o)
+    return o
+
+
 @router.post("/api/sweep/set")
 def sweep_set(req: SetReq):
     p = _prepared(req.id, req.question)

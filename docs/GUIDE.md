@@ -536,10 +536,11 @@ Four steps, left to right:
    **Report** (HTML, Word or PDF with the whole process). *Clear ▾* empties the charts and lists, the
    goal, the whole study, or closes every study.
 
-   **A big table.** The plot draws every run up to *Settings → Sweeps: most lines to draw* (200,000
-   unless you change it); above that it draws a sample of the runs your filters keep and says so under
-   the plot. The count, *Keep*, *Exclude*, a group saved from the brush and *Export shown* always use
-   every run.
+   **A big table.** The plot draws every run as a line up to *Settings → Sweeps: most lines to draw*
+   (200,000 unless you change it); above that every run is still in the picture - where many runs pass
+   a shade, the rare ones (the outliers) as their own lines - or, if you choose so in Settings, a
+   sample, said under the plot. The count, *Keep*, *Exclude*, a group saved from the brush, *Export
+   shown* and the Charts always use every run.
 
 **Split by a condition.** With *Split results by this* on, say, payload, the results show *All
 together* or one payload at a time: for one value a set must hold in every combination of the other

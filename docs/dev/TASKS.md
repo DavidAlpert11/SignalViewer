@@ -29,14 +29,14 @@ What is open, in order (the finished history is in the Log and in git: `git show
 | Stability on Windows with a GPU (Out of Memory, the 3D shader) | waiting for numbers | the owner runs `tools/measure_maps.py --gpu`; the e2e suite's memory |
 | Films in Hebrew + a narration script; GitHub About texts | offered / with the owner | his choice; he pastes the About texts |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
-| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | in progress | FT1-FT4 done; FT8, FT7, FT6, FT5 (owner, 2026-11-17) then 1.29.0 |
+| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | in progress | FT1-FT8 done (FT5 density; FT6 exact charts); the end of the round, then 1.29.0 |
 | M35 FT1 - the brush of All runs resolved on the whole table | done | - |
 | M35 FT2 - ParallelPlot in layers, progressive; measured | done | - |
 | M35 FT3 - all rows up to the Settings cap, sample from kept rows, exact counts | done | - |
 | M35 FT4 - HTML export of a table: all rows up to the cap | done | - |
 | M35 FT8 - the rule "no point left out of a picture" + the needle tests | done | - |
 | M35 FT7 - X-Y / 3D: extreme-keeping thinning instead of a stride | done | - |
-| M35 FT6 - exact Charts in All runs (server statistics, scatter as density + outliers) | in progress (next) | svcore/sweep/density.py (statistics, grid2d) written; the endpoint and the page next; then 1.29.0 |
+| M35 FT6 - exact Charts in All runs (server statistics, scatter as density + outliers) | done | - |
 | M35 FT5 - parallel plot above the cap: density by default, the sample a Settings choice | done | - |
 
 **Decision (owner, 2026-11-17), the rule:** no point is ever left out of a picture - numbers on all the data, a
@@ -447,3 +447,5 @@ drawn. Backend density drawing (2D histograms) is a follow-up only (FT5).
   `pathThin` everywhere a stride was (list in ROADMAP); e2e 208 green.
 - 2026-11-17 · M35 FT5 done: density by default above the cap (every run a shade, the outliers lines), the sample a Settings
   choice; axes from the whole table's domain. e2e test_needle (2), test_sweeps_big_table (4) green; backend sweep tests green.
+- 2026-11-17 · M35 FT6 done: Charts of All runs on every run above the cap (/api/sweep/run-charts); the matrix's stride gone also
+  below it. e2e test_sweeps_big_table (4), test_needle (2) green.

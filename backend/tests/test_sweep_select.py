@@ -212,3 +212,43 @@ def test_raw_above_the_cap_drawn_as_density(client):
     rows = _decode(next(c for c in r["columns"] if c["name"] == "#row")).tolist()
     assert 11 in rows and r["n"] < 12_000
     assert d["axes"][0]["centers"] == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+
+
+def test_charts_of_all_runs_are_of_every_run(client):
+    """FT6: the Charts' numbers of All runs from the server, on every run the brush keeps; a scatter of every run
+    (counted per cell) with the sparse cells' runs - the needle among them - one by one."""
+    from app.routes import sweep as route
+    df = _big()
+    df.loc[5_000, "out"] = 80.0                              # the needle
+    tid = route._register(df, "", "big", 0.0)["id"]
+    q = {"roles": ROLES}
+    f = {"terrain": {"kind": "labels", "labels": ["sea", "hill", "flat", "urban", "ridge"]}}
+    r = client.post("/api/sweep/run-charts", json={"id": tid, "question": q, "filters": f, "colour": {"column": "terrain"},
+                                                     "hist": {"column": "out", "bins": 30}, "box": {"column": "out"},
+                                                     "corr": {"columns": ["p", "k", "out"], "method": "pearson"},
+                                                     "scatter": {"x": "p", "y": "out"}}).json()
+    prep = sweep.prepare(df, q)
+    out = prep.df.out.to_numpy()
+    assert r["kept"] == 12_000 and r["series"] == 6
+    h = r["hist"]
+    assert sum(map(sum, h["counts"])) == 12_000 and h["hi"] == 80.0
+    assert sum(b["n"] for b in r["box"] if b) == 12_000 and any(80.0 in b["out"] for b in r["box"] if b)
+    assert abs(r["corr"]["coef"][0][2] - np.corrcoef(prep.df.p, out)[0, 1]) < 1e-6
+    sc = r["scatter"]
+    assert sum(sc["n"]) == 12_000 and 80.0 in sc["points"]["y"]
+    # only some sets (a group) and a brush on a number
+    r2 = client.post("/api/sweep/run-charts", json={"id": tid, "question": q, "sets": [0, 1, 2],
+                                                      "filters": {"out": {"kind": "ranges", "ranges": [[-100, 5]]}},
+                                                      "hist": {"column": "out", "bins": 10}}).json()
+    want = int(((prep.set_id <= 2) & (out.astype(np.float32) <= 5)).sum())
+    assert r2["kept"] == want and sum(map(sum, r2["hist"]["counts"])) == want
+
+
+def test_history_of_every_run_keeps_every_peak(client):
+    from app.routes import sweep as route
+    df = _big()
+    df.loc[7_777, "out"] = 80.0
+    tid = route._register(df, "", "big", 0.0)["id"]
+    r = client.post("/api/sweep/run-charts", json={"id": tid, "question": {"roles": ROLES},
+                                                     "history": {"column": "out", "direction": "max"}}).json()["history"]
+    assert r["n"] == 12_000 and len(r["x"]) <= 4100 and max(r["y"]) == 80.0 and r["by"][-1] == 80.0

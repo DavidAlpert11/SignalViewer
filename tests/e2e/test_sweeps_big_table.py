@@ -131,17 +131,22 @@ def test_html_page_of_the_table_draws_every_row(pg, tmp_path):
     page.close()
 
 
-def test_charts_of_all_runs_say_they_are_of_the_sample(pg, tmp_path):
-    """Charts of All runs above the cap are drawn from the sample - said above them, not hidden."""
+def test_charts_of_all_runs_count_every_run(pg, tmp_path):
+    """FT6: above the cap (a sample or density) the Charts of All runs are of every run - the histogram's bars add up
+    to the whole table (they added up to the sample)."""
     _big_table(tmp_path)
     _cap(pg, "50,000", "A sample")
     _open_table(pg, tmp_path, "big_sweep.csv")
     _step(pg, "results")
+    pg.locator(".sw-show select").select_option("all")
     _tab(pg, "runs")
-    pg.wait_for_selector(".sw-sampled:has-text('Drawing 50,000 of 200,000 runs')")
-    _tab(pg, "charts")
-    pg.wait_for_selector(".sw-charts-sampled:has-text('50,000 of 200,000 runs')")
-    _tab(pg, "sets")
-    _tab(pg, "charts")
-    pg.wait_for_selector(".sw-desk")
-    assert pg.locator(".sw-charts-sampled").count() == 0                         # Parameter sets: every set
+    _idle(pg)
+    for over in ("A sample", "Every run (density)"):
+        _cap(pg, "50,000", over)
+        _tab(pg, "runs")
+        pg.wait_for_selector(f".pp canvas[data-density='{1 if 'density' in over else 0}']")
+        _tab(pg, "charts")
+        pg.wait_for_selector(".sw-hist svg rect title", state="attached")
+        total = pg.evaluate("""() => [...document.querySelectorAll('.sw-hist svg rect title')]
+          .reduce((s, t) => s + Number(t.textContent.trim().split(' ').pop()), 0)""")
+        assert total == 200_000, (over, total)
