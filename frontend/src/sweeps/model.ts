@@ -184,6 +184,8 @@ export interface View {
   axes: string[];
   colorBy: string | null;
   filters: Record<string, Filter>;
+  /** FT9: the tab each filter was made in (sweeps/tabs.ts); missing: Parameter sets (older studies) */
+  filterTab?: Record<string, "sets" | "runs">;
   reversed: Record<string, boolean>;
   /** a scale for a column that is not a table column (a goal, a condition's worst case...) */
   scales: Record<string, Scale>;

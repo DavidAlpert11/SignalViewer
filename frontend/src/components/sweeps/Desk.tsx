@@ -13,7 +13,8 @@ import { openMenu } from "../Overlays";
 import { notify, notifyError } from "../../sweeps/notify";
 import { useT, type TFn, type TKey } from "../../i18n";
 import { category, FAILS, FLAG_COLS, HOLDS } from "../../sweeps/colors";
-import { hasFilter, keptMask } from "../../sweeps/filters";
+import { hasFilter } from "../../sweeps/filters";
+import { modeKeep, ownFilters } from "../../sweeps/tabs";
 import type { Col, DeskPane, Filter, PaneKind } from "../../sweeps/model";
 import { fmtValue, labelOf } from "../../sweeps/scales";
 import { boxStats, histogram, pearson, spearman } from "../../sweeps/stats";
@@ -280,7 +281,7 @@ function MatrixColumns({ study, value, onChange }: { study: Study; value: string
 function useRows(study: Study, group?: string) {
   const { cols, n, index } = useMemo(() => scopedColumns(study), [study]);
   const kept = useMemo(() => {
-    const k = keptMask(cols, study.view.filters, n), g = groupRows(study, group, cols, n, index);
+    const k = modeKeep(study, cols, n, index), g = groupRows(study, group, cols, n, index);
     if (g) for (let r = 0; r < n; r++) k[r] &= g[r];
     return k;
   }, [cols, study, n, group, index]);
@@ -315,7 +316,8 @@ function Histogram({ study, column, group }: { study: Study; column: string; gro
   const bw = (HW - HL - HR) / bins;
   const X = (v: number) => HL + ((v - lo) / (hi - lo)) * (HW - HL - HR);
   const val = (px: number) => lo + ((px - HL) / (HW - HL - HR)) * (hi - lo);
-  const filtered = hasFilter(study.view.filters[column]);
+  const own = ownFilters(study)[column];        // FT9: a brush made in the other tab is not drawn on this axis
+  const filtered = hasFilter(own);
   const at = (e: React.PointerEvent) => { const r = (e.currentTarget as SVGElement).getBoundingClientRect(); return ((e.clientX - r.left) / r.width) * HW; };
   const finish = () => {
     if (!drag) return;
@@ -348,7 +350,7 @@ function Histogram({ study, column, group }: { study: Study; column: string; gro
           : <><text x={HL} y={HH - HB + 14} textAnchor="start" className="sw-ax">{fmtValue(lo)}</text>
             <text x={HW - HR} y={HH - HB + 14} textAnchor="end" className="sw-ax">{fmtValue(hi)}</text></>}
         <text x={(HL + HW - HR) / 2} y={HH - 4} textAnchor="middle" className="sw-ax">{colLabel(t, study, column)}</text>
-        {!cat && filtered && study.view.filters[column]!.kind === "ranges" && (study.view.filters[column] as { ranges: [number, number][] }).ranges.map(([a, b], k) => (
+        {!cat && filtered && own!.kind === "ranges" && own!.ranges.map(([a, b], k) => (
           <rect key={k} className="sw-brush-mark" x={X(Math.max(lo, Math.min(a, b)))} y={HT} width={Math.max(1, X(Math.min(hi, Math.max(a, b))) - X(Math.max(lo, Math.min(a, b))))} height={HH - HB - HT} />
         ))}
         {drag && <rect className="sw-brush-mark" x={Math.min(...drag)} y={HT} width={Math.abs(drag[1] - drag[0])} height={HH - HB - HT} />}
@@ -548,7 +550,7 @@ function LinesPane({ study, group }: { study: Study; group?: string }) {
   if (group && group !== "all" && (runs?.sampled || runs?.density)) return <p className="empty-note">{t("swPaneGroupAboveCap")}</p>;
   return (
     <ParallelPlot cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
-      filters={v.filters} keep={group ? kept : null} highlight={null} labelOf={(a) => colLabel(t, study, a)} fit height={280}
+      filters={ownFilters(study)} keep={kept} highlight={null} labelOf={(a) => colLabel(t, study, a)} fit height={280}
       density={runs?.density ?? null} keptTotal={runs?.density || runs?.sampled ? runs.kept : undefined}
       onPick={(r) => st.setView({ pinned: setOf(r) })} onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={() => {}}
       onMoveAxis={(name, to) => st.setAxes(reorderedAxes(study, name, to))} />

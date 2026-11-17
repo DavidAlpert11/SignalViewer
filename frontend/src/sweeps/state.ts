@@ -11,6 +11,7 @@ import { getPrefValue, setPref } from "../prefs";
 import { sweepApi, type MergeSpec, type Role, type Scale, type SweepColumn, type SweepOpened, type SweepSummary, type SweepTemplate, type TableRecipe, type WireQuestion } from "./api";
 import { decodeCol } from "./decode";
 import { axesSpec, colourSpec, runSelection, type RunSelection } from "./selection";
+import { filterParts, runsTabAsk } from "./tabs";
 import { useApp } from "../store";
 import { emptyQuestion, emptyView, materialize, newGoal, upgradeQuestion, type Answer, type Condition, type Derived, type Filter, type GoalVariant, type Iteration, type LogEntry, type LogKind, type Question, type Tolerance, type View } from "./model";
 import { changes, entry, withEntry, withIteration } from "./journal";
@@ -122,6 +123,9 @@ export interface Study {
   toCheck?: string[];
   /** new columns already seen in the Goal step's table (the others say "new") - UI only */
   goalSeen?: string[];
+  /** FT9: the sets with a run that passes the filters made in All runs, as the server found them for `key`
+   *  (sweeps/tabs.ts runsTabAsk) - not saved */
+  runsTab?: { key: string; sets: number[]; runs: number };
 }
 
 /** What applying a template did (its summary to the user). */
@@ -149,7 +153,7 @@ export function formulaColumns(expr: string): string[] {
 
 /** What undo brings back: the columns' roles and scales (by name), the question, and the parts of
  *  the view that change what is shown. Not where one is (step, tab, open set, map axes, follow). */
-const UNDO_VIEW = ["mode", "axes", "colorBy", "filters", "reversed", "scales", "hideConstant", "hideFlat", "rerun", "rerunSplit", "onlyMissing", "scope",
+const UNDO_VIEW = ["mode", "axes", "colorBy", "filters", "filterTab", "reversed", "scales", "hideConstant", "hideFlat", "rerun", "rerunSplit", "onlyMissing", "scope",
   "onlyHolding", "show", "tableColumns", "tableSort", "maps", "scatters", "groups", "desk"] as const;
 type UndoView = Pick<View, (typeof UNDO_VIEW)[number]>;
 export interface Snap { roles: Record<string, { role: Role; scale: Scale }>; question: Question; view: UndoView }
@@ -327,6 +331,8 @@ interface SweepsState {
   evaluate: () => void;
   /** All runs above the cap (1.29): the runs drawn again for the brush now (a sample of those it keeps) */
   refreshRuns: () => void;
+  /** FT9: ask the server which sets have a run that passes the filters made in All runs (when there are some) */
+  refreshRunsTab: () => void;
   /** the active table's summary (its parameters / scenarios / outputs) asked again - after its roles were set from outside */
   refreshSummary: () => void;
   exportRerun: (path: string) => Promise<{ path: string; rows: number }>;
@@ -382,6 +388,8 @@ export const fits = (t: SweepTemplate, cols: { name: string }[]) => {
 /** The optimization's axes (S19): the goal, the rank, the other objectives and the score - drag on
  *  them in the lines to keep the best and see their parameters. */
 const optAxes = (a: Answer) => a.sets.filter((c) => c.name === "#goal" || c.name === "#score" || /^#obj\d+$/.test(c.name)
+  // FT9: whether a set holds, an axis of its own (✓ / ✗) when the goal has conditions
+  || (c.name === "#holds" && a.conditions.length > 0)
   // the rank is always there, empty with nothing to optimize
   || (c.name === "#rank" && c.values.some((x) => Number.isFinite(x)))).map((c) => c.name);
 
@@ -433,6 +441,7 @@ let timer = 0;
 let seq = 0;
 let runsSeq = 0;           // the last refreshRuns asked for (an older answer is dropped)
 let runsPending = false;   // ... and still on its way (the e2e tests wait for it: __svSweeps.idle)
+let tabSeq = 0, tabPending = false;   // the same for refreshRunsTab (FT9)
 /** What All runs asks to draw: the Settings cap, the brush (sweeps/selection.ts), the open set; `key` says
  *  which brush a sample was taken for. */
 export function drawOf(s: Study): DrawSpec {
@@ -719,7 +728,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
     setRawView: (id, v) => set((st) => ({ rawViews: { ...st.rawViews, [id]: v } })),
     zooms: {},
     setZoom: (key, z) => set((st) => ({ zooms: { ...st.zooms, [key]: z } })),
-    narrow: (kind, sets, key) => patchV((v) => ({ ...v, filters: {}, pinned: null,
+    narrow: (kind, sets, key) => patchV((v) => ({ ...v, filters: {}, filterTab: {}, pinned: null,
       scope: { key, steps: [...(v.scope.key === key ? v.scope.steps : []), { kind, sets }] } })),
     journal: (kind, args) => patch((x) => ({ ...x, log: withEntry(x.log, entry(kind, args)) }), false),
     hideJournalLine: (at, hidden) => patch((x) => ({ ...x, log: x.log.map((e) => (e.at === at ? { ...e, hidden } : e)) }), false),
@@ -946,9 +955,11 @@ export const useSweeps = create<SweepsState>((set, get) => {
       const s = get().studies[get().active];
       if (!s?.answer) return;
       const gs = s.view.groups ?? [];
-      const g = fromBrush(s.view.filters, s.answer, name, gs, frozen);
+      // a live rule over the sets: the filters per set (those made in All runs make a frozen group: saveBrushGroup)
+      const p = filterParts(s);
+      const g = fromBrush({ ...p.both, ...p.sets }, s.answer, name, gs, frozen);
       // the new group shows at once: colour by group, and the brush it came from is cleared
-      patchV((v) => ({ ...v, groups: [...gs, g], colorBy: "#group", filters: {} }), false);
+      patchV((v) => ({ ...v, groups: [...gs, g], colorBy: "#group", filters: {}, filterTab: {} }), false);
     },
     addFrozenGroup: (name, mask, source = "user") => {
       const s = get().studies[get().active];
@@ -1002,9 +1013,10 @@ export const useSweeps = create<SweepsState>((set, get) => {
     removeGroup: (id) => patchV((v) => ({ ...v, groups: (v.groups ?? []).filter((g) => g.id !== id),
       activeGroup: v.activeGroup === id ? undefined : v.activeGroup }), false),
     setFilter: (column, f) => patchV((v) => {
-      const filters = { ...v.filters };
-      if (f) filters[column] = f; else delete filters[column];
-      return { ...v, filters };
+      const filters = { ...v.filters }, filterTab = { ...v.filterTab };
+      // FT9: the tab it was made in (sweeps/tabs.ts)
+      if (f) { filters[column] = f; filterTab[column] = v.mode; } else { delete filters[column]; delete filterTab[column]; }
+      return { ...v, filters, filterTab };
     }),
     moveAxis: (from, to) => patchV((v) => {
       const axes = [...v.axes];
@@ -1055,6 +1067,17 @@ export const useSweeps = create<SweepsState>((set, get) => {
         patch((x) => (x.tableId !== s.tableId || !x.answer ? x : { ...x, answer: { ...x.answer, runs } }), false);
       }).catch(() => { /* the next change asks again; the answer on screen stays */ });
     },
+    refreshRunsTab: () => {
+      const s = get().studies[get().active];
+      const ask = s ? runsTabAsk(s) : null;
+      if (!s || !ask || s.runsTab?.key === ask.key) return;
+      const my = ++tabSeq;
+      tabPending = true;
+      sweepApi.select(s.tableId, wireQuestion(s), ask.select).finally(() => { if (my === tabSeq) tabPending = false; }).then((r) => {
+        if (my !== tabSeq) return;
+        patch((x) => (x.tableId !== s.tableId ? x : { ...x, runsTab: { key: ask.key, sets: r.sets, runs: r.runs } }), false);
+      }).catch(() => { /* the next change asks again */ });
+    },
     exportRerun: (path) => {
       const s = get().studies[get().active];
       // the sets as All together, and those chosen for one value of the split condition
@@ -1093,7 +1116,7 @@ useSweeps.subscribe((st, prev) => {
 /* W11: what the e2e tests wait on instead of a sleep - an answer asked for (the 200 ms debounce
    before evaluate, when `evaluating` is still false) or on its way, and the autosave written. */
 (window as unknown as { __svSweeps: unknown }).__svSweeps = {
-  idle: () => !askPending && !runsPending && !useSweeps.getState().studies.some((s) => s.evaluating) && !useSweeps.getState().busy,
+  idle: () => !askPending && !runsPending && !tabPending && !useSweeps.getState().studies.some((s) => s.evaluating) && !useSweeps.getState().busy,
   saved: () => !savePending,
   doc: () => useSweeps.getState().saved(),          // the active study as a .svsweep document (the examples are made from it)
   show: (part: Part) => useSweeps.setState({ part }),   // C6: a part of the study shown (the navigator's clicks, C7)

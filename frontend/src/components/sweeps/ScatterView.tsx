@@ -6,7 +6,7 @@ import { useApp } from "../../store";
 import type { Filter } from "../../sweeps/model";
 import { useT } from "../../i18n";
 import { category, FAILS, FLAG_COLS, HOLDS, rampOf } from "../../sweeps/colors";
-import { keptMask } from "../../sweeps/filters";
+import { modeKeep } from "../../sweeps/tabs";
 import { makeScale } from "../../sweeps/scales";
 import { useSweeps, type Study } from "../../sweeps/state";
 import { axisChoices, colLabel, groupRows, scaleOf, scopedColumns, styleOf } from "../../sweeps/view";
@@ -28,10 +28,10 @@ export function ScatterPanel({ study, pair, onChange, onRemove, group, objective
   const v = study.view;
   const xName = pair.x, yName = pair.y;          // checked by scatterList
   const kept = useMemo(() => {
-    const k = keptMask(cols, v.filters, n), g = groupRows(study, group, cols, n, index);
+    const k = modeKeep(study, cols, n, index), g = groupRows(study, group, cols, n, index);
     if (g) for (let r = 0; r < n; r++) k[r] &= g[r];
     return k;
-  }, [cols, v.filters, n, study, group, index]);
+  }, [cols, n, study, group, index]);
   // not every run on the page (All runs above the cap): every run from the server - counted per cell, the sparse
   // cells' runs as points (FT6; CLAUDE.md: no point left out of a picture)
   const srv = useRunCharts(study, group, { scatter: { x: xName, y: yName, xScale: scaleOf(study, xName, cols.get(xName)),

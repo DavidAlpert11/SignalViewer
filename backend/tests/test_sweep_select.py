@@ -252,3 +252,40 @@ def test_history_of_every_run_keeps_every_peak(client):
     r = client.post("/api/sweep/run-charts", json={"id": tid, "question": {"roles": ROLES},
                                                      "history": {"column": "out", "direction": "max"}}).json()["history"]
     assert r["n"] == 12_000 and len(r["x"]) <= 4100 and max(r["y"]) == 80.0 and r["by"][-1] == 80.0
+
+
+# ----------------------------------------------------------------------------- FT9: a filter remembers its tab
+def test_a_sets_filter_on_an_output_gives_every_run_of_those_sets(client, tmp_path, monkeypatch):
+    """FT9 (owner, 2026-11-17): a filter made in Parameter sets on an output's mean keeps SETS; in All runs the page
+    sends them as `sets` (sweeps/tabs.ts, selection.describeStudy) and every run of those sets is selected - not the runs
+    whose own value is in the range. Exact counts whatever the cap."""
+    from app.routes import sweep as route
+    df = _big()
+    tid = route._register(df, "", "big", 0.0)["id"]
+    q = {"roles": ROLES}
+    a = client.post("/api/sweep/evaluate", json={"id": tid, "question": q, "runs": False}).json()
+    mean = _decode(next(c for c in a["sets"] if c["name"] == "out"))
+    sets = [int(i) for i in np.flatnonzero((mean >= 3) & (mean <= 5))]
+    prep = sweep.prepare(df, q)
+    want_runs = int(np.isin(prep.set_id, sets).sum())
+    assert 0 < len(sets) < prep.n_sets and want_runs == 30 * len(sets)          # 30 runs per set, every one of them
+    own = ((prep.df.out.astype(np.float32) >= 3) & (prep.df.out.astype(np.float32) <= 5)).sum()
+    assert own != want_runs                                                      # by each run's own value: another answer
+    for cap in (300, 10_000_000):
+        monkeypatch.setattr(route, "RUNS_MAX", cap)
+        s = client.post("/api/sweep/select", json={"id": tid, "question": q, "filters": {}, "sets": sets}).json()
+        assert s["sets"] == sets and s["runs"] == want_runs and s["total"] == 12_000
+        e = client.post("/api/sweep/evaluate", json={"id": tid, "question": q, "runs": True, "over": "sample",
+                                                      "select": {"filters": {}, "sets": sets}}).json()["runs"]
+        if cap == 300:
+            assert e["sampled"] and e["kept"] == want_runs
+        path = tmp_path / f"sets_{cap}.csv"
+        x = client.post("/api/sweep/export-rows", json={"id": tid, "question": q, "select": {"filters": {}, "sets": sets}, "path": str(path)}).json()
+        assert x["rows"] == want_runs
+    # a filter made in All runs, read in Parameter sets: the sets with a run that passes (a text column by its codes)
+    labels = ["flat", "hill", "ridge", "sea", "urban"]
+    r = client.post("/api/sweep/select", json={"id": tid, "question": q, "filters": {
+        "terrain": {"kind": "values", "values": [labels.index("sea")]}, "out": {"kind": "ranges", "ranges": [[11, 99]]}}}).json()
+    o = prep.df.out.astype(np.float32).to_numpy()
+    passing = (prep.df.terrain == "sea").to_numpy() & (o >= 11)
+    assert r["runs"] == int(passing.sum()) > 0 and r["sets"] == sorted(set(prep.set_id[passing].tolist()))

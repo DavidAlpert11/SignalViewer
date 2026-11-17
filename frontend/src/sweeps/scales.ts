@@ -1,6 +1,7 @@
 /* Axis scales for the parallel plot: a value to 0..1 (bottom..top) and back, and the ticks.
    Linear and log for numbers; category and ordinal put each distinct value at its own place. */
-import type { Col, Scale } from "./model";
+import type { Col, Filter, Scale } from "./model";
+import { FLAG_COLS } from "./colors";
 
 export interface AxisScale {
   kind: Scale;
@@ -20,7 +21,15 @@ export function fmtValue(v: number): string {
   return String(+v.toPrecision(4));
 }
 
-export const labelOf = (col: Col, v: number) => (col.kind === "cat" ? (col.labels?.[v] ?? "–") : fmtValue(v));
+/** a yes / no column of the answer (holds, Pareto...): its axis reads ✓ / ✗ (FT9) */
+export const labelOf = (col: Col, v: number) => (col.kind === "cat" ? (col.labels?.[v] ?? "–")
+  : FLAG_COLS.has(col.name) && (v === 0 || v === 1) ? (v ? "✓" : "✗") : fmtValue(v));
+
+/** What a filter keeps, as text: its ranges, or its values by their labels. */
+export function filterText(f: Filter, c?: Col): string {
+  return f.kind === "ranges" ? f.ranges.map(([a, b]) => `${fmtValue(Math.min(a, b))} – ${fmtValue(Math.max(a, b))}`).join(" ∪ ")
+    : f.values.map((x) => (c ? labelOf(c, x) : String(x))).join(", ");
+}
 
 function niceTicks(lo: number, hi: number, n = 5): number[] {
   const span = hi - lo;

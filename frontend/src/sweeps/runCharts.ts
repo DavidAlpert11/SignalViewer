@@ -5,9 +5,9 @@
 import { useEffect, useRef, useState } from "react";
 import { call } from "../api";
 import { wireQuestion, type Study } from "./state";
-import { colourSpec, describeRuns, type RunSelection } from "./selection";
-import { groupColumn, maskOfKey } from "./groups";
-import { modeColumns, scopeMask } from "./view";
+import { colourSpec, describeStudy, type RunSelection } from "./selection";
+import { maskOfKey } from "./groups";
+import { scopeMask } from "./view";
 
 export interface BoxNumbers { q1: number; med: number; q3: number; lo: number; hi: number; n: number; out: number[] }
 export interface CellCounts { x: number[]; y: number[]; s: number[]; n: number[] }
@@ -34,9 +34,7 @@ export function chartSelection(s: Study, group?: string): RunSelection {
     shown = new Uint8Array(n);
     for (let i = 0; i < n; i++) shown[i] = (!scope || scope[i]) && (!g || g[i]) ? 1 : 0;
   }
-  const setCols = new Map(a.sets.map((c) => [c.name, c]));
-  if (s.view.groups?.length) setCols.set("#group", groupColumn(a, s.view.groups));
-  return describeRuns(modeColumns(s).cols, s.view.filters, setCols, n, shown);
+  return describeStudy(s, shown);
 }
 
 /** A pane's numbers from the server (null when the chart works them out itself, or while they are on their way -

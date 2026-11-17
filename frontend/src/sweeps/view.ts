@@ -3,7 +3,7 @@
 import type { TFn, TKey } from "../i18n";
 import type { Col, DeskPane, MapSpec, PlotStyle, Role, Scale, View } from "./model";
 import { useSweeps, wireQuestion, type Study, type StudyColumn } from "./state";
-import { keptMask } from "./filters";
+import { setKeep } from "./tabs";
 import { FLAG_COLS } from "./colors";
 import { groupColumn, hiddenMask, maskOfKey } from "./groups";
 
@@ -314,7 +314,7 @@ export function tableRows(s: Study): number[] {
   const cols = setColumns(s);
   const n = a?.sets[0]?.values.length ?? 0;
   if (!a || !n) return [];
-  const kept = keptMask(cols, s.view.filters, n);
+  const kept = setKeep(s).mask;              // FT9: by the tab each filter was made in
   const scope = scopeMask(s);
   const holds = cols.get("#holds")!.values;
   const rows: number[] = [];

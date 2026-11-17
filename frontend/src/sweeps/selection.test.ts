@@ -18,8 +18,9 @@ describe("the brush of All runs, described for the server (1.29)", () => {
   });
 
   it("decides per-set columns and the sets shown on the page, over every set", () => {
+    // a column the page lacks goes as it is (the server ignores one the table lacks too - FT9: Parameter sets without the runs)
     const d = describeRuns(runs, { "#holds": { kind: "values", values: [1] }, nope: { kind: "values", values: [1] } }, sets, 4, Uint8Array.from([1, 1, 0, 1]));
-    expect(d).toEqual({ filters: {}, sets: [0, 3] });
+    expect(d).toEqual({ filters: { nope: { kind: "values", values: [1] } }, sets: [0, 3] });
     expect(describeRuns(runs, { "#set": { kind: "ranges", ranges: [[2, 3]] } }, sets, 4, null).sets).toEqual([2, 3]);
   });
 });

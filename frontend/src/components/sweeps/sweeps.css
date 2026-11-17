@@ -479,6 +479,9 @@
 .sw-run-values dd { margin: 0; font-variant-numeric: tabular-nums; }
 .sw-zoom { display: inline-flex; gap: 3px; align-items: center; margin-inline-start: auto; }
 .sw-what-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* FT9: the filters made in the other tab that apply here */
+.sw-across { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin: 2px 0; padding: 2px 4px 2px 10px;
+  border: 1px solid var(--select-ring); border-radius: 999px; font-size: 12px; color: var(--ink); background: var(--select-soft); }
 
 /* the Columns step */
 .sw-toolrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }

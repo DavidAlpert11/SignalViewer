@@ -44,7 +44,7 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
       <ColourKey study={study} />
       {/* null: All runs above the cap while the count of the brush now is on its way (1.29) */}
       <span className="hint sw-count" data-exact={shown === null ? "0" : "1"}>{shown === null ? "…" : t("swShown", { n: shown.toLocaleString(), of: total.toLocaleString() })}</span>
-      {nFilters > 0 && <button className="btn outline" onClick={() => setView({ filters: {} })}>{t("swClearFilters", { n: nFilters })}</button>}
+      {nFilters > 0 && <button className="btn outline" onClick={() => setView({ filters: {}, filterTab: {} })}>{t("swClearFilters", { n: nFilters })}</button>}
       {/* HiPlot's Keep / Exclude / Restore: narrow what is shown to the selection, step by step */}
       <button className="btn outline" disabled={!nFilters || shown === 0} onClick={onKeep} title={t("swKeepHint")}>{t("swKeepSel")}</button>
       <button className="btn outline" disabled={!nFilters || shown === total} onClick={onExclude} title={t("swExcludeHint")}>{t("swExcludeSel")}</button>

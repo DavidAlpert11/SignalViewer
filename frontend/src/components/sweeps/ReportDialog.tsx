@@ -7,8 +7,9 @@ import { useState } from "react";
 import { pickPath, useApp } from "../../store";
 import { useT, type TFn } from "../../i18n";
 import { Icon } from "../../icons";
-import { hasFilter, keptMask } from "../../sweeps/filters";
-import { fmtValue, labelOf } from "../../sweeps/scales";
+import { hasFilter } from "../../sweeps/filters";
+import { filterParts, setKeep } from "../../sweeps/tabs";
+import { filterText, fmtValue } from "../../sweeps/scales";
 import { sweepApi } from "../../sweeps/api";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
 import { activeColumns, activeParams, colLabel, showKey, mapAxes, mapList, mapSpec, scopeKey, scopeMask, setColumns, shownAxes, tableColumns, tableRows } from "../../sweeps/view";
@@ -54,12 +55,12 @@ function processLines(t: TFn, s: Study): string[] {
   const cols = setColumns(s);
   if (v.scope.key === scopeKey(s))
     v.scope.steps.forEach((st, i) => out.push(t(st.kind === "keep" ? "swRepKept" : "swRepExcluded", { i: i + 1, n: st.sets.length })));
+  const runs = filterParts(s).runs, runCols = new Map((s.answer?.runs?.columns ?? []).map((c) => [c.name, c]));
   for (const [name, f] of Object.entries(v.filters)) {
     if (!hasFilter(f)) continue;
-    const c = cols.get(name);
-    const what = f.kind === "ranges" ? f.ranges.map(([a, b]) => `${fmtValue(Math.min(a, b))} – ${fmtValue(Math.max(a, b))}`).join(" ∪ ")
-      : f.values.map((x) => (c ? labelOf(c, x) : String(x))).join(", ");
-    out.push(t("swRepFilter", { c: colLabel(t, s, name), what }));
+    // FT9: a filter made in All runs keeps runs (its sets: those with a run that passes)
+    const per = name in runs;
+    out.push(t(per ? "swRepFilterRuns" : "swRepFilter", { c: colLabel(t, s, name), what: filterText(f, (per ? runCols : cols).get(name) ?? cols.get(name)) }));
   }
   const k = showKey(v);
   if (k !== "all") out.push(t("swRepShown", { what: k === "holds" ? t("swShowHoldsWord") : k === "fail" ? t("swShowFailWord") : (v.groups ?? []).find((g) => g.id === k)?.name ?? k }));
@@ -117,7 +118,7 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
       "#pointsTitle": t("swCenterScatter"), "#holdsKey": t("swHolds"), "#others": t("swOthers") });
     const setCols = new Set(a.sets.map((c) => c.name));
     // the sets on screen: after the filters and the keep / exclude steps
-    const n = a.sets[0]?.values.length ?? 0, kept = keptMask(cols, study.view.filters, n), scope = scopeMask(study);
+    const n = a.sets[0]?.values.length ?? 0, kept = setKeep(study).mask, scope = scopeMask(study);
     const shown: number[] = [];
     for (let i = 0; i < n; i++) if (kept[i] && (!scope || scope[i])) shown.push(i);
     // the table as on screen (S04): its columns, its sets in its order (only those that hold, sorted)

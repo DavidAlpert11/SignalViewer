@@ -6,6 +6,7 @@ A selection description (JSON from the page):
     filters  {column: {kind: "ranges", ranges: [[a, b], ...]}
                     | {kind: "values", values: [number, ...]}        - a number column
                     | {kind: "labels", labels: [text, ...]}}         - a text column, by its labels
+                                                                      (or "values": codes into its labels)
              filters on columns the prepared table does not have are ignored (as on the page)
     sets     [set index] - the sets the page shows (Show, keep / exclude steps, hidden groups:
              per set, exact on the page), or null for every set
@@ -16,7 +17,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from svcore.sweep.encode import labels_of
+from svcore.sweep.encode import category_labels, labels_of
 from svcore.sweep.evaluate import Prepared
 
 
@@ -30,6 +31,12 @@ def column_mask(s: pd.Series, f: Dict[str, Any]) -> Optional[np.ndarray]:
     if kind == "labels":
         labels = [str(x) for x in (f.get("labels") or [])]
         return labels_of(s).isin(labels).fillna(False).to_numpy(dtype=bool)
+    if kind == "values" and not (pd.api.types.is_numeric_dtype(s) and not pd.api.types.is_bool_dtype(s)):
+        # a text column by its codes (a filter made in All runs, read in Parameter sets without the runs on the
+        # page, FT9): codes into the labels the server sends the page for that column - the same
+        lab = category_labels(s)
+        want_l = [lab[int(x)] for x in (f.get("values") or []) if x is not None and 0 <= int(x) < len(lab)]
+        return labels_of(s).isin(want_l).fillna(False).to_numpy(dtype=bool)
     v = _f32(s)
     finite = np.isfinite(v)
     if kind == "values":

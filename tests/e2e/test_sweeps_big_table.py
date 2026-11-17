@@ -150,3 +150,58 @@ def test_charts_of_all_runs_count_every_run(pg, tmp_path):
         total = pg.evaluate("""() => [...document.querySelectorAll('.sw-hist svg rect title')]
           .reduce((s, t) => s + Number(t.textContent.trim().split(' ').pop()), 0)""")
         assert total == 200_000, (over, total)
+
+
+def test_a_filter_remembers_its_tab(pg, tmp_path):
+    """FT9 (owner, 2026-11-17): a filter on an output made in Parameter sets keeps SETS by their mean - All runs then
+    shows every run of those sets ("n of N" exact), said by the chip above the plot; back in Parameter sets the same
+    sets. A filter made in All runs keeps runs - in Parameter sets, the sets with a run that passes."""
+    rng = np.random.default_rng(3)
+    gain, rate = np.meshgrid(np.arange(20) * 0.5, np.arange(20) * 0.1, indexing="ij")
+    n_sets, n_sc = gain.size, 20
+    df = pd.DataFrame({"gain": np.repeat(gain.ravel(), n_sc), "rate": np.repeat(rate.ravel(), n_sc),
+                       "scenario_wind": np.tile(np.arange(n_sc), n_sets)})
+    df["error"] = (df.gain + df.rate + df.scenario_wind * 0.3 + rng.normal(0, 2, len(df))).round(4)
+    df.to_csv(os.path.join(tmp_path, "tabs_sweep.csv"), index=False)
+    total = len(df)                                                       # 400 sets x 20 runs = 8,000
+    mean = df.groupby(["gain", "rate"], sort=False).error.mean().astype(np.float32).to_numpy()
+    lo, hi = 6.0, 8.0
+    k_sets = int(((mean >= lo) & (mean <= hi)).sum())
+    assert 0 < k_sets < n_sets
+    own = int(((df.error.astype(np.float32) >= lo) & (df.error.astype(np.float32) <= hi)).sum())
+    assert own != k_sets * n_sc                                           # each run by its own value: another count
+    _open_table(pg, tmp_path, "tabs_sweep.csv")
+    _step(pg, "results")
+    pg.locator(".sw-show select").select_option("all")
+    _tab(pg, "sets")
+    _idle(pg)
+    pg.evaluate(f"window.__svSweeps.filter('error', {{kind: 'ranges', ranges: [[{lo}, {hi}]]}})")
+    pg.wait_for_selector(f".sw-plotbar .sw-count:has-text('{k_sets} of {n_sets} lines')")
+    assert pg.locator(".sw-across").count() == 0                          # made here: no chip
+    _tab(pg, "runs")
+    pg.wait_for_selector(".sw-what-line:has-text('A line per run')")
+    _idle(pg)
+    pg.wait_for_selector(f".sw-plotbar .sw-count[data-exact='1']:has-text('{k_sets * n_sc:,} of {total:,} lines')")
+    chip = pg.locator(".sw-across")
+    assert f"{k_sets} sets, all their {k_sets * n_sc:,} runs" in chip.inner_text()
+    _tab(pg, "sets")
+    _idle(pg)
+    pg.wait_for_selector(f".sw-plotbar .sw-count:has-text('{k_sets} of {n_sets} lines')")
+    # a filter made in All runs: in Parameter sets, the sets with at least one run that passes
+    pg.locator(".sw-plotbar .btn", has_text="Clear 1 filters").click()
+    _tab(pg, "runs")
+    _idle(pg)
+    lo2, hi2 = 14.0, 99.0
+    e = df.error.astype(np.float32)
+    passing = ((e >= lo2) & (e <= hi2)).to_numpy()
+    sets = df.groupby(["gain", "rate"], sort=False).ngroup().to_numpy()
+    k2 = len(set(sets[passing].tolist()))
+    pg.evaluate(f"window.__svSweeps.filter('error', {{kind: 'ranges', ranges: [[{lo2}, {hi2}]]}})")
+    pg.wait_for_selector(f".sw-plotbar .sw-count[data-exact='1']:has-text('{int(passing.sum()):,} of {total:,} lines')")
+    _tab(pg, "sets")
+    _idle(pg)
+    pg.wait_for_selector(f".sw-plotbar .sw-count[data-exact='1']:has-text('{k2} of {n_sets} lines')")
+    assert f"{k2} sets with a run that passes" in pg.locator(".sw-across").inner_text()
+    pg.locator(".sw-across button").click()                              # x: the filters of the other tab go
+    pg.wait_for_selector(f".sw-plotbar .sw-count:has-text('{n_sets} of {n_sets} lines')")
+    pg.wait_for_selector(".sw-across", state="detached")

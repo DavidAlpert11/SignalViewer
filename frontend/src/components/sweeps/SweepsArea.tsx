@@ -35,6 +35,8 @@ import { emptyView, newGoal, materialize } from "../../sweeps/model";
 import { notify, notifyError, say } from "../../sweeps/notify";
 import { activeParams, colLabel, reorderedAxes, scaleOf, scopedColumns, scopeKey, showMask, shownAxes } from "../../sweeps/view";
 import { keptMask } from "../../sweeps/filters";
+import { acrossFilters, filterParts, modeKeep, ownFilters, runsTabAsk, setFilterColumns, setKeep } from "../../sweeps/tabs";
+import { filterText } from "../../sweeps/scales";
 import { runSelection } from "../../sweeps/selection";
 import ReportDialog from "./ReportDialog";
 import { TABLE_EXTS, fileKind } from "../../sweeps/studyFile";
@@ -295,7 +297,7 @@ function SweepsBar() {
     const s = st.studies[st.active];
     openMenu(below(e), [
       ...(s ? [
-        { label: t("swClearCharts"), run: () => st.setView({ groups: [], activeGroup: undefined, desk: undefined, rerun: [], rerunSplit: [], filters: {}, pinned: null }) },
+        { label: t("swClearCharts"), run: () => st.setView({ groups: [], activeGroup: undefined, desk: undefined, rerun: [], rerunSplit: [], filters: {}, filterTab: {}, pinned: null }) },
         { label: t("swClearGoal"), run: () => {
           st.setQuestion(materialize({ ...s.question, goals: [newGoal("1")], active: 0, robust: undefined, split: undefined }));
           st.setView({ ...emptyView(), step: "goals" });
@@ -521,12 +523,17 @@ function ResultsCenter({ study }: { study: Study }) {
   const setOfRow = (r: number) => (v.mode === "sets" ? (index ? index[r] : r) : (cols.get("#set")?.values[r] ?? -1));
   // the lines kept: the axes' filters and Show (all, those that hold, a group...) - as the table
   const showM = useMemo(() => showMask(study), [study]);
+  // FT9: each filter by the tab it was made in (sweeps/tabs.ts) - those made in All runs keep, in Parameter sets, the
+  // sets with a run that passes: the server says which (asked when they change)
+  const tabAsk = runsTabAsk(study)?.key ?? "";
+  useEffect(() => { if (tabAsk) st.refreshRunsTab(); }, [tabAsk]);   // eslint-disable-line react-hooks/exhaustive-deps
   const keep = useMemo(() => {
-    const m = keptMask(cols, v.filters, n);
+    const m = modeKeep(study, cols, n, index);
     if (showM) for (let i = 0; i < n; i++) if (m[i] && !showM[setOfRow(i)]) m[i] = 0;
     return m;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cols, v.filters, n, showM, index, v.mode]);
+  }, [cols, v.filters, v.filterTab, n, showM, index, v.mode, study.runsTab, study.answer]);
+  const tabPending = v.mode === "sets" && setKeep(study).pending;
   const drawnKept = useMemo(() => { let k = 0; for (let i = 0; i < n; i++) k += keep[i]; return k; }, [keep, n]);
   // All runs (1.29): every run up to the Settings cap, else a sample of those the brush keeps - asked again when
   // the brush, the open set or the cap change, once it rests; the count is then the server's, of every run
@@ -541,7 +548,7 @@ function ResultsCenter({ study }: { study: Study }) {
     return () => window.clearTimeout(h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wantKey, runs, cap, over]);
-  const exact = !partial || runs!.selKey === wantKey;
+  const exact = (!partial || runs!.selKey === wantKey) && !tabPending;
   const shown = partial && runs!.kept !== undefined ? runs!.kept : drawnKept;
   const total = partial ? runs!.total : n;
   const highlight = useMemo(() => {
@@ -594,6 +601,7 @@ function ResultsCenter({ study }: { study: Study }) {
             onExclude={() => void narrow("exclude")}
             onExport={exportShown}
             onExportPlot={() => say(exportPlot(t, study, lang))} />
+          <AcrossChip study={study} />
           <p className="hint sw-what-line">{v.mode === "sets" ? t("swPerSetHint") : t("swPerRunHint")}
             <ZoomButtons zoom={zoom} onZoom={(z) => useSweeps.getState().setZoom(zoomKey, z)} /></p>
           {v.mode === "runs" && study.answer.counts.rows === study.answer.counts.sets && <p className="hint">{t("swRunsSameAsSets")}</p>}
@@ -601,7 +609,7 @@ function ResultsCenter({ study }: { study: Study }) {
           {runs?.density && <p className="hint sw-density">{t("swDensityHint", { of: runs.total.toLocaleString(), n: runs.density.sparse.toLocaleString() })}</p>}
           {axes.length ? (
             <ParallelPlot sliderLabel={(a, b, n) => t("swAxesOnScreen", { a, b, n })} cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
-              filters={v.filters} keep={keep} highlight={highlight} labelOf={(a) => colLabel(t, study, a)} fit={!!v.fitAxes}
+              filters={ownFilters(study)} keep={keep} highlight={highlight} labelOf={(a) => colLabel(t, study, a)} fit={!!v.fitAxes}
               density={runs?.density ?? null} keptTotal={partial && exact ? shown : undefined}
               zoom={zoom} onZoom={(z) => useSweeps.getState().setZoom(zoomKey, z)}
               onPick={(r) => st.setView({ pinned: setOfRow(r) })}
@@ -614,7 +622,7 @@ function ResultsCenter({ study }: { study: Study }) {
       {!study.answer && v.center !== "lines" && <p className="empty-note">{study.evalError || t("swReading")}</p>}
       {menu && menuCol && (
         <AxisMenu col={menuCol} label={colLabel(t, study, menu.name)} at={menu.at} scale={scale(menu.name)} reversed={!!v.reversed[menu.name]}
-          filter={v.filters[menu.name]} colouring={v.colorBy === menu.name}
+          filter={ownFilters(study)[menu.name]} colouring={v.colorBy === menu.name}
           onScale={(s) => st.setScale(menu.name, s)}
           onReverse={() => st.setView({ reversed: { ...v.reversed, [menu.name]: !v.reversed[menu.name] } })}
           onColour={() => st.setView({ colorBy: menu.name })}
@@ -622,5 +630,44 @@ function ResultsCenter({ study }: { study: Study }) {
           onFilter={(f) => st.setFilter(menu.name, f)} onClose={() => setMenu(null)} />
       )}
     </>
+  );
+}
+
+/** FT9: one line above the plot - the filters made in the other tab that apply here, and what they keep (owner,
+ *  2026-11-17): in All runs, those made in Parameter sets keep sets - every run of them; in Parameter sets, those made
+ *  in All runs keep the sets with a run that passes. × clears them. */
+function AcrossChip({ study }: { study: Study }) {
+  const t = useT();
+  const across = acrossFilters(study);
+  const names = Object.keys(across);
+  const a = study.answer;
+  if (!names.length || !a) return null;
+  const runsMode = study.view.mode === "runs";
+  const cols = runsMode ? setFilterColumns(study) : new Map((a.runs?.columns ?? []).map((c) => [c.name, c]));
+  const what = names.map((c) => `${colLabel(t, study, c)} ${filterText(across[c], cols.get(c) ?? a.sets.find((x) => x.name === c))}`).join("; ");
+  let text: string;
+  if (runsMode) {
+    const nSets = a.sets[0]?.values.length ?? 0, m = keptMask(cols, filterParts(study).sets, nSets);
+    let k = 0;
+    for (let i = 0; i < nSets; i++) k += m[i];
+    // every run on the page: how many runs those sets have, counted here
+    const r = a.runs && !a.runs.sampled && !a.runs.density ? a.runs.columns.find((c) => c.name === "#set")?.values : undefined;
+    let nr = 0;
+    if (r) for (let i = 0; i < r.length; i++) nr += m[r[i]];
+    text = r ? t("swAcrossSetsRuns", { what, n: k.toLocaleString(), r: nr.toLocaleString() }) : t("swAcrossSets", { what, n: k.toLocaleString() });
+  } else {
+    const key = runsTabAsk(study)?.key;
+    text = study.runsTab && study.runsTab.key === key ? t("swAcrossRuns", { what, n: study.runsTab.sets.length.toLocaleString() }) : t("swAcrossRunsWait", { what });
+  }
+  const clear = () => {
+    const v = study.view, filters = { ...v.filters }, filterTab = { ...v.filterTab };
+    for (const c of names) { delete filters[c]; delete filterTab[c]; }
+    useSweeps.getState().setView({ filters, filterTab });
+  };
+  return (
+    <div className="sw-across" role="status">
+      <span>{text}</span>
+      <button className="iconbtn" aria-label={t("swAcrossClear")} title={t("swAcrossClear")} onClick={clear}>×</button>
+    </div>
   );
 }
