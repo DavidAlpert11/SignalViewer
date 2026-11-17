@@ -531,3 +531,12 @@ answer has conditions; `scales.labelOf` reads ✓ / ✗ on a flag column.
   error: 810 -> 581 -> 194 ... lines, 661 KB) and 46_satellite_replay (the cursor runs 30 -> 230 s: the vehicle along
   its track over the photos, the cursor in altitude and roll, 2.3 MB). The hero and the other tour pictures stay
   still. 44 (the still) moved to the gallery. mkdocs --strict green; links checked.
+- 2026-11-17 · RD4: third README film 47_what_changed (cursors pulled across the roll's jump, the question, the
+  answer; 472 KB) in the tour. RD5 (owner: a modern docs home page): site_name shortened to *Signal Viewer*;
+  overrides/home.html (theme custom_dir) puts a full-width hero under the tabs - eyebrow, a three-line headline,
+  the lead, Download / Get started / Hebrew, `pip install`, the formats, the first picture in a glowing frame;
+  docs/index.md rebuilt: five alternating text / picture rows (the three films + checks + report), eight cards,
+  four numbers (29 cases, about 2 s for a million runs, all the data, offline), install tabs (Linux / macOS
+  added), a closing call to action. extra.css: the landing styles for light and dark, phone widths stack.
+  docs.yml also builds on overrides/** and the hooks. mkdocs 1.6.1 + material 9.7.7 (as CI) build --strict
+  green; checked at 1440 light / dark and 390 phone.
