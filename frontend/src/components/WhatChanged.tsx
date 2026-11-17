@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type ChangeChain, type ChangeCluster, type FirstChange, type LagResult, type RunInfo } from "../api";
+import { pathThin } from "../thin";
 import { actions, activeTab, fileLabel, rangeKey, signalName, styledSignal, TRACE_COLORS, uid, useApp, type Plot, type Tab } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
@@ -504,7 +505,8 @@ function ClusterPlot({ xs, base, span, lang, t }: { xs: FirstChange[]; base: [nu
 }
 
 function Spark({ v: all, up }: { v: (number | null)[]; up: boolean }) {
-  const v = all.length > 40 ? all.filter((_, i) => i % Math.ceil(all.length / 40) === 0) : all;
+  // a small picture, every rise and fall kept (CLAUDE.md: no point left out of a picture)
+  const v = all.length > 40 ? pathThin([all.map((x) => x ?? NaN)], all.length, 40).map((i) => all[i]) : all;
   const ok = v.filter((x): x is number => x !== null);
   if (ok.length < 2) return <svg className="wc-spark" width={56} height={16} aria-hidden="true" />;
   const lo = Math.min(...ok), hi = Math.max(...ok), sp = hi - lo || 1;

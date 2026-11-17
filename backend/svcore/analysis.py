@@ -13,7 +13,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from svcore.decimate import minmax_decimate, stride_decimate
+from svcore.decimate import minmax_decimate, path_thin
 from svcore.memcache import CACHE as MEMCACHE
 from svcore.ops import (FilterError, apply_filter, compute_fft, compute_welch, cumulative_trapezoid, moving_average,
                         nearest_indices, on_updates, uniform_samples)
@@ -811,8 +811,11 @@ def xy_pair(tx, x, ty, y, method: str, t0=None, t1=None, points: int = 16000, wi
     if hi <= lo:
         return (np.array([]), np.array([]), np.array([])) if with_t else (np.array([]), np.array([]))
     i0, i1 = np.searchsorted(tx, lo, "left"), np.searchsorted(tx, hi, "right")
-    ts, xs, _ = stride_decimate(tx[i0:i1], _f64(x[i0:i1]), points)
-    ys = align_to(_f64(ts), ty, y, method)
+    ts, xs = _f64(tx[i0:i1]), _f64(x[i0:i1])
+    ys = align_to(ts, ty, y, method)
+    if len(ts) > points > 0:           # every excursion of X or Y kept (CLAUDE.md: no point left out of a picture)
+        idx = path_thin([xs, ys], points)
+        ts, xs, ys = ts[idx], xs[idx], ys[idx]
     return (_f64(xs), ys, _f64(ts)) if with_t else (_f64(xs), ys)
 
 

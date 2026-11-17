@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from app.common import fail
 from app.store import store
+from svcore.decimate import path_thin
 
 router = APIRouter()
 
@@ -80,8 +81,8 @@ def _objects(rids: List[str]):
 def _thin(t, y, n):
     if n <= 0:
         return None
-    if len(t) > n:
-        idx = np.unique(np.linspace(0, len(t) - 1, n).astype(int))
+    if len(t) > n:                     # every excursion kept (CLAUDE.md: no point left out of a picture)
+        idx = path_thin([y], n)
         t, y = t[idx], y[idx]
     f = lambda a: [None if not np.isfinite(v) else float(v) for v in a]
     return {"t": f(t), "y": f(y)}

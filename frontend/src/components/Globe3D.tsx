@@ -1,5 +1,6 @@
 import { declutter, type LabelBox } from "../declutter";
 import { useVectors } from "../mapVectors";
+import { pathThin } from "../thin";
 import { boundsOf, isMyMap, layerMaxZoom, myMapAttribution } from "../mapLayers";
 import MapLayers from "./MapLayers";
 import HeightProfile from "./HeightProfile";
@@ -540,10 +541,11 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
       const tr = tracks[o.id];
       if (!tr || !tr.t.length) continue;
       const col = cz.Color.fromCssColorString(o.color);
-      const step = Math.max(1, Math.ceil(tr.t.length / TRACK_POINTS));
+      // every jump of the position or height kept (CLAUDE.md: no point left out of a picture)
+      const hs = Float64Array.from({ length: tr.t.length }, (_, i) => heightAt(o, tr, i));
       const idx: number[] = [], pos: import("cesium").Cartesian3[] = [];
-      for (let i = 0; i < tr.t.length; i += step) {
-        const h = heightAt(o, tr, i);
+      for (const i of pathThin([tr.lat, tr.lon, hs], tr.t.length, TRACK_POINTS)) {
+        const h = hs[i];
         if (Number.isFinite(tr.lat[i]) && Number.isFinite(tr.lon[i]) && Number.isFinite(h)) { idx.push(i); pos.push(cz.Cartesian3.fromDegrees(tr.lon[i], tr.lat[i], h)); }
       }
       const d: Drawn = { idx, pos, full: null, part: null, fullMat: null, label: null };
@@ -817,8 +819,7 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
     for (const o of objects) {
       const tr = tracks[o.id];
       if (!tr) continue;
-      const step = Math.max(1, Math.floor(tr.t.length / 400));
-      for (let i = 0; i < tr.t.length; i += step) {
+      for (const i of pathThin([tr.lat, tr.lon], tr.t.length, 400)) {       // the extremes in view
         const h = heightAt(o, tr, i);
         if (Number.isFinite(tr.lat[i]) && Number.isFinite(tr.lon[i]) && Number.isFinite(h)) pts.push(cz.Cartesian3.fromDegrees(tr.lon[i], tr.lat[i], h));
       }

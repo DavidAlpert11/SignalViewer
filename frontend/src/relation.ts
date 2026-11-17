@@ -1,5 +1,6 @@
 import { api, type Stats } from "./api";
 import { findDerived } from "./peers";
+import { pathThin } from "./thin";
 import { translate } from "./i18n";
 import { actions, useApp, type MapObject, type Plot } from "./store";
 import { attitudeOf, hasOwnAttitude, trackRequest } from "./mapObjects";
@@ -391,9 +392,11 @@ type Tr = { t: ArrayLike<number>; lat: ArrayLike<number>; lon: ArrayLike<number>
 export function errorAlong(P: Tr, ph: (i: number) => number, S: Tr, sh: (j: number) => number, max = 600): ErrorAlong | null {
   const n = P.t.length, m = S.t.length;
   if (n < 3 || m < 2) return null;
-  const step = Math.max(1, Math.floor(n / max)), rows: ErrorAlong["rows"] = [];
+  // every sample of the track counts (the median, the 95th percentile); only the rows drawn are thinned, keeping
+  // the largest errors (CLAUDE.md: no point left out of a picture)
+  const rows: ErrorAlong["rows"] = [];
   let j = 0;
-  for (let i = 0; i < n; i += step) {
+  for (let i = 0; i < n; i++) {
     const t = P.t[i];
     if (!(t >= S.t[0] && t <= S.t[m - 1]) || !Number.isFinite(P.lat[i]) || !Number.isFinite(P.lon[i])) continue;
     while (j < m - 2 && S.t[j + 1] <= t) j++;
@@ -409,7 +412,8 @@ export function errorAlong(P: Tr, ph: (i: number) => number, S: Tr, sh: (j: numb
   if (rows.length < 3) return null;
   const ds = rows.map((r) => r.d).sort((a, b) => a - b);
   const median = ds[ds.length >> 1], p95 = ds[Math.min(ds.length - 1, Math.floor(ds.length * 0.95))];
-  return { rows, median, p95, same: median < 20 };
+  const drawn = rows.length > max ? pathThin([rows.map((r) => r.d)], rows.length, max).map((k) => rows[k]) : rows;
+  return { rows: drawn, median, p95, same: median < 20 };
 }
 /** The colour of an error of `q` (= d / p95): green, amber at half, red at the 95th percentile. */
 export function errorColor(q: number): string {

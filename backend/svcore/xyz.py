@@ -1,12 +1,13 @@
 """T17c: a plain 3D plot - any three signals as X, Y, Z (a trajectory in metres, three sensor
 axes, a state space...). Nothing geographic: the map / 3D globe are for places on Earth.
-Y and Z are aligned onto X's samples over the time all three share, then thinned to at most
-`points` samples (every k-th one, the last kept) for drawing."""
+Y and Z are aligned onto X's samples over the time all three share, then thinned to about
+`points` samples for drawing - keeping every excursion (svcore.decimate.path_thin)."""
 from typing import Dict, Optional, Tuple
 
 import numpy as np
 
 from svcore.analysis import align_to
+from svcore.decimate import path_thin
 
 Series = Tuple[np.ndarray, np.ndarray]
 
@@ -26,7 +27,7 @@ def xyz_track(sx: Series, sy: Series, sz: Series, alignment: str = "linear", poi
     y = align_to(t, sy[0], sy[1], alignment)
     z = align_to(t, sz[0], sz[1], alignment)
     n = len(t)
-    if n > points > 0:
-        idx = np.unique(np.append(np.arange(0, n, int(np.ceil(n / points))), n - 1))
+    if n > points > 0:                 # every excursion kept (CLAUDE.md: no point left out of a picture)
+        idx = path_thin([x, y, z], points)
         t, x, y, z = t[idx], x[idx], y[idx], z[idx]
     return {"t": t, "x": x, "y": y, "z": z}

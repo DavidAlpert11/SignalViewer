@@ -11,7 +11,7 @@ from app.common import b64, fail, y_reference
 from app.store import LoadError
 from app.store import WIDE as WIDE_PARAMS, store
 from svcore.analysis import OPS, OpError, fft_display, fft_for, transitions, xy_pair
-from svcore.decimate import decimate_for_view
+from svcore.decimate import decimate_for_view, path_thin
 
 router = APIRouter()
 
@@ -446,9 +446,6 @@ def track_of(store, req: ObjectTrackRequest):
     t, lat = t[keep], lat[keep]
     if len(t) < 2:
         fail(400, "The latitude signal has no samples.")
-    step = max(1, int(np.ceil(len(t) / max(100, req.points))))
-    t, lat = t[::step], lat[::step]
-
     def onto(tt, vv, angle=False):
         tt = np.asarray(tt, dtype=np.float64)
         vv = np.asarray(vv, dtype=np.float64)
@@ -466,6 +463,17 @@ def track_of(store, req: ObjectTrackRequest):
         return out
 
     lon_a = onto(tlo, lon)
+    # thinned for drawing so that every jump of the position (and of the height) is kept - CLAUDE.md: no point
+    # left out of a picture; the other signals are then put on the samples kept
+    if len(t) > max(100, req.points):
+        alt_full = None
+        if req.alt:
+            try:
+                alt_full = onto(*store.signal(req.alt))
+            except KeyError:
+                pass
+        idx = path_thin([lat, lon_a] + ([alt_full] if alt_full is not None else []), max(100, req.points))
+        t, lat, lon_a = t[idx], lat[idx], lon_a[idx]
     if np.nanmax(np.abs(lat)) > 90 or np.nanmax(np.abs(lon_a)) > 180:     # 1e7 degrees (MAVLink ints)
         lat, lon_a = lat / 1e7, lon_a / 1e7
     lat, lon_a = no_position_as_gap(lat, lon_a)

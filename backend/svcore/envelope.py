@@ -39,5 +39,23 @@ def envelope(series: List[Tuple[np.ndarray, np.ndarray]], t0: Optional[float] = 
             best, cut = ratio, k + 1
     flagged = set(order[:cut])
     outlier = [i in flagged for i in range(len(dev))]
-    return {"t": grid, "min": np.nanmin(m, axis=0), "max": np.nanmax(m, axis=0), "lo": p_lo, "median": med, "hi": p_hi,
+    # the band's edges from every sample, not only those at the grid's points: a short spike of one run between
+    # two grid points is in the band (CLAUDE.md: no point left out of a picture)
+    with np.errstate(all="ignore"):
+        band_lo, band_hi = np.nanmin(m, axis=0), np.nanmax(m, axis=0)
+    for t, (_, y) in zip(ts, series):
+        yy = np.asarray(y, dtype=np.float64)
+        ok = (t >= lo) & (t <= hi) & np.isfinite(yy)
+        if not ok.any():
+            continue
+        cell = np.clip(np.rint((t[ok] - lo) / (hi - lo) * (len(grid) - 1)).astype(np.int64), 0, len(grid) - 1)
+        v = yy[ok]
+        if len(cell) > 1 and np.any(np.diff(cell) < 0):        # time not in order: sort once
+            o = np.argsort(cell, kind="stable")
+            cell, v = cell[o], v[o]
+        starts = np.flatnonzero(np.r_[True, np.diff(cell) != 0])
+        at = cell[starts]
+        band_lo[at] = np.fmin(band_lo[at], np.minimum.reduceat(v, starts))
+        band_hi[at] = np.fmax(band_hi[at], np.maximum.reduceat(v, starts))
+    return {"t": grid, "min": band_lo, "max": band_hi, "lo": p_lo, "median": med, "hi": p_hi,
             "deviation": [float(d) for d in dev], "outlier": outlier, "pct": pct}

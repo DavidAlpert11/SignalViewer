@@ -239,16 +239,6 @@ def decimate_for_view(
     return np.concatenate(parts_x), np.concatenate(parts_y), True
 
 
-def stride_decimate(x: np.ndarray, y: np.ndarray, n_out: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray, bool]:
-    """Uniform stride decimation, for non-monotonic x (X-Y plots)."""
-    n_out = MAX_POINTS_PER_TRACE * 4 if n_out is None else n_out  # X-Y shapes need more points
-    n = len(x)
-    if n_out <= 0 or n <= n_out:
-        return np.asarray(x), np.asarray(y), False
-    step = int(np.ceil(n / n_out))
-    return np.asarray(x[::step]), np.asarray(y[::step]), True
-
-
 def hold_at(time: np.ndarray, data: np.ndarray, target: float, look_back: int = 200_000) -> Optional[float]:
     """The value IN FORCE at target: the last real (non-NaN) sample at or before it, not an
     interpolation. For states / text values / modes (between STABILIZE=0 and ACRO=1 there is no 0.2)."""
@@ -289,3 +279,27 @@ def interp_at(time: np.ndarray, data: np.ndarray, target: float) -> Optional[flo
         return v0 + (v1 - v0) * (target - t0) / (t1 - t0)
     except (TypeError, ValueError, IndexError):     # a target or values that are not numbers
         return None
+
+
+def path_thin(cols: Sequence[np.ndarray], n_out: int) -> np.ndarray:
+    """Which samples of a path (X-Y, a 3D track, a map track, a trace over time) to draw so that no
+    excursion is lost (owner, 2026-11-17: "a skip can hide the problem"): the samples are cut into
+    chunks, and of each chunk the first, the last and the samples of the smallest and the largest value
+    of every column are kept - in time order, so the path still goes through every extreme. About
+    n_out samples in all; every sample when there are fewer. Returns sorted indices."""
+    n = len(cols[0]) if cols else 0
+    per = 2 + 2 * len(cols)                       # samples kept from one chunk at most
+    if n_out <= 0 or n <= n_out or n <= per:
+        return np.arange(n)
+    k = max(2, int(np.ceil(n * per / n_out)))    # chunk length
+    m = n // k
+    starts = np.arange(m) * k
+    keep = [starts, starts + k - 1]
+    for c in cols:
+        a = np.asarray(c, dtype=np.float64)[: m * k].reshape(m, k)
+        bad = ~np.isfinite(a)
+        keep.append(starts + np.where(bad, np.inf, a).argmin(axis=1))
+        keep.append(starts + np.where(bad, -np.inf, a).argmax(axis=1))
+    if m * k < n:                                  # the rest: kept whole (shorter than a chunk)
+        keep.append(np.arange(m * k, n))
+    return np.unique(np.concatenate(keep))

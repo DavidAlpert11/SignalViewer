@@ -1,5 +1,6 @@
 import { countRender } from "../perf";
 import { runsDataKey } from "../values";
+import { pathThin } from "../thin";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { useVectors } from "../mapVectors";
@@ -641,9 +642,9 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
         // a coloured track: each stretch of one colour drawn on its own
         // N5: a receiver's fixes as points, a navigation solution dashed (o.track; default a line)
         const dots = (i0: number, i1: number, r: number, color: (i: number) => string | null) => {
-          const step = Math.max(1, Math.ceil((i1 - i0) / 4000));
-          for (let i = i0; i < i1; i += step) {
-            const a = tr.lon[i], b = tr.lat[i], c = color(i);
+          // every fix out of line kept (CLAUDE.md: no point left out of a picture)
+          for (const j of pathThin([tr.lon.subarray(i0, i1), tr.lat.subarray(i0, i1)], i1 - i0, 4000)) {
+            const i = i0 + j, a = tr.lon[i], b = tr.lat[i], c = color(i);
             if (!c || !Number.isFinite(a) || !Number.isFinite(b)) continue;
             ctx.beginPath(); ctx.arc(X(mx(a)), Y(my(b)), r, 0, Math.PI * 2); ctx.fillStyle = c; ctx.fill();
           }
