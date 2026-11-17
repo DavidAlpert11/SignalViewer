@@ -29,12 +29,13 @@ What is open, in order (the finished history is in the Log and in git: `git show
 | Stability on Windows with a GPU (Out of Memory, the 3D shader) | waiting for numbers | the owner runs `tools/measure_maps.py --gpu`; the e2e suite's memory |
 | Films in Hebrew + a narration script; GitHub About texts | offered / with the owner | his choice; he pastes the About texts |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
-| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | in progress | FT1-FT8 done (FT5 density; FT6 exact charts); the end of the round, then 1.29.0 |
+| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | in progress | FT1-FT8 done, whole e2e 509 green; FT9 next, then the version 1.29.0 (its CHANGELOG section is written) |
 | M35 FT1 - the brush of All runs resolved on the whole table | done | - |
 | M35 FT2 - ParallelPlot in layers, progressive; measured | done | - |
 | M35 FT3 - all rows up to the Settings cap, sample from kept rows, exact counts | done | - |
 | M35 FT4 - HTML export of a table: all rows up to the cap | done | - |
 | M35 FT8 - the rule "no point left out of a picture" + the needle tests | done | - |
+| **M35 FT9 - filters remember their tab; sets filters show every run of the sets in All runs; holds axis** (ROADMAP FT9) | **next (owner: yes, in 1.29.0)** | "FT9 notes" below; then the version 1.29.0 |
 | M35 FT7 - X-Y / 3D: extreme-keeping thinning instead of a stride | done | - |
 | M35 FT6 - exact Charts in All runs (server statistics, scatter as density + outliers) | done | - |
 | M35 FT5 - parallel plot above the cap: density by default, the sample a Settings choice | done | - |
@@ -50,6 +51,28 @@ filtered and drawn there (HiPlot's approach, in our own code - not the hiplot pa
 the rows the filters keep, said on screen. Anything that turns the brush into a result (Keep, Exclude, a group,
 Export shown, counts) is resolved by the server on the whole table (`svcore/sweep/select.py`), never from the rows
 drawn. Backend density drawing (2D histograms) is a follow-up only (FT5).
+
+## FT9 notes (for the session that takes it over, 2026-11-17)
+
+- Where the filters live: `view.filters` (sweeps/model.ts `View`, saved in .svsweep / autosave). Add an OPTIONAL saved field
+  (e.g. `filterTab?: Record<column, "sets" | "runs">`; missing = "sets") - never rename `filters`. `setFilter` (state.ts)
+  records the current `view.mode`.
+- What reads the filters today (read every one before changing - CLAUDE.md): ResultsCenter `keep` (keptMask over the mode's
+  columns), `selection.runSelection` / `describeRuns` (what the server resolves: Keep / Exclude / Export shown / Save as group,
+  and the density / sample requests via `state.drawOf`), `runCharts.chartSelection` (Charts), `view.tableRows` (the table),
+  groups' live rules (`groups.fromBrush`), ReportDialog, Desk `useRows`, ScatterView, PlotToolbar ("Clear n filters").
+- The rule: in All runs, sets-tab filters -> a mask over the answer's set columns (every set is on the page: exact), folded
+  into `sets` of the description (as Show / scope already are) and into the page's own `keep`; runs-tab filters stay run
+  filters. In Parameter sets, runs-tab filters -> the sets with a passing run: `/api/sweep/select` answers `sets` - ask only
+  when such a filter exists. A parameter's filter is the same either way.
+- The chip: one line above the plot (by PlotToolbar), en + he in sweeps/i18n.ts, RTL checked.
+- Holds axis by default: `state.defaultAxes` / `optAxes` add "#holds" when the question has conditions; a flag column's axis
+  reads ✓ / ✗ (sweeps/scales.ts makeScale: category axis labels).
+- Then: a CHANGELOG line in the 1.29.0 section, ROADMAP tick, TASKS log; relevant e2e (tests/e2e/test_sweeps_*.py,
+  test_needle.py, test_settings.py); quick_check; the whole e2e suite once (last: 509 passed); then the version 1.29.0:
+  build.bat VERSION, backend/app/version.py, CITATION.cff (version, date-released), installer/SignalViewer.iss,
+  installer/version_info.txt (see "Releasing"; README checked against the CHANGELOG). Do not tag (the owner tags); no PR
+  unless the owner asks.
 
 ## Open specs (waiting for the owner)
 
