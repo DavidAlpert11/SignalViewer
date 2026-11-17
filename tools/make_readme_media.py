@@ -8,7 +8,8 @@ and takes the shots. Run it before a release so the pictures show the current in
     python tools/make_readme_media.py --only examples # W1 / W2: the welcome screen's card pictures
     SV_CHROMIUM=/path/to/chrome python tools/make_readme_media.py
 
-Needs: playwright (+ a Chromium). The films are made by make_demo_video.py / make_training_video.py.
+Needs: playwright (+ a Chromium). The README's short films (45, 46: GIF, made frame by frame) need ffmpeg too;
+the long films are made by make_demo_video.py / make_training_video.py.
 Not made here (kept from a real screen): 06_3d_terrain.png - a headless browser draws the 3D view
 on software WebGL. The map scenes (05, 28, 31) use OpenStreetMap's tiles and 44 Esri's satellite photos with the
 terrain: run them on a computer with the internet (`--only 05 28 31 44`, then tools/make_social_preview.py),
@@ -616,12 +617,18 @@ def img_31_flight_map_3d(b, app):
 
 
 def img_44_satellite_flight(b, app):
+    """RD2: the still (see _satellite)."""
+    ctx, pg = _satellite(b, app, 2)
+    shot(pg, "44_satellite_flight"); ctx.close()
+
+
+def _satellite(b, app, scale, zoom=None):
     """RD2 (owner, 2026-11-17): the README's map picture - the ArduPilot example over the satellite photos in 3D,
     on the real terrain, the tiles all loaded; the cursor in the middle of the track (the vehicle there) and,
     under the map on the same time, altitude and roll (desired vs actual) with the flight modes. Needs the
     internet (Esri's photos, the AWS terrain); without it the map is empty."""
     reset(app)
-    ctx = b.new_context(viewport={"width": W, "height": H}, device_scale_factor=2, color_scheme="dark")
+    ctx = b.new_context(viewport={"width": W, "height": H}, device_scale_factor=scale, color_scheme="dark")
     pg = ctx.new_page()
     pg.goto(app.url); pg.wait_for_selector(".app"); pg.wait_for_timeout(400)
     pg.evaluate("window.__sv.setState({ theme: 'dark' })")
@@ -659,8 +666,8 @@ def img_44_satellite_flight(b, app):
       return s ? { x: r.left + s.x, y: r.top + s.y } : null; }""")
     g = pg.locator(".plot:has(.globe3d)").locator("canvas").first.bounding_box()
     pg.mouse.move(*((xy["x"], xy["y"]) if xy else (g["x"] + g["width"] / 2, g["y"] + g["height"] * 0.55)))
-    for _ in range(int(os.environ.get("SV_SAT_ZOOM", "1"))):
-        pg.mouse.wheel(0, -240); pg.wait_for_timeout(200)
+    for _ in range(zoom if zoom is not None else int(os.environ.get("SV_SAT_ZOOM", "1"))):
+        pg.mouse.wheel(0, -240 if zoom is None else -140); pg.wait_for_timeout(200)
     pg.mouse.move(5, H - 5)
     # a clean picture: the photo uncovered (the 3D bar, the vehicle's numbers box and the demo's line hidden)
     pg.add_style_tag(content=".globe3d-bar, .globe3d-readout, .demo-guide { display: none !important }")
@@ -668,7 +675,75 @@ def img_44_satellite_flight(b, app):
     pg.wait_for_timeout(3000)
     pg.wait_for_function("window.__svGlobe.widget.scene.globe.tilesLoaded", timeout=180000)
     pg.wait_for_timeout(int(os.environ.get("SV_SAT_WAIT", "15000")))
-    shot(pg, "44_satellite_flight"); ctx.close()
+    return ctx, pg
+
+
+# ----------------------------------------------------------------------------- RD3: short films for the README
+def film(frames, name, fps=10, width=1200):
+    """Frames (PNG files, in order) -> docs/images/<name>.gif: one palette for the whole film (no flicker),
+    a pause on the last frame. ffmpeg needed."""
+    d = os.path.dirname(frames[0])
+    for i, f in enumerate(frames):
+        os.replace(f, os.path.join(d, f"f{i:04d}.png"))
+    for k in range(fps * 2):                                    # hold the end two seconds
+        shutil.copy(os.path.join(d, f"f{len(frames) - 1:04d}.png"), os.path.join(d, f"f{len(frames) + k:04d}.png"))
+    out = os.path.join(IMAGES, name + ".gif")
+    vf = (f"scale={width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=256:stats_mode=full[p];"
+          f"[b][p]paletteuse=dither=sierra2_4a")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps), "-i", os.path.join(d, "f%04d.png"),
+                    "-vf", vf, "-loop", "0", out], check=True)
+    shutil.rmtree(d, ignore_errors=True)
+    print("film", os.path.relpath(out, ROOT), f"{os.path.getsize(out) // 1024} KB")
+
+
+def frame(pg, d, frames):
+    path = os.path.join(d, f"raw{len(frames):04d}.png")
+    pg.screenshot(path=path); frames.append(path)
+
+
+def img_46_satellite_replay(b, app):
+    """RD3: the satellite picture as a film - the cursor runs through the flight: the vehicle moves along its
+    track on the photos while the cursor moves in altitude and roll."""
+    ctx, pg = _satellite(b, app, 1, zoom=1)        # at 1x a full wheel step comes closer than at 2x: a smaller one
+    pg.add_style_tag(content=SHOT_HIDE)
+    d, frames = tempfile.mkdtemp(prefix="sv-film-"), []
+    t = 30.0
+    while t <= 232:
+        pg.evaluate("t => window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: false, t1: t, t2: null } })", t)
+        pg.wait_for_timeout(180)
+        frame(pg, d, frames); t += 2.5
+    film(frames, "46_satellite_replay")
+    ctx.close()
+
+
+def img_45_sweeps_filter(b, app):
+    """RD3: Sweeps as a film - All runs with every run shown (Show: All), then a filter narrows energy, then roll
+    error: the lines kept, the count above the plot (810 -> about 60) and the table follow every step."""
+    ctx, pg = page(b, app)
+    _example(pg, "sweepTable", ".pp canvas", 1500)
+    tab = pg.get_by_role("tab", name="All runs")
+    if not tab.count():
+        tab = pg.locator("button", has_text="All runs")
+    tab.first.click(); pg.wait_for_timeout(2500)
+    show = pg.locator("select:has(option:text-matches('^Holds'))").first           # Show: every run, not only the holding sets
+    show.select_option(label=next(o for o in show.locator("option").all_inner_texts() if o.startswith("All")))
+    pg.wait_for_function("window.__svSweeps.idle()", timeout=30000); pg.wait_for_timeout(800)
+    pg.add_style_tag(content=SHOT_HIDE); pg.mouse.move(W - 5, H - 5)
+    d, frames = tempfile.mkdtemp(prefix="sv-film-"), []
+
+    def step(col, hi):
+        pg.evaluate("([c, hi]) => window.__svSweeps.filter(c, { kind: 'ranges', ranges: [[0, hi]] })", [col, hi])
+        pg.wait_for_function("window.__svSweeps.idle()", timeout=30000); pg.wait_for_timeout(250)
+        frame(pg, d, frames)
+    for _ in range(4):
+        frame(pg, d, frames)                                     # the whole table first
+    for hi in (110, 85, 65, 55, 50, 47, 45, 43):
+        step("energy_wh", hi)
+    frame(pg, d, frames)
+    for hi in (4.5, 4, 3.5, 3.2, 3, 2.8, 2.6):
+        step("roll_error_deg", hi)
+    film(frames, "45_sweeps_filter", fps=3)
+    ctx.close()
 
 
 def _pareto(pg):
