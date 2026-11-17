@@ -29,7 +29,7 @@ What is open, in order (the finished history is in the Log and in git: `git show
 | Stability on Windows with a GPU (Out of Memory, the 3D shader) | waiting for numbers | the owner runs `tools/measure_maps.py --gpu`; the e2e suite's memory |
 | Films in Hebrew + a narration script; GitHub About texts | offered / with the owner | his choice; he pastes the About texts |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
-| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | in progress | FT1-FT9 done; the whole e2e suite once, then the version 1.29.0 (its CHANGELOG section is written) |
+| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | done - version 1.29.0 set, not tagged | the owner tags v1.29.0 |
 | M35 FT1 - the brush of All runs resolved on the whole table | done | - |
 | M35 FT2 - ParallelPlot in layers, progressive; measured | done | - |
 | M35 FT3 - all rows up to the Settings cap, sample from kept rows, exact counts | done | - |
@@ -495,3 +495,9 @@ answer has conditions; `scales.labelOf` reads ✓ / ✗ on a flag column.
   conditions. Tests: backend `test_sweep_select.py` (+1: exact counts, tiny cap and none), Vitest `tabs.test.ts` (4),
   e2e `test_sweeps_big_table.py::test_a_filter_remembers_its_tab`. e2e run: test_sweeps_*.py + test_needle.py +
   test_settings.py - 73 passed.
+- 2026-11-17 · End of round M35: quick_check green; backend 1438 passed (14 skipped), mypy clean; Vitest 279. Whole
+  e2e (`-n 4 --dist loadfile`): 507 passed, 3 failed - test_templates_recent_badfiles, test_flat_line_solo,
+  test_compare_tolerances (none Sweeps); the three files alone: 22 passed (timing under 4 workers). Version 1.29.0 in
+  build.bat, version.py, CITATION.cff, SignalViewer.iss, version_info.txt; docs/install.md file name; docs/features.md
+  FT9 line; README checked (nothing out of date). docs/validation.md still says "Signal Viewer 1.28.0" (a measured
+  result - re-run the validation to change it). Not tagged (the owner tags).
