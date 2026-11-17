@@ -35,12 +35,17 @@ const fmt = (v: number, c: Col): string => {
 };
 
 
-/** The id of every set in the answer: `p=2|k=0.1`, the parameters in the answer's order. */
+/** The id of every set in the answer: `p=2|k=0.1`, the parameters in the answer's order. Kept per answer:
+ *  it is asked for on every filter change (Show, the table, the groups) and costs a string per set. */
+const idsOf = new WeakMap<Answer, string[]>();
 export function setIds(a: Answer): string[] {
+  const known = idsOf.get(a);
+  if (known) return known;
   const ps = a.sets.filter((c) => c.group === "param");
   const n = a.sets[0]?.values.length ?? 0;
   const out: string[] = new Array(n);
   for (let i = 0; i < n; i++) out[i] = ps.map((c) => `${c.name}=${fmt(c.values[i], c)}`).join("|");
+  idsOf.set(a, out);
   return out;
 }
 

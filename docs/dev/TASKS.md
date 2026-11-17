@@ -29,9 +29,9 @@ What is open, in order (the finished history is in the Log and in git: `git show
 | Stability on Windows with a GPU (Out of Memory, the 3D shader) | waiting for numbers | the owner runs `tools/measure_maps.py --gpu`; the e2e suite's memory |
 | Films in Hebrew + a narration script; GitHub About texts | offered / with the owner | his choice; he pastes the About texts |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
-| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | in progress | FT1 done; FT2 drawing next, then FT3, FT4, FT5 (ROADMAP only) |
+| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | in progress | FT1, FT2 done; FT3 (the cap in Settings) next, then FT4, FT5 (ROADMAP only) |
 | M35 FT1 - the brush of All runs resolved on the whole table | done | - |
-| M35 FT2 - ParallelPlot in layers, progressive; measured | open | - |
+| M35 FT2 - ParallelPlot in layers, progressive; measured | done | - |
 | M35 FT3 - all rows up to the Settings cap, sample from kept rows, exact counts | open | default cap from FT2's numbers |
 | M35 FT4 - HTML export of a table: all rows up to the cap | open | - |
 
@@ -408,3 +408,15 @@ drawn. Backend density drawing (2D histograms) is a follow-up only (FT5).
   (Keep / Exclude / Export shown / Save as group in All runs); category codes from the whole column. Tests: backend
   test_sweep_select (4, incl. the tiny-cap guard), full backend 1419 green, mypy clean, Vitest 271 green; e2e
   test_sweeps_big_table (new, 200,000 rows), test_sweeps_flow, test_sweeps_groups, test_sweeps_charts - 41 green.
+- 2026-11-17 · M35 FT2: ParallelPlot drawn in layers, a frame at a time (`sweeps/progressive.ts`); `setIds` kept per answer.
+  Measured in the real app, `tools/measure_sweeps_plot.py` (headless Chromium in the cloud container, no GPU - software
+  canvas, 4 cores; 12 axes; Parameter sets mode: a line per set, every line drawn), seconds to the first picture /
+  to the full picture, and the longest frame (ms):
+  | | open first / full (longest) | filter first / full (longest) | brush: longest frame dragging / full after | hover longest |
+  | 50,000, DPR 1 | 0.06 / 1.2 (267) | 0.003 / 0.52 (100) | 17 / 0.68 | 17 |
+  | 200,000, DPR 1 | 0.05 / 4.0 (467) | 0.18 / 2.4 (33) | 17 / 2.7 | 17 |
+  | 200,000, DPR 2 | 0.07 / 4.5 (550) | 0.15 / 2.9 (33) | 17 / 3.8 | 34 |
+  | before (7562c66, one canvas), 200,000, DPR 1 | 2.5 frozen | 1.4 frozen | 917 / 1.2 | 500 |
+  (before, the lines left out were not drawn above 60,000; at DPR 2 it did not finish in the prototype). The open's
+  long frame is the answer's decode and the first table, not the drawing. e2e: test_sweeps_flow, _groups, _charts,
+  _data_columns, _big_table, _workspace - 65 green. Vitest progressive.test.ts (3).

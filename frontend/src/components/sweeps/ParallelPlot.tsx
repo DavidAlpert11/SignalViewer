@@ -1,6 +1,7 @@
 /* The parallel plot: a vertical axis per column, a line per parameter set (or per run).
 
-   Drawing is one canvas (thousands of lines); the axis names are buttons over it (their menu:
+   Drawing: the lines in two layers drawn a frame at a time, put together on one canvas under the axes,
+   filters, hover and the open set (see "Three layers" below); the axis names are buttons over it (their menu:
    scale, colour, reverse, hide, ranges). On an axis: drag = keep that range, Shift-drag = keep
    another range too, click = clear. Elsewhere: hover shows a line's values, click picks it.
    Zoom (owner, 2026-11-02 - to pick one line where they are dense): the wheel and the + / − / Reset
@@ -12,6 +13,7 @@ import { hasFilter, keptMask } from "../../sweeps/filters";
 import type { Col, Filter, Scale } from "../../sweeps/model";
 import { labelOf, makeScale, type AxisScale } from "../../sweeps/scales";
 import { NO_ZOOM, zoomAt, type Zoom } from "../../sweeps/zoom";
+import { drawOrder, runProgressive, type Pass } from "../../sweeps/progressive";
 
 export interface ParallelPlotProps {
   cols: Map<string, Col>;
@@ -50,6 +52,12 @@ const MIN_AXIS = 110;
 /** the tooltip: a line per axis, in columns when there are many */
 const TIP_ROW = 18, TIP_COL = 220;
 const PAD_X = 56, PAD_TOP = 40, PAD_BOTTOM = 34, MISSING_GAP = 14, NEAR_AXIS = 12, HOVER_PX = 6;
+/** above this many lines they are drawn at 1 px per CSS pixel (see the layers below) */
+const MANY_LINES = 20000;
+/** the drawing's share of a frame: the page still answers the pointer while lines are drawn */
+const FRAME_BUDGET_MS = 6;
+/** lines per stroke: small enough that a chunk stays well inside the budget on a slow machine */
+const LINES_PER_CHUNK = 500;
 
 export default function ParallelPlot(p: ParallelPlotProps) {
   const scroller = useRef<HTMLDivElement>(null);
@@ -118,6 +126,8 @@ export default function ParallelPlot(p: ParallelPlotProps) {
   const kept = useMemo(() => p.keep ?? keptMask(p.cols, p.filters, p.n), [p.keep, p.cols, p.filters, p.n]);
   const keptCount = useMemo(() => kept.reduce((a, b) => a + b, 0), [kept]);
 
+  // the order lines are drawn in: shuffled, so a picture drawn in part already looks like the whole
+  const order = useMemo(() => drawOrder(p.n), [p.n]);
   // a colour per row, as buckets of rows (one stroke per colour)
   const buckets = useMemo(() => {
     const groups = new Map<string, number[]>();
@@ -131,45 +141,111 @@ export default function ParallelPlot(p: ParallelPlotProps) {
       const sc: AxisScale = makeScale(c, p.scaleOf(c.name) === "log" ? "log" : "linear");
       colour = (r) => ramp(Math.round(sc.norm(c.values[r]) * 31) / 31);
     }
-    for (let r = 0; r < p.n; r++) if (kept[r]) put(colour(r), r);
+    for (let j = 0; j < p.n; j++) { const r = order[j]; if (kept[r]) put(colour(r), r); }
     // the holding sets last: drawn on top
     return [...groups.entries()].sort((a, b) => (a[0] === HOLDS ? 1 : 0) - (b[0] === HOLDS ? 1 : 0));
-  }, [p.colorBy, p.cols, p.n, kept, p.scaleOf]);
+  }, [p.colorBy, p.cols, p.n, kept, p.scaleOf, order]);
+  const leftOut = useMemo(() => {
+    const out = new Int32Array(p.n - keptCount);
+    let k2 = 0;
+    for (let j = 0; j < p.n; j++) { const r = order[j]; if (!kept[r]) out[k2++] = r; }
+    return out;
+  }, [order, kept, keptCount, p.n]);
+  const lit = useMemo(() => {
+    const out: number[] = [];
+    if (p.highlight) for (let r = 0; r < p.n; r++) if (p.highlight[r]) out.push(r);
+    return out;
+  }, [p.highlight, p.n]);
+  // each axis's histogram of the kept lines - once per filter, not per hover
+  const hists = useMemo(() => ys.map((y) => {
+    const bins = new Float32Array(24);
+    for (let r = 0; r < p.n; r++) if (kept[r] && y[r] < missingY - 1) bins[Math.min(23, Math.floor(((y[r] - PAD_TOP) / plotH) * 24))]++;
+    return bins;
+  }), [ys, kept, p.n, missingY, plotH]);
 
-  useEffect(() => {
+  /* Three layers (1.29): the lines left out and the lines kept are drawn - a few milliseconds a frame - into
+     two canvases of their own, only when the data, axes, zoom or filters change; the canvas on screen puts
+     them together under what changes often (axes, the filters, the brush, the open set, hover). A hover
+     or a brush being dragged redraws only that. Many lines are drawn at 1 px per CSS pixel: twice the
+     pixels at a high-DPI screen cost four times the drawing for no visible gain at that density. */
+  const dpr = window.devicePixelRatio || 1;
+  const lineDpr = p.n > MANY_LINES ? 1 : dpr;
+  const bgLayer = useRef<HTMLCanvasElement | null>(null), fgLayer = useRef<HTMLCanvasElement | null>(null);
+  const overlay = useRef<(ctx: CanvasRenderingContext2D) => void>(() => {});
+  const drawing = useRef({ bg: false, fg: false });
+  const composite = () => {
     const cv = canvas.current;
     if (!cv) return;
-    const dpr = window.devicePixelRatio || 1;
-    cv.width = Math.round(width * dpr); cv.height = Math.round(height * dpr);
+    const W = Math.round(width * dpr), H = Math.round(height * dpr);
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
     cv.style.width = `${width}px`; cv.style.height = `${height}px`;
     const ctx = cv.getContext("2d")!;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    for (const l of [bgLayer.current, fgLayer.current]) if (l && l.width && l.height) ctx.drawImage(l, 0, 0, W, H);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
+    overlay.current(ctx);
+    cv.dataset.drawing = drawing.current.bg || drawing.current.fg ? "1" : "0";
+  };
+  const compositeRef = useRef(composite);
+  compositeRef.current = composite;
+  /** a line layer: sized, cleared, the zoom set; then its passes drawn a frame at a time */
+  const lineLayer = (ref: React.MutableRefObject<HTMLCanvasElement | null>, which: "bg" | "fg", passes: (ctx: CanvasRenderingContext2D, xs: number[]) => Pass[]) => {
+    const cv = (ref.current ??= document.createElement("canvas"));
+    const W = Math.round(width * lineDpr), H = Math.round(height * lineDpr);
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    const ctx = cv.getContext("2d")!;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.setTransform(lineDpr * z.k, 0, 0, lineDpr * z.k, lineDpr * z.x, lineDpr * z.y);
+    const xs = p.axes.map((_, i) => axisX(i));
+    const list = xs.length > 1 ? passes(ctx, xs) : [];
+    drawing.current[which] = true;
+    return runProgressive(list, {
+      budgetMs: FRAME_BUDGET_MS, chunk: LINES_PER_CHUNK,
+      flush: () => { ctx.getImageData(0, 0, 1, 1); },
+      onFrame: () => compositeRef.current(),
+      onDone: () => { drawing.current[which] = false; compositeRef.current(); },
+    });
+  };
+  const strokeRows = (ctx: CanvasRenderingContext2D, xs: number[], rows: ArrayLike<number>) => (from: number, to: number) => {
+    ctx.beginPath();
+    for (let j = from; j < to; j++) {
+      const r = rows[j];
+      ctx.moveTo(xs[0], ys[0][r]);
+      for (let i = 1; i < xs.length; i++) ctx.lineTo(xs[i], ys[i][r]);
+    }
+    ctx.stroke();
+  };
+  // the lines left out: faint, under the rest
+  useEffect(() => lineLayer(bgLayer, "bg", (ctx, xs) => {
+    const css = getComputedStyle(canvas.current!);
+    ctx.strokeStyle = css.getPropertyValue("--line-strong").trim() || "#444";
+    ctx.globalAlpha = leftOut.length > 60000 ? 0.07 : 0.18; ctx.lineWidth = 1;
+    return [{ n: leftOut.length, draw: strokeRows(ctx, xs, leftOut) }];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [width, height, ys, leftOut, z.k, z.x, z.y, lineDpr]);
+  // the lines kept, a stroke per colour; fainter the more there are
+  useEffect(() => lineLayer(fgLayer, "fg", (ctx, xs) => {
+    ctx.globalAlpha = keptCount > 100000 ? 0.06 : keptCount > 20000 ? 0.12 : keptCount > 3000 ? 0.3 : keptCount > 300 ? 0.55 : 0.85;
+    ctx.lineWidth = keptCount > 3000 ? 1 : 1.4;
+    return buckets.map(([colour, rows]) => ({ n: rows.length, begin: () => { ctx.strokeStyle = colour; }, draw: strokeRows(ctx, xs, rows) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [width, height, ys, buckets, keptCount, z.k, z.x, z.y, lineDpr]);
+
+  overlay.current = (ctx: CanvasRenderingContext2D) => {
+    const cv = canvas.current!;
     ctx.setTransform(dpr * z.k, 0, 0, dpr * z.k, dpr * z.x, dpr * z.y);
     const css = getComputedStyle(cv);
     const ink = css.getPropertyValue("--ink").trim() || "#ccc";
     const muted = css.getPropertyValue("--muted").trim() || "#888";
-    const line = css.getPropertyValue("--line-strong").trim() || "#444";
     const sel = css.getPropertyValue("--select").trim() || ink, selSoft = css.getPropertyValue("--select-soft").trim() || "rgba(128,128,128,.2)";
     const xs = p.axes.map((_, i) => axisX(i));
     const path = (r: number) => { ctx.moveTo(xs[0], ys[0][r]); for (let i = 1; i < xs.length; i++) ctx.lineTo(xs[i], ys[i][r]); };
-    // the lines left out: faint, under the rest (skipped when there are very many)
-    if (xs.length > 1 && p.n - keptCount > 0 && p.n <= 60000) {
-      ctx.strokeStyle = line; ctx.globalAlpha = 0.18; ctx.lineWidth = 1; ctx.beginPath();
-      for (let r = 0; r < p.n; r++) if (!kept[r]) path(r);
-      ctx.stroke();
-    }
     if (xs.length > 1) {
-      ctx.globalAlpha = keptCount > 20000 ? 0.12 : keptCount > 3000 ? 0.3 : keptCount > 300 ? 0.55 : 0.85;
-      ctx.lineWidth = keptCount > 3000 ? 1 : 1.4;
-      for (const [colour, rows] of buckets) {
-        ctx.strokeStyle = colour; ctx.beginPath();
-        for (const r of rows) path(r);
-        ctx.stroke();
-      }
-      if (p.highlight) {
+      if (lit.length) {
         ctx.globalAlpha = 1; ctx.lineWidth = 3; ctx.strokeStyle = css.getPropertyValue("--focus").trim() || "#6fa8ff"; ctx.beginPath();
-        for (let r = 0; r < p.n; r++) if (p.highlight[r]) path(r);
+        for (const r of lit) path(r);
         ctx.stroke();
       }
       if (hover) {
@@ -179,12 +255,9 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     ctx.globalAlpha = 1;
     // axes: histogram of the kept lines, the line, ticks, the missing-value band, filters
     p.axes.forEach((a, i) => {
-      const x = xs[i], sc = scales[i], y = ys[i];
-      const bins = new Float32Array(24);
-      let any = 0;
-      for (let r = 0; r < p.n; r++) if (kept[r] && y[r] < missingY - 1) { bins[Math.min(23, Math.floor(((y[r] - PAD_TOP) / plotH) * 24))]++; any++; }
+      const x = xs[i], sc = scales[i], bins = hists[i];
       const top = Math.max(1, ...bins);
-      if (any) {
+      if (bins.some((b) => b > 0)) {
         ctx.fillStyle = muted; ctx.globalAlpha = 0.28;
         bins.forEach((b, j) => { if (b) ctx.fillRect(x + 2, PAD_TOP + (j * plotH) / 24 + 0.5, (18 * b) / top, plotH / 24 - 1); });
         ctx.globalAlpha = 1;
@@ -209,8 +282,10 @@ export default function ParallelPlot(p: ParallelPlotProps) {
         ctx.fillStyle = "rgba(111,168,255,.25)"; ctx.fillRect(x - 7, Math.min(brush.y0, brush.y1), 14, Math.abs(brush.y1 - brush.y0));
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, height, ys, buckets, kept, keptCount, p.highlight, hover, brush, p.filters, scales, z.k, z.x, z.y]);
+  };
+  // what changes often: only the canvas on screen is drawn again (the line layers as they are)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => composite(), [width, height, ys, hists, lit, hover, brush, p.filters, scales, z.k, z.x, z.y, dpr]);
 
   // ------------------------------------------------------------------- pointer
   // the pointer in the plot's own coordinates (before the zoom)
