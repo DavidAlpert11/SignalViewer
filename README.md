@@ -90,9 +90,9 @@ Values at the cursor with their units, statistics of what is on screen, modes as
 </td>
 <td width="50%" valign="top">
 <b>Choose parameters that hold everywhere</b><br>
-Which sets hold in every scenario, the best one, and the next runs to make.
+Filter on any axis – the count and the table follow; which sets hold in every scenario, the next runs to make.
 <a href="https://davidalpert11.github.io/SignalViewer/smart-sweep-demo/">Smart-sweep demo</a><br><br>
-<a href="docs/images/41_sweeps_all_runs.png"><img src="docs/images/41_sweeps_all_runs.png" alt="Sweeps: 12 of 45 parameter sets hold in all 18 combinations; the runs on a parallel plot, the holding sets in green, the best set on the left"></a>
+<a href="docs/images/45_sweeps_filter.gif"><img src="docs/images/45_sweeps_filter.gif" alt="Sweeps, All runs: a filter on energy and then on roll error narrows the 810 runs step by step; the count above the plot follows each step"></a>
 </td>
 </tr>
 </table>
@@ -101,7 +101,7 @@ Which sets hold in every scenario, the best one, and the next runs to make.
 terrain – the cursor's moment on the track and in every plot at once. Online maps are opt-in; offline is the
 default. [Map and 3D](https://davidalpert11.github.io/SignalViewer/maps-and-3d/)
 
-<p align="center"><a href="docs/images/44_satellite_flight.png"><img src="docs/images/44_satellite_flight.png" alt="A flight in 3D over satellite photos and the terrain: the track coloured by flight mode, the vehicle at the cursor in the middle of the track, and under it altitude and roll on the same time, the cursor at 140.4 s" width="100%"></a></p>
+<p align="center"><a href="docs/images/46_satellite_replay.gif"><img src="docs/images/46_satellite_replay.gif" alt="A flight in 3D over satellite photos and the terrain, played through: the vehicle moves along its track, coloured by flight mode, while the cursor moves in the altitude and roll plots under it" width="100%"></a></p>
 
 **Send the answer.** One HTML file that opens with the process in brief – the data, what was checked, what it
 shows, the conclusion – then the plots, map and 3D on one time bar. Any browser, no install.
