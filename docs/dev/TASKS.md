@@ -501,8 +501,9 @@ answer has conditions; `scales.labelOf` reads ✓ / ✗ on a flag column.
   build.bat, version.py, CITATION.cff, SignalViewer.iss, version_info.txt; docs/install.md file name; docs/features.md
   FT9 line; README checked (nothing out of date). docs/validation.md still says "Signal Viewer 1.28.0" (a measured
   result - re-run the validation to change it). Not tagged (the owner tags).
+  Later: `tools/make_validation_doc.py` re-run - 29 of 29 within tolerance on 1.29.0 (test_validation checks the page is current).
 - 2026-11-17 · Owner: merged to main (fast-forward to 83e516d), only main to stay - the three claude/* branches were
   checked (every commit already in main) but deleting them is refused from the cloud session (HTTP 403): the owner
   deletes them. Charts: a pane's axes span its own group's sets (ScatterView scaleFor, Desk histogram extent), a
   non-empty histogram bin at least 2 px. e2e test_sweeps_charts.py::test_a_chart_spans_its_own_sets_and_shows_a_set_alone;
-  test_sweeps_*.py + test_needle.py + test_settings.py: 74 passed; quick_check green.
+  test_sweeps_*.py + test_needle.py + test_settings.py: 74 passed; quick_check green (after the validation page was made again).
