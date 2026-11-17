@@ -141,8 +141,9 @@ def stage(name="signalviewer"):
         sys.exit(f"svcore/extras.py lists packages that are not in requirements.txt: {', '.join(unknown)}")
     req, extra = flavour_metadata(name, req, extra)
     extras = "\n".join(f"{k} = [{q(v)}]" for k, v in extra.items())
-    # M1 (owner, 2026-11-07): the tagline - one name everywhere (README, docs site, PyPI)
-    desc = ("Signal Viewer - offline flight log & test data analysis: ArduPilot, PX4, MAVLink, CSV, MATLAB, CAN, simulation output."
+    # M1 (owner, 2026-11-07): the tagline - one name everywhere (README, docs site, PyPI); RD7: generic, as CLAUDE.md
+    desc = ("Signal Viewer - an offline workbench to analyse and validate time-series and measurement data: test runs, "
+            "simulation output (MATLAB / Simulink), CSV, Parquet, HDF5, CAN, ROS 2, flight logs and parameter sweeps."
             + ("" if name == "signalviewer" else " The light install: the core, every other reader as an extra."))
     toml = f'''[build-system]
 requires = ["setuptools>=77"]
@@ -157,8 +158,9 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.9"
 dependencies = [{q(req)}]
-keywords = ["signals", "plotting", "time series", "flight log", "flight test", "ardupilot", "px4", "mavlink",
-            "ulog", "ros2", "mcap", "telemetry", "csv", "parquet", "hdf5", "matlab", "offline"]
+keywords = ["time series", "measurement data", "data analysis", "validation", "test data", "simulation", "parameter sweep",
+            "signals", "plotting", "flight test", "flight log", "can bus", "ardupilot", "px4", "mavlink", "ulog", "ros2",
+            "mcap", "csv", "parquet", "hdf5", "matlab", "offline"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",

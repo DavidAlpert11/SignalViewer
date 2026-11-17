@@ -5,9 +5,9 @@ message: "If you use Signal Viewer in work you publish, please cite it as below.
 type: software
 title: "Signal Viewer"
 abstract: >-
-  An offline desktop application for exploring, comparing and reporting on recorded time-series
-  data - flight-test runs, drone flight logs (ArduPilot, PX4, MAVLink), CAN, and simulation output -
-  with pass / fail checks for continuous integration and a numerical validation of its computations.
+  An offline desktop workbench to analyse and validate time-series and measurement data - test runs,
+  simulation output (MATLAB / Simulink), CSV, Parquet, HDF5, CAN, ROS 2 and flight logs, and parameter
+  sweeps - with pass / fail checks for continuous integration and a numerical validation of its computations.
 authors:
   - given-names: David
     family-names: Alpert
@@ -17,11 +17,12 @@ license: MIT
 repository-code: "https://github.com/DavidAlpert11/SignalViewer"
 url: "https://davidalpert11.github.io/SignalViewer/"
 keywords:
+  - time series
+  - measurement data
+  - data analysis
+  - validation
+  - test data
+  - simulation
+  - parameter sweep
   - flight test
   - flight log
-  - time series
-  - signal analysis
-  - ArduPilot
-  - PX4
-  - MAVLink
-  - simulation
