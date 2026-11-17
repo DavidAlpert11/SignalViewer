@@ -61,10 +61,10 @@ def client():
     return TestClient(app)
 
 
-def _flows(c, tid, tmp_path, tag):
+def _flows(c, tid, tmp_path, tag, over="sample"):
     """Every result a brush on run columns gives in All runs, as the page asks for it."""
     q = {"roles": ROLES, "goal": {"column": "out", "direction": "min"}, "conditions": [{"column": "out", "op": "<=", "value": 12}]}
-    e = c.post("/api/sweep/evaluate", json={"id": tid, "question": q, "runs": True}).json()
+    e = c.post("/api/sweep/evaluate", json={"id": tid, "question": q, "runs": True, "over": over}).json()
     sel = {"filters": {"out": {"kind": "ranges", "ranges": [[2, 4]]}, "terrain": {"kind": "labels", "labels": ["urban"]}}}
     s = c.post("/api/sweep/select", json={"id": tid, "question": q, **sel}).json()
     # Keep: the question narrowed to the sets selected - the best set and the suggestions follow from it
@@ -72,7 +72,7 @@ def _flows(c, tid, tmp_path, tag):
     path = tmp_path / f"shown_{tag}.csv"
     x = c.post("/api/sweep/export-rows", json={"id": tid, "question": q, "select": sel, "path": str(path)}).json()
     ex = c.post("/api/sweep/select", json={"id": tid, "question": q, **sel, "sets": kept[: len(kept) // 2]}).json()
-    return {"drawn": e["runs"]["n"], "sampled": e["runs"]["sampled"], "kept": kept, "runs": s["runs"],
+    return {"drawn": e["runs"]["n"], "sampled": e["runs"]["sampled"] or "density" in e["runs"], "kept": kept, "runs": s["runs"],
             "export": path.read_text(), "exportRows": x["rows"], "narrowed": ex}
 
 
@@ -87,6 +87,12 @@ def test_tiny_cap_and_no_cap_give_the_same_results(client, tmp_path, monkeypatch
     for k in ("kept", "runs", "export", "exportRows", "narrowed"):
         assert tiny[k] == full[k], k
     assert full["runs"] == full["exportRows"] > 300                        # more than were drawn with the tiny cap
+    dens = _flows(client, tid, tmp_path, "dens", over="density")           # the default above the cap: the same
+    monkeypatch.setattr(route, "RUNS_MAX", 300)
+    dens = _flows(client, tid, tmp_path, "dens", over="density")
+    assert dens["sampled"] and dens["drawn"] < 12_000
+    for k in ("kept", "runs", "export", "exportRows", "narrowed"):
+        assert dens[k] == full[k], k
     df = _big()
     want = df[(df.out.astype(np.float32) >= 2) & (df.out.astype(np.float32) <= 4) & (df.terrain == "urban")]
     assert full["exportRows"] == len(want)
@@ -114,7 +120,7 @@ def test_runs_above_the_cap_are_a_sample_of_the_runs_kept(client):
     tid = route._register(_big(), "", "big", 0.0)["id"]
     q = {"roles": ROLES}
     sel = {"filters": {"out": {"kind": "ranges", "ranges": [[2, 3]]}}}
-    e = client.post("/api/sweep/evaluate", json={"id": tid, "question": q, "runs": True, "cap": 1000, "select": sel, "pinned": 7}).json()
+    e = client.post("/api/sweep/evaluate", json={"id": tid, "question": q, "runs": True, "cap": 1000, "select": sel, "pinned": 7, "over": "sample"}).json()
     r = e["runs"]
     out = _decode(next(c for c in r["columns"] if c["name"] == "out"))
     sets = _decode(next(c for c in r["columns"] if c["name"] == "#set"))
@@ -126,7 +132,7 @@ def test_runs_above_the_cap_are_a_sample_of_the_runs_kept(client):
     assert (sets == 7).sum() == (prep.set_id == 7).sum()                                  # the open set: every run of it
     # a narrow filter: every run it keeps is drawn
     sel2 = {"filters": {"out": {"kind": "ranges", "ranges": [[2, 2.05]]}}}
-    r2 = client.post("/api/sweep/evaluate", json={"id": tid, "question": q, "runs": True, "cap": 1000, "select": sel2}).json()["runs"]
+    r2 = client.post("/api/sweep/evaluate", json={"id": tid, "question": q, "runs": True, "cap": 1000, "select": sel2, "over": "sample"}).json()["runs"]
     out2 = _decode(next(c for c in r2["columns"] if c["name"] == "out"))
     assert int(((out2 >= 2) & (out2 <= 2.05)).sum()) == r2["kept"] < 900
     # no cap: every run, as read
@@ -139,7 +145,7 @@ def test_raw_above_the_cap_samples_the_rows_kept_and_keeps_the_picked_run(client
     df = _big()
     tid = route._register(df, "", "big", 0.0)["id"]
     f = {"terrain": {"kind": "labels", "labels": ["sea"]}}
-    r = client.post("/api/sweep/raw", json={"id": tid, "question": {}, "cap": 3000, "select": {"filters": f}, "picked": 11}).json()
+    r = client.post("/api/sweep/raw", json={"id": tid, "question": {}, "cap": 3000, "select": {"filters": f}, "picked": 11, "over": "sample"}).json()
     assert r["sampled"] and r["total"] == 12_000 and r["kept"] == int((df.terrain == "sea").sum()) == 2400
     ter = next(c for c in r["columns"] if c["name"] == "terrain")
     codes = _decode(ter)
@@ -165,3 +171,44 @@ def test_html_page_of_a_table_carries_every_row_up_to_the_cap(client, tmp_path):
     assert rows_in(None) == 12_000                       # the default cap (200,000): all of them
     assert rows_in(5000) == 5000
     assert rows_in(0) == 12_000                          # no limit
+
+
+def test_runs_above_the_cap_drawn_as_density_count_every_run(client):
+    """FT5: above the cap (the default, owner 2026-11-17) every run is counted per cell of each pair of axes, the
+    runs of sparse cells come one by one (the needle among them), the open set's runs too, and each number column's
+    domain is of the whole table."""
+    from app.routes import sweep as route
+    df = _big()
+    df.loc[5_000, "out"] = 80.0                              # the needle
+    tid = route._register(df, "", "big", 0.0)["id"]
+    q = {"roles": ROLES}
+    sel = {"filters": {"out": {"kind": "ranges", "ranges": [[-100, 100]]}}}
+    axes = [{"column": "p", "scale": "linear"}, {"column": "terrain", "scale": "category"}, {"column": "out", "scale": "linear"}]
+    r = client.post("/api/sweep/evaluate", json={"id": tid, "question": q, "runs": True, "cap": 1000, "select": sel, "pinned": 3,
+                                                  "axes": axes, "colour": {"column": "terrain"}}).json()["runs"]
+    d = r["density"]
+    assert [a["column"] for a in d["axes"]] == ["p", "terrain", "out"] and d["series"] == 6        # 5 terrains + none
+    for pair in d["pairs"]:
+        assert sum(pair["kept"]["n"]) == r["kept"] == 12_000 and sum(pair["out"]["n"]) == 0
+    out = _decode(next(c for c in r["columns"] if c["name"] == "out"))
+    sets = _decode(next(c for c in r["columns"] if c["name"] == "#set"))
+    assert 80.0 in out.tolist()                                               # the needle drawn as a line
+    prep = sweep.prepare(df, q)
+    assert (sets == 3).sum() == (prep.set_id == 3).sum()                     # the open set: every run of it
+    dom = next(c for c in r["columns"] if c["name"] == "out")["domain"]
+    assert dom["hi"] == 80.0 and r["n"] < 12_000
+
+
+def test_raw_above_the_cap_drawn_as_density(client):
+    from app.routes import sweep as route
+    df = _big()
+    df.loc[777, "out"] = -40.0                               # the needle
+    tid = route._register(df, "", "big", 0.0)["id"]
+    f = {"terrain": {"kind": "labels", "labels": ["sea", "hill"]}}
+    r = client.post("/api/sweep/raw", json={"id": tid, "question": {}, "cap": 1000, "select": {"filters": f}, "picked": 11,
+                                             "axes": [{"column": "wind", "scale": "category"}, {"column": "out", "scale": "linear"}]}).json()
+    d = r["density"]
+    assert not r["sampled"] and r["kept"] == 4800 and sum(d["pairs"][0]["kept"]["n"]) == 4800 and sum(d["pairs"][0]["out"]["n"]) == 7200
+    rows = _decode(next(c for c in r["columns"] if c["name"] == "#row")).tolist()
+    assert 11 in rows and r["n"] < 12_000
+    assert d["axes"][0]["centers"] == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]

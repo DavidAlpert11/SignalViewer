@@ -7,6 +7,7 @@ import os
 import re
 import time
 import uuid
+import weakref
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional
 
@@ -55,6 +56,11 @@ class QuestionReq(BaseModel):
     select: Optional[Dict[str, Any]] = None    # runs: {filters, sets}; raw: {filters}
     pinned: Optional[int] = None               # runs: the open set
     picked: Optional[int] = None               # raw: the picked run (its row in the table)
+    # above the cap: "density" (the default, owner 2026-11-17) - every run counted per cell of the picture, the
+    # runs of sparse cells drawn one by one (svcore/sweep/density.py) - or "sample" (Settings)
+    over: str = "density"
+    axes: Optional[List[Dict[str, Any]]] = None     # density: the plot's axes in order, [{column, scale}]
+    colour: Optional[Dict[str, Any]] = None         # density: {column} a text / flag column, or {sets: [code per set]}; {n}
 
 
 class SetReq(BaseModel):
@@ -188,17 +194,32 @@ def sweep_evaluate(req: QuestionReq):
         from svcore.sweep.select import run_mask
         cap = _cap(req.cap)
         sel = req.select or {}
+        above = bool(cap and len(p.df) > cap)
         # the brush matters only above the cap (below it every run is sent and the page filters them itself)
-        keep = run_mask(p, sel.get("filters"), sel.get("sets")) if cap and len(p.df) > cap and req.select is not None else None
-        r = sweep.run_rows(p, a["data"]["#holds"], cap, keep=keep, must_sets=[req.pinned] if req.pinned is not None else None)
-        idx = r["index"]
+        keep = run_mask(p, sel.get("filters"), sel.get("sets")) if above and (req.select is not None or req.over == "density") else None
+        holds = a["data"]["#holds"]
+        must = [req.pinned] if req.pinned is not None else None
+        per_set = {"#set": np.arange(p.n_sets, dtype=float), "#holds": np.asarray(holds, dtype=float)}
+        col = (lambda c: pd.Series(per_set[c][p.set_id]) if c in per_set else p.df[c])
+        dens = None
+        if above and req.over == "density" and keep is not None:
+            codes = None
+            if (req.colour or {}).get("sets") is not None:                   # a per-set colour (holds, a group)
+                codes = np.asarray(req.colour["sets"], dtype=np.int64)[p.set_id]
+            dens, idx = _density(p.df, col, keep, req, codes)
+            if must:
+                idx = np.union1d(idx, np.flatnonzero(np.isin(p.set_id, must))[:5000])
+            r = {"index": idx, "sampled": False, "total": int(len(p.df))}
+        else:
+            r = sweep.run_rows(p, holds, cap, keep=keep, must_sets=must)
+            idx = r["index"]
         names = req.columns or (p.params + p.holds + p.outputs)
-        cols = [{"name": c, **_encode_part(t, ("prep", t.get("prepKey")), p.df, c, idx)} for c in names if c in p.df.columns]
-        cols.append({"name": "#set", **sweep.encode(r["set"].astype(float))})
+        cols = [{"name": c, **_encode_part(p.df, c, idx), **_domain_of(p.df, c)} for c in names if c in p.df.columns]
+        cols.append({"name": "#set", **sweep.encode(p.set_id[idx].astype(float))})
         cols.append({"name": "#row", **sweep.encode(p.row_id[idx].astype(float))})
-        cols.append({"name": "#holds", **sweep.encode(r["holds"])})
+        cols.append({"name": "#holds", **sweep.encode(np.asarray(holds)[p.set_id[idx]])})
         out["runs"] = {"columns": cols, "sampled": r["sampled"], "total": r["total"], "n": int(len(idx)), "cap": cap,
-                       **({"kept": int(keep.sum())} if keep is not None else {})}
+                       **({"kept": int(keep.sum())} if keep is not None else {}), **({"density": dens} if dens else {})}
     out["seconds"] = round(time.perf_counter() - t0, 3)
     return out
 
@@ -220,19 +241,74 @@ def _drawn(df: pd.DataFrame, cap: Optional[int]) -> pd.DataFrame:
     return df.iloc[sample_rows(len(df), _cap(cap))]
 
 
-def _encode_part(t: Dict, key: Any, df: pd.DataFrame, col: str, idx: np.ndarray) -> Dict:
-    """Some rows of a column, encoded; a text column's labels from the whole column, worked out once per
-    table and version of it (a brush above the cap asks for a new sample at every change)."""
+# what is worked out once per version of a table - a text column's labels, a number column's domain - kept with
+# the table object itself (a reload, a merge or a new question's prepared table is another object)
+_PER_TABLE: Dict[int, Dict[Any, Any]] = {}
+
+
+def _kept(df: pd.DataFrame, what: str, col: str, make) -> Any:
+    k = id(df)
+    if k not in _PER_TABLE:                      # dropped when the table is (so an id used again starts empty)
+        _PER_TABLE[k] = {}
+        weakref.finalize(df, _PER_TABLE.pop, k, None)
+    c = _PER_TABLE[k]
+    if (what, col) not in c:
+        c[(what, col)] = make()
+    return c[(what, col)]
+
+
+def _domain_of(df: pd.DataFrame, col: str) -> Dict:
+    """A number column's domain over the whole table (svcore/sweep/density.domain): the page builds its axis from
+    it, so an axis is the same whatever runs were sent to draw (1.29)."""
+    from svcore.sweep import density
+    s = df[col]
+    if not pd.api.types.is_numeric_dtype(s) or pd.api.types.is_bool_dtype(s):
+        return {}
+    return {"domain": _kept(df, "domain", col, lambda: density.domain(s))}
+
+
+def _density(base: pd.DataFrame, col, keep: np.ndarray, req: "QuestionReq", codes: Optional[np.ndarray]):
+    """Every run counted per cell of the picture (svcore/sweep/density.parallel) for the page's axes and colour;
+    the rows to draw one by one. A column: `col(name)` -> Series."""
+    from svcore.sweep import density
+    axes, specs = [], []
+    for a in req.axes or []:
+        name = a.get("column")
+        try:
+            s = col(name)
+        except KeyError:
+            continue
+        if pd.api.types.is_numeric_dtype(s) and not pd.api.types.is_bool_dtype(s):
+            ax = density.axis_cells(_kept(base, "domain", name, lambda: density.domain(s)), a.get("scale") or "linear")
+        else:
+            ax = density.axis_cells({}, "category", _kept(base, "labels", name, lambda: category_labels(s)))
+        axes.append({"column": name, **ax})
+        specs.append({"column": name, "centers": ax["centers"]})
+    series, n_series = codes, int((req.colour or {}).get("n") or 1)
+    cname = (req.colour or {}).get("column")
+    if series is None and cname:
+        try:
+            cs = col(cname)
+            labs = _kept(base, "labels", cname, lambda: category_labels(cs))
+            series = density.cells(cs, {"labels": labs})                  # its last code: no value
+            n_series = len(labs) + 1
+        except KeyError:
+            series = None
+    if series is None:
+        n_series = 1
+    keepn = np.asarray(keep, dtype=bool)
+    r = density.parallel({a["column"]: col(a["column"]) for a in axes}, axes, keepn, series, n_series)
+    return ({"axes": specs, "pairs": r["pairs"], "series": n_series, "sparseAt": r["sparseAt"], "sparse": int(len(r["sparse"]))},
+            np.asarray(r["sparse"], dtype=np.int64))
+
+
+def _encode_part(df: pd.DataFrame, col: str, idx: np.ndarray) -> Dict:
+    """Some rows of a column, encoded; a text column's labels from the whole column, worked out once per table
+    version (a brush above the cap asks for new rows at every change)."""
     s = df[col]
     if pd.api.types.is_numeric_dtype(s) and not pd.api.types.is_bool_dtype(s):
         return sweep.encode(s.iloc[idx].reset_index(drop=True))
-    cache = t.setdefault("cats", {})
-    k = (key, id(df), col)
-    if k not in cache:
-        if len(cache) > 256:
-            cache.clear()
-        cache[k] = category_labels(s)
-    return sweep.encode(s.iloc[idx].reset_index(drop=True), labels=cache[k])
+    return sweep.encode(s.iloc[idx].reset_index(drop=True), labels=_kept(df, "labels", col, lambda: category_labels(s)))
 
 
 class SelectReq(BaseModel):
@@ -832,12 +908,18 @@ def sweep_raw(req: QuestionReq):
     filters = (req.select or {}).get("filters")
     keep = frame_mask(df, filters) if filters else None
     must = np.flatnonzero(df.index.to_numpy() == req.picked)[:1] if req.picked is not None else None
-    idx = sample_rows(len(df), cap, keep if cap and len(df) > cap else None, None, must)
+    dens = None
+    if cap and len(df) > cap and req.over == "density":      # every run counted, the sparse ones drawn (FT5)
+        dens, idx = _density(df, lambda c: df[c], keep if keep is not None else np.ones(len(df), bool), req, None)
+        if must is not None:
+            idx = np.union1d(idx, must)
+    else:
+        idx = sample_rows(len(df), cap, keep if cap and len(df) > cap else None, None, must)
     names = [c for c in (req.columns or list(df.columns)) if c in df.columns]
-    cols = [{"name": c, **_encode_part(t, "raw", df, c, idx)} for c in names]
+    cols = [{"name": c, **_encode_part(df, c, idx), **_domain_of(df, c)} for c in names]
     cols.append({"name": "#row", **sweep.encode(df.index.to_numpy()[idx].astype(float))})
-    return {"columns": cols, "n": int(len(idx)), "total": int(len(df)), "sampled": len(idx) < len(df), "cap": cap,
-            "kept": int(keep.sum()) if keep is not None else int(len(df))}
+    return {"columns": cols, "n": int(len(idx)), "total": int(len(df)), "sampled": dens is None and len(idx) < len(df), "cap": cap,
+            "kept": int(keep.sum()) if keep is not None else int(len(df)), **({"density": dens} if dens else {})}
 
 
 class UnmergeReq(BaseModel):
