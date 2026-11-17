@@ -168,7 +168,7 @@ question cannot be read - so a CI job fails when a change leaves no tuning that 
 ## Numerical validation: `validate`
 
 ```bash
-signalviewer-cli validate                   # one line per case, then "23 passed, 0 failed"
+signalviewer-cli validate                   # one line per case, then "29 passed, 0 failed"
 signalviewer-cli validate --json            # every case with expected, measured, error, tolerance
 signalviewer-cli validate --junit v.xml     # JUnit XML, e.g. as a record that this installation computes correctly
 ```

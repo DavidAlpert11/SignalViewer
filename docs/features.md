@@ -31,7 +31,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 ### Welcome screen
 
 - Recent files and recent sessions, one click to reopen; missing ones are marked and can be forgotten
-- Five examples in one click: a drone flight, the same mission flown twice, three car runs to compare, an ArduPilot flight log, a simulation against its flight (offered only when all their files are there)
+- Six examples in one click: an ArduPilot flight log, *Find out what went wrong*, a simulation against its flight, the same mission flown twice, a folder of recordings and the smart-sweep demo (offered only when all their files are there); the others (a drone flight, three car runs, a pump on a bench, a results table, three drones) in *Help → Examples*
 - An example opens with its view already applied (Undo: an empty plot)
 
 ### Files
