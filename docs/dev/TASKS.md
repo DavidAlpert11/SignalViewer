@@ -547,3 +547,7 @@ answer has conditions; `scales.labelOf` reads ✓ / ✗ on a flag column.
   From scripts, If the window does not open (moved up from the build part); then For developers (the build table
   as a list - its paths broke letter by letter). Stale counts fixed: ~1,450 server tests and ~510 browser tests
   (~30 min) - were ~980 / ~320. Nothing removed. mkdocs --strict green; checked at 1440 dark.
+- 2026-11-17 · RD7: the PyPI description and keywords (tools/make_pypi.py) and CITATION.cff's abstract and keywords made
+  generic as CLAUDE.md's identity rule (they said "flight log & test data"); flight keywords kept for search. PyPI shows
+  it from the next release (built from the tag). Checked: pypi_readme already turns the README's relative pictures
+  (the GIFs too) into links to the tag. backend -k citation/version/pypi 220 passed.
