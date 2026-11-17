@@ -643,9 +643,9 @@ MENU_LABEL = {"flight": "a drone flight", "car": "three car runs", "bench": "a p
 
 def _example(pg, ex, ready, settle=1200):
     """Open a welcome-screen example as a new user does, and wait until it is drawn."""
-    card = pg.locator(f".ex-card[data-example='{ex}']")
-    if card.count():
-        card.first.click()
+    pg.wait_for_selector(".ex-card")                                    # the cards come with the list of examples
+    if ex not in MENU_LABEL:
+        pg.locator(f".ex-card[data-example='{ex}']").first.click()
     else:                                         # FR11: not one of the six cards - Help -> Examples
         pg.locator(".topbar .menubar-btn", has_text="Help").click()
         pg.locator(".menu.ctx button", has_text="Examples").click()
@@ -725,8 +725,7 @@ def img_39_smart_sweep_demo(b, app):
 def img_40_common_gains(b, app):
     """One set of gains for three drones: the shared answer, why the others fail."""
     ctx, pg = page(b, app)
-    pg.locator(".ex-card[data-example='commonGains']").first.click()
-    pg.wait_for_selector("[data-shot][data-settled='1']", timeout=180000); pg.wait_for_timeout(2000)
+    _example(pg, "commonGains", "[data-shot][data-settled='1']", 2000)
     shot(pg, "40_common_gains"); ctx.close()
 
 
@@ -836,7 +835,8 @@ def img_examples(browser, app):
     os.makedirs(EX_PICS, exist_ok=True)
     sets = json.loads(urllib.request.urlopen(app.url + "/api/examples").read())
     only = [x for x in os.environ.get("SV_EX_ONLY", "").split(",") if x]          # e.g. SV_EX_ONLY=car,sweepTable
-    for ex in [x for x in sets if not only or x["id"] in only]:
+    # FR11: only the six cards on the welcome screen have a picture (the others are in Help -> Examples)
+    for ex in [x for x in sets if x["id"] not in MENU_LABEL and (not only or x["id"] in only)]:
         for theme in ("dark", "light"):
             ctx, pg = page(browser, app, dark=theme == "dark", scale=2)
             try:
