@@ -72,7 +72,7 @@ The packages are not code-signed yet – [what to do the first time](docs/instal
 <b>Find what went wrong</b><br>
 Two cursors around the moment, then <i>What changed?</i> – who moved first and who led whom.
 <a href="https://davidalpert11.github.io/SignalViewer/investigate-tutorial/">Tutorial</a><br><br>
-<a href="docs/images/43_what_changed.png"><img src="docs/images/43_what_changed.png" alt="Investigate: What changed first - five signals changed, the first is Wind at -0.44 s; who leads whom drawn as arrows; two runs overlaid, the two cursors around the roll's first jump"></a>
+<a href="docs/images/47_what_changed.gif"><img src="docs/images/47_what_changed.gif" alt="What changed? as it happens: two cursors pulled around the roll's first jump, the question asked, and the answer - five signals changed, the first is Wind at -0.44 s, who leads whom as arrows"></a>
 </td>
 <td width="50%" valign="top">
 <b>One verdict per file</b><br>

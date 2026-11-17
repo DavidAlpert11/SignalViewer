@@ -901,6 +901,35 @@ def img_43_what_changed(b, app):
     shot(pg, "43_what_changed"); ctx.close()
 
 
+def img_47_what_changed_film(b, app):
+    """RD4: What changed? as a film - the Investigate example, two cursors put around the roll's first jump, the
+    question asked, and the answer: the signals that left their usual range in time order, who led whom."""
+    ctx, pg = page(b, app)
+    _example(pg, "investigate", ".grid canvas", 1500)
+    pg.locator(".sig").filter(has=pg.get_by_text("Roll", exact=True)).first.click()
+    pg.wait_for_timeout(800)
+    # time 25-55 s: the roll's first jump wide enough to see the cursors pulled across it
+    pg.evaluate("() => { const t = window.__sv.state().ws.tabs[0]; window.__sv.setState({ ranges: { [t.id]: [25, 55] } }); }")
+    pg.wait_for_timeout(800)
+    pg.add_style_tag(content=SHOT_HIDE); pg.mouse.move(W - 5, H - 5)
+    d, frames = tempfile.mkdtemp(prefix="sv-film-"), []
+    for _ in range(4):
+        frame(pg, d, frames)                                      # the two runs, the roll's jump
+    for t2 in (38.46, 38.62, 38.78, 38.94, 39.1, 39.24):          # the second cursor pulled across the jump
+        pg.evaluate("t2 => window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 38.46, t2, active: 2 } })", t2)
+        pg.wait_for_timeout(250); frame(pg, d, frames)
+    pg.wait_for_selector(".sel-bar:not([hidden])", timeout=20000)
+    btn = pg.locator(".sel-changed").first.bounding_box()
+    pg.mouse.move(btn["x"] + btn["width"] / 2, btn["y"] + btn["height"] / 2); pg.wait_for_timeout(300)
+    frame(pg, d, frames); frame(pg, d, frames)                    # the question, under the pointer
+    pg.click(".sel-changed")
+    pg.wait_for_selector(".wc-section", timeout=60000); pg.wait_for_timeout(2000)
+    pg.mouse.move(W - 5, H - 5); pg.wait_for_timeout(300)
+    frame(pg, d, frames)
+    film(frames, "47_what_changed", fps=3)
+    ctx.close()
+
+
 # ----------------------------------------------------------------------------- W2: the example cards' pictures
 EX_PICS = os.path.join(ROOT, "frontend", "public", "examples")
 EX_W, EX_H, EX_MAX_BYTES = 480, 270, 40_000
