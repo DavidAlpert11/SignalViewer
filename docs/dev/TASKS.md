@@ -35,6 +35,8 @@ What is open, in order (the finished history is in the Log and in git: `git show
 | M35 FT3 - all rows up to the Settings cap, sample from kept rows, exact counts | done | - |
 | M35 FT4 - HTML export of a table: all rows up to the cap | done | - |
 | M35 FT5 - backend density drawing beyond the cap | follow-up only (ROADMAP) | not now (owner) |
+| M35 FT6 - exact Charts in All runs above the cap (now: said) | proposed | the owner's yes |
+| M35 FT7 - X-Y / 3D plots thin a long recording by stride, unsaid | proposed | the owner's choice |
 
 **Decision (owner, 2026-11-17), M35:** the Sweeps tables are an exception to CLAUDE.md's "the UI receives
 decimated data only": every row goes to the page once up to the cap set in Settings (*Most lines to draw*), and is
@@ -425,3 +427,12 @@ drawn. Backend density drawing (2D histograms) is a follow-up only (FT5).
   Backend 1421 green; e2e test_sweeps_flow, _groups, _charts, _data_columns, _big_table, _workspace, test_settings - 69 green.
 - 2026-11-17 · M35 FT4: a table's HTML page carries every row up to the cap and draws in layers. e2e test_sweeps_big_table (3),
   test_sweeps_flow, test_sweeps_charts - green. FT5 written in ROADMAP as a follow-up.
+- 2026-11-17 · M35 end of round: quick_check green after a mypy fix (select.py reused a name with two types); whole e2e
+  suite 503 passed, 3 failed (test_globe3d x2, test_cursor_labels - all 19 tests of those files green when run alone: load
+  on software WebGL with 4 workers, not this round). The owner asked whether anything else samples silently: searched
+  the backend and the UI (random samples, caps, strides, slices). Found: Sweeps Charts in All runs drawn from the runs'
+  sample above the cap (now said above them - FT6 for exact statistics); X-Y / 3D plots thinned by stride, unsaid (FT7);
+  a Checks group's cursor values for its first 200 columns. Not silent: clusters refuse above 20,000 sets; Tacview's
+  lowered rate is in the reply; a report embeds signals above 150,000 samples as min/max levels (limitations.md);
+  time plots are min/max (every peak kept); Runs x conditions' 200 files and places' 5,000 are said.
+  e2e test_sweeps_big_table 4 green.

@@ -127,3 +127,19 @@ def test_html_page_of_the_table_draws_every_row(pg, tmp_path):
     page.wait_for_function("document.getElementById('cv').dataset.drawing === '0'", timeout=120000)
     assert "200000 of 200000" in page.locator("#count").inner_text()
     page.close()
+
+
+def test_charts_of_all_runs_say_they_are_of_the_sample(pg, tmp_path):
+    """Charts of All runs above the cap are drawn from the sample - said above them, not hidden."""
+    _big_table(tmp_path)
+    _cap(pg, "50,000")
+    _open_table(pg, tmp_path, "big_sweep.csv")
+    _step(pg, "results")
+    _tab(pg, "runs")
+    pg.wait_for_selector(".sw-sampled:has-text('Drawing 50,000 of 200,000 runs')")
+    _tab(pg, "charts")
+    pg.wait_for_selector(".sw-charts-sampled:has-text('50,000 of 200,000 runs')")
+    _tab(pg, "sets")
+    _tab(pg, "charts")
+    pg.wait_for_selector(".sw-desk")
+    assert pg.locator(".sw-charts-sampled").count() == 0                         # Parameter sets: every set

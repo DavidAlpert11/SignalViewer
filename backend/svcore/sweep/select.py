@@ -28,8 +28,8 @@ def column_mask(s: pd.Series, f: Dict[str, Any]) -> Optional[np.ndarray]:
     """The runs one filter keeps (None: a filter that keeps everything - an unknown kind)."""
     kind = f.get("kind")
     if kind == "labels":
-        want = [str(x) for x in (f.get("labels") or [])]
-        return labels_of(s).isin(want).fillna(False).to_numpy(dtype=bool)
+        labels = [str(x) for x in (f.get("labels") or [])]
+        return labels_of(s).isin(labels).fillna(False).to_numpy(dtype=bool)
     v = _f32(s)
     finite = np.isfinite(v)
     if kind == "values":

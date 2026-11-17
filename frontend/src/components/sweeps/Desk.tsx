@@ -151,6 +151,9 @@ export default function Desk({ study }: { study: Study }) {
             onClick={() => { setBig(null); set({ perRow: n, layout: n }); }}>{t("swDeskPerRow", { n })}</button>)}
         </div>
       </div>
+      {/* All runs above the cap: the charts are of the runs drawn - said, not hidden (1.29; exact charts: ROADMAP FT6) */}
+      {study.view.mode === "runs" && study.answer?.runs?.sampled && (
+        <p className="hint sw-sampled sw-charts-sampled">{t("swChartsSampled", { n: study.answer.runs.n.toLocaleString(), of: study.answer.runs.total.toLocaleString() })}</p>)}
       {!desk.panes.length && <p className="empty-note">{t("swNoCharts")}</p>}
       <div className={`sw-desk-grid per${big !== null ? 1 : desk.perRow}`}>
         {shown.map((i) => (
