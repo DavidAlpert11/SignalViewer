@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRunCharts } from "../../sweeps/runCharts";
 import { useApp } from "../../store";
-import type { Filter } from "../../sweeps/model";
+import type { Col, Filter } from "../../sweeps/model";
 import { useT } from "../../i18n";
 import { category, FAILS, FLAG_COLS, HOLDS, rampOf } from "../../sweeps/colors";
 import { modeKeep } from "../../sweeps/tabs";
@@ -27,17 +27,28 @@ export function ScatterPanel({ study, pair, onChange, onRemove, group, objective
   const choices = axisChoices(study).filter((c) => !objectivesOnly || c === "#goal" || /^#obj\d+$/.test(c));
   const v = study.view;
   const xName = pair.x, yName = pair.y;          // checked by scatterList
+  const inGroup = useMemo(() => groupRows(study, group, cols, n, index), [cols, n, study, group, index]);
   const kept = useMemo(() => {
-    const k = modeKeep(study, cols, n, index), g = groupRows(study, group, cols, n, index);
+    const k = modeKeep(study, cols, n, index), g = inGroup;
     if (g) for (let r = 0; r < n; r++) k[r] &= g[r];
     return k;
-  }, [cols, n, study, group, index]);
+  }, [cols, n, study, index, inGroup]);
   // not every run on the page (All runs above the cap): every run from the server - counted per cell, the sparse
   // cells' runs as points (FT6; CLAUDE.md: no point left out of a picture)
   const srv = useRunCharts(study, group, { scatter: { x: xName, y: yName, xScale: scaleOf(study, xName, cols.get(xName)),
     yScale: scaleOf(study, yName, cols.get(yName)), size: pair.size || undefined,
     colourValue: v.colorBy && cols.get(v.colorBy)?.kind === "num" && !FLAG_COLS.has(v.colorBy) ? v.colorBy : undefined } });
   const many = srv.data?.scatter;
+  // an axis spans the pane's own sets (its group), not every set: a set the pane does not draw (one that fails, in a
+  // pane of those that hold) no longer stretches it. Every point drawn is a point of the group, so none is left out.
+  // A number column of the page's own (not every run from the server: its cells are cut on the whole table's range).
+  const scaleFor = (c: Col) => {
+    const kind = scaleOf(study, c.name, c);
+    if (!inGroup || srv.partial || c.kind !== "num") return makeScale(c, kind);
+    const vals: number[] = [];
+    for (let r = 0; r < n; r++) if (inGroup[r]) vals.push(c.values[r]);
+    return vals.length ? makeScale({ ...c, values: Float32Array.from(vals), domain: undefined }, kind) : makeScale(c, kind);
+  };
   // a rectangle dragged on the plot keeps what is in it (S19): the lines' filters on its two columns
   const [drag, setDrag] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const at = (e: React.PointerEvent) => {
@@ -57,7 +68,7 @@ export function ScatterPanel({ study, pair, onChange, onRemove, group, objective
     }
     const tx = (X: number) => (X - L) / (W - L - R), ty = (Y: number) => (H - B - Y) / (H - B - T);
     const range = (c: typeof xc, a: number, b: number): Filter | null => {
-      const s = makeScale(c, scaleOf(study, c.name, c));
+      const s = scaleFor(c);
       const lo = Math.max(0, Math.min(a, b)), hi = Math.min(1, Math.max(a, b));
       if (c.kind === "cat") {
         const codes = (c.labels ?? []).map((_, i) => i).filter((i) => { const f = s.norm(i); return f >= lo && f <= hi; });
@@ -84,7 +95,7 @@ export function ScatterPanel({ study, pair, onChange, onRemove, group, objective
     const css = getComputedStyle(c), muted = css.getPropertyValue("--muted").trim() || "#888";
     const line = css.getPropertyValue("--line").trim() || "#ccc";
     const sel = css.getPropertyValue("--select").trim() || "#888";        // B7: the balanced choice in the selection ink, not amber
-    const sx = makeScale(xc, scaleOf(study, xc.name, xc)), sy = makeScale(yc, scaleOf(study, yc.name, yc));
+    const sx = scaleFor(xc), sy = scaleFor(yc);
     const px = (val: number) => L + sx.norm(val) * (W - L - R), py = (val: number) => H - B - sy.norm(val) * (H - B - T);
     const gx = (f: number) => L + f * (W - L - R), gy = (f: number) => H - B - f * (H - B - T);
     // the grid: at the ticks, and (minor) half way between them

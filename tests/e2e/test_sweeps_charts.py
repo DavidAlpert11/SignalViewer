@@ -127,3 +127,41 @@ def test_principal_components_clusters_as_groups_and_a_som(pg):
     assert sum(hits) == 45
     pg.locator(".sw-som-node:not([disabled])").first.click()
     pg.wait_for_selector(".sw-groups .sw-group:not(.auto):has-text('Map node')")
+
+
+def test_a_chart_spans_its_own_sets_and_shows_a_set_alone(pg, tmp_path):
+    """Owner, 2026-11-17: a pane of the sets that hold is not stretched by a set that fails (one run of 250 among runs
+    below 30); in a pane of every set, that set's bar is seen though it is 1 among hundreds (no point left out)."""
+    import numpy as np
+    import pandas as pd
+    from test_sweeps_flow import _condition, _idle, _open_table
+    rng = np.random.default_rng(5)
+    gain, rate = np.meshgrid(np.arange(20) * 0.5, np.arange(20) * 0.1, indexing="ij")
+    df = pd.DataFrame({"gain": np.repeat(gain.ravel(), 10), "rate": np.repeat(rate.ravel(), 10), "scenario_wind": np.tile(np.arange(10), 400)})
+    df["error"] = (5 + df.gain + df.rate + df.scenario_wind * 0.5 + rng.normal(0, 1, len(df))).round(3)
+    df.loc[1234, "error"] = 2500.0                                           # one run: its set's mean far from the rest
+    df.to_csv(os.path.join(tmp_path, "needle_sets.csv"), index=False)
+    mean = df.groupby(["gain", "rate"], sort=False).error.mean()
+    _open_table(pg, tmp_path, "needle_sets.csv")
+    _step(pg, "goals")
+    _condition(pg, "error", "<=", 40)
+    _step(pg, "results")
+    pg.locator(".sw-show select").select_option("all")
+    _idle(pg)
+    _tab(pg, "charts")
+    pane = pg.locator(".sw-pane").nth(0)
+    pane.locator("select[aria-label='Chart']").select_option("histogram")
+    hist = pane
+    hist.locator("label:has-text('Column') select").select_option("error")
+    labels = lambda: hist.locator("svg.sw-chart text.sw-ax").evaluate_all("ts => ts.map((t) => t.textContent)")
+    hist.locator("svg.sw-chart").wait_for()
+    # the axis ends: the last two numbers before the title
+    end = "([p, big]) => { const t = [...p.querySelectorAll('svg.sw-chart text.sw-ax')]; const v = t.length >= 4 ? Number(t[t.length - 2].textContent) : NaN; return big ? v > 100 : v < 40; }"
+    pg.wait_for_function(end, arg=[hist.element_handle(), True])
+    assert float(labels()[-2]) == pytest.approx(float(np.float32(mean.max())), rel=1e-3)   # every set: up to the far set's mean
+    heights = [float(h) for h in hist.locator("svg.sw-chart rect:not(.sw-brush-mark)").evaluate_all("rs => rs.map((r) => r.getAttribute('height'))")]
+    assert heights and min(heights) >= 2                                     # the bar of that one set is seen
+    hist.locator("select[aria-label='Group']").select_option("holds")
+    pg.wait_for_function(end, arg=[hist.element_handle(), False])
+    hi = float(labels()[-2])
+    assert hi == pytest.approx(float(mean[mean < 40].max()), abs=0.05)       # the holding sets' own range

@@ -280,12 +280,13 @@ function MatrixColumns({ study, value, onChange }: { study: Study; value: string
 /** The sets on screen (scope, hidden groups) and the brush's mask over them. */
 function useRows(study: Study, group?: string) {
   const { cols, n, index } = useMemo(() => scopedColumns(study), [study]);
+  const inGroup = useMemo(() => groupRows(study, group, cols, n, index), [cols, study, n, group, index]);
   const kept = useMemo(() => {
-    const k = modeKeep(study, cols, n, index), g = groupRows(study, group, cols, n, index);
+    const k = modeKeep(study, cols, n, index), g = inGroup;
     if (g) for (let r = 0; r < n; r++) k[r] &= g[r];
     return k;
-  }, [cols, study, n, group, index]);
-  return { cols, n, kept, index };
+  }, [cols, study, n, index, inGroup]);
+  return { cols, n, kept, index, inGroup };
 }
 
 const HW = 520, HH = 260, HL = 44, HB = 34, HT = 10, HR = 10;
@@ -298,7 +299,7 @@ function extentOf(c: Col, keep?: Uint8Array): [number, number] {
 
 function Histogram({ study, column, group }: { study: Study; column: string; group?: string }) {
   const t = useT();
-  const { cols, n, kept } = useRows(study, group);
+  const { cols, n, kept, inGroup } = useRows(study, group);
   const c = cols.get(column);
   const ser = seriesOf(cols, study.view.colorBy, t);
   const [drag, setDrag] = useState<[number, number] | null>(null);
@@ -308,7 +309,7 @@ function Histogram({ study, column, group }: { study: Study; column: string; gro
   if (srv.partial && !srv.data?.hist) return <p className="empty-note">{t("swReading")}</p>;
   const cat = c.kind === "cat";
   const sh = srv.data?.hist;
-  const [lo, hi] = sh ? [sh.lo, sh.hi] : cat ? [-0.5, (c.labels?.length ?? 1) - 0.5] : extentOf(c);
+  const [lo, hi] = sh ? [sh.lo, sh.hi] : cat ? [-0.5, (c.labels?.length ?? 1) - 0.5] : extentOf(c, inGroup ?? undefined);   // the pane's own sets
   const bins = sh ? sh.bins : cat ? c.labels?.length ?? 1 : BINS;
   const h = sh ? sh.counts : histogram(c.values, lo, hi, bins, kept, Float32Array.from({ length: n }, (_, r) => ser.code(r)), ser.names.length);
   const tot = h[0].map((_, b) => h.reduce((s, row) => s + row[b], 0));
@@ -341,7 +342,8 @@ function Histogram({ study, column, group }: { study: Study; column: string; gro
         {tot.map((_, b) => {
           let y = HH - HB;
           return h.map((row, s) => {
-            const hgt = (row[b] / max) * (HH - HB - HT);
+            // a bin of one set among hundreds is still seen (CLAUDE.md: no point left out of a picture)
+            const hgt = row[b] ? Math.max(2, (row[b] / max) * (HH - HB - HT)) : 0;
             y -= hgt;
             return row[b] ? <rect key={`${b}:${s}`} x={HL + b * bw + 1} y={y} width={Math.max(1, bw - 2)} height={hgt} fill={ser.colours[s]}><title>{`${ser.names[s]} ${row[b]}`}</title></rect> : null;
           });
