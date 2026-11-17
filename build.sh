@@ -6,7 +6,13 @@
 set -e
 cd "$(dirname "$0")"
 MODE="${1:-portable}"
-if [ "$MODE" = "wheels" ]; then python3 -m pip download -r requirements.txt pyinstaller -d wheels; exit 0; fi
+if [ "$MODE" = "wheels" ]; then
+  python3 -m pip download -r requirements.txt pyinstaller -d wheels || exit 1
+  # the UI is not in git: built here (npm needs the internet), so the copied folder carries it to the offline PC
+  command -v npm >/dev/null || { echo "Node.js is needed here to build the UI for the offline PC: install Node.js LTS."; exit 1; }
+  (cd frontend && npm ci && npm run build) || exit 1
+  exit 0
+fi
 [ -x .buildenv/bin/python ] || python3 -m venv .buildenv
 PY=.buildenv/bin/python
 if [ -d wheels ]; then $PY -m pip install --no-index --find-links wheels -r requirements.txt pyinstaller

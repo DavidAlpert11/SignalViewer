@@ -22,7 +22,11 @@ where python >nul 2>nul || (echo Python 3.10+ is needed to BUILD ^(not to run th
 
 if "%MODE%"=="wheels" (
   python -m pip download -r requirements.txt pyinstaller -d wheels || exit /b 1
-  echo Libraries saved in .\wheels - copy the whole folder to the offline PC and run build.bat there.
+  rem the UI is not in git: built here (npm needs the internet), so the copied folder carries it
+  where npm >nul 2>nul || (echo Node.js is needed here to build the UI for the offline PC: install Node.js LTS. & exit /b 1)
+  pushd frontend & call npm ci & call npm run build & popd
+  if not exist frontend\dist\index.html (echo Building the UI failed - see the messages above. & exit /b 1)
+  echo Libraries saved in .\wheels and the UI built - copy the whole folder to the offline PC and run build.bat there.
   exit /b 0
 )
 
