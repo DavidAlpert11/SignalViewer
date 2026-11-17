@@ -24,6 +24,7 @@ What is open, in order (the finished history is in the Log and in git: `git show
 | M34 FR11 - welcome cards 11 -> 6, the rest under Help -> Examples | done (owner: yes, one Sweeps) | - |
 | M34 FR12 - e2e files named by feature, not by round | done (owner: yes) | - |
 | Release 1.28.0 (with SF1 and M34; CHANGELOG 2026-11-17) | ready, not tagged | the owner tags v1.28.0 |
+| RD1 - README redesigned (owner, 2026-11-17; branch `claude/readme-redesign`) | done on the branch, not merged | the owner reviews the branch's README; on his yes: fast-forward main, he deletes the branch |
 | SW2 (b) - Run again with recording | spec agreed in parts | the owner's final yes on "Open specs" below - do not implement before |
 | BR1 - the app as one process (README, docs home, welcome groups) | proposed | the owner's yes on the wording below |
 | Stability on Windows with a GPU (Out of Memory, the 3D shader) | waiting for numbers | the owner runs `tools/measure_maps.py --gpu`; the e2e suite's memory |
@@ -512,3 +513,10 @@ answer has conditions; `scales.labelOf` reads ✓ / ✗ on a flag column.
   test_sweeps_big_table.py::test_keep_works_on_show_and_the_chip_counts_what_is_on_screen; Sweeps + needle + settings
   e2e 75 passed; quick_check green. Whole e2e (-n 4): 509 passed, 3 failed (test_features compare_same_segment, test_flat_line_solo,
   test_name_tree pinned chips - none Sweeps); those three files alone: 142 passed. Ready for the owner's tag v1.29.0.
+- 2026-11-17 · RD1: README rewritten on `claude/readme-redesign` (no version change): one-sentence what/for whom, 4 true
+  badges (PyPI, Python 3.9+, MIT, docs; the CI badge dropped - CI runs only by hand, so it showed a stale status),
+  quick start as a table (Windows / Linux-macOS .7z / pip / source), a picture per area (43, 09, 01, 41, 05, 42 - all
+  existing), a formats table, Python + CLI, trust, docs links, Contributing / Citation; Hebrew section kept in line.
+  Every relative link checked. Fixed on the way: command-line.md said validate prints "23 passed" (29), features.md
+  said five welcome examples (six since 1.28). BR1 wording not used as the tagline - still waits for the owner.
+  mkdocs build --strict green; no code changed, so no e2e run.
