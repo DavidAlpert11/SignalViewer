@@ -86,3 +86,17 @@
 .sv-rtl ul, .sv-rtl ol { padding-right: 1.2rem; padding-left: 0; margin-right: 0.6rem; margin-left: 0; }
 .sv-rtl table { direction: rtl; }
 .sv-rtl .headerlink { margin-right: 0.3rem; margin-left: 0; }
+
+/* ---------------------------------------------------------------- every page (RD6): clearer type, calmer tables */
+.md-typeset h1 { font-weight: 800; letter-spacing: -0.02em; color: var(--md-default-fg-color); }
+.md-typeset h2 { font-weight: 700; letter-spacing: -0.01em; }
+.md-typeset h3 { font-weight: 650; }
+.md-typeset table:not([class]) { font-size: 0.72rem; border-radius: 0.4rem; }
+.md-typeset table:not([class]) th { font-weight: 700; }
+/* code in a table keeps whole words (paths broke letter by letter in narrow columns) */
+.md-typeset table:not([class]) code { word-break: normal; overflow-wrap: anywhere; white-space: normal; }
+.md-typeset img { border-radius: 0.4rem; }
+.md-typeset .tabbed-labels > label { font-weight: 600; }
+.md-typeset .admonition, .md-typeset details { border-radius: 0.4rem; }
+/* a wider page on big screens: the long tables (validation, features) get room */
+.md-grid { max-width: 72rem; }
