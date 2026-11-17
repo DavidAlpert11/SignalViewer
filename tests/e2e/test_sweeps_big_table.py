@@ -205,3 +205,45 @@ def test_a_filter_remembers_its_tab(pg, tmp_path):
     pg.locator(".sw-across button").click()                              # x: the filters of the other tab go
     pg.wait_for_selector(f".sw-plotbar .sw-count:has-text('{n_sets} of {n_sets} lines')")
     pg.wait_for_selector(".sw-across", state="detached")
+
+
+def test_keep_works_on_show_and_the_chip_counts_what_is_on_screen(pg, tmp_path):
+    """Owner, 2026-11-17: Keep acts on what Show shows (only the sets that hold) with no filter; the chip in All runs
+    counts what is on screen with every filter - the parameters' too - not the other tab's filter alone."""
+    from test_sweeps_flow import _condition
+    rng = np.random.default_rng(3)
+    gain, rate = np.meshgrid(np.arange(20) * 0.5, np.arange(20) * 0.1, indexing="ij")
+    n_sc = 20
+    df = pd.DataFrame({"gain": np.repeat(gain.ravel(), n_sc), "rate": np.repeat(rate.ravel(), n_sc),
+                       "scenario_wind": np.tile(np.arange(n_sc), gain.size)})
+    df["error"] = (df.gain + df.rate + df.scenario_wind * 0.3 + rng.normal(0, 2, len(df))).round(4)
+    df.to_csv(os.path.join(tmp_path, "show_sweep.csv"), index=False)
+    g = df.groupby(["gain", "rate"], sort=False)
+    worst, mean = g.error.max().astype(np.float32), g.error.mean().astype(np.float32)
+    holds = worst <= 18
+    assert 0 < holds.sum() < len(holds)
+    _open_table(pg, tmp_path, "show_sweep.csv")
+    _step(pg, "goals")
+    _condition(pg, "error", "<=", 18)
+    _step(pg, "results")
+    _tab(pg, "sets")
+    _idle(pg)
+    pg.wait_for_selector(f".sw-plotbar .sw-count:has-text('{int(holds.sum())} of {len(holds)} lines')")    # Show: holds
+    keep = pg.locator(".sw-plotbar .btn", has_text="Keep")
+    assert keep.is_enabled()                                              # no filter: Keep acts on what Show shows
+    keep.click()
+    pg.wait_for_selector(".sw-plotbar .btn:has-text('Restore')")
+    pg.locator(".sw-show select").select_option("all")
+    _idle(pg)
+    pg.wait_for_selector(f".sw-plotbar .sw-count:has-text('{int(holds.sum())} of')")              # the step keeps them
+    # the chip: a parameter's filter and an output's (mean), then All runs
+    pg.evaluate("window.__svSweeps.filter('gain', {kind: 'ranges', ranges: [[0, 4]]})")
+    pg.evaluate("window.__svSweeps.filter('error', {kind: 'ranges', ranges: [[4, 9]]})")
+    want = holds & (mean >= 4) & (mean <= 9) & (g.gain.first() <= 4)
+    k = int(want.sum())
+    assert k > 0 and k < int(((mean >= 4) & (mean <= 9)).sum())          # the parameter's filter matters
+    pg.wait_for_selector(f".sw-plotbar .sw-count:has-text('{k} of')")
+    _tab(pg, "runs")
+    _idle(pg)
+    pg.wait_for_selector(f".sw-plotbar .sw-count[data-exact='1']:has-text('{k * n_sc:,} of')")
+    assert f"{k} sets, all their {k * n_sc:,} runs" in pg.locator(".sw-across").inner_text()

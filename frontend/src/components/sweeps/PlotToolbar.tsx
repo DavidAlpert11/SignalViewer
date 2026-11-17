@@ -7,7 +7,7 @@ import { FAILS, FLAG_COLS, HOLDS, rampCss } from "../../sweeps/colors";
 import { hasFilter } from "../../sweeps/filters";
 import { fmtValue, makeScale } from "../../sweeps/scales";
 import { useCanRedo, useCanUndo, useSweeps, type Study } from "../../sweeps/state";
-import { axisChoices, axisOptions, colLabel, modeColumns, presetChoices, scaleOf, scopeKey, shownAxes, type ColumnPreset } from "../../sweeps/view";
+import { axisChoices, axisOptions, colLabel, modeColumns, presetChoices, scaleOf, scopeKey, showKey, shownAxes, type ColumnPreset } from "../../sweeps/view";
 import ColumnPicker from "./ColumnPicker";
 import type { TKey } from "../../i18n";
 
@@ -23,6 +23,8 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
   const v = study.view;
   const axes = shownAxes(study);
   const nFilters = Object.values(v.filters).filter(hasFilter).length;
+  // Keep / Exclude act on what is shown: a filter, or Show (only those that hold, a group...) - owner, 2026-11-17
+  const narrows = nFilters > 0 || showKey(v) !== "all";
   const scoped = v.scope.key === scopeKey(study) ? v.scope.steps.length : 0;
   const here = new Set(axisChoices(study));
   const off = (v.axesOff ?? []).filter((a) => here.has(a) && !v.axes.includes(a));
@@ -46,8 +48,8 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
       <span className="hint sw-count" data-exact={shown === null ? "0" : "1"}>{shown === null ? "…" : t("swShown", { n: shown.toLocaleString(), of: total.toLocaleString() })}</span>
       {nFilters > 0 && <button className="btn outline" onClick={() => setView({ filters: {}, filterTab: {} })}>{t("swClearFilters", { n: nFilters })}</button>}
       {/* HiPlot's Keep / Exclude / Restore: narrow what is shown to the selection, step by step */}
-      <button className="btn outline" disabled={!nFilters || shown === 0} onClick={onKeep} title={t("swKeepHint")}>{t("swKeepSel")}</button>
-      <button className="btn outline" disabled={!nFilters || shown === total} onClick={onExclude} title={t("swExcludeHint")}>{t("swExcludeSel")}</button>
+      <button className="btn outline" disabled={!narrows || shown === 0} onClick={onKeep} title={t("swKeepHint")}>{t("swKeepSel")}</button>
+      <button className="btn outline" disabled={!narrows || shown === total} onClick={onExclude} title={t("swExcludeHint")}>{t("swExcludeSel")}</button>
       {scoped > 0 && <>
         <button className="btn outline" onClick={() => useSweeps.getState().restore(false)} title={t("swStepBackHint")}>{t("swStepBack")}</button>
         <button className="btn outline" onClick={() => useSweeps.getState().restore(true)}>{t("swRestore", { n: scoped })}</button>

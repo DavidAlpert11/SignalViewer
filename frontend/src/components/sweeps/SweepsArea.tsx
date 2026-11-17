@@ -33,8 +33,8 @@ import { sweepApi } from "../../sweeps/api";
 import { drawOf, recipeFiles, savedOf, useCanRedo, useCanUndo, useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
 import { emptyView, newGoal, materialize } from "../../sweeps/model";
 import { notify, notifyError, say } from "../../sweeps/notify";
-import { activeParams, colLabel, reorderedAxes, scaleOf, scopedColumns, scopeKey, showMask, shownAxes } from "../../sweeps/view";
-import { keptMask } from "../../sweeps/filters";
+import { activeParams, colLabel, reorderedAxes, scaleOf, scopedColumns, scopeKey, scopeMask, showMask, shownAxes } from "../../sweeps/view";
+import { hasFilter } from "../../sweeps/filters";
 import { acrossFilters, filterParts, modeKeep, ownFilters, runsTabAsk, setFilterColumns, setKeep } from "../../sweeps/tabs";
 import { filterText } from "../../sweeps/scales";
 import { runSelection } from "../../sweeps/selection";
@@ -601,7 +601,7 @@ function ResultsCenter({ study }: { study: Study }) {
             onExclude={() => void narrow("exclude")}
             onExport={exportShown}
             onExportPlot={() => say(exportPlot(t, study, lang))} />
-          <AcrossChip study={study} />
+          <AcrossChip study={study} shown={exact ? shown : null} />
           <p className="hint sw-what-line">{v.mode === "sets" ? t("swPerSetHint") : t("swPerRunHint")}
             <ZoomButtons zoom={zoom} onZoom={(z) => useSweeps.getState().setZoom(zoomKey, z)} /></p>
           {v.mode === "runs" && study.answer.counts.rows === study.answer.counts.sets && <p className="hint">{t("swRunsSameAsSets")}</p>}
@@ -636,7 +636,7 @@ function ResultsCenter({ study }: { study: Study }) {
 /** FT9: one line above the plot - the filters made in the other tab that apply here, and what they keep (owner,
  *  2026-11-17): in All runs, those made in Parameter sets keep sets - every run of them; in Parameter sets, those made
  *  in All runs keep the sets with a run that passes. × clears them. */
-function AcrossChip({ study }: { study: Study }) {
+function AcrossChip({ study, shown }: { study: Study; shown: number | null }) {
   const t = useT();
   const across = acrossFilters(study);
   const names = Object.keys(across);
@@ -645,19 +645,17 @@ function AcrossChip({ study }: { study: Study }) {
   const runsMode = study.view.mode === "runs";
   const cols = runsMode ? setFilterColumns(study) : new Map((a.runs?.columns ?? []).map((c) => [c.name, c]));
   const what = names.map((c) => `${colLabel(t, study, c)} ${filterText(across[c], cols.get(c) ?? a.sets.find((x) => x.name === c))}`).join("; ");
+  // what is on screen now, with every filter, Show and the keep / exclude steps - the plot's own count (owner, 2026-11-17)
   let text: string;
   if (runsMode) {
-    const nSets = a.sets[0]?.values.length ?? 0, m = keptMask(cols, filterParts(study).sets, nSets);
+    const nSets = a.sets[0]?.values.length ?? 0, m = setKeep(study).mask, scope = scopeMask(study), show = showMask(study);
     let k = 0;
-    for (let i = 0; i < nSets; i++) k += m[i];
-    // every run on the page: how many runs those sets have, counted here
-    const r = a.runs && !a.runs.sampled && !a.runs.density ? a.runs.columns.find((c) => c.name === "#set")?.values : undefined;
-    let nr = 0;
-    if (r) for (let i = 0; i < r.length; i++) nr += m[r[i]];
-    text = r ? t("swAcrossSetsRuns", { what, n: k.toLocaleString(), r: nr.toLocaleString() }) : t("swAcrossSets", { what, n: k.toLocaleString() });
+    for (let i = 0; i < nSets; i++) if (m[i] && (!scope || scope[i]) && (!show || show[i] === 1)) k++;
+    const own = Object.values(filterParts(study).runs).some(hasFilter);        // runs filtered within those sets too
+    const n = k.toLocaleString(), r = shown === null ? "…" : shown.toLocaleString();
+    text = own ? t("swAcrossSetsSome", { what, n, r }) : shown === null ? t("swAcrossSets", { what, n }) : t("swAcrossSetsRuns", { what, n, r });
   } else {
-    const key = runsTabAsk(study)?.key;
-    text = study.runsTab && study.runsTab.key === key ? t("swAcrossRuns", { what, n: study.runsTab.sets.length.toLocaleString() }) : t("swAcrossRunsWait", { what });
+    text = shown === null ? t("swAcrossRunsWait", { what }) : t("swAcrossRuns", { what, n: shown.toLocaleString() });
   }
   const clear = () => {
     const v = study.view, filters = { ...v.filters }, filterTab = { ...v.filterTab };

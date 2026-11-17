@@ -507,3 +507,8 @@ answer has conditions; `scales.labelOf` reads ✓ / ✗ on a flag column.
   deletes them. Charts: a pane's axes span its own group's sets (ScatterView scaleFor, Desk histogram extent), a
   non-empty histogram bin at least 2 px. e2e test_sweeps_charts.py::test_a_chart_spans_its_own_sets_and_shows_a_set_alone;
   test_sweeps_*.py + test_needle.py + test_settings.py: 74 passed; quick_check green (after the validation page was made again).
+- 2026-11-17 · Owner: yes, into 1.29.0 - Keep / Exclude act on Show with no filter (PlotToolbar `narrows`); the chip
+  counts what is on screen (setKeep + scope + Show; the runs: the plot's exact count). e2e
+  test_sweeps_big_table.py::test_keep_works_on_show_and_the_chip_counts_what_is_on_screen; Sweeps + needle + settings
+  e2e 75 passed; quick_check green. Whole e2e (-n 4): 509 passed, 3 failed (test_features compare_same_segment, test_flat_line_solo,
+  test_name_tree pinned chips - none Sweeps); those three files alone: 142 passed. Ready for the owner's tag v1.29.0.
