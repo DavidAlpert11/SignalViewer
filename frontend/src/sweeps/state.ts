@@ -1068,6 +1068,13 @@ useSweeps.subscribe((st, prev) => {
   saved: () => !savePending,
   doc: () => useSweeps.getState().saved(),          // the active study as a .svsweep document (the examples are made from it)
   show: (part: Part) => useSweeps.setState({ part }),   // C6: a part of the study shown (the navigator's clicks, C7)
+  // an exact brush on an axis of the plot on screen (a text column's by its labels), as a drag would set it
+  filter: (name: string, f: Filter | { kind: "labels"; labels: string[] }) => {
+    const s = useSweeps.getState().studies[useSweeps.getState().active];
+    const cols = s?.view.mode === "runs" && s.answer?.runs ? s.answer.runs.columns : s?.answer?.sets ?? [];
+    const labels = cols.find((c) => c.name === name)?.labels ?? [];
+    useSweeps.getState().setFilter(name, f.kind === "labels" ? { kind: "values", values: f.labels.map((x) => labels.indexOf(x)).filter((i) => i >= 0) } : f);
+  },
 };
 
 /** Whether the area's one Undo / Redo has a step (C4), for the buttons. */

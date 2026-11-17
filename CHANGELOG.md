@@ -2,6 +2,8 @@
 
 ## Next – unreleased
 
+- Fixed: **Sweeps' All runs on a big table – Keep, Exclude, Save as group and Export shown now use every run.** Above 50,000 runs the plot draws a sample, and these four acted on the runs drawn: *Keep* could leave out sets that had matching runs outside the sample, and *Export shown* wrote only the sampled runs. They now ask for the whole table – the sets kept, the group and the file are the same however many runs are drawn. A group saved from a brush on a scenario or a run's result in All runs keeps the sets that have such runs (frozen ❄); a brush on parameters saves a live group as before.
+
 ## 1.28.0 – 2026-11-17
 
 **Highlights:** clear to a newcomer, and **the window back to the data**: plots take more of the window (a one-row plot head, the flags on the mode lane, the cursors' times under the plot), one colour per file wherever runs are compared, a folder of recordings that reads as recordings, Sweeps' three equal starts and its answer in words, six example cards. **A folder of recordings becomes one table in Sweeps** – a row per recording,

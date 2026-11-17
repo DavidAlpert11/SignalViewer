@@ -178,16 +178,38 @@ def sweep_evaluate(req: QuestionReq):
     if p.new_holds:                     # new columns used as scenarios: their values, for the kept-values pickers
         out["newHolds"] = p.new_holds
     if req.runs:
-        r = sweep.run_rows(p, a["data"]["#holds"])
+        r = sweep.run_rows(p, a["data"]["#holds"], RUNS_MAX)
         idx = r["index"]
         names = req.columns or (p.params + p.holds + p.outputs)
-        cols = [{"name": c, **sweep.encode(p.df[c].iloc[idx].reset_index(drop=True))} for c in names if c in p.df.columns]
+        cols = [{"name": c, **sweep.encode(p.df[c].iloc[idx].reset_index(drop=True), p.df[c])} for c in names if c in p.df.columns]
         cols.append({"name": "#set", **sweep.encode(r["set"].astype(float))})
         cols.append({"name": "#row", **sweep.encode(p.row_id[idx].astype(float))})
         cols.append({"name": "#holds", **sweep.encode(r["holds"])})
         out["runs"] = {"columns": cols, "sampled": r["sampled"], "total": r["total"], "n": int(len(idx))}
     out["seconds"] = round(time.perf_counter() - t0, 3)
     return out
+
+
+# All runs: the most runs sent to draw (a sample of them above it). What the brush selects never comes
+# from what was drawn: /api/sweep/select resolves it on every run (1.29).
+RUNS_MAX = 50_000
+
+
+class SelectReq(BaseModel):
+    id: str
+    question: Dict[str, Any]
+    filters: Dict[str, Dict[str, Any]] = {}   # the axes' filters on run columns (svcore/sweep/select.py)
+    sets: Optional[List[int]] = None          # the sets the page shows (None: all)
+
+
+@router.post("/api/sweep/select")
+def sweep_select(req: SelectReq):
+    """What the brush of All runs selects, on the whole table: its parameter sets (for Keep / Exclude, a
+    group) and how many runs."""
+    from svcore.sweep.select import selection
+    p = _prepared(req.id, req.question)
+    r = selection(p, req.filters, req.sets)
+    return {"sets": r["sets"], "runs": r["runs"], "total": int(len(p.df))}
 
 
 @router.post("/api/sweep/set")
@@ -557,6 +579,7 @@ class ExportRowsReq(BaseModel):
     question: Dict[str, Any]
     sets: Optional[List[int]] = None     # every run of these parameter sets
     rows: Optional[List[int]] = None     # or these runs (rows of the table)
+    select: Optional[Dict[str, Any]] = None   # or the runs a selection selects ({filters, sets}: /api/sweep/select)
     path: str
 
 
@@ -564,7 +587,11 @@ class ExportRowsReq(BaseModel):
 def sweep_export_rows(req: ExportRowsReq):
     """The runs on screen after the filters - every column of the table, as it was read."""
     t = _get(req.id)
-    if req.rows is not None:
+    if req.select is not None:
+        from svcore.sweep.select import selection
+        p = _prepared(req.id, req.question)
+        rows = sorted(selection(p, req.select.get("filters") or {}, req.select.get("sets"))["rows"])
+    elif req.rows is not None:
         rows = sorted(set(req.rows))
     else:
         p = _prepared(req.id, req.question)
@@ -767,7 +794,7 @@ def sweep_raw(req: QuestionReq):
     if sampled:
         idx = np.sort(np.random.default_rng(0).choice(len(df), RAW_MAX, replace=False))
     names = [c for c in (req.columns or list(df.columns)) if c in df.columns]
-    cols = [{"name": c, **sweep.encode(df[c].iloc[idx].reset_index(drop=True))} for c in names]
+    cols = [{"name": c, **sweep.encode(df[c].iloc[idx].reset_index(drop=True), df[c])} for c in names]
     cols.append({"name": "#row", **sweep.encode(df.index.to_numpy()[idx].astype(float))})
     return {"columns": cols, "n": int(len(idx)), "total": int(len(df)), "sampled": sampled}
 

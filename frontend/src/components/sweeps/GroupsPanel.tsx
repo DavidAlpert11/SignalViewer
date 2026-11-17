@@ -8,6 +8,8 @@ import { category } from "../../sweeps/colors";
 import { hasFilter } from "../../sweeps/filters";
 import { autoMasks, combine, count, groupMask, maskOfKey, setIds, type AutoGroup, type GroupOp } from "../../sweeps/groups";
 import { useSweeps, type Study } from "../../sweeps/state";
+import { saveBrushGroup } from "../../sweeps/selection";
+import { notifyError } from "../../sweeps/notify";
 import { openMenu } from "../Overlays";
 
 const AUTO_KEYS: Record<AutoGroup | "marked", TKey> = {
@@ -53,7 +55,7 @@ export default function GroupsPanel({ study }: { study: Study }) {
       <div className="sw-groups-head">
         <b>{t("swGroups")}</b>
         <button className="btn outline" disabled={!brush} title={t("swGrpSaveHint")}
-          onClick={(e) => st.saveGroup(e.shiftKey, nextName())}>{t("swGrpSave")}</button>
+          onClick={(e) => { saveBrushGroup(study, e.shiftKey, nextName()).catch(notifyError); }}>{t("swGrpSave")}</button>
       </div>
       <ul className="sw-groups-list">
         {autoRows.map((k) => {

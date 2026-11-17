@@ -35,6 +35,7 @@ import { emptyView, newGoal, materialize } from "../../sweeps/model";
 import { notify, notifyError, say } from "../../sweeps/notify";
 import { activeParams, colLabel, reorderedAxes, scaleOf, scopedColumns, scopeKey, showMask, shownAxes } from "../../sweeps/view";
 import { keptMask } from "../../sweeps/filters";
+import { runSelection } from "../../sweeps/selection";
 import ReportDialog from "./ReportDialog";
 import { TABLE_EXTS, fileKind } from "../../sweeps/studyFile";
 import TemplatesDialog from "./TemplatesDialog";
@@ -534,20 +535,25 @@ function ResultsCenter({ study }: { study: Study }) {
     return h;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [v.pinned, v.mode, cols, n, index]);
-  // what is selected now: the lines every filter keeps - as parameter sets, and as runs (table rows)
-  const selection = () => {
-    const m = keep;
-    const sets = new Set<number>(), rows: number[] = [];
-    const rowCol = cols.get("#row")?.values;
-    for (let i = 0; i < n; i++) if (m[i]) { sets.add(setOfRow(i)); if (rowCol) rows.push(rowCol[i]); }
-    return { sets: [...sets], rows };
+  // what is selected now. Parameter sets: the lines every filter keeps (every set is drawn). All runs: the
+  // runs drawn are a sample above the cap, so the server resolves the brush on the whole table (1.29)
+  const shownSets = () => {
+    const sets = new Set<number>();
+    for (let i = 0; i < n; i++) if (keep[i]) sets.add(setOfRow(i));
+    return [...sets];
+  };
+  const narrow = async (kind: "keep" | "exclude") => {
+    const key = scopeKey(study);
+    try {
+      const sets = v.mode === "runs" ? (await sweepApi.select(study.tableId, wireQuestion(study), runSelection(study))).sets : shownSets();
+      st.narrow(kind, sets, key);
+    } catch (e) { notifyError(e); }
   };
   const exportShown = async () => {
     const p = await pickPath({ mode: "save", title: t("swExportShown"), exts: [".csv"], defaultName: study.name.replace(/\.[^.]+$/, "") + "_selected.csv" });
     if (!p) return;
-    const sel = selection();
     try {
-      const r = await sweepApi.exportRows(study.tableId, wireQuestion(study), v.mode === "runs" ? { rows: sel.rows } : { sets: sel.sets }, p);
+      const r = await sweepApi.exportRows(study.tableId, wireQuestion(study), v.mode === "runs" ? { select: runSelection(study) } : { sets: shownSets() }, p);
       notify(t("swExported", { n: r.rows, path: r.path }));
       useSweeps.getState().journal("export", { path: r.path, n: r.rows });
     } catch (e) { notifyError(e); }
@@ -568,8 +574,8 @@ function ResultsCenter({ study }: { study: Study }) {
       {v.center === "lines" && !(v.mode === "runs" && study.answer && !study.answer.runs) && (study.answer ? (
         <>
           <PlotToolbar study={study} shown={shown} total={n}
-            onKeep={() => st.narrow("keep", selection().sets, scopeKey(study))}
-            onExclude={() => st.narrow("exclude", selection().sets, scopeKey(study))}
+            onKeep={() => void narrow("keep")}
+            onExclude={() => void narrow("exclude")}
             onExport={exportShown}
             onExportPlot={() => say(exportPlot(t, study, lang))} />
           <p className="hint sw-what-line">{v.mode === "sets" ? t("swPerSetHint") : t("swPerRunHint")}

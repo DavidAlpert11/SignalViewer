@@ -31,6 +31,7 @@ export interface SweepOpened {
 }
 
 import type { WireCol } from "./decode";
+import type { RunSelection } from "./selection";
 import type { CellFix, Condition, Derived, Objective, SetOp, Tolerance } from "./model";
 
 /** What the server is asked: the roles of the columns and the question. */
@@ -130,7 +131,10 @@ export const sweepApi = {
   unmerge: (id: string, path: string) => call<SweepOpened & { sources: string[] }>("/api/sweep/unmerge", { id, path }),
   exportSets: (id: string, question: WireQuestion, sets: number[], columns: string[], labels: Record<string, string>, path: string) =>
     call<{ path: string; rows: number }>("/api/sweep/export-sets", { id, question, sets, columns, labels, path }),
-  exportRows: (id: string, question: WireQuestion, sel: { sets?: number[]; rows?: number[] }, path: string) =>
+  /** what the brush of All runs selects, on the whole table (sweeps/selection.ts) */
+  select: (id: string, question: WireQuestion, sel: RunSelection) =>
+    call<{ sets: number[]; runs: number; total: number }>("/api/sweep/select", { id, question, ...sel }),
+  exportRows: (id: string, question: WireQuestion, sel: { sets?: number[]; rows?: number[]; select?: RunSelection }, path: string) =>
     call<{ path: string; rows: number }>("/api/sweep/export-rows", { id, question, ...sel, path }),
   reload: (id: string) => call<SweepOpened>("/api/sweep/reload", { path: id }),
   changed: (id: string) => call<{ changed: boolean; missing?: boolean }>(`/api/sweep/changed?id=${encodeURIComponent(id)}`),

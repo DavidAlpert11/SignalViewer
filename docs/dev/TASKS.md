@@ -29,6 +29,18 @@ What is open, in order (the finished history is in the Log and in git: `git show
 | Stability on Windows with a GPU (Out of Memory, the 3D shader) | waiting for numbers | the owner runs `tools/measure_maps.py --gpu`; the e2e suite's memory |
 | Films in Hebrew + a narration script; GitHub About texts | offered / with the owner | his choice; he pastes the About texts |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
+| **M35 (1.29.0) Sweeps - exact numbers, the whole table drawn** (ROADMAP M35; branch `claude/sweeps-full-table-1.29`) | in progress | FT1 done; FT2 drawing next, then FT3, FT4, FT5 (ROADMAP only) |
+| M35 FT1 - the brush of All runs resolved on the whole table | done | - |
+| M35 FT2 - ParallelPlot in layers, progressive; measured | open | - |
+| M35 FT3 - all rows up to the Settings cap, sample from kept rows, exact counts | open | default cap from FT2's numbers |
+| M35 FT4 - HTML export of a table: all rows up to the cap | open | - |
+
+**Decision (owner, 2026-11-17), M35:** the Sweeps tables are an exception to CLAUDE.md's "the UI receives
+decimated data only": every row goes to the page once up to the cap set in Settings (*Most lines to draw*), and is
+filtered and drawn there (HiPlot's approach, in our own code - not the hiplot package). Above the cap: a sample of
+the rows the filters keep, said on screen. Anything that turns the brush into a result (Keep, Exclude, a group,
+Export shown, counts) is resolved by the server on the whole table (`svcore/sweep/select.py`), never from the rows
+drawn. Backend density drawing (2D histograms) is a follow-up only (FT5).
 
 ## Open specs (waiting for the owner)
 
@@ -391,3 +403,8 @@ What is open, in order (the finished history is in the Log and in git: `git show
 - 2026-11-16 · M34 end of round: `npm run build` (frontend/dist, now untracked), quick_check green, the WHOLE e2e suite (`python -m pytest -q tests/e2e -n 4 --dist loadfile`): 503 passed, 0 failed, 9 min 55 s. Version not updated - the owner tags.
 - 2026-11-17 · Release 1.28.0 prepared (owner: "is it ready?"): M34 folded into 1.28.0 (CHANGELOG dated 2026-11-17, highlights), CITATION dated; README / install / features checked against the CHANGELOG (from source needs Node.js; plot head, cursors, colours, recordings, Sweeps starts, formulas); mkdocs --strict green; pictures retaken (make_readme_media: every docs/images picture and the six cards' pictures - the five moved examples' card pictures removed; the tool waits for the cards and opens moved examples from Help). Owner on FR10: dist stays out of git; `build.bat wheels` / `build.sh wheels` now build the UI so an offline PC gets it. The whole e2e suite ran on 2026-11-16 (503 green) - only docs, pictures and build scripts changed since. Waiting for the owner's tag v1.28.0.
 - 2026-11-17 · The v1.28.0 tag's build failed on Windows only: test_sweep_wrapper::test_a_table_of_rows_and_an_outside_simulation - the wrapper split `--sim` with shlex(posix=False), which keeps a quoted program path's quotes ("cannot find the file"). Fixed: `sweep_wrapper.split_command` (Windows: quotes taken off each part, backslashes kept); test_sweep_wrapper +1 checks the Windows rule on any OS. The tag is to be moved to the fix (the owner).
+- 2026-11-17 · M35 FT1 (branch claude/sweeps-full-table-1.29, from 75755c1): the brush of All runs resolved by the server on the
+  whole table - `svcore/sweep/select.py`, `/api/sweep/select`, export-rows `select`; the page's `sweeps/selection.ts`
+  (Keep / Exclude / Export shown / Save as group in All runs); category codes from the whole column. Tests: backend
+  test_sweep_select (4, incl. the tiny-cap guard), full backend 1419 green, mypy clean, Vitest 271 green; e2e
+  test_sweeps_big_table (new, 200,000 rows), test_sweeps_flow, test_sweeps_groups, test_sweeps_charts - 41 green.
