@@ -1,10 +1,12 @@
 """Shared by the API routes: data paths, response helpers, opening a file with remembered settings."""
 
+import asyncio
 import base64
 import json
 import logging
 import os
-from typing import List, NoReturn, Optional
+import weakref
+from typing import Any, Callable, List, NoReturn, Optional, TypeVar
 
 import numpy as np
 from fastapi import HTTPException
@@ -188,3 +190,23 @@ def _load_error(path: str, e: Exception) -> dict:
         out["code"] = getattr(e, "code", None)
         out["params"] = getattr(e, "params", {}) or {}
     return out
+
+
+# Heavy computations - an FFT, statistics, a spectrogram, a new signal - at most this many at once (owner,
+# 2026-11-18). Each takes a few hundred MB on a long signal: 48 FFTs at once on a 10 M-sample table took the
+# server past 9 GB until the system killed it. The others wait their turn without holding a thread, so drawing
+# and the cursor stay quick meanwhile. SV_HEAVY_JOBS overrides the number.
+HEAVY_JOBS = int(os.environ.get("SV_HEAVY_JOBS") or 0) or min(4, max(2, (os.cpu_count() or 2) // 2))
+_HEAVY: "weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore]" = weakref.WeakKeyDictionary()
+_T = TypeVar("_T")
+
+
+async def heavy(fn: Callable[..., _T], *args: Any) -> _T:
+    """Run `fn(*args)` in a worker thread, at most HEAVY_JOBS of them at once (one semaphore per event loop: the
+    tests run several)."""
+    loop = asyncio.get_running_loop()
+    sem = _HEAVY.get(loop)
+    if sem is None:
+        sem = _HEAVY[loop] = asyncio.Semaphore(HEAVY_JOBS)
+    async with sem:
+        return await asyncio.to_thread(fn, *args)

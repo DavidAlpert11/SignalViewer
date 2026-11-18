@@ -7,7 +7,7 @@ import numpy as np
 from fastapi import APIRouter, Response
 from pydantic import BaseModel
 
-from app.common import b64, fail, y_reference
+from app.common import b64, fail, heavy, y_reference
 from app.store import store
 from svcore.analysis import spectrogram as make_spectrogram
 from svcore.analysis import OpError, _unwrap, align_to, state_mask, transitions, wrap_diff, wrap_period
@@ -335,7 +335,11 @@ def sparks(req: SparkRequest):
 
 
 @router.post("/api/stats")
-def stats(req: StatsRequest):
+async def stats(req: StatsRequest):
+    return await heavy(_stats, req)            # a few at a time (app/common.py heavy)
+
+
+def _stats(req: StatsRequest):
     res: dict = {}
     where = None
     seg_total, seg_count = 0.0, 0
@@ -394,8 +398,12 @@ class SpecRequest(BaseModel):
 
 
 @router.post("/api/spectrogram")
-def spectrogram_ep(req: SpecRequest):
+async def spectrogram_ep(req: SpecRequest):
     """Spectrogram image of one signal over the visible time window (power in dB, 0..255 coded)."""
+    return await heavy(_spectrogram, req)      # a few at a time (app/common.py heavy)
+
+
+def _spectrogram(req: SpecRequest):
     try:
         t, y, off = store.signal_parts(req.signal)     # P1: redrawn on every pan - no time copy
     except KeyError:

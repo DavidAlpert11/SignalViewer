@@ -7,7 +7,7 @@ import numpy as np
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
-from app.common import b64, fail, y_reference
+from app.common import b64, fail, heavy, y_reference
 from app.store import LoadError
 from app.store import WIDE as WIDE_PARAMS, store
 from svcore.analysis import OPS, OpError, fft_display, fft_for, transitions, xy_pair
@@ -35,7 +35,7 @@ async def create_derived(req: DerivedRequest):
     if req.op not in OPS:
         fail(400, f"Unknown operation: {req.op}")
     try:
-        d = await asyncio.to_thread(store.add_derived, req.op, req.sources, req.params or {}, req.name)
+        d = await heavy(store.add_derived, req.op, req.sources, req.params or {}, req.name)
     except KeyError:
         fail(404, "One of the chosen signals is no longer open.")
     except OpError as e:
@@ -227,7 +227,11 @@ class FFTRequest(BaseModel):
 
 
 @router.post("/api/fft")
-def fft(req: FFTRequest):
+async def fft(req: FFTRequest):
+    return await heavy(_fft, req)              # a few at a time (app/common.py heavy)
+
+
+def _fft(req: FFTRequest):
     out: list = []
     for sid in req.signals:
         try:
