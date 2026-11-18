@@ -2,6 +2,9 @@
 
 ## Next – unreleased
 
+- New: **Copy for Confluence (interactive).** A plot's ⋯ menu, a tab's right-click menu and Ctrl+K copy the plot or the whole tab for a Confluence page. In Confluence choose *Insert → HTML* (the HTML macro, which an administrator turns on) and paste: the plot is live in the page - zoom, the cursor's values, lines on and off - with its statistics table and the notes. It is kept small (a few hundred kB: each line's highest and lowest values per column, so every spike is still drawn; the full page with every zoom level could pass 4 MB and stall the editor) and sits in a frame of its own, so it cannot touch the page's look and several can share one page. Pasted straight into a page without the macro, Word or an e-mail, the same copy gives a picture with the statistics table and the notes. Maps and 3D views are not copied (their pages are megabytes): save them as HTML and attach the file.
+- Fixed: in a Hebrew report a negative number in the statistics table read *10.9-*; it now reads *-10.9*.
+
 ## 1.29.1 – 2026-11-18
 
 **Highlights:** **steadier with big files and many requests, and a smaller download.** Many heavy computations at once (FFTs, statistics, spectrograms, new signals on a long recording) could exhaust memory and stop the app; now a few run at a time while drawing and the cursor stay quick. Two new signals made at the same moment no longer overwrite each other. The packages no longer carry the examples' recordings - each is written the first time it is opened. No new features.

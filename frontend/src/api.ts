@@ -474,6 +474,8 @@ export const api = {
     call<{ path: string; rows: number }>("/api/export/recording", body),
   exportCsv: (path: string, signals: { id: string; label: string; scale: number; offset: number; tOffset?: number }[], t0: number | null, t1: number | null) =>
     call<{ path: string; rows: number }>("/api/export/csv", { path, signals, t0, t1 }),
+  /** CP1: a plot / a tab for a Confluence page - the interactive copy (HTML macro) and the static one */
+  clip: (body: Record<string, unknown>) => call<{ html: string; static: string; size: number }>("/api/export/clip", body),
   report: (body: Record<string, unknown>) => call<{ path: string; size: number }>("/api/report", body),
   /** a plot as PNG (scale 2: for a report, twice the pixels), SVG or an interactive HTML page */
   image: (path: string, format: "png" | "svg" | "html", theme: string, plot: unknown, scale = 1, lang = "en") =>

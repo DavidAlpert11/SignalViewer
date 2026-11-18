@@ -10,6 +10,7 @@ import base64
 import html
 import io
 import json
+import uuid
 import os
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -72,8 +73,9 @@ def _f(v):
 LINE_STYLES = {"solid": "-", "dash": "--", "dot": ":", "dashdot": "-."}   # N3: the app's line styles in matplotlib
 
 
-def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
-    """Resolve a plot spec from the UI into display data + full-resolution statistics."""
+def plot_data(store, spec: Dict, for_html: bool, points: int = 3000, html_points: Optional[int] = None) -> Dict:
+    """Resolve a plot spec from the UI into display data + full-resolution statistics. `html_points` (CP1, a copy
+    for a Confluence page): one min/max level of at most that many points per line instead of the zoom levels."""
     mode = spec.get("mode") or "time"
     if mode == "geo":                                             # L11: a map's objects, drawn by app/mapimage.py
         return _geo_data(store, spec, for_html)
@@ -123,7 +125,10 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
             sig["limits"] = check_limits(t, ys, lim.get("lo"), lim.get("hi"),
                                          rng[0] if rng else None, rng[1] if rng else None)
         if mode == "time":
-            if for_html:
+            if for_html and html_points:
+                levels = [(t, ys)] if len(t) <= html_points else [minmax_decimate(t, ys, html_points)]
+                sig["levels"] = [{"x": _b64(a, np.float64), "y": _b64(b, np.float32), "n": int(len(a))} for a, b in levels]
+            elif for_html:
                 if len(t) <= RAW_LIMIT:
                     levels = [(t, ys)]
                 else:
@@ -147,7 +152,7 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
             sig["peak"] = _f(peak)
             sig["x"], sig["y"] = np.asarray(fx, dtype=np.float64), np.asarray(fy, dtype=np.float64)
         else:
-            a, b = xy_pair(tx, x, t, ys, spec.get("xyAlign") or "linear", points=16000 if for_html else 6000)
+            a, b = xy_pair(tx, x, t, ys, spec.get("xyAlign") or "linear", points=min(16000, html_points or 16000) if for_html else 6000)
             sig["x"], sig["y"] = a, b
         if for_html and "x" in sig:
             sig["x"], sig["y"] = _b64(sig["x"], np.float64), _b64(sig["y"], np.float32)
@@ -410,6 +415,7 @@ nav{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:24px 0 16px}
 table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px;font-variant-numeric:tabular-nums}
 th,td{padding:4px 8px;border-top:1px solid var(--line);text-align:end;white-space:nowrap}
 th{color:var(--muted);font-weight:500}td:first-child,th:first-child{text-align:start;unicode-bidi:plaintext}
+td:not(:first-child){direction:ltr;text-align:right}
 .sw2{display:inline-block;width:9px;height:9px;border-radius:2px;margin-inline-end:6px;vertical-align:middle}
 .lim-pass{color:#1f8a4c;font-weight:600}.lim-fail{color:#c0392b;font-weight:600}
 .hint{color:var(--muted);font-size:12px;margin:0 0 14px}
@@ -518,14 +524,17 @@ def _count_plots(req: Dict) -> int:
     return max(1, sum(len(t.get("plots", [])) for t in req.get("tabs", [])))
 
 
-def build_html(store, req: Dict, progress=None) -> str:
+def build_html(store, req: Dict, progress=None, clip_points: Optional[int] = None) -> str:
+    """The interactive page. `clip_points` (CP1): the small page a Confluence HTML macro carries - one min/max
+    level per line of that many points, no embedded fonts (the page's own), no footer."""
     lang = req.get("lang", "en")
     S = STRINGS.get(lang, STRINGS["en"])
     tabs, done, total = [], 0, _count_plots(req)
     for tab in req.get("tabs", []):
         plots = []
         for p in tab.get("plots", []):
-            plots.append(plot_data(store, {**p, "notes": req.get("notes") or [], "lang": req.get("lang", "en")}, for_html=True))
+            plots.append(plot_data(store, {**p, "notes": req.get("notes") or [], "lang": req.get("lang", "en")}, for_html=True,
+                                   html_points=clip_points))
             done += 1
             if progress:
                 progress(0.05 + 0.9 * done / total, "plots")
@@ -581,10 +590,10 @@ def build_html(store, req: Dict, progress=None) -> str:
     summary += _notes_html(req.get("notes") or [], S)
     return TEMPLATE.format(
         lang=lang, dir="rtl" if lang == "he" else "ltr", theme="dark" if req.get("theme") == "dark" else "light",
-        title=title, uplot_css=read("uPlot.min.css"), css=_fonts_css() + CSS + (REPLAY_CSS if replay else ""), generated=S["generated"],
+        title=title, uplot_css=read("uPlot.min.css"), css=("" if clip_points else _fonts_css()) + CSS + (REPLAY_CSS if replay else "") + (CLIP_CSS if clip_points else ""), generated=S["generated"],
         date=datetime.now().strftime("%Y-%m-%d %H:%M"), theme_label=S["theme"], intro=intro, hint=(S["rpHint"] if replay["compact"] else S["lvHint"]) if replay else S["hint"],
         nav=nav, panes="".join(panes), summary=summary, data=data_json, body_class=(' class="replay"' if replay["compact"] else ' class="live"') if replay else "",
-        bar=_replay_bar(S) if replay else "", footer=_brand_footer(S) if replay else "<footer>Signal Viewer</footer>",   # RV8: the one page sent carries the brand line
+        bar=_replay_bar(S) if replay else "", footer=_brand_footer(S) if replay else "" if clip_points else "<footer>Signal Viewer</footer>",   # RV8: the one page sent carries the brand line
         uplot_js=read("uPlot.iife.min.js"), viewer_js=read("viewer.js"))
 
 
@@ -1168,3 +1177,98 @@ def build_image(store, spec: Dict, fmt: str, theme: str, scale: float = 1.0) -> 
         fig.suptitle(_bidi(p["title"]), fontsize=11, weight="bold", color=FIG_THEME[theme]["fg"])
         fig.subplots_adjust(top=0.88)
     return figure_bytes(fig, fmt)
+
+
+# =============================================================================
+# CP1: A PLOT OR A TAB FOR A CONFLUENCE PAGE (the clipboard)
+# =============================================================================
+# Two flavours in one copy. text/plain: the interactive page for Confluence's HTML macro (Insert -> HTML,
+# paste) - the report's page in a frame (its styles and scripts cannot touch the Confluence page around it,
+# and two copies on one page do not meet), kept small: a 4 MB page (every zoom level, the fonts) brought
+# the owner's Confluence editor down (2026-11-18). text/html: the same content without scripts (a picture,
+# the statistics table, the notes; inline styles) for a page without the macro, Word or an e-mail.
+
+CLIP_POINTS = 16000          # points per copy, shared by its time lines (min/max: every extreme still drawn)
+CLIP_MIN_POINTS = 2400       # a line never gets fewer: min/max over 1200 columns, wider than the page
+CLIP_CSS = """
+body{background:transparent}main{max-width:none;padding:4px 2px 6px}header{margin-bottom:6px}h1{font-size:18px}
+.plot{margin:0 0 12px}.hint{margin:0 0 8px}
+"""
+
+
+def clip_points(req: Dict) -> int:
+    """The points each time line of the copy gets: CLIP_POINTS shared by them all, never below CLIP_MIN_POINTS."""
+    n = sum(len(p.get("signals") or []) for t in req.get("tabs", []) for p in t.get("plots", [])
+            if (p.get("mode") or "time") == "time")
+    return max(CLIP_MIN_POINTS, CLIP_POINTS // max(1, n))
+
+
+_CLIP_FIT = ("(function(){var f=document.getElementById('%s');if(!f)return;function fit(){try{var d=f.contentDocument;"
+             "if(d&&d.body)f.style.height=Math.max(160,d.documentElement.scrollHeight)+'px'}catch(e){}}"
+             "f.addEventListener('load',function(){fit();try{new ResizeObserver(fit).observe(f.contentDocument.body)}catch(e){}});fit()})();")
+
+
+def _clip_height(req: Dict) -> int:
+    """The frame's height before its page has measured itself (a page that keeps scripts out still shows it all)."""
+    plots = [p for t in req.get("tabs", []) for p in t.get("plots", [])]
+    return 90 + sum(420 + 26 * len(p.get("signals") or []) for p in plots) + 24 * len(req.get("notes") or [])
+
+
+def build_clip_interactive(store, req: Dict) -> str:
+    """The interactive copy: a frame holding the report's page (uPlot, the data min/max-decimated to a budget),
+    and the few lines that size the frame to its page."""
+    page = build_html(store, req, clip_points=clip_points(req))
+    fid = "sv-clip-" + uuid.uuid4().hex[:10]
+    title = html.escape(req.get("title") or "Signal Viewer")
+    return ('<div class="sv-clip"><iframe id="%s" title="%s" style="width:100%%;height:%dpx;border:0;display:block" srcdoc="%s"></iframe>'
+            '<script>%s</script></div>' % (fid, title, _clip_height(req), html.escape(page, quote=True), _CLIP_FIT % fid))
+
+
+_CLIP_TD = "padding:3px 8px;border-top:1px solid #d5dce4;text-align:right;white-space:nowrap;direction:ltr"
+
+
+def build_clip_static(store, req: Dict) -> str:
+    """The copy without scripts: each plot's picture, its statistics table and the notes - inline styles only
+    (an editor that receives a paste keeps those and drops style sheets)."""
+    lang = req.get("lang", "en")
+    S = STRINGS.get(lang, STRINGS["en"])
+    rtl = lang == "he"
+    start, end = ("right", "left") if rtl else ("left", "right")
+    td = _CLIP_TD                                                  # numbers left to right (-10.9, not 10.9-)
+    parts = []
+    if req.get("title"):
+        parts.append('<h2 style="margin:0 0 8px">%s</h2>' % html.escape(req["title"]))
+    for tab in req.get("tabs", []):
+        for p in tab.get("plots", []):
+            pd = plot_data(store, {**p, "lang": lang}, for_html=False)
+            png = base64.b64encode(build_image(store, p, "png", "light", 1.0)).decode("ascii")
+            parts.append('<h3 style="margin:14px 0 4px">%s</h3>' % html.escape(pd["title"]))
+            if pd.get("caption"):
+                parts.append('<p style="margin:0 0 6px;color:#5a6979;white-space:pre-wrap">%s</p>' % html.escape(pd["caption"]))
+            parts.append('<p><img alt="%s" width="800" style="max-width:100%%;height:auto" src="data:image/png;base64,%s"></p>'
+                         % (html.escape(pd["title"]), png))
+            if pd["mode"] in ("time", "fft") and pd["signals"]:
+                keys = ("min", "max", "mean", "rms", "std")
+                head = "".join('<th style="%s;color:#5a6979;font-weight:500">%s</th>' % (td, S[k]) for k in (*keys, "samples"))
+                lim = any(s.get("limits") for s in pd["signals"])
+                if lim:
+                    head += '<th style="%s;color:#5a6979;font-weight:500">%s</th>' % (td, S["limits"])
+                rows = []
+                for s in pd["signals"]:
+                    st = s.get("stats") or {}
+                    cells = "".join('<td style="%s">%s</td>' % (td, "" if st.get(k) is None else f"{st[k]:.6g}") for k in keys)
+                    cells += '<td style="%s">%s</td>' % (td, "" if st.get("samples") is None else f"{int(st['samples']):,}")
+                    if lim:
+                        r = s.get("limits")
+                        col = "" if not r else (";color:#1f8a4c;font-weight:600" if r["pass"] else ";color:#c0392b;font-weight:600")
+                        cells += '<td style="%s%s">%s</td>' % (td, col, html.escape(_limit_text(s, S)))
+                    sw = '<span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:%s;margin-%s:6px"></span>' % (
+                        html.escape(s["color"] or "#3D8BFD"), end)
+                    rows.append('<tr><td style="%s;text-align:%s;direction:%s">%s%s</td>%s</tr>' % (td, start, "rtl" if rtl else "ltr", sw, html.escape(s["label"]), cells))
+                parts.append('<table style="border-collapse:collapse;font-size:12.5px"><thead><tr><th style="%s;text-align:%s;color:#5a6979;'
+                             'font-weight:500">%s</th>%s</tr></thead><tbody>%s</tbody></table>' % (td, start, S["signal"], head, "".join(rows)))
+    notes = sorted(req.get("notes") or [], key=lambda n: n.get("t") or 0)
+    if notes:
+        parts.append('<h3 style="margin:14px 0 4px">%s</h3><ul>%s</ul>' % (S["notes"], "".join(
+            '<li><span style="color:#5a6979">%s</span> %s</li>' % (html.escape(_note_when(n)), html.escape(n.get("text", ""))) for n in notes)))
+    return '<div dir="%s" style="font-family:Segoe UI,system-ui,sans-serif;color:#1f2a36">%s</div>' % ("rtl" if rtl else "ltr", "".join(parts))

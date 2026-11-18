@@ -167,6 +167,29 @@ async def report_preview(req: ReportRequest):
 
 
 
+class ClipRequest(BaseModel):
+    title: str = ""
+    lang: str = "en"
+    theme: str = "light"
+    tabs: List[dict] = []           # one tab (the tab copied) or one tab with the one plot copied
+    notes: List[dict] = []
+
+
+@router.post("/api/export/clip")
+async def export_clip(req: ClipRequest):
+    """CP1: a plot or a tab for a Confluence page - `html`: the interactive copy for the HTML macro (text/plain on
+    the clipboard), `static`: picture + statistics + notes without scripts (text/html: a page, Word, e-mail)."""
+    body = req.model_dump()
+    if not any(t.get("plots") for t in body["tabs"]):
+        fail(400, "Nothing to copy: the plot or tab has no lines.")
+    try:
+        live = await asyncio.to_thread(reports.build_clip_interactive, store, body)
+        static = await asyncio.to_thread(reports.build_clip_static, store, body)
+    except KeyError:
+        fail(404, "One of the plot's signals is no longer open.")
+    return {"html": live, "static": static, "size": len(live.encode("utf-8"))}
+
+
 class ImageRequest(BaseModel):
     path: str
     format: str = "png"              # png | svg | html (the plot alone, interactive, as in the report)

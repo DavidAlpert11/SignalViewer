@@ -42,6 +42,7 @@ import { compareObjects, errorSignals, pairOf } from "../relation";
 import { laneMenuItems } from "../lanes";
 import { lineLook, setpointsIn } from "../desired";
 import OccChart from "./OccChart";
+import { copyForConfluence } from "../clip";
 
 interface Props { tab: Tab; plot: Plot; index: number; active: boolean }
 
@@ -204,6 +205,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     ...(plot.signals.length === 1 && !editingTitle ? [{ label: t("plotRename"), run: () => setEditingTitle(true) }] : []),
     { label: t("plotSaveExport"), run: () => {}, items: saveExportItems() },
     { label: t("copyImage"), run: copyImage, disabled: !plot.signals.length },
+    // CP1: for a Confluence page (the HTML macro: interactive; pasted straight in: picture + table + notes)
+    ...(isMap ? [] : [{ label: t("clipPlot"), run: () => { void copyForConfluence(tab, plot); }, disabled: !plot.signals.length }]),
     // P7: the Places panel, docked in this Map
     ...(isMap ? [{ label: `${t("plPanel")}…`, run: () => useApp.setState({ placesPanel: plot.id }) }] : []),
     { label: "", run: () => {}, sep: true },

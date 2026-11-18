@@ -27,23 +27,17 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
 | CL2 - cleanup round (owner, 2026-11-18: every change without a version change) | done (full e2e at the end: see the Log) | - |
 | Release - now 1.30.0 (owner, 2026-11-18: with CP1) | NOT released. On GitHub: a tag v1.29.1 (on 335fed1) and an empty published Release 'Signal Viewer 1.29.1' (its build failed on Windows: test_loop - fixed in 64ca504) | after CP1: version 1.30.0 (build.bat, version.py, CITATION.cff, installer x2; CHANGELOG 1.29.1 section -> 1.30.0), the owner deletes the v1.29.1 Release and tag on GitHub, then releases v1.30.0 from the website (Releases -> Draft a new release -> new tag on main) |
-| CP1 - copy a plot / a tab into a Confluence page (owner, 2026-11-18) | spec - waits for one answer | see Open specs: CP1 |
+| CP1 - copy a plot / a tab into a Confluence page (owner, 2026-11-18) | done (his Confluence itself not tested - no access) | the owner tries it on his Confluence 10.2: Insert > HTML, paste |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
 ## Open specs (waiting for the owner)
 
-- **CP1 - a plot or a tab into Confluence (owner, 2026-11-18).** "Copy a tab or a plot as HTML, paste it into a
-  Confluence page with Ctrl+V and see it there at once." His Confluence: **Data Center 10.2**. Content he chose:
-  **picture + statistics table + notes**. Then: "the PNG is not good - I want it interactive."
-  Facts (told to him): a paste never carries scripts (every editor strips them), so Ctrl+V alone cannot be
-  interactive. Two ways that can: (1) Confluence's **HTML macro** (built in, OFF by default, an administrator
-  turns it on) - the app copies a self-contained interactive plot (as `reports.build_plot_html` makes, uPlot
-  embedded, data decimated min/max so it stays small) and he pastes it into Insert -> HTML; (2) attach the app's
-  interactive page (Save the page (HTML) / a plot's *Save as interactive HTML*) and link it. **Waiting for: is the
-  HTML macro enabled on his Confluence?** Possibly also: a static fallback (picture + table + notes as text/html,
-  inline styles - a first draft was written and dropped on 2026-11-18: app/report.py build_clip, /api/export/clip,
-  ClipboardItem with Promises so the write keeps the click's activation) for Word / email / a page without the macro.
-  Where: the plot's ⋯ menu beside *Copy image*, the tab's right-click menu (TopBar.tsx), Ctrl+K - en + he.
+- **CP1 - done 2026-11-18.** The owner's answer: the HTML macro is ON; a first try (an interactive page of ~4 MB)
+  stalled the editor. Built: *Copy for Confluence (interactive)* (plot ⋯ menu, tab right-click, Ctrl+K) - text/plain is
+  the report's page in an iframe srcdoc (styles / scripts isolated, several on one page), one min/max level per line
+  (16,000 points shared, at least 2,400 each), no fonts: ~200-400 kB; text/html is a picture + table + notes without
+  scripts. Not verified: his Confluence itself (its editor with a ~300 kB macro body, a CSP there, the static paste's
+  data: picture in Confluence / Word / Outlook).
 
 - **SW2 - the owner (2026-11-16): investigate chosen scenarios from Sweeps without loading everything.** "Many
   scenarios are run without recording, only a summary row each; to investigate, the interesting ones are run again
@@ -234,3 +228,5 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   saved its study - PermissionError during os.replace): svcore.atomic.read_text retries, the loop's progress written
   whole (64ca504). Then the owner asked for CP1 (copy into Confluence, interactive) -> the release becomes 1.30.0;
   handed to a new session (this one's context was full).
+- 2026-11-18 · CP1 Copy for Confluence (interactive) - see Open specs. Checks: quick_check green; e2e:
+  test_confluence_copy, test_live_report, test_findings_report, test_features -k "N20 or palette or tab".

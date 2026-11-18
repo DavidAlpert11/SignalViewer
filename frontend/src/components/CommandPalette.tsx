@@ -14,6 +14,7 @@ import { api, type FsPlaces } from "../api";
 import { tieredSort } from "../fuzzy";
 import { areaCommands, type AreaCommand } from "../areaCommands";
 import { makeReplay } from "../replay";
+import { copyForConfluence } from "../clip";
 import { getPrefValue, setPref } from "../prefs";
 
 const AREA_ICON: Record<NonNullable<AreaCommand["icon"]>, React.ReactNode> = {
@@ -91,6 +92,9 @@ export default function CommandPalette() {
       { id: "clearothertabs", label: `${t("clearMenu")}: ${t("clearOtherTabs", { n: Math.max(0, useApp.getState().ws.tabs.length - 1) })}`, group: t("tab"), icon: <Icon.Eraser />, run: closeOtherTabs },
       { id: "clearalltabs", label: `${t("clearMenu")}: ${t("clearAllTabs", { n: useApp.getState().ws.tabs.length })}`, group: t("tab"), icon: <Icon.Eraser />, run: clearAllTabs },
       { id: "clearwork", label: `${t("clearMenu")}: ${t("clearWork", { d: useApp.getState().runs.find((r) => r.format === "derived")?.signals.length ?? 0, e: useApp.getState().runs.reduce((n, r) => n + r.signals.filter((s) => s.transform).length, 0) })}`, group: t("files"), icon: <Icon.Trash />, run: () => { clearWork(); } },
+      // CP1: the active plot / the tab for a Confluence page
+      { id: "clipplot", label: t("clipPlot"), group: t("report"), icon: <Icon.Copy />, run: () => { const tb = activeTab(st().ws); const p = tb?.plots[tb.active ?? 0]; if (tb && p) void copyForConfluence(tb, p); } },
+      { id: "cliptab", label: t("clipTab"), group: t("report"), icon: <Icon.Copy />, run: () => { const tb = activeTab(st().ws); if (tb) void copyForConfluence(tb); } },
       { id: "closetab", label: t("closeTab"), group: t("tab"), icon: <Icon.X />, run: () => actions.closeTab(st().ws.activeTab) },
       // P7: places - the panel of the tab's (first) Map, or a new place
       ...(() => {
