@@ -548,14 +548,25 @@ def test_the_map_from_above_and_the_mouse_readout(g3):
     pg.evaluate("window.__sv.setState({ ws: (() => { const ws = structuredClone(window.__sv.state().ws); ws.tabs[0].plots[0].mode = 'geo'; return ws; })() })")
     pg.wait_for_function("""(() => { const g = window.__svGlobe; return g && g.widget && !g.widget.isDestroyed(); })()""", timeout=90000)
     pg.wait_for_selector(".globe3d-readout", timeout=60000)
+    # the ground settled first (finer tiles arrive for a while): the readout is the pick at the moment the mouse moved
+    pg.wait_for_function("window.__svGlobe.widget.scene.globe.tilesLoaded", timeout=60000)
     xy = pg.evaluate("""(() => { const { widget: w, Cesium: C } = window.__svGlobe;
       const T = C.SceneTransforms.worldToWindowCoordinates || C.SceneTransforms.wgs84ToWindowCoordinates;
       const p = T(w.scene, C.Cartesian3.fromDegrees(34.5, 32.5, 0)); const b = w.canvas.getBoundingClientRect();
       return [b.left + p.x, b.top + p.y]; })()""")
     pg.mouse.move(xy[0], xy[1])
     pg.wait_for_function("window.__svReadout && document.querySelector('.g3-readout')", timeout=30000)
+    pg.wait_for_function("window.__svGlobe.widget.scene.globe.tilesLoaded", timeout=60000)
+    pg.mouse.move(xy[0] + 1, xy[1]); pg.mouse.move(xy[0], xy[1]); pg.wait_for_timeout(300)   # read again on that ground
     r = pg.evaluate("window.__svReadout")
-    assert abs(r["lat"] - 32.5) < 0.01 and abs(r["lon"] - 34.5) < 0.01, r
+    # the readout is the ground under the mouse: the globe's own pick there. Near the object, not on it: with
+    # finer heights fetched (the network allowed) the sea floor here is 2.6 km down, and the point aimed at 0 m
+    # meets that ground about 0.025 deg away in this tilted view (it failed in full runs only)
+    g = pg.evaluate("""(([x, y]) => { const { widget: w, Cesium: C } = window.__svGlobe; const b = w.canvas.getBoundingClientRect();
+      const ray = w.camera.getPickRay(new C.Cartesian2(x - b.left, y - b.top)); const p = w.scene.globe.pick(ray, w.scene);
+      const c = C.Cartographic.fromCartesian(p); return { lat: C.Math.toDegrees(c.latitude), lon: C.Math.toDegrees(c.longitude) }; })""", xy)
+    assert abs(r["lat"] - g["lat"]) < 0.001 and abs(r["lon"] - g["lon"]) < 0.001, (r, g)
+    assert abs(r["lat"] - 32.5) < 0.05 and abs(r["lon"] - 34.5) < 0.05, r
     assert "ground" in pg.inner_text(".g3-readout")
     assert pg.locator(".map-bar .g3-cam-free.on").count() == 1
     pg.mouse.move(2, 2)
