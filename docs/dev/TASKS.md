@@ -26,7 +26,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | The branch `claude/readme-redesign` (merged) | to delete | the owner deletes it on GitHub (refused from a cloud session) |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
 | CL2 - cleanup round (owner, 2026-11-18: every change without a version change) | done (full e2e at the end: see the Log) | - |
-| Release 1.30.0 (owner, 2026-11-18: "add and release") | prepared: version, CHANGELOG, README / docs reviewed, validation 29 / 29 | the build workflow by hand on main green on all three systems; the owner deletes the v1.29.1 Release and tag, then releases v1.30.0 from the website |
+| Release 1.30.0 (owner, 2026-11-18: "add and release") | prepared: version, CHANGELOG, README / docs reviewed, validation 29 / 29 | build (by hand, 0c42bd2), ci and docs green on all three systems; the owner deletes the v1.29.1 Release and tag, then releases v1.30.0 from the website |
 | CP1 - copy a plot / a tab into a Confluence page (owner, 2026-11-18) | done - every sample, via an attachment (his Confluence itself not tested - no access) | the owner tries it on his Confluence 10.2: drag the file onto the page, Insert > HTML, paste |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
@@ -240,4 +240,6 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   installer's two files; CHANGELOG 1.29.1 (never published) + CP1 + CP2 -> 1.30.0 with highlights; README (Confluence,
   English and Hebrew), docs "1.29.1" -> 1.30.0, validation page made again (29 / 29). Pictures not retaken (new menu
   items only).
-- 2026-11-18 · Full e2e before the release: 94 files, 510 tests, all green (one file at a time).
+- 2026-11-18 · Full e2e before the release: 94 files, 515 tests, all green (one file at a time).
+- 2026-11-18 · build by hand on main (0c42bd2): green on Linux, macOS and Windows (test_loop fix confirmed); ci and docs
+  green. Waiting for the owner: delete the v1.29.1 Release and tag, release v1.30.0 from the website.
