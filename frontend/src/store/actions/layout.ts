@@ -106,6 +106,22 @@ export const layoutActions = {
     });
     return true;
   },
+  /** Owner, 2026-11-18: a full copy of a plot into another plot, the source kept. An empty target becomes the
+   *  plot itself (its type, lines, styles, axes, objects); a target with lines gets every line copied in
+   *  (as *Add its lines*, same kind only). One Undo; false (with the reason) otherwise. */
+  copyPlotInto(plotId: string, targetPlotId: string): boolean {
+    const st = useApp.getState();
+    const a = findPlotIn(st.ws, plotId), b = findPlotIn(st.ws, targetPlotId);
+    if (!a || !b || plotId === targetPlotId) return false;
+    if (plotHasContent(b.tab.plots[b.i])) return layoutActions.mergePlotInto(plotId, targetPlotId, true);
+    st.commit((ws) => {
+      const src = findPlotIn(ws, plotId)!, dst = findPlotIn(ws, targetPlotId)!;
+      dst.tab.plots[dst.i] = { ...clone(src.tab.plots[src.i]), id: targetPlotId };
+      ws.activeTab = dst.tab.id; dst.tab.active = dst.i;
+      return ws;
+    });
+    return true;
+  },
   /** N2: two plots of the active tab change places (one Undo). The cells keep their sizes; the active
    *  plot stays the one that moved; everything keyed by plot id (axes, cursors, map / 3D) moves with it. */
   swapPlots(i: number, j: number) {

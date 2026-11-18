@@ -453,10 +453,12 @@ export const plotActions = {
     });
   },
   /** Drag a chip: reorder inside a plot (before `beforeSig`) or move / copy to another plot. */
+  /** A legend chip's line to another plot - on this tab or any other (the chip's Move to / Copy to) - moved, or
+   *  copied with `copy` (Ctrl while dropping); placed before `beforeSig`, else last. */
   dropSignal(fromPlot: string, sig: string, toPlot: string, beforeSig: string | null, copy: boolean) {
     useApp.getState().commit((ws) => {
-      const tab = activeTab(ws);
-      const src = tab.plots.find((p) => p.id === fromPlot), dst = tab.plots.find((p) => p.id === toPlot);
+      const all = ws.tabs.flatMap((t) => t.plots);
+      const src = all.find((p) => p.id === fromPlot), dst = all.find((p) => p.id === toPlot);
       if (!src || !dst) return ws;
       const item = src.signals.find((s) => s.sig === sig);
       if (!item) return ws;

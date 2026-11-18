@@ -105,3 +105,38 @@ test("merge: lines join a plot of the same kind, no duplicates, the source empti
   expect(actions.mergePlotInto(A, B, true)).toBe(true);                    // Copy into: the source kept
   expect(ws().tabs[0].plots[0].signals).toHaveLength(2);
 });
+
+test("copy a plot into an empty plot: a full copy (type, lines, styles), the source kept, one Undo", () => {
+  useApp.getState().commit((w) => {
+    w.tabs[0].plots[0] = { ...sigP("A", ["a/x", "a/y"]), mode: "xy", xSignal: "a/t" };
+    w.tabs[0].plots[0].signals[1].color = "#123456";
+    return w;
+  });
+  const [A, , C] = ws().tabs[0].plots.map((p) => p.id);
+  expect(actions.copyPlotInto(A, C)).toBe(true);
+  const [a, , c] = ws().tabs[0].plots;
+  expect([c.id, c.title, c.mode, c.xSignal, c.signals.map((s) => s.sig), c.signals[1].color]).toEqual([C, "A", "xy", "a/t", ["a/x", "a/y"], "#123456"]);
+  expect(a.signals).toHaveLength(2);
+  c.signals[0].color = "#000000";                                          // a copy, not the same lines
+  expect(ws().tabs[0].plots[0].signals[0].color).not.toBe("#000000");
+  useApp.getState().undo();
+  expect(ws().tabs[0].plots[2].signals).toEqual([]);
+});
+
+test("copy a plot into a plot with lines: every line added, the source kept", () => {
+  useApp.getState().commit((w) => { w.tabs[0].plots[0] = sigP("A", ["a/x", "a/y"]); w.tabs[0].plots[1] = sigP("B", ["a/y"]); return w; });
+  const [A, B] = ws().tabs[0].plots.map((p) => p.id);
+  expect(actions.copyPlotInto(A, B)).toBe(true);
+  expect(ws().tabs[0].plots[1].signals.map((s) => s.sig)).toEqual(["a/y", "a/x"]);
+  expect(ws().tabs[0].plots[0].signals).toHaveLength(2);
+});
+
+test("a chip's line to a plot on another tab: moved, or copied", () => {
+  useApp.getState().commit((w) => { w.tabs[0].plots[0] = sigP("A", ["a/x", "a/y"]); return w; });
+  actions.addTab();
+  const other = ws().tabs[1].plots[0].id, A = ws().tabs[0].plots[0].id;
+  actions.dropSignal(A, "a/x", other, null, true);
+  expect([ws().tabs[0].plots[0].signals.length, ws().tabs[1].plots[0].signals.map((s) => s.sig)]).toEqual([2, ["a/x"]]);
+  actions.dropSignal(A, "a/y", other, null, false);
+  expect([ws().tabs[0].plots[0].signals.map((s) => s.sig), ws().tabs[1].plots[0].signals.map((s) => s.sig)]).toEqual([["a/x"], ["a/x", "a/y"]]);
+});

@@ -234,3 +234,5 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   test_confluence_copy, test_live_report, test_findings_report, test_features -k "N20 or palette or tab".
 - 2026-11-18 · CP1 reworked (owner: every sample must stay interactive): the page with all the data is attached to the
   Confluence page, the macro only fetches it. e2e: test_confluence_copy; quick_check green.
+- 2026-11-18 · CP2 (owner): copy a line or a whole plot to another plot - the plot's *Copy to…*, Ctrl+drop of its ⠿,
+  the chip's *Copy to plot* / *Move to plot* (any tab). Vitest movePlots; e2e test_move_plots, test_move_plots_tabs.

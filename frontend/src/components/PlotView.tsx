@@ -59,7 +59,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   const selected = useApp((s) => s.selected);
   const multi = useApp((s) => s.multi);
   const hover = useApp((s) => (s.hover && s.hover.plotId === plot.id ? s.hover : null));
-  const [moveOver, setMoveOver] = useState<boolean | "merge">(false);
+  const [moveOver, setMoveOver] = useState<boolean | "merge" | "copy">(false);
   const [dragOver, setDragOver] = useState<null | "y" | "x" | "right" | "bottom">(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -70,6 +70,10 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   const done = (path: string) => useApp.getState().toast({ kind: "info", text: translate(lang, "savedTo", { path }) });
   const failed = (e: unknown) => useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
   const baseName = (plot.title || t("plotTitle", { n: index + 1 })).replace(/[\\/:*?"<>|]+/g, "_");
+  // every other plot, on any tab, named as the menus show it (tab · title, else its cell)
+  const otherPlots = () => useApp.getState().ws.tabs.flatMap((tb, n) => tb.plots.map((p, k) => ({ tb, n, p, k }))).filter(({ p }) => p.id !== plot.id)
+    .map((x) => ({ ...x, label: `${x.tb.name || `${t("tab")} ${x.n + 1}`} · ${x.p.title || t("plotCell", { r: Math.floor(x.k / Math.max(1, x.tb.cols)) + 1, c: (x.k % Math.max(1, x.tb.cols)) + 1 })}`
+      + (plotHasContent(x.p) ? "" : ` (${t("plotEmpty")})`) }));
   const chipMenu = (e: React.MouseEvent, sig: string) => {
     const i = plot.signals.findIndex((x) => x.sig === sig);
     const ps = plot.signals[i];
@@ -86,6 +90,13 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       { label: t("moveUp"), run: () => actions.moveSignal(plot.id, sig, -1), disabled: i === 0 },
       { label: t("moveDown"), run: () => actions.moveSignal(plot.id, sig, 1), disabled: i === plot.signals.length - 1 },
       { label: t("duplicateNewPlot"), run: () => actions.duplicateToNewPlot(plot.id, sig) },
+      // owner, 2026-11-18: the line to another plot - moved, or copied (also: drag the chip, Ctrl to copy)
+      ...(() => {
+        const targets = otherPlots();
+        const items = (copy: boolean) => targets.map(({ p, label }): MenuItem => ({ label, run: () => actions.dropSignal(plot.id, sig, p.id, null, copy),
+          disabled: p.signals.some((x) => x.sig === sig) }));
+        return targets.length ? [{ label: t("sigMoveTo"), run: () => {}, items: items(false) }, { label: t("sigCopyTo"), run: () => {}, items: items(true) }] : [];
+      })(),
       { label: t("useAsX"), run: () => actions.setAsX(plot.id, sig) },
       { label: "", run: () => {}, sep: true },
       // Ctrl+clicked legend chips: the change / new signals are made on every selected signal
@@ -242,6 +253,18 @@ export default function PlotView({ tab, plot, index, active }: Props) {
         items: targets.map(({ tb, n, p, k }): MenuItem => ({
           label: `${tb.name || `${t("tab")} ${n + 1}`} · ${p.title || t("plotCell", { r: Math.floor(k / Math.max(1, tb.cols)) + 1, c: (k % Math.max(1, tb.cols)) + 1 })}`,
           run: () => { actions.mergePlotInto(plot.id, p.id); } })) } as MenuItem;
+    })(),
+    // owner, 2026-11-18: a full copy of this plot - into another plot (an empty one becomes this plot; one with
+    // lines of the same kind gets them all), a new plot on this tab or a new tab; this plot stays as it is
+    (() => {
+      const kind = mergeKind(plot);
+      const targets = otherPlots().filter(({ p }) => !plotHasContent(p) || mergeKind(p) === kind);
+      return { label: t("plotCopyTo"), run: () => {}, disabled: !plotHasContent(plot), items: [
+        ...targets.map(({ p, label }): MenuItem => ({ label, run: () => { actions.copyPlotInto(plot.id, p.id); } })),
+        ...(targets.length ? [{ label: "", run: () => {}, sep: true }] : []),
+        { label: `+ ${t("plotCopyNewPlot")}`, run: () => { actions.movePlotToTab(plot.id, tab.id, undefined, true); } },
+        { label: `+ ${t("plotMoveNewTab")}`, run: () => { actions.movePlotToTab(plot.id, "new", undefined, true); } },
+      ] } as MenuItem;
     })(),
     { label: t("axisLimits") + ((plot.xlim || plot.ylim) ? " •" : ""), run: () => useApp.setState({ axisDialog: plot.id }) },
     { label: t("legend"), run: () => {}, items: legendItems() },
@@ -508,16 +531,18 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   return (
     <section
       ref={sectionRef}
-      data-plot={plot.id} data-merge-hint={moveOver === "merge" ? t("plotMergeDrop") : undefined}
-      className={`plot${active ? " active" : ""}${dragOver ? " dragover" : ""}${moveOver ? " move-target" : ""}${moveOver === "merge" ? " merge-target" : ""}${dragOver === "right" || dragOver === "bottom" ? ` split-${dragOver}` : ""}`}
+      data-plot={plot.id} data-merge-hint={moveOver === "merge" ? t("plotMergeDrop") : moveOver === "copy" ? t("plotCopyDrop") : undefined}
+      className={`plot${active ? " active" : ""}${dragOver ? " dragover" : ""}${moveOver ? " move-target" : ""}${moveOver === "merge" || moveOver === "copy" ? " merge-target" : ""}${dragOver === "right" || dragOver === "bottom" ? ` split-${dragOver}` : ""}`}
       onDragOver={(e) => {
-        if (e.dataTransfer.types.includes(PLOT_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = e.shiftKey ? "copy" : "move"; setMoveOver(e.shiftKey ? "merge" : true); return; }
+        if (e.dataTransfer.types.includes(PLOT_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = e.shiftKey || e.ctrlKey ? "copy" : "move"; setMoveOver(e.ctrlKey ? "copy" : e.shiftKey ? "merge" : true); return; }
         if (e.dataTransfer.types.includes(SIGNAL_MIME) || e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); setDragOver(edgeOf(e) ?? "y"); } }}
       onDragLeave={() => { setDragOver(null); setMoveOver(false); }}
       onDrop={(e) => {
         const from = e.dataTransfer.getData(PLOT_MIME);
         const fromId = e.dataTransfer.getData(PLOT_ID_MIME);
         // L10: Shift - its lines join this plot; a plot from another tab - it moves into this cell when empty
+        // owner, 2026-11-18: Ctrl - a full copy of it into this plot (the dragged one stays)
+        if (from !== "" && e.ctrlKey && fromId && fromId !== plot.id) { e.preventDefault(); setMoveOver(false); actions.copyPlotInto(fromId, plot.id); return; }
         if (from !== "" && e.shiftKey && fromId && fromId !== plot.id) { e.preventDefault(); setMoveOver(false); actions.mergePlotInto(fromId, plot.id); return; }
         if (fromId && !tab.plots.some((p) => p.id === fromId)) { e.preventDefault(); setMoveOver(false); actions.movePlotToTab(fromId, tab.id, index, e.ctrlKey); return; }
         if (from !== "") { e.preventDefault(); setMoveOver(false); actions.swapPlots(Number(from), index); return; }

@@ -2,6 +2,9 @@
 
 ## Next – unreleased
 
+- New: **copy a plot to another plot.** *Copy to…* in a plot's ⋯ menu (or Ctrl while dropping the plot by its ⠿ on another plot) makes a full copy and leaves the plot as it is: an empty plot becomes the copy - its type, every line with its colour and style, its axes; a plot of the same kind gets all its lines added. *New plot on this tab* and *New tab* are there too.
+- New: **copy or move a line to another plot from its legend chip.** Right-click a chip: *Copy to plot* and *Move to plot* list every plot, on any tab. (Dragging the chip still works - Ctrl while dropping copies; it now also reaches plots on other tabs through the menu.)
+
 - New: **Copy for Confluence (interactive), every sample.** A plot's ⋯ menu, a tab's right-click menu and Ctrl+K save the plot or the whole tab as a page with all its data and copy a few lines for Confluence. Drag the saved file onto the Confluence page (it becomes an attachment), choose *Insert → HTML* (the HTML macro, which an administrator turns on) and paste: the plot is live in the page - zoom down to every single sample, the cursor's values, lines on and off - with its statistics table and the notes; maps and 3D views as in the app's HTML report. The page's editor holds only those few lines (a whole page pasted into the macro, megabytes, could stall it); the reader's browser loads the attachment, in a frame of its own that cannot touch the page's look, and several can share one page. Without the attachment the box says what to do. Pasted straight into a page without the macro, Word or an e-mail, the same copy gives a picture with the statistics table and the notes.
 - Fixed: in a Hebrew report a negative number in the statistics table read *10.9-*; it now reads *-10.9*.
 
