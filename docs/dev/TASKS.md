@@ -240,3 +240,4 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   installer's two files; CHANGELOG 1.29.1 (never published) + CP1 + CP2 -> 1.30.0 with highlights; README (Confluence,
   English and Hebrew), docs "1.29.1" -> 1.30.0, validation page made again (29 / 29). Pictures not retaken (new menu
   items only).
+- 2026-11-18 · Full e2e before the release: 94 files, 510 tests, all green (one file at a time).
