@@ -3,7 +3,6 @@ together (a map), and what to run next."""
 from typing import Dict, List, Optional
 
 import numpy as np
-import pandas as pd
 
 from svcore.sweep.evaluate import Prepared, _agg
 from svcore.sweep.grid import Grid

@@ -16,7 +16,7 @@ Each cluster is meant to become a group (source "cluster") in the page.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
 
