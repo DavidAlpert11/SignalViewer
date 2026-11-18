@@ -25,6 +25,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Films in Hebrew + a narration script; GitHub About texts | offered / with the owner (About texts proposed 2026-11-17) | his choice; he pastes the About texts |
 | The branch `claude/readme-redesign` (merged) | to delete | the owner deletes it on GitHub (refused from a cloud session) |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
+| CL2 - cleanup round (owner, 2026-11-18: every change without a version change) | done (full e2e at the end: see the Log) | - |
+| Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
 ## Open specs (waiting for the owner)
 
@@ -185,3 +187,23 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   (moved from this file) + the Sweeps exception to "decimated data only" + the prompt to start a session. This file
   trimmed to the queue: open rows (1.28.0 and 1.29.0 are tagged), Open specs, the log from 2026-11-17. References fixed
   (quick_check.py, test_navigation.py, ROADMAP's note). No code changed.
+- 2026-11-18 · CL2 (owner: all the cleanup, no version change; "can many requests on big files crash it?"):
+  (1) examples written by code - generators moved to backend/svcore/example_data (tools/make_*.py thin wrappers), the
+  packages leave out the 24 generated files (12 MB; wheel 27 -> 22.7 MB), /api/examples/{id}/prepare writes them once
+  per version under ~/.signalviewer/examples; byte-identical to git (test_example_data), make_pypi --check prepares
+  one in a fresh venv, e2e test_fresh_user::test_a_package_writes... (2) ROADMAP reconciled (T12, B / M / D groups
+  ticked; T40, T43, F annotated; 21 open, all real). (3) Flaky e2e reproduced under load: the template library's
+  reload race (an earlier answer brought the old folder back), the slot note before the binding, a failed binding
+  left Open disabled - fixed. (4) Stress test (48 threads, a 410 MB Parquet + a log): 500s from store.list() walking
+  dicts without the lock, two derived signals at once took one name (one lost) - fixed with snapshots under the lock
+  and a held name (test_concurrency); 48 FFTs at once -> 9.3 GB, the server killed (stats 12 GB) - heavy
+  computations now through app.common.heavy (2-4 at once, SV_HEAVY_JOBS): 3-4 GB, drawing 4 ms median meanwhile.
+  (5) routes/sweep.py split (sweeps_templates.py, sweeps_report.py). (6) ruff F401/F841/F811 clean on app / svcore /
+  tools (ruff itself not added - a dev tool to decide on); mypy --check-untyped-defs: 17 findings, all false
+  positives, not switched on. Backend 1442 passed; quick_check green.
+- 2026-11-18 · CL2 end of round: whole e2e, one file per process, on a fresh build: 512 passed, 1 failed -
+  test_globe3d::test_the_map_from_above_and_the_mouse_readout, failing in every run of the whole file (alone it passed):
+  the readout is the pick when the mouse moved, the finer ground (fetched with the network allowed - the sea floor
+  here is 2.6 km down) arrives later. The test now waits for the tiles, reads again, and compares the readout with
+  the globe's own pick (0.001 deg) and the object (0.05 deg): the file 16 / 16 twice, the test alone green. No app
+  change; the version is not changed.
