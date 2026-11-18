@@ -3,8 +3,9 @@
 Every recording of `examples/` that is made by one of the generators here is listed in GENERATED. The repository
 keeps the files (tests, the docs and running from source use them as they are); the packages leave them out
 (tools/make_pypi.py, SignalViewer.spec, tools/make_windows_portable.py) and the app writes them on first use
-(app/routes/fs.py: /api/examples/{id}/prepare). The generators are deterministic: they write the same bytes as
-the files in git (a .mat's header carries its creation date) - backend/tests/test_example_data.py checks it.
+(app/routes/fs.py: /api/examples/{id}/prepare). The generators are deterministic: they write the recordings in git - the CSV files byte for byte, the binary
+ones (.bin, .parquet, .mat) with the same signals and values (another system's math library can differ in the last
+bit, so their bytes can) - backend/tests/test_example_data.py checks it.
 `tools/make_*.py` run the same modules from the command line.
 """
 import contextlib

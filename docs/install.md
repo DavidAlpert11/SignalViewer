@@ -64,7 +64,7 @@ CAN, binary layouts, every plot and analysis, HTML reports. The rest are extras;
 Both install the same `signalviewer` Python package: install one of them, not both.
 
 The packages carry the examples without their recordings (1.29.1): the first time you open an example its files
-are written to `~/.signalviewer/examples/<version>` - a second or two, once per version, the same files as before.
+are written to `~/.signalviewer/examples/<version>` - a second or two, once per version, the same recordings as before.
 
 ## From scripts
 
