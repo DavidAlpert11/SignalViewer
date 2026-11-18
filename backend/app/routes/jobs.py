@@ -52,7 +52,12 @@ def start_job(req: JobRequest):
             body = rr.model_dump()
             job.report(0.05, "prepare")
             with atomic_path(path) as tmp:     # O3: the old report stays until the new one is complete
-                if rr.format == "html":
+                if rr.text is not None:        # RE1: the report the user wrote
+                    from app.reportdoc import build_doc
+                    page = build_doc(store, body, rr.format, tmp, progress=job.report)
+                    if page is not None:
+                        _write_text(tmp, page)
+                elif rr.format == "html":
                     _write_text(tmp, reports.build_html(store, body, progress=job.report))
                 elif rr.format == "pdf":
                     reports.build_pdf(store, body, tmp, progress=job.report)

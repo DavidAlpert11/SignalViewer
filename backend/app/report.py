@@ -33,7 +33,7 @@ STRINGS = {
     "en": {"generated": "Generated", "summary": "Summary", "notes": "Notes", "toggle": "Click to show or hide", "theme": "Light / dark",
            "min": "Min", "max": "Max", "mean": "Mean", "rms": "RMS", "std": "Std", "samples": "Samples",
            "signal": "Signal", "hint": "Drag to zoom · wheel to zoom · double-click to reset · click to place the cursor",
-           "page": "Page", "plot": "Plot", "peak": "Peak", "visible": "Statistics for the shown time range",
+           "page": "Page", "plot": "Plot", "notOpen": "its signals are not open", "peak": "Peak", "visible": "Statistics for the shown time range",
            "limits": "Limits", "pass": "Pass", "fail": "Fail",
            "envNote": "{n} runs · median, {p}–{q} % band, min–max", "envFar": "Far from the rest:",
            "rpHint": "Click a plot or drag the timeline - every plot, the map and the 3D view follow · Space: play · drag on a plot: zoom them all",
@@ -45,7 +45,7 @@ STRINGS = {
     "he": {"generated": "נוצר", "summary": "סיכום", "notes": "הערות", "toggle": "לחיצה להצגה או הסתרה", "theme": "בהיר / כהה",
            "min": "מינ׳", "max": "מקס׳", "mean": "ממוצע", "rms": "RMS", "std": "סטיית תקן", "samples": "דגימות",
            "signal": "סיגנל", "hint": "גרירה לזום · גלגלת לזום · לחיצה כפולה לאיפוס · לחיצה למיקום הסמן",
-           "page": "עמוד", "plot": "גרף", "peak": "שיא", "visible": "סטטיסטיקות לטווח הזמן המוצג",
+           "page": "עמוד", "plot": "גרף", "notOpen": "האותות שלו אינם פתוחים", "peak": "שיא", "visible": "סטטיסטיקות לטווח הזמן המוצג",
            "limits": "גבולות", "pass": "עבר", "fail": "נכשל",
            "envNote": "{n} ריצות · חציון, רצועת {p}–{q} %, מינ׳–מקס׳", "envFar": "רחוקות מהשאר:",
            "rpHint": "לחיצה על גרף או גרירה בציר הזמן - כל הגרפים, המפה והתלת-ממד זזים יחד · רווח: ניגון · גרירה על גרף: זום לכולם",
@@ -559,38 +559,52 @@ def build_html(store, req: Dict, progress=None, clip: bool = False) -> str:
     for ti, t in enumerate(tabs):
         items: list = []
         for pi, p in enumerate(t["plots"]):
-            heading = html.escape(p["title"] or "%s %d" % (S["plot"], pi + 1))
-            caption = '<p class="caption">%s</p>' % html.escape(p["caption"]) if p["caption"] else ""
-            if p["mode"] in ("geo", "3d"):                    # L11 / 1.26: the map's (or the 3D view's) own offline page, in a frame
-                frame = ('<iframe class="mapframe" title="%s" sandbox="allow-scripts" srcdoc="%s"></iframe>' % (heading, html.escape(p["geo_html"], quote=True))) \
-                    if p.get("geo_html") else ""
-                items.append('<section class="plot" data-p="%d"><h2>%s</h2>%s%s</section>' % (pi, heading, caption, frame))
-                continue
-            if p["mode"] in ("spec", "xyz"):
-                img = '<img class="specimg%s" alt="%s" src="data:image/png;base64,%s">' % (
-                    " xyzimg" if p["mode"] == "xyz" else "", heading, _spec_png(p, req.get("theme", "light"))) \
-                    if p.get("spec") or p.get("xyz") else ""
-                items.append('<section class="plot" data-p="%d"><h2>%s</h2>%s%s</section>' % (pi, heading, caption, img))
-                continue
-            items.append('<section class="plot" data-p="%d"><h2>%s</h2>%s<div class="legend"></div>'
-                         '<div class="canvas"></div>%s</section>' % (pi, heading, caption, stats_html[(ti, pi)]))
+            items.append(plot_section_html(p, pi, S, req.get("theme", "light"), stats_html[(ti, pi)]))
         panes.append(f'<div class="tabpane"{"" if ti == 0 else " hidden"}>{"".join(items)}</div>')
-    def read(n):
-        with open(os.path.join(ASSETS, n), encoding="utf-8") as fh:
-            return fh.read()
-    title = html.escape(req.get("title") or "Signal Viewer report")
-    data_json = json.dumps(payload, separators=(",", ":")).replace("</", "<\\/")
     intro = '<p class="text">%s</p>' % html.escape(req["intro"]) if req.get("intro") else ""
     intro += _sections_html(_process_first(req.get("sections") or []))
     summary = '<h2>%s</h2><p class="text">%s</p>' % (S["summary"], html.escape(req["summary"])) if req.get("summary") else ""
     summary += _notes_html(req.get("notes") or [], S)
+    return fill_page(req, S, payload, replay, intro=intro, nav=nav, panes="".join(panes), summary=summary, clip=clip)
+
+
+def _asset(n: str) -> str:
+    with open(os.path.join(ASSETS, n), encoding="utf-8") as fh:
+        return fh.read()
+
+
+def fill_page(req: Dict, S: Dict, payload: Dict, replay: Optional[Dict], intro: str, nav: str, panes: str, summary: str,
+              clip: bool = False, css: str = "") -> str:
+    """The page around the plots (shared by the report of tabs and the written document, RE1): fonts, uPlot,
+    viewer.js, the theme button, the replay bar when there is one."""
+    lang = req.get("lang", "en")
+    title = html.escape(req.get("title") or "Signal Viewer report")
+    data_json = json.dumps(payload, separators=(",", ":")).replace("</", "<\\/")
     return TEMPLATE.format(
         lang=lang, dir="rtl" if lang == "he" else "ltr", theme="dark" if req.get("theme") == "dark" else "light",
-        title=title, uplot_css=read("uPlot.min.css"), css=_fonts_css() + CSS + (REPLAY_CSS if replay else "") + (CLIP_CSS if clip else ""), generated=S["generated"],
+        title=title, uplot_css=_asset("uPlot.min.css"), css=_fonts_css() + CSS + (REPLAY_CSS if replay else "") + (CLIP_CSS if clip else "") + css, generated=S["generated"],
         date=datetime.now().strftime("%Y-%m-%d %H:%M"), theme_label=S["theme"], intro=intro, hint=(S["rpHint"] if replay["compact"] else S["lvHint"]) if replay else S["hint"],
-        nav=nav, panes="".join(panes), summary=summary, data=data_json, body_class=(' class="replay"' if replay["compact"] else ' class="live"') if replay else "",
+        nav=nav, panes=panes, summary=summary, data=data_json, body_class=(' class="replay"' if replay["compact"] else ' class="live"') if replay else "",
         bar=_replay_bar(S) if replay else "", footer=_brand_footer(S) if replay else "" if clip else "<footer>Signal Viewer</footer>",   # RV8: the one page sent carries the brand line
-        uplot_js=read("uPlot.iife.min.js"), viewer_js=read("viewer.js"))
+        uplot_js=_asset("uPlot.iife.min.js"), viewer_js=_asset("viewer.js"))
+
+
+def plot_section_html(p: Dict, pi: int, S: Dict, theme: str, stats: str) -> str:
+    """One plot of the page: its heading, caption and the place viewer.js draws it (index `pi` of its tab's plots);
+    a map / 3D view in its own frame, a spectrogram / XYZ as a picture."""
+    heading = html.escape(p["title"] or "%s %d" % (S["plot"], pi + 1))
+    caption = '<p class="caption">%s</p>' % html.escape(p["caption"]) if p["caption"] else ""
+    if p["mode"] in ("geo", "3d"):                    # L11 / 1.26: the map's (or the 3D view's) own offline page, in a frame
+        frame = ('<iframe class="mapframe" title="%s" sandbox="allow-scripts" srcdoc="%s"></iframe>' % (heading, html.escape(p["geo_html"], quote=True))) \
+            if p.get("geo_html") else ""
+        return '<section class="plot" data-p="%d"><h2>%s</h2>%s%s</section>' % (pi, heading, caption, frame)
+    if p["mode"] in ("spec", "xyz"):
+        img = '<img class="specimg%s" alt="%s" src="data:image/png;base64,%s">' % (
+            " xyzimg" if p["mode"] == "xyz" else "", heading, _spec_png(p, theme)) \
+            if p.get("spec") or p.get("xyz") else ""
+        return '<section class="plot" data-p="%d"><h2>%s</h2>%s%s</section>' % (pi, heading, caption, img)
+    return ('<section class="plot" data-p="%d"><h2>%s</h2>%s<div class="legend"></div>'
+            '<div class="canvas"></div>%s</section>' % (pi, heading, caption, stats))
 
 
 # ---- R1: the replay page ------------------------------------------------------------------------
@@ -769,9 +783,27 @@ TEMPLATE = """<!doctype html>
 # STATIC FIGURES (PDF / Word / PNG / SVG) with matplotlib
 # =============================================================================
 
+_NATIVE_BIDI: Optional[bool] = None
+
+
+def _native_bidi() -> bool:
+    """Matplotlib 3.11+ lays text out with libraqm, which orders Hebrew itself - reordering it here too would
+    print it backwards (found 2026-11-18: every Hebrew line of the PDF reports read right-to-left reversed)."""
+    global _NATIVE_BIDI
+    if _NATIVE_BIDI is None:
+        try:
+            from matplotlib import ft2font
+            _NATIVE_BIDI = bool(getattr(ft2font, "__libraqm_version__", None))
+        except Exception:                   # no matplotlib: nothing draws text anyway
+            _NATIVE_BIDI = False
+    return _NATIVE_BIDI
+
+
 def _bidi(text: str) -> str:
     if not text:
         return ""
+    if _native_bidi():
+        return text
     try:
         from bidi.algorithm import get_display
     except ImportError:                 # optional: Hebrew then shows in logical order

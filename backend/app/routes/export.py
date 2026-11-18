@@ -3,7 +3,7 @@
 import asyncio
 import base64
 import os
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 from fastapi import APIRouter
@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from app import report as reports
 from svcore.atomic import write_text as _write_text
-from app.common import atomic_open, atomic_path, atomic_write, fail
+from app.common import atomic_open, atomic_path, atomic_write, fail, heavy
 from app.store import store
 
 router = APIRouter()
@@ -113,6 +113,12 @@ class ReportRequest(BaseModel):
     notes: List[dict] = []          # the user's notes: [{t, text}]
     sections: List[dict] = []       # investigation: [{title, text?, items?, table?: {head, rows}}]
     replay: Optional[dict] = None   # R1: a replay page - {t, extent, events: [{t, text, level}]} (report.build_html)
+    # RE1: the report the user wrote (app/reportdoc.py): Markdown with markers, what each marker stands for,
+    # the callouts' words in the report's language, the folder a relative picture is read from
+    text: Optional[str] = None
+    items: List[dict] = []
+    words: Dict[str, str] = {}
+    base: str = ""
 
 
 
@@ -162,7 +168,12 @@ def open_page(req: OpenRequest):
 
 @router.post("/api/report/preview")
 async def report_preview(req: ReportRequest):
-    html_text = await asyncio.to_thread(reports.build_html, store, req.model_dump())
+    body = req.model_dump()
+    if req.text is not None:                  # RE1: the written report, exactly as its .html file will be
+        from app.reportdoc import build_doc_html
+        html_text = await heavy(build_doc_html, store, body)
+    else:
+        html_text = await asyncio.to_thread(reports.build_html, store, body)
     return {"html": html_text}
 
 
