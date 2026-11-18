@@ -582,7 +582,7 @@ overshoot, energy...), with a second, finer sweep to merge. The same answer on t
 - The 3D view in reports: live in HTML (three.js, offline; its picture without WebGL), a picture in PDF / Word / PNG; its own offline HTML from its ⋯ menu
 - A plot that cannot go into a report (a video, occurrences) is listed with the reason, not left out
 - A single plot: PNG, a high-resolution PNG for a report (twice the pixels), SVG, or an interactive page (HTML)
-- **Copy for Confluence** (a plot's ⋯ menu, a tab's right-click menu, Ctrl+K): pasted into Confluence's HTML macro, the plot or tab is live in the page (zoom, cursor, lines on and off) with its statistics and notes - a few hundred kB, in a frame of its own; pasted straight into a page, Word or an e-mail: a picture, the table and the notes
+- **Copy for Confluence** (a plot's ⋯ menu, a tab's right-click menu, Ctrl+K): the plot or tab saved with every sample - attached to the Confluence page, the copied lines pasted into its HTML macro show it live (zoom to every sample, cursor, lines on and off, statistics, notes; maps and 3D views too); pasted straight into a page, Word or an e-mail: a picture, the table and the notes
 - PDF
 - Word
 - Per-plot captions, include/exclude, report language

@@ -1,6 +1,6 @@
-"""CP1 (owner, 2026-11-18): a plot or a tab copied for a Confluence page. The interactive copy (for the HTML
-macro) must stay small - a 4 MB page brought his Confluence editor down - yet keep every extreme (min/max), sit
-in a frame of its own, and carry the statistics and the notes; the static copy has no script at all."""
+"""CP1 (owner, 2026-11-18): a plot or a tab for a Confluence page, every sample interactive. The page with all the
+data is saved (attached to the Confluence page); the HTML macro gets only a few lines that fetch it - a 4 MB page in
+the macro brought his editor down. The static copy (picture, statistics, notes) has no script at all."""
 import base64
 import html
 import json
@@ -17,12 +17,6 @@ from app.main import app  # noqa: E402
 from app import report  # noqa: E402
 
 client = TestClient(app)
-
-
-def _page(fragment):
-    m = re.search(r'srcdoc="([^"]*)"', fragment)
-    assert m, "the copy is a frame"
-    return html.unescape(m.group(1))
 
 
 def _data(page):
@@ -45,21 +39,24 @@ def test_clip_is_small_keeps_the_needle_and_carries_table_and_notes(tmp_path):
         sig = lambda name, col: {"id": f"{run['id']}/{name}", "label": name, "color": col, "width": 1.5, "scale": 1, "offset": 0}
         body = {"title": "Bench run", "lang": "en", "notes": [{"t": 12.5, "text": "valve opens"}],
                 "tabs": [{"name": "Tab", "plots": [{"mode": "time", "title": "Three", "signals": [sig("a", "#e33"), sig("b", "#33e"), sig("c", "#3a3")]}]}]}
-        r = client.post("/api/export/clip", json=body)
+        r = client.post("/api/export/clip", json={**body, "path": str(tmp_path / "bench")})
         assert r.status_code == 200, r.text
         out = r.json()
-        live, static = out["html"], out["static"]
-        assert out["size"] == len(live.encode("utf-8"))
-        assert out["size"] < 600_000, out["size"]                # well under what broke his editor (4 MB)
-        assert live.startswith('<div class="sv-clip"><iframe') and "<script>" in live
-        page = _page(live)
-        assert "@font-face" not in page                          # the page's own fonts, not 80 kB of embedded ones
+        macro, static = out["macro"], out["static"]
+        assert out["name"] == "bench.html" and os.path.isfile(tmp_path / "bench.html")
+        page = (tmp_path / "bench.html").read_text(encoding="utf-8")
+        assert out["size"] == len(page.encode("utf-8"))
+        # the macro: small, a frame, the attachment of the page it is on, by name
+        assert len(macro) < 4000 and "<iframe" in macro and "/download/attachments/" in macro and '"bench.html"' in macro
         assert "Min" in page and "valve opens" in page           # the statistics table and the notes
         d = _data(page)
         levels = d["tabs"][0]["plots"][0]["signals"][0]["levels"]
-        assert len(levels) == 1 and levels[0]["n"] <= report.clip_points(body)
-        y = np.frombuffer(base64.b64decode(levels[0]["y"]), dtype=np.float32)
-        assert np.isclose(y.max(), 99.0)                         # min/max: the needle is drawn
+        assert levels[-1]["n"] == n                              # every sample: the finest level is the recording
+        assert all(lv["n"] < n for lv in levels[:-1])            # the coarser ones draw it until zoomed in
+        y = np.frombuffer(base64.b64decode(levels[-1]["y"]), dtype=np.float32)
+        assert np.allclose(y, a.astype(np.float32), atol=1e-5)
+        for lv in levels[:-1]:                                   # min/max: the needle is in every level
+            assert np.isclose(np.frombuffer(base64.b64decode(lv["y"]), dtype=np.float32).max(), 99.0)
         # the static copy: the picture, the table, the notes - and no script
         assert "<script" not in static and "data:image/png;base64," in static
         assert "valve opens" in static and ">Max<" in static and "99" in static
@@ -67,14 +64,12 @@ def test_clip_is_small_keeps_the_needle_and_carries_table_and_notes(tmp_path):
         client.delete(f"/api/runs/{run['id']}")
 
 
-def test_clip_points_shared_with_a_floor():
-    one = {"tabs": [{"plots": [{"mode": "time", "signals": [{}]}]}]}
-    many = {"tabs": [{"plots": [{"mode": "time", "signals": [{}] * 40}]}]}
-    assert report.clip_points(one) == report.CLIP_POINTS
-    assert report.clip_points(many) == report.CLIP_MIN_POINTS
+def test_clip_macro_words_and_no_closing_script_inside():
+    m = report.build_clip_macro({"lang": "he", "tabs": []}, "a</script>.html")
+    assert "גררו את הקובץ" in m and m.count("</script>") == 1
 
 
 def test_clip_hebrew_static_is_rtl_and_empty_is_refused():
-    assert client.post("/api/export/clip", json={"tabs": [{"plots": []}]}).status_code == 400
+    assert client.post("/api/export/clip", json={"path": "x", "tabs": [{"plots": []}]}).status_code == 400
     frag = report.build_clip_static(None, {"lang": "he", "tabs": [], "notes": [{"t": 1, "text": "הערה"}]})
     assert 'dir="rtl"' in frag and "הערות" in frag

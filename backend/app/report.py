@@ -10,7 +10,6 @@ import base64
 import html
 import io
 import json
-import uuid
 import os
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -73,9 +72,9 @@ def _f(v):
 LINE_STYLES = {"solid": "-", "dash": "--", "dot": ":", "dashdot": "-."}   # N3: the app's line styles in matplotlib
 
 
-def plot_data(store, spec: Dict, for_html: bool, points: int = 3000, html_points: Optional[int] = None) -> Dict:
-    """Resolve a plot spec from the UI into display data + full-resolution statistics. `html_points` (CP1, a copy
-    for a Confluence page): one min/max level of at most that many points per line instead of the zoom levels."""
+def plot_data(store, spec: Dict, for_html: bool, points: int = 3000, full: bool = False) -> Dict:
+    """Resolve a plot spec from the UI into display data + full-resolution statistics. `full` (CP1, the page for
+    Confluence): a long line keeps every sample as its finest level (the zoom levels draw it until zoomed in)."""
     mode = spec.get("mode") or "time"
     if mode == "geo":                                             # L11: a map's objects, drawn by app/mapimage.py
         return _geo_data(store, spec, for_html)
@@ -125,14 +124,11 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000, html_points
             sig["limits"] = check_limits(t, ys, lim.get("lo"), lim.get("hi"),
                                          rng[0] if rng else None, rng[1] if rng else None)
         if mode == "time":
-            if for_html and html_points:
-                levels = [(t, ys)] if len(t) <= html_points else [minmax_decimate(t, ys, html_points)]
-                sig["levels"] = [{"x": _b64(a, np.float64), "y": _b64(b, np.float32), "n": int(len(a))} for a, b in levels]
-            elif for_html:
+            if for_html:
                 if len(t) <= RAW_LIMIT:
                     levels = [(t, ys)]
                 else:
-                    levels = [minmax_decimate(t, ys, n) for n in LEVELS if n < len(t)]
+                    levels = [minmax_decimate(t, ys, n) for n in LEVELS if n < len(t)] + ([(t, ys)] if full else [])
                 sig["levels"] = [{"x": _b64(a, np.float64), "y": _b64(b, np.float32), "n": int(len(a))} for a, b in levels]
             else:
                 xd, yd, _ = decimate_for_view(t, ys, rng, points)
@@ -152,7 +148,7 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000, html_points
             sig["peak"] = _f(peak)
             sig["x"], sig["y"] = np.asarray(fx, dtype=np.float64), np.asarray(fy, dtype=np.float64)
         else:
-            a, b = xy_pair(tx, x, t, ys, spec.get("xyAlign") or "linear", points=min(16000, html_points or 16000) if for_html else 6000)
+            a, b = xy_pair(tx, x, t, ys, spec.get("xyAlign") or "linear", points=(max(16000, len(t)) if full else 16000) if for_html else 6000)
             sig["x"], sig["y"] = a, b
         if for_html and "x" in sig:
             sig["x"], sig["y"] = _b64(sig["x"], np.float64), _b64(sig["y"], np.float32)
@@ -524,9 +520,9 @@ def _count_plots(req: Dict) -> int:
     return max(1, sum(len(t.get("plots", [])) for t in req.get("tabs", [])))
 
 
-def build_html(store, req: Dict, progress=None, clip_points: Optional[int] = None) -> str:
-    """The interactive page. `clip_points` (CP1): the small page a Confluence HTML macro carries - one min/max
-    level per line of that many points, no embedded fonts (the page's own), no footer."""
+def build_html(store, req: Dict, progress=None, clip: bool = False) -> str:
+    """The interactive page. `clip` (CP1): the page a Confluence page shows in its frame - every sample of every
+    line (a finest zoom level), sized to the frame, no footer."""
     lang = req.get("lang", "en")
     S = STRINGS.get(lang, STRINGS["en"])
     tabs, done, total = [], 0, _count_plots(req)
@@ -534,7 +530,7 @@ def build_html(store, req: Dict, progress=None, clip_points: Optional[int] = Non
         plots = []
         for p in tab.get("plots", []):
             plots.append(plot_data(store, {**p, "notes": req.get("notes") or [], "lang": req.get("lang", "en")}, for_html=True,
-                                   html_points=clip_points))
+                                   full=clip))
             done += 1
             if progress:
                 progress(0.05 + 0.9 * done / total, "plots")
@@ -590,10 +586,10 @@ def build_html(store, req: Dict, progress=None, clip_points: Optional[int] = Non
     summary += _notes_html(req.get("notes") or [], S)
     return TEMPLATE.format(
         lang=lang, dir="rtl" if lang == "he" else "ltr", theme="dark" if req.get("theme") == "dark" else "light",
-        title=title, uplot_css=read("uPlot.min.css"), css=("" if clip_points else _fonts_css()) + CSS + (REPLAY_CSS if replay else "") + (CLIP_CSS if clip_points else ""), generated=S["generated"],
+        title=title, uplot_css=read("uPlot.min.css"), css=_fonts_css() + CSS + (REPLAY_CSS if replay else "") + (CLIP_CSS if clip else ""), generated=S["generated"],
         date=datetime.now().strftime("%Y-%m-%d %H:%M"), theme_label=S["theme"], intro=intro, hint=(S["rpHint"] if replay["compact"] else S["lvHint"]) if replay else S["hint"],
         nav=nav, panes="".join(panes), summary=summary, data=data_json, body_class=(' class="replay"' if replay["compact"] else ' class="live"') if replay else "",
-        bar=_replay_bar(S) if replay else "", footer=_brand_footer(S) if replay else "" if clip_points else "<footer>Signal Viewer</footer>",   # RV8: the one page sent carries the brand line
+        bar=_replay_bar(S) if replay else "", footer=_brand_footer(S) if replay else "" if clip else "<footer>Signal Viewer</footer>",   # RV8: the one page sent carries the brand line
         uplot_js=read("uPlot.iife.min.js"), viewer_js=read("viewer.js"))
 
 
@@ -1182,46 +1178,60 @@ def build_image(store, spec: Dict, fmt: str, theme: str, scale: float = 1.0) -> 
 # =============================================================================
 # CP1: A PLOT OR A TAB FOR A CONFLUENCE PAGE (the clipboard)
 # =============================================================================
-# Two flavours in one copy. text/plain: the interactive page for Confluence's HTML macro (Insert -> HTML,
-# paste) - the report's page in a frame (its styles and scripts cannot touch the Confluence page around it,
-# and two copies on one page do not meet), kept small: a 4 MB page (every zoom level, the fonts) brought
-# the owner's Confluence editor down (2026-11-18). text/html: the same content without scripts (a picture,
-# the statistics table, the notes; inline styles) for a page without the macro, Word or an e-mail.
+# The whole plot or tab, every sample, is a page attached to the Confluence page (dragged onto it); the HTML macro
+# carries only a few lines that fetch that attachment and show it in a frame of its own (its styles and scripts
+# cannot touch the page, several share one page). A whole page inside the macro (a first try, 4 MB) stalled the
+# owner's editor (2026-11-18): the editor never sees the data now, the reader's browser fetches it.
+# The clipboard: text/plain is the macro's lines, text/html the content without scripts (a picture, the statistics
+# table, the notes) for a page without the macro, Word or an e-mail.
 
-CLIP_POINTS = 16000          # points per copy, shared by its time lines (min/max: every extreme still drawn)
-CLIP_MIN_POINTS = 2400       # a line never gets fewer: min/max over 1200 columns, wider than the page
 CLIP_CSS = """
 body{background:transparent}main{max-width:none;padding:4px 2px 6px}header{margin-bottom:6px}h1{font-size:18px}
 .plot{margin:0 0 12px}.hint{margin:0 0 8px}
 """
 
+CLIP_WORDS = {
+    "en": {"loading": "Loading {name}…", "noPage": "This page shows {name}, attached to a Confluence page: open it there.",
+           "missing": "{name} is not attached to this page. Drag the file onto the page (it becomes an attachment), then reload."},
+    "he": {"loading": "טוען את {name}…", "noPage": "כאן מוצג {name} המצורף לדף Confluence: פתחו אותו שם.",
+           "missing": "{name} לא מצורף לדף הזה. גררו את הקובץ אל הדף (הוא נשמר כקובץ מצורף) וטענו מחדש."},
+}
 
-def clip_points(req: Dict) -> int:
-    """The points each time line of the copy gets: CLIP_POINTS shared by them all, never below CLIP_MIN_POINTS."""
-    n = sum(len(p.get("signals") or []) for t in req.get("tabs", []) for p in t.get("plots", [])
-            if (p.get("mode") or "time") == "time")
-    return max(CLIP_MIN_POINTS, CLIP_POINTS // max(1, n))
-
-
-_CLIP_FIT = ("(function(){var f=document.getElementById('%s');if(!f)return;function fit(){try{var d=f.contentDocument;"
-             "if(d&&d.body)f.style.height=Math.max(160,d.documentElement.scrollHeight)+'px'}catch(e){}}"
-             "f.addEventListener('load',function(){fit();try{new ResizeObserver(fit).observe(f.contentDocument.body)}catch(e){}});fit()})();")
+# Confluence names the page in <meta name="ajs-page-id"> (and its context path); /download/attachments/<page>/<name>
+# is the attachment's latest version. fetch reads it whatever its download headers say (HTML attachments are
+# often forced to download), and the frame shows it from srcdoc.
+# Found by place, not by id: the same lines pasted twice must show twice (a script run from markup has
+# currentScript; one an editor inserts later runs in order, so the first box not yet taken is its own).
+_CLIP_JS = """(function(){var s=document.currentScript,r=s&&s.parentNode&&s.parentNode.classList.contains('sv-clip')?s.parentNode:document.querySelector('.sv-clip:not([data-sv])');
+if(!r)return;r.setAttribute('data-sv','1');var f=r.querySelector('iframe'),m=r.querySelector('p'),name=%(name)s,W=%(words)s;
+function meta(n){var e=document.querySelector('meta[name="'+n+'"]');return e?e.getAttribute('content'):''}
+function say(k){m.textContent=W[k].replace('{name}',name);m.style.display=''}
+function fit(){try{var d=f.contentDocument;if(d&&d.body&&d.body.childElementCount)f.style.height=Math.max(160,d.documentElement.scrollHeight)+'px'}catch(e){}}
+f.addEventListener('load',function(){fit();try{new ResizeObserver(fit).observe(f.contentDocument.body)}catch(e){}});
+var pid=meta('ajs-page-id')||meta('ajs-latest-page-id');if(!pid){say('noPage');return}
+say('loading');fetch(meta('ajs-context-path')+'/download/attachments/'+pid+'/'+encodeURIComponent(name),{credentials:'same-origin'})
+.then(function(r){if(!r.ok)throw new Error(r.status);return r.text()})
+.then(function(t){f.srcdoc=t;m.style.display='none'},function(){say('missing')})})();"""
 
 
 def _clip_height(req: Dict) -> int:
-    """The frame's height before its page has measured itself (a page that keeps scripts out still shows it all)."""
+    """The frame's height before its page has measured itself."""
     plots = [p for t in req.get("tabs", []) for p in t.get("plots", [])]
     return 90 + sum(420 + 26 * len(p.get("signals") or []) for p in plots) + 24 * len(req.get("notes") or [])
 
 
-def build_clip_interactive(store, req: Dict) -> str:
-    """The interactive copy: a frame holding the report's page (uPlot, the data min/max-decimated to a budget),
-    and the few lines that size the frame to its page."""
-    page = build_html(store, req, clip_points=clip_points(req))
-    fid = "sv-clip-" + uuid.uuid4().hex[:10]
-    title = html.escape(req.get("title") or "Signal Viewer")
-    return ('<div class="sv-clip"><iframe id="%s" title="%s" style="width:100%%;height:%dpx;border:0;display:block" srcdoc="%s"></iframe>'
-            '<script>%s</script></div>' % (fid, title, _clip_height(req), html.escape(page, quote=True), _CLIP_FIT % fid))
+def build_clip_page(store, req: Dict) -> str:
+    """The page attached to Confluence: the report's page of the plot / tab with every sample."""
+    return build_html(store, req, clip=True)
+
+
+def build_clip_macro(req: Dict, name: str) -> str:
+    """The HTML macro's few lines: a frame that shows the attachment `name` of the page they are on."""
+    words = CLIP_WORDS.get(req.get("lang", "en"), CLIP_WORDS["en"])
+    js = _CLIP_JS % {"name": json.dumps(name), "words": json.dumps(words, ensure_ascii=False)}
+    return ('<div class="sv-clip"><p style="color:#5a6979;font:13px sans-serif;display:none"></p>'
+            '<iframe title="%s" style="width:100%%;height:%dpx;border:0;display:block"></iframe><script>%s</script></div>'
+            % (html.escape(name), _clip_height(req), js.replace("</", "<\\/")))
 
 
 _CLIP_TD = "padding:3px 8px;border-top:1px solid #d5dce4;text-align:right;white-space:nowrap;direction:ltr"

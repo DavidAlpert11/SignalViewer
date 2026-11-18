@@ -168,6 +168,7 @@ async def report_preview(req: ReportRequest):
 
 
 class ClipRequest(BaseModel):
+    path: str                       # where the page (every sample) is saved - the file attached to the Confluence page
     title: str = ""
     lang: str = "en"
     theme: str = "light"
@@ -177,17 +178,21 @@ class ClipRequest(BaseModel):
 
 @router.post("/api/export/clip")
 async def export_clip(req: ClipRequest):
-    """CP1: a plot or a tab for a Confluence page - `html`: the interactive copy for the HTML macro (text/plain on
-    the clipboard), `static`: picture + statistics + notes without scripts (text/html: a page, Word, e-mail)."""
+    """CP1: a plot or a tab for a Confluence page. The page with every sample is saved at `path` (dragged onto the
+    Confluence page: an attachment); `macro`: the HTML macro's lines that show that attachment (text/plain on the
+    clipboard); `static`: picture + statistics + notes without scripts (text/html: a page, Word, an e-mail)."""
     body = req.model_dump()
     if not any(t.get("plots") for t in body["tabs"]):
         fail(400, "Nothing to copy: the plot or tab has no lines.")
+    path = _check_target(req.path, ".html")
     try:
-        live = await asyncio.to_thread(reports.build_clip_interactive, store, body)
+        page = await asyncio.to_thread(reports.build_clip_page, store, body)
         static = await asyncio.to_thread(reports.build_clip_static, store, body)
     except KeyError:
         fail(404, "One of the plot's signals is no longer open.")
-    return {"html": live, "static": static, "size": len(live.encode("utf-8"))}
+    await asyncio.to_thread(atomic_write, path, page)
+    return {"path": path, "name": os.path.basename(path), "size": len(page.encode("utf-8")),
+            "macro": reports.build_clip_macro(body, os.path.basename(path)), "static": static}
 
 
 class ImageRequest(BaseModel):
