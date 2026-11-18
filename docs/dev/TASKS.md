@@ -28,10 +28,18 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | CL2 - cleanup round (owner, 2026-11-18: every change without a version change) | done (full e2e at the end: see the Log) | - |
 | Release 1.30.0 (owner, 2026-11-18: "add and release") | prepared: version, CHANGELOG, README / docs reviewed, validation 29 / 29 | build (by hand, 0c42bd2), ci and docs green on all three systems; the owner deletes the v1.29.1 Release and tag, then releases v1.30.0 from the website |
 | CP1 - copy a plot / a tab into a Confluence page (owner, 2026-11-18) | done - every sample, via an attachment (his Confluence itself not tested - no access) | the owner tries it on his Confluence 10.2: drag the file onto the page, Insert > HTML, paste |
+| RE1 - the report as a document you write (owner, 2026-11-18: "like markdown or LaTeX, referring to values, plots, tabs") | plan written - `docs/dev/REPORT_EDITOR.md`; no code | the owner's answers to its 10 questions (§8), then RE1.1 |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
 ## Open specs (waiting for the owner)
 
+- **RE1 - the report editor (owner, 2026-11-18).** Spec: `docs/dev/REPORT_EDITOR.md`. Proposed: a full screen inside
+  Recordings (the rail's *Report* switches the stage to source | live preview), Markdown + `{{ field() }}` live fields
+  by stable id (statistics on all the data in the backend, plots, tabs, notes, conditions, formulas, recording facts),
+  `$math$`, saved as `ws.report.doc` (optional), the side panel absorbed as the default document, one parse -> resolve
+  -> emit path for preview / HTML / PDF / Word / Markdown / Confluence, templates + CLI for the next recording.
+  Phases RE1.1-RE1.6. **Waiting for: the 10 questions in §8** (place, one or many documents, the panel's removal,
+  math renderer, CodeMirror, markdown-it-py, closed files, order, Sweeps, PDF).
 - **CP1 - done 2026-11-18.** The owner's answers: the HTML macro is ON; a first try (an interactive page of ~4 MB inside
   the macro) stalled the editor; then "all the resolution, interactive - by dragging the HTML or another way". Built:
   *Copy for Confluence (interactive)…* (plot ⋯ menu, tab right-click, Ctrl+K) saves the page with every sample
@@ -243,3 +251,6 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 - 2026-11-18 · Full e2e before the release: 94 files, 515 tests, all green (one file at a time).
 - 2026-11-18 · build by hand on main (0c42bd2): green on Linux, macOS and Windows (test_loop fix confirmed); ci and docs
   green. Waiting for the owner: delete the v1.29.1 Release and tag, release v1.30.0 from the website.
+- 2026-11-18 · RE1 planned (owner: a report written like Markdown / LaTeX with references to values, plots, tabs): studied the
+  Report panel, report.py's builders, CP1, plotSpec, sessions / retarget (ids kept), templates (slots by name), batch
+  reports, conditions, formulas, stats, areas. Spec `docs/dev/REPORT_EDITOR.md` with 10 questions for the owner. No code.
