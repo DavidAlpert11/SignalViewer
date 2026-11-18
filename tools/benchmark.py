@@ -13,7 +13,7 @@ step, a pan burst (each step waited for, and only the last one - what cancelling
 gives), the memory of a large ArduPilot log with changed signals against the memory cache's budget,
 and a live append on a wide CSV. Each row has a target; --json writes the numbers for CI (T3).
 """
-import argparse, base64, json, os, shutil, subprocess, sys, tempfile, time
+import argparse, json, os, shutil, subprocess, sys, tempfile, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.path.join(HERE, "..", "backend")
@@ -32,7 +32,6 @@ def child(mode: str, path: str, cache: str, nsig: int) -> dict:
     os.environ["SV_CACHE_DIR"] = cache
     os.environ["SV_CACHE_MIN_MB"] = "1"
     sys.path.insert(0, BACKEND)
-    import numpy as np
     from fastapi.testclient import TestClient
     from app.main import app
     c = TestClient(app, base_url="http://127.0.0.1")     # the server answers only requests to localhost
@@ -66,7 +65,6 @@ def child(mode: str, path: str, cache: str, nsig: int) -> dict:
         timed("stats_region", lambda: c.post("/api/stats", json={"signals": sigs, "t0": run["start"] + span * .2, "t1": run["start"] + span * .7}))
         out["latency_s"] = lat
         # live mode: append 1000 rows and measure until they are readable
-        hdr = None
         with open(path, "rb") as f:              # last complete row (rows can be very long)
             size = f.seek(0, 2); back = 4096
             while True:
@@ -80,7 +78,7 @@ def child(mode: str, path: str, cache: str, nsig: int) -> dict:
         rows = "".join(",".join([f"{t_last + (i + 1) * dt:.6f}"] + ["0"] * (ncol - 1)) + "\n" for i in range(1000))
         with open(path, "a") as f:
             f.write(rows)
-        t0 = time.perf_counter(); p = c.post("/api/stream/poll").json(); out["stream_append_s"] = time.perf_counter() - t0
+        t0 = time.perf_counter(); c.post("/api/stream/poll").json(); out["stream_append_s"] = time.perf_counter() - t0
         out["stream_rows_seen"] = (c.get("/api/runs").json()[0]["samples"] - run["samples"])
     return out
 
