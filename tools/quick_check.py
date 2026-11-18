@@ -1,5 +1,5 @@
 """The quick check after every change (W11): tsc, Vitest, the backend tests, mypy - in that order,
-stopping at the first failure. Cross-platform (Windows, macOS, Linux); no e2e (see docs/dev/E2E_MAP.md).
+stopping at the first failure. Cross-platform (Windows, macOS, Linux); no e2e (which e2e to run: CLAUDE.md, "After every change").
 
     python tools/quick_check.py            # all four
     python tools/quick_check.py --skip mypy,vitest

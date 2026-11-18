@@ -1,5 +1,5 @@
 """
-U9 (owner, 2026-11-07, docs/dev/NAVIGATION.md option A): the areas are a switch - Recordings,
+U9 (owner, 2026-11-07, option A of the navigation sketch - in git: 7b16eef:docs/dev/NAVIGATION.md): the areas are a switch - Recordings,
 Sweeps (the Fleet area was dropped in FL1, 2026-11-16); the rail keeps the same tools, Log disabled while no
 flight log is open; one views menu ("+ ▾") beside the tabs: new, from a template, the tabs a
 template left out.

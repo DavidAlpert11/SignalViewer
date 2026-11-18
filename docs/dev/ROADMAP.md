@@ -3,6 +3,8 @@
 Audience: flight-test / drone engineers and simulation engineers (MATLAB and Python).
 Rules for every task: see `/CLAUDE.md`. Tick `[x]` only when "Done when" is met.
 The order of work and the detailed specs are in `TASKS.md` (the work queue).
+Spec files named below for finished milestones (SWEEPS_MODEFRONTIER, NAVIGATION, REVIEW_2026-11-16, E2E_MAP,
+OUTREACH) were removed on 2026-11-18: `git show 7b16eef:docs/dev/<name>`.
 
 ---
 
