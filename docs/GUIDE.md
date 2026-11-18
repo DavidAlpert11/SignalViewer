@@ -96,7 +96,7 @@ are told apart by them.
   row: *and*); **Save as a condition** keeps the selection. Double-click zooms; × hides the strip.
 - **Findings and the report**: give a note a status in the Inspector (open, explained, fault,
   rejected hypothesis) - it keeps the view it was found in. The Investigate panel keeps the steps you
-  took; tick the ones for the report. *Include the investigation* in the Report panel puts the
+  took; tick the ones for the report. `[[investigation]]` in the report (there by default) puts the
   findings (with their plots), the rejected hypotheses, the steps, the conditions and how to
   reproduce it before the plots. Save a template while investigating: it keeps the conditions for
   the next flight.
@@ -392,7 +392,7 @@ shown change together – on the axis, in the list, in the legend – and it can
   restores your last work by itself when it starts.
 - **Templates** (the top bar): save a tab or a whole set of tabs as a template, and open it later on
   other files with the same signals.
-- **Send it as one page** (Report, at the top: *Save the page (HTML)…*; Ctrl+K: *Send this view as a replay
+- **Send it as one page** (Report, at the top: *HTML*; Ctrl+K: *Send this view as a replay
   page* for the tab alone): one HTML page for a colleague, with the report's title, notes and conclusion below
   when written. It
   opens in any browser with no install and no network, on the moment you were looking at; a click on
@@ -400,10 +400,11 @@ shown change together – on the axis, in the list, in the legend – and it can
   it, a drag zooms every plot, and the log's errors, warnings, findings and your notes are marks to jump
   to. The page's address keeps the moment (`…replay.html#t=125.4`), so a link can point at a time.
   *Open it* in the message shows it in your browser before you send it.
-- **Report** (left): a report of the plots, statistics and notes – previewed in the app, saved as
-  interactive HTML, PDF or Word. Every report opens with **The process in brief**: the data, what was
+- **Report** (left): since 1.31 a report you write, like Markdown, in place of the plots – `[[tab.plot]]` puts a
+  plot or a whole tab in, `{{ max(Roll) }}` a value computed on every sample, with a live preview beside it
+  (see [Writing a report](reports.md)) – saved as interactive HTML, PDF or Word. Every report opens with **The process in brief**: the data, what was
   checked (the log's own check, Compare's verdict, the investigation), what it shows and the conclusion –
-  write the conclusion in *Summary* (the panel reminds you when it is empty). **The HTML report is one live page**: a time bar at the bottom moves every
+  write the conclusion under *Summary*. **The HTML report is one live page**: a time bar at the bottom moves every
   plot's cursor, the map and the 3D view together, with Play and the log's marks, while each plot keeps its
   own zoom and statistics. The 3D view is in it live (turn, zoom, the camera *Free · On the object* on an
   object; *Closest in* goes to that moment; a *Trail* of the last seconds; an attitude indicator; where the browser has no 3D graphics, its picture), and the map and the 3D

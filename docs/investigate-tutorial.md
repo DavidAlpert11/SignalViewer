@@ -71,7 +71,7 @@ the roll leaves its set point three times; in the light one it holds. Why?
 14. In the Inspector, give your notes a status: the saturation *Fault*, a guess that did not hold
     (say "the battery sags first") *Rejected hypothesis*. Each keeps the view it was found in (⌖).
 15. Investigate panel → **Steps so far**: what you did, in order. Untick what the report does not need.
-16. Report panel → *Include the investigation* → **Preview**: findings with their plots, the rejected
+16. **Report** (left) - `[[investigation]]` is in it by default, the preview beside the text: findings with their plots, the rejected
     hypothesis, the steps, the conditions per run, and how to reproduce it - then your plots.
 
 **The answer:** the gust needs more thrust from motor 3; with the heavy payload it is already near
