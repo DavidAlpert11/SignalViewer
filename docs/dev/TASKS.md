@@ -28,27 +28,14 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | CL2 - cleanup round (owner, 2026-11-18: every change without a version change) | done (full e2e at the end: see the Log) | - |
 | Release 1.30.0 (owner, 2026-11-18: "add and release") | prepared: version, CHANGELOG, README / docs reviewed, validation 29 / 29 | build (by hand, 0c42bd2), ci and docs green on all three systems; the owner deletes the v1.29.1 Release and tag, then releases v1.30.0 from the website |
 | CP1 - copy a plot / a tab into a Confluence page (owner, 2026-11-18) | done - every sample, via an attachment (his Confluence itself not tested - no access) | the owner tries it on his Confluence 10.2: drag the file onto the page, Insert > HTML, paste |
-| RE1 - the report as a document you write (owner, 2026-11-18: "like markdown or LaTeX, referring to values, plots, tabs") | plan written - `docs/dev/REPORT_EDITOR.md`; no code | the owner's answers to its 10 questions (§8), then RE1.1 |
+| RE1 - the report as a document you write (owner, 2026-11-18) | built - 1.31.0 prepared (version, CHANGELOG, README, docs) | the owner looks at the examples and tags v1.31.0; next: RE1.3 (the written text in templates + CLI), the outline / numbering |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
 ## Open specs (waiting for the owner)
 
-- **RE1 - the report editor (owner, 2026-11-18).** Spec: `docs/dev/REPORT_EDITOR.md`. Proposed: a full screen inside
-  Recordings (the rail's *Report* switches the stage to source | live preview), Markdown + `{{ field() }}` live fields
-  by stable id (statistics on all the data in the backend, plots, tabs, notes, conditions, formulas, recording facts),
-  `$math$`, saved as `ws.report.doc` (optional), the side panel absorbed as the default document, one parse -> resolve
-  -> emit path for preview / HTML / PDF / Word / Markdown / Confluence, templates + CLI for the next recording.
-  Phases RE1.1-RE1.6. **Waiting for: the 10 questions in §8** (place, one or many documents, the panel's removal,
-  math renderer, CodeMirror, markdown-it-py, closed files, order, Sweeps, PDF).
-- **CP1 - done 2026-11-18.** The owner's answers: the HTML macro is ON; a first try (an interactive page of ~4 MB inside
-  the macro) stalled the editor; then "all the resolution, interactive - by dragging the HTML or another way". Built:
-  *Copy for Confluence (interactive)…* (plot ⋯ menu, tab right-click, Ctrl+K) saves the page with every sample
-  (attached to the Confluence page by dragging) and copies the macro's few lines that fetch that attachment into a frame
-  (text/plain), plus a picture + table + notes without scripts (text/html). Not verified on his Confluence 10.2: the
-  `ajs-page-id` meta and /download/attachments/ path (standard in Data Center), a CSP blocking fetch / srcdoc, the
-  attachment size limit (2 M samples = 35 MB; Administration > General Configuration > Attachment Maximum Size), the
-  static paste's data: picture in Confluence / Word / Outlook.
-
+- **RE1 - done in 1.31.0 (2026-11-18).** The owner left the 10 questions to the agent ("most convenient and simple, e.g.
+  [tab1.plot1], variables, formulas - decide, build, release"). Decisions: `docs/dev/REPORT_EDITOR.md` §0. Open: RE1.3
+  (templates / CLI carry the text), RE1.4's outline and numbering, RE1.5 (Markdown export, Confluence of the document), RE1.6 (Sweeps).
 - **SW2 - the owner (2026-11-16): investigate chosen scenarios from Sweeps without loading everything.** "Many
   scenarios are run without recording, only a summary row each; to investigate, the interesting ones are run again
   with recording." Two ways from a set / selected rows of a Sweeps table, both on demand only (never load all):
@@ -254,3 +241,12 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 - 2026-11-18 · RE1 planned (owner: a report written like Markdown / LaTeX with references to values, plots, tabs): studied the
   Report panel, report.py's builders, CP1, plotSpec, sessions / retarget (ids kept), templates (slots by name), batch
   reports, conditions, formulas, stats, areas. Spec `docs/dev/REPORT_EDITOR.md` with 10 questions for the owner. No code.
+- 2026-11-18 · RE1 built (owner: "decide, propose, build, organise a release, show examples"). Decisions in REPORT_EDITOR.md §0
+  (no new dependency: own Markdown subset, mathtext, a textarea editor). Syntax: [[tab.plot | 10..60, no table]], [[notes]] /
+  [[investigation]]..., {{ max(Roll) }} / when="cond" / variables / :.2f. Server: app/reportdoc.py, svcore/docfields.py;
+  page shell shared with report.build_html (fill_page, plot_section_html). Found and fixed on the way: Hebrew printed
+  backwards in every PDF / picture with matplotlib 3.11 (libraqm orders bidi itself); a preview drawn while a session
+  reopens had a plot without lines (now "its signals are not open"). Tests: backend test_report_doc (9), Vitest
+  reportDoc.test (6), e2e test_report_doc (2); adapted test_findings_report, test_live_report, test_replay,
+  test_workflows. quick_check green (backend 1454, Vitest 288, mypy clean); validation 29 / 29 on 1.31.0; mkdocs --strict.
+  Version 1.31.0 in the five places; README / features / limitations / GUIDE / tutorial reviewed; README scenes 32/33/42 updated.

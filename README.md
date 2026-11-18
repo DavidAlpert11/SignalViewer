@@ -47,7 +47,7 @@ simulation engineers, and it runs entirely on your machine: no account, no cloud
 - **Sweeps** – the parameter sets that hold in every scenario, and a loop that runs your simulation until the best
   stops changing.
 - **No point left out** – numbers always use all the data; plots are reduced only so that every spike is still drawn.
-- **One file to send** – an offline HTML report that opens with how the conclusion was reached; PDF and Word too; a plot or a tab live in a Confluence page (every sample, through its HTML macro).
+- **One file to send** – write the report like Markdown, with `[[tab.plot]]` for a plot and `{{ max(Roll) }}` for a value of every sample, a live preview beside it; an offline HTML page that opens with how the conclusion was reached, PDF and Word from the same text; a plot or a tab live in a Confluence page (every sample, through its HTML macro).
 - **English and Hebrew** (right to left), light and dark themes.
 
 ## Quick start
@@ -182,7 +182,7 @@ Exit codes and JUnit XML for CI; also export, a Sweeps table from a folder of re
 - **בוחרים פרמטרים (Sweeps):** אילו סטים עומדים בכל תרחיש, סט אחד לכמה מערכות, ולולאה שמריצה את הקוד שלכם עד התכנסות.
 - **אף נקודה לא נעלמת:** המספרים תמיד על כל הנתונים, והגרף מוקטן רק כך שכל קפיצה עדיין מצוירת.
 - **מפה ותלת־ממד:** תצלומי לוויין או מפה לא מקוונת, מעל פני השטח האמיתיים – הרגע של הסמן על המסלול ובכל הגרפים יחד.
-- **שולחים את התשובה:** דוח HTML אחד שנפתח ב"התהליך בקצרה", וגם PDF ו־Word, או גרף ולשונית חיים בתוך דף Confluence. תיקייה של הקלטות – טבלה אחת, שורה לכל הקלטה.
+- **שולחים את התשובה:** כותבים את הדוח כמו Markdown, עם גרפים וערכים מהנתונים ותצוגה חיה; דוח HTML אחד שנפתח ב"התהליך בקצרה", וגם PDF ו־Word, או גרף ולשונית חיים בתוך דף Confluence. תיקייה של הקלטות – טבלה אחת, שורה לכל הקלטה.
 
 **התקנה:** מ־[השחרור האחרון](https://github.com/DavidAlpert11/SignalViewer/releases/latest) (Windows, Linux, macOS), או <code dir="ltr">pip install signalviewer</code>. **מדריך:** [docs/GUIDE.he.md](docs/GUIDE.he.md).
 

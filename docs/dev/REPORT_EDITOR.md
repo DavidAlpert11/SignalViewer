@@ -3,7 +3,32 @@
 The owner (2026-11-18, Hebrew): *"a screen or a whole area where a report can be edited in an orderly way, like
 markdown or LaTeX; and from there you can always refer to variable values, plots from a tab, a whole tab, etc."*
 
-Status: **plan only - no code until the owner answers the questions at the end.** Task ids RE1.1 ... RE1.6 below.
+Status: **RE1.1 + most of RE1.2 / RE1.4 built in 1.31.0** (owner, 2026-11-18: "what do you suggest - what is most
+convenient and simple ... like adding a picture with [tab1.plot1] and variables, formulas; decide, propose, build and
+release"). The decisions taken for him are in §0; the rest of this file is the plan as first written.
+
+## 0. Decided (2026-11-18, the owner left the choices to the agent: simplest for the user, no new dependency)
+
+| # | Question | Decided | Why |
+|---|---|---|---|
+| 1 | Where | A screen of the Recordings area: the rail's *Report* shows it in place of the plots | the report belongs to the session |
+| 2 | One or several documents | One per session (`ws.report.doc`) | simple; several can come later as a list |
+| 3 | The old panel | Removed; an old report opens as the document its form made (`reportDoc.defaultDocText`) | one way to make a report |
+| 4 | Math | matplotlib mathtext (SVG in the page, PNG in Word, native in PDF) | no dependency, the same everywhere |
+| 5 | Editor | A plain textarea + toolbar + Insert list + suggestions strip (no CodeMirror) | no dependency; enough for Markdown |
+| 6 | Markdown parser | Our own CommonMark subset (`app/reportdoc.py`, ~250 lines, tested) | no dependency |
+| 7 | A closed file | A red ⚠ with the reason (no stale value kept) | never a wrong number |
+| 8 | Order | Templates / CLI batch with the written text: next round (RE1.3) | the editor first |
+| 9 | Sweeps | Later (RE1.6) | |
+| 10 | PDF | matplotlib, now flowing (headings, lists, tables, math, plots); Hebrew fixed (libraqm) | no dependency |
+
+**The reference syntax changed from §3 to the owner's simpler one:** `[[tab.plot]]` / `[[tab]]` (by name, or
+`tab2.plot3`; options after `|`) and `{{ max(Roll) }}` with signals **by name** as in formulas (the app resolves them
+to `"<runId>/<name>"` for the server, which computes on every sample) - readable, and the same text works on the next
+recording. Variables `{{ x = ... }}`, formats `:.2f`, `when="<condition>"`, `stretches()` / `holds()`.
+Built: `frontend/src/reportDoc.ts`, `components/ReportScreen.tsx`, `backend/app/reportdoc.py`,
+`backend/svcore/docfields.py`, `/api/report/preview` + the `report` job take `text` + `items`. Tests:
+`backend/tests/test_report_doc.py`, `frontend/src/reportDoc.test.ts`, `tests/e2e/test_report_doc.py`.
 
 ---
 
