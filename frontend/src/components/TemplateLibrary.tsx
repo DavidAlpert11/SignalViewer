@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type RunInfo, type Template, type TemplateFolderInfo, type TplSlot, type TplTab } from "../api";
 import { tabHasContent, activeTab, fileLabel, pickPath, useApp } from "../store";
 import { useT } from "../i18n";
@@ -45,8 +45,13 @@ export default function TemplateLibrary() {
   const all = useMemo(() => [...builtin, ...mine.map((m) => ({ ...m, group: m.group || "mine" }))], [builtin, mine]);
   const data = runs.filter((r) => r.format !== "derived");
 
+  // the latest reload wins: an earlier answer that arrives late (a slow server) must not bring back the
+  // old list or folder - after *Change folder* the footer kept the old one (e2e, under load)
+  const reloads = useRef(0);
   const reload = async (select?: string) => {
+    const n = ++reloads.current;
     const r = await api.templates().catch(() => null);
+    if (n !== reloads.current) return;
     setMine(r?.templates ?? []);
     if (r) setBuiltin(r.builtin);
     if (r) setFolder({ folder: r.folder, default: r.default, exists: r.exists, defaultFolder: r.defaultFolder });
@@ -220,7 +225,7 @@ function Details({ tpl, all, runs, prefer, onEdit, onCopy, onDeleted, onOpened }
     api.bindTemplate(tpl, all, prefer).then((r) => {
       if (off) return;
       setBind(r.bind); setFound(Object.fromEntries(r.slots.map((x) => [x.id, x.counts]))); setBoundKey(wantKey);
-    }).catch(() => {});
+    }).catch(() => { if (!off) { setBind({}); setBoundKey(wantKey); } });   // no suggestion: the user chooses
     return () => { off = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tpl, all, runKey, prefer]);
@@ -282,7 +287,8 @@ function Details({ tpl, all, runs, prefer, onEdit, onCopy, onDeleted, onOpened }
             </select>
             {names.length > 0 && b && <span className={`tpl-found ${hits === names.length ? "good" : hits ? "part" : "none"}`}>
               {t("tplFound", { n: hits, of: names.length })}</span>}
-            {s.file && b !== ALL && (
+            {/* only once the files for THIS template have come (before, an empty choice read "not open - choose a file") */}
+            {s.file && b !== ALL && boundKey === wantKey && (
               <span className={`tpl-slot-note hint${same ? " ok" : ""}`}>
                 {same ? t("tplSameFile") : b ? t("tplFileMissing", { file: s.file }) : t("tplFileMissingNone", { file: s.file })}
                 {orig && <button className="linkbtn" onClick={() => openPaths([orig])}>{t("tplOpenOriginal", { file: s.file })}</button>}
