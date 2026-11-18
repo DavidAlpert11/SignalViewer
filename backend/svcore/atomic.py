@@ -25,6 +25,21 @@ def _tmp_for(path: str) -> str:
     return os.path.join(d, f".{root}.{os.getpid()}-{threading.get_ident()}.tmp{ext}")
 
 
+def read_text(path: str, encoding: str = "utf-8") -> str:
+    """A file written by atomic_write, read whole. Windows: while a save renames the new file into place the
+    target cannot be opened for a moment (PermissionError) - the loop saves a study while the page asks for its
+    progress (CI, 2026-11-18); a few short retries, then the error."""
+    for k in range(20):
+        try:
+            with open(path, encoding=encoding) as f:
+                return f.read()
+        except PermissionError:
+            if k == 19:
+                raise
+            time.sleep(0.05)
+    raise AssertionError("unreachable")
+
+
 def _replace(tmp: str, path: str) -> None:
     # Windows: a reader (an antivirus scan, a viewer) holding the target makes the rename fail for a
     # moment - a few short retries before giving up

@@ -11,7 +11,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from fastapi.testclient import TestClient  # noqa: E402
 
-from svcore.atomic import atomic_open, atomic_path, atomic_write  # noqa: E402
+from svcore.atomic import atomic_open, atomic_path, atomic_write, read_text  # noqa: E402
 from app.main import app  # noqa: E402
 
 client = TestClient(app)
@@ -101,3 +101,23 @@ def test_template_export_that_fails_keeps_the_old_file(tmp_path, monkeypatch):
         assert p.read_text() == '{"kept": true}'
     finally:
         prefs.delete_template(t["id"])
+
+
+def test_read_text_waits_while_a_save_renames_the_file(tmp_path, monkeypatch):
+    """Windows CI (2026-11-18): the loop saves its study while the page reads the progress - the file cannot be
+    opened while it is being renamed into place. read_text tries again for a moment; a lasting error still raises."""
+    import builtins
+    p = tmp_path / "study.json"
+    atomic_write(str(p), '{"a": 1}')
+    real, fails = builtins.open, {"n": 3}
+
+    def flaky(file, *a, **k):
+        if str(file) == str(p) and fails["n"]:
+            fails["n"] -= 1
+            raise PermissionError(13, "The process cannot access the file because it is being used by another process")
+        return real(file, *a, **k)
+    monkeypatch.setattr(builtins, "open", flaky)
+    assert read_text(str(p)) == '{"a": 1}' and fails["n"] == 0
+    fails["n"] = 1000
+    with pytest.raises(PermissionError):
+        read_text(str(p))

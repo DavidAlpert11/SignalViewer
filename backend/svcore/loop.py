@@ -24,6 +24,7 @@ from typing import Any, Callable, Dict, List, Optional
 import numpy as np
 
 from svcore import launcher as L
+from svcore.atomic import atomic_write, read_text
 from svcore import study as studies
 from svcore import sweeps_common, sweeps_next
 
@@ -140,24 +141,21 @@ def progress_path(s: studies.Study) -> str:
 
 def points(s: studies.Study) -> List[Dict[str, Any]]:
     try:
-        with open(progress_path(s), encoding="utf-8") as f:
-            return json.load(f)
+        return json.loads(read_text(progress_path(s)))
     except (OSError, ValueError):
         return []
 
 
 def append_point(s: studies.Study, point: Dict[str, Any]) -> None:
     pts = [p for p in points(s) if p["round"] != point["round"]] + [point]
-    with open(progress_path(s), "w", encoding="utf-8") as f:
-        json.dump(pts, f)
+    atomic_write(progress_path(s), json.dumps(pts))      # whole: the page reads it while the loop writes
 
 
 def mark(s: studies.Study, **flags: Any) -> None:
     pts = points(s)
     if pts:
         pts[-1].update(flags)
-        with open(progress_path(s), "w", encoding="utf-8") as f:
-            json.dump(pts, f)
+        atomic_write(progress_path(s), json.dumps(pts))
 
 
 def converged(pts: List[Dict[str, Any]]) -> bool:

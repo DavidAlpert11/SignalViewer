@@ -31,7 +31,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
-from svcore.atomic import atomic_write
+from svcore.atomic import atomic_write, read_text
 
 STUDY_VERSION = 1
 STUDY_SUFFIX = ".svstudy.json"
@@ -321,8 +321,7 @@ def loads(text: str, path: str = "") -> Study:
 
 
 def load(path: str) -> Study:
-    with open(path, encoding="utf-8") as f:
-        return loads(f.read(), os.path.abspath(path))
+    return loads(read_text(path), os.path.abspath(path))     # read_text: also while a save renames it (Windows)
 
 
 def dumps(s: Study) -> str:
