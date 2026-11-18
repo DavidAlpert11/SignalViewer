@@ -30,16 +30,16 @@ def test_golden_run_proposed_judged_and_reported(pg):
     # mark the baseline as a golden run (with this tolerance)
     pg.locator(".golden-mark input").check()
     pg.wait_for_function("(window.__sv.state().toasts || []).some(t => t.text.includes('golden run'))")
-    # Report…: a tab of the failing signals, the report panel with the verdict
+    # Report…: a tab of the failing signals, the report (RE1: the report screen) with the verdict
     verdict.locator("button", has_text="Report…").click()
-    pg.wait_for_selector(".rverdict input:checked")
+    pg.wait_for_selector(".rd .rd-text")
+    assert "[[verdict]]" in pg.locator(".rd-text").input_value()
     tab = pg.evaluate("(() => { const ws = window.__sv.state().ws; return ws.tabs.find(t => t.id === ws.activeTab); })()")
     assert tab["name"].startswith("Verdict") and len(tab["plots"]) >= 1 and all(len(p["signals"]) == 3 for p in tab["plots"])
     v = pg.evaluate("window.__sv.state().ws.report.verdict")
     assert v["title"] == "Against run_012.csv" and len(v["head"]) == 4 and any(c.startswith("✗") for r in v["rows"] for c in r[2:])
-    pg.locator(".side button", has_text="Preview").click()
     pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').includes('Against run_012.csv')", timeout=30000)
-    pg.evaluate("window.__sv.setState({ reportPreviewHtml: null })")
+    pg.click("nav.rail button[aria-label='Report']")                            # back to the plots
 
     # later: only a new recording is open - the app offers its golden run
     folder = os.path.dirname(pg.evaluate("window.__sv.state().runs.find(r => r.name === 'run_014.csv').path"))

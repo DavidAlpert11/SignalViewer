@@ -813,14 +813,14 @@ def img_20_sim_vs_flight(b, app):
 
 def img_32_replay(b, app):
     """32: a replay page in the browser (Report > Send it as one page); 33: the app as it was sent - two cursors
-    with Δ in every chip, the plots' window on the timeline, the Report panel's replay card."""
+    with Δ in every chip, the plots' window on the timeline (RE1: then the report screen's HTML makes the page)."""
     ctx, pg = page(b, app)
     _example(pg, "car", ".grid canvas", 1500)
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 18, t2: 31, active: 2 } })")
-    pg.click("nav.rail button[aria-label='Report']")
-    pg.wait_for_selector(".replay-card .replay-make", timeout=30000); pg.wait_for_timeout(1500)
     shot(pg, "33_send_replay_delta")
-    pg.locator(".replay-card .replay-make").click()
+    pg.click("nav.rail button[aria-label='Report']")
+    pg.wait_for_selector(".rd .replay-make", timeout=30000); pg.wait_for_timeout(1500)
+    pg.locator(".replay-make").click()
     pg.wait_for_function("document.querySelector('.crumbs input') && document.querySelector('.crumbs input').value !== ''")
     pg.fill(".crumbs input", app.data); pg.press(".crumbs input", "Enter")
     pg.wait_for_function(f"document.querySelector('.crumbs input').value === {json.dumps(app.data)}")
@@ -883,13 +883,15 @@ def _what_changed(pg):
 
 
 def img_42_report_process(b, app):
-    """A report opens with The process in brief: the data, what was checked, what it shows, the conclusion."""
+    """RE1: the report written beside its live page - it opens with The process in brief, a value of every sample
+    in the text, the roll plot."""
     ctx, pg = page(b, app)
     _what_changed(pg)
     pg.click("nav.rail button[aria-label='Report']")
-    pg.wait_for_selector(".side .btn:has-text('Preview')", timeout=30000)
-    pg.click(".side .btn:has-text('Preview')")
-    pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').length > 1000", timeout=60000)
+    pg.wait_for_selector(".rd .rd-text", timeout=30000)
+    pg.locator(".rd-text").fill("# Heavy payload: the roll in gusts\n\nThe roll peaked at **{{ max({heavy_payload.csv:Roll}) :.1f }}°** at "
+                                "{{ tmax({heavy_payload.csv:Roll}) :.1f }} s; motor 3 reached {{ max({heavy_payload.csv:Motor3}) :.0f }}.\n\n[[process]]\n\n[[tab1]]\n")
+    pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').includes('Heavy payload')", timeout=60000)
     pg.wait_for_timeout(2500)
     shot(pg, "42_report_process"); ctx.close()
 
