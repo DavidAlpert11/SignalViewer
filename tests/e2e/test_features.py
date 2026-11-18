@@ -814,12 +814,12 @@ def test_R01_to_R06_reports(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
     pg.click("[aria-label='Report']")
-    pg.locator(".side .afield input").first.fill("Run report"); pg.locator(".side .afield input").first.blur()
-    pg.click(".side .btn:has-text('Preview')")
-    pg.wait_for_selector("iframe.preview-frame")
-    pg.keyboard.press("Escape")
-    for label, name in (("Save the page (HTML)", "r.html"), ("PDF", "r.pdf"), ("Word", "r.docx")):
-        pg.locator(".side .btn", has_text=label).first.click(); save_as(pg, name)
+    pg.wait_for_selector(".rd .rd-text")                                # RE1: the report written as a document
+    pg.locator(".rd-text").fill("# Run report\n\n[[tab1]]")
+    pg.wait_for_selector("iframe.rd-frame")                             # the live preview
+    pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').includes('Run report')", timeout=30000)
+    for sel, name in ((".replay-make", "r.html"), (".rd-pdf", "r.pdf"), (".rd-docx", "r.docx")):
+        pg.locator(sel).click(); save_as(pg, name)
         pg.wait_for_function(f"[...document.querySelectorAll('.toast')].some(t => t.innerText.includes('{name}'))", timeout=40000)
     html = open(os.path.join(pg.env["out"], "r.html"), encoding="utf-8").read()
     assert "Run report" in html and "sv-data" in html

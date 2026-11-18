@@ -250,3 +250,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   reportDoc.test (6), e2e test_report_doc (2); adapted test_findings_report, test_live_report, test_replay,
   test_workflows. quick_check green (backend 1454, Vitest 288, mypy clean); validation 29 / 29 on 1.31.0; mkdocs --strict.
   Version 1.31.0 in the five places; README / features / limitations / GUIDE / tutorial reviewed; README scenes 32/33/42 updated.
+- 2026-11-18 · RE1 end of round: whole e2e, one file per process, fresh build: 515 passed, 2 failed - test_judge_a_run and
+  test_features::test_R01_to_R06_reports still drove the removed Report panel; both adapted (the report screen) and green.
+  Found by the README pictures: the editor's text was unreadable in the dark theme (fixed), and the process in brief
+  named no tab ("The report shows 4 plots:") - now the tabs. Pictures retaken: 32, 33, 42.

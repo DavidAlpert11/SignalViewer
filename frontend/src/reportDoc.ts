@@ -128,7 +128,7 @@ export function resolveRef(ws: Workspace, raw: string, lang: Lang): DocItem | Sp
   if (pi !== null && !chosen[0].include) return { kind: "error", error: `${chosen[0].p.title || plotLabel.replace("{n}", String(pi + 1))}: ${t(chosen[0].why!)}`, src: raw };
   if (!chosen.length) return { kind: "error", error: t("rdEmptyTab", { name }), src: raw };
   const plots = chosen.map(({ p, pi: i }) => ({ ...plotSpec(tab!, p, i, plotLabel), ...(range !== undefined ? { range } : {}) }));
-  return { kind: "plots", plots, ...(table ? { table } : {}), src: raw };
+  return { kind: "plots", plots, ...(table ? { table } : {}), tab: tab.name || `${translate(lang, "tab")} ${ws.tabs.indexOf(tab) + 1}`, src: raw };
 }
 
 const FMT = /\s:\s*([<>^=]?[+\- ]?#?0?\d*[,_]?(?:\.\d+)?[bcdeEfFgGnosxX%]?)\s*$/;
@@ -194,7 +194,12 @@ export async function prepareDoc(ws: Workspace, text: string, lang: Lang): Promi
   });
   // the generated parts, as the Report panel made them
   const tr = (key: TKey) => translate(meta.lang, key);
-  const shown = items.filter((x) => x.kind === "plots").map((x) => ({ name: "", plots: x.plots as { title?: string }[] }));
+  // the process in brief names the tabs the report shows, each once
+  const shown: { name: string; plots: { title?: string }[] }[] = [];
+  for (const x of items.filter((i) => i.kind === "plots")) {
+    const same = shown.find((s) => s.name === x.tab);
+    if (same) same.plots.push(...(x.plots as { title?: string }[])); else shown.push({ name: x.tab as string, plots: [...(x.plots as { title?: string }[])] });
+  }
   const hasInvestigation = (ws.notes ?? []).some((n) => n.status) || (ws.conditions ?? []).length > 0 || st.journal.length > 0;
   for (const { k, name } of specials) {
     if (name === "notes") items[k] = { kind: "notes", notes: (ws.notes ?? []).filter((n) => !n.status).map((n) => ({ t: n.t, ...(n.t2 !== undefined ? { t2: n.t2 } : {}), text: n.text })) };
