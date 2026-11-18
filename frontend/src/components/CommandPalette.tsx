@@ -15,6 +15,7 @@ import { tieredSort } from "../fuzzy";
 import { areaCommands, type AreaCommand } from "../areaCommands";
 import { makeReplay } from "../replay";
 import { copyForConfluence } from "../clip";
+import { addToReport } from "../reportDoc";
 import { getPrefValue, setPref } from "../prefs";
 
 const AREA_ICON: Record<NonNullable<AreaCommand["icon"]>, React.ReactNode> = {
@@ -95,6 +96,8 @@ export default function CommandPalette() {
       // CP1: the active plot / the tab for a Confluence page
       { id: "clipplot", label: t("clipPlot"), group: t("report"), icon: <Icon.Copy />, run: () => { const tb = activeTab(st().ws); const p = tb?.plots[tb.active ?? 0]; if (tb && p) void copyForConfluence(tb, p); } },
       { id: "cliptab", label: t("clipTab"), group: t("report"), icon: <Icon.Copy />, run: () => { const tb = activeTab(st().ws); if (tb) void copyForConfluence(tb); } },
+      { id: "rdplot", label: `${t("rdAddToReport")}: ${t("plotTitle", { n: "" }).trim()}`, group: t("report"), icon: <Icon.Report />, run: () => { const tb = activeTab(st().ws); if (tb?.plots.length) addToReport(tb, tb.active ?? 0); } },
+      { id: "rdtab", label: `${t("rdAddToReport")}: ${t("tab")}`, group: t("report"), icon: <Icon.Report />, run: () => { const tb = activeTab(st().ws); if (tb) addToReport(tb); } },
       { id: "closetab", label: t("closeTab"), group: t("tab"), icon: <Icon.X />, run: () => actions.closeTab(st().ws.activeTab) },
       // P7: places - the panel of the tab's (first) Map, or a new place
       ...(() => {

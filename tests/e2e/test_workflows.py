@@ -174,6 +174,8 @@ def test_share_report_and_session(page, server, tmp_path):
     _goto_folder(page, str(tmp_path))
     page.locator(".dialog .dialog-body .fs-row", has_text="work.svsession").click(); page.click(".dialog-foot .btn.primary")
     page.wait_for_selector(".toast:has-text('Session opened')")
+    page.click("[aria-label='Report']")                 # RE1: the report takes the stage - back to the plots
+    page.wait_for_selector(".plot .chip")
     assert page.locator(".plot .chip").count() == 1
 
 

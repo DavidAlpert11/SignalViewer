@@ -85,7 +85,7 @@ def test_one_bar(pg):
 def test_live_html_report_with_the_3d_view(pg):
     map_and_line(pg)                                                                  # P4: the Map goes out as the 3D page
     pg.click(".rail [aria-label='Report'], .rail button:has-text('Report')")
-    assert pg.locator(".rplot").count() == 2                                         # the 3D view is listed
+    pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').split('class=\"plot\"').length === 3", timeout=60000)   # the 3D view is in it
     pg.locator(".replay-make").click()                                          # RV8: the one offline page
     save_as(pg, "live.html")
     pg.locator(".toast", has_text="live.html").wait_for(timeout=60000)

@@ -51,7 +51,7 @@ def test_replay_page(pg):
     plot_two(pg)
     pg.evaluate("() => window.__sv.setState({ cursor: { on: true, dual: false, t1: 12.5, t2: null, active: 1 } })")
     pg.click(".rail [aria-label='Report'], .rail button:has-text('Report')")
-    pg.locator(".replay-card .replay-make").click()
+    pg.locator(".replay-make").click()
     save_as(pg, "run_a-replay.html")
     toast = pg.locator(".toast", has_text="run_a-replay.html")
     toast.wait_for(timeout=40000)

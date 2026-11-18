@@ -53,7 +53,12 @@ export function substituteParams(text: string, runs: RunInfo[], lang: (k: string
   return { text: out, error };
 }
 
-export function resolveFormula(textIn: string, runs: RunInfo[], lang: (k: string, v?: Record<string, string | number>) => string): Resolved {
+/** opts (RE1, a report's values): more function names (max, rms...), names that are not signals (the report's
+ *  variables), and no error when the text uses no signal ({{ peak * 2 }}). */
+export interface ResolveOpts { funcs?: readonly string[]; names?: readonly string[]; noSignalOk?: boolean }
+
+export function resolveFormula(textIn: string, runs: RunInfo[], lang: (k: string, v?: Record<string, string | number>) => string,
+  opts: ResolveOpts = {}): Resolved {
   const sub = substituteParams(textIn, runs, lang);
   if (sub.error) return { expr: textIn, sources: [], error: sub.error };
   const text = sub.text;
@@ -67,8 +72,8 @@ export function resolveFormula(textIn: string, runs: RunInfo[], lang: (k: string
     if (bare) {
       if (/[\d.]/.test(text[offset - 1] ?? "")) return whole;                    // 1e3, 2.5E-3, 1_000: a number
       const after = text.slice(offset + whole.length).trimStart();
-      if (after.startsWith("(") && FORMULA_FUNCS.includes(bare)) return whole;     // a function call
-      if (CONSTS.has(bare)) return whole;
+      if (after.startsWith("(") && (FORMULA_FUNCS.includes(bare) || opts.funcs?.includes(bare))) return whole;     // a function call
+      if (CONSTS.has(bare) || opts.names?.includes(bare)) return whole;
     }
     let candidates = all;
     let withFile = false;
@@ -96,7 +101,7 @@ export function resolveFormula(textIn: string, runs: RunInfo[], lang: (k: string
     if (withFile) pinned.add(k);
     return `v${k}`;
   });
-  if (!error && !sources.length && text.trim()) error = lang("fxNoSignal");
+  if (!error && !sources.length && text.trim() && !opts.noSignalOk) error = lang("fxNoSignal");
   return { expr: out, sources, error, ...(pinned.size ? { pinned: [...pinned].sort((a, b) => a - b) } : {}) };
 }
 

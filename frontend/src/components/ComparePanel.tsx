@@ -2,6 +2,7 @@ import DiffChart from "./DiffChart";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type CompareAllRow, type CompareRow, type ParamDiff, type TolEntry, type Tolerances } from "../api";
 import TolFields from "./TolFields";
+import { appendToDoc } from "../reportDoc";
 import { activeTab, fileLabel, fileMark, styledSignal, fitLayout, pickPath, placePlot, tabFullMessage, TRACE_COLORS, uid, useApp } from "../store";
 import { isGolden, proposeBaseline, rememberTolerances, reportVerdict, setGolden, verdicts } from "../judge";
 import { fmtNum, translate, useT } from "../i18n";
@@ -333,6 +334,8 @@ export default function ComparePanel() {
       ws.activeTab = tab.id;
       const r = { intro: "", summary: "", lang: rl, theme: "light" as const, ...(ws.report ?? {}) };
       ws.report = { ...r, title: r.title || verdict.title, scope: "tab", verdict, includeVerdict: true };
+      // RE1: a report already written gets the verdict at its end (the default one has it by itself)
+      if (ws.report.doc && !/\[\[\s*verdict\s*\]\]/i.test(ws.report.doc.text)) appendToDoc(ws, rl, "[[verdict]]");
       return ws;
     });
     useApp.setState({ panel: "report" });

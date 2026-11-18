@@ -119,7 +119,11 @@ export interface Tab {
 }
 export interface ReportMeta { title: string; intro: string; summary: string; lang: "en" | "he"; theme: "light" | "dark"; scope: "tab" | "all"; investigation?: boolean;
   /** 26.U4: Compare's verdict (made by "Report…" in Compare) and whether the report includes it (default yes) */
-  verdict?: ReportVerdict; includeVerdict?: boolean }
+  verdict?: ReportVerdict; includeVerdict?: boolean;
+  /** RE1: the report as the user wrote it (Markdown with [[plots]] and {{values}}, reportDoc.ts); absent = the
+   *  document made from the fields above, as the Report panel made it before 1.31 */
+  doc?: ReportDoc }
+export interface ReportDoc { v: 1; text: string }
 /** 26.U4: pass / fail per signal and file against a baseline, as a report section */
 export interface ReportVerdict { id: string; title: string; summary: string[]; head: string[]; rows: string[][] }
 /** A note at a moment of the recording ("vibration starts here"): shown on every time plot, saved

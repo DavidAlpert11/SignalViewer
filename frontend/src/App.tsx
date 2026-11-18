@@ -42,7 +42,7 @@ import DataPanel from "./components/DataPanel";
 const AnalysisPanel = lazyPreload(() => import("./components/AnalysisPanel"));
 const InvestigatePanel = lazyPreload(() => import("./components/InvestigatePanel"));
 const ComparePanel = lazyPreload(() => import("./components/ComparePanel"));
-const ReportPanel = lazyPreload(() => import("./components/ReportPanel"));
+const ReportScreen = lazyPreload(() => import("./components/ReportScreen"));   // RE1: the report, in place of the plots
 const LogPanel = lazyPreload(() => import("./components/LogPanel"));
 const SyncDialog = lazyPreload(() => import("./components/SyncDialog"));
 import Inspector from "./components/Inspector";
@@ -63,7 +63,6 @@ import Welcome from "./components/Welcome";
 import PlotGrid from "./components/PlotGrid";
 import { RAIL, RAIL_W } from "./components/rail";
 import { useShortcuts } from "./shortcuts";
-const ReportPreview = lazyPreload(() => import("./components/ReportPreview"));
 const CompareTable = lazyPreload(() => import("./components/CompareTable"));
 
 /* resizable side panels: components/PanelResizer.tsx */
@@ -86,7 +85,6 @@ export default function App() {
   const helpOpen = useApp((s) => s.helpOpen);
   const guideOpen = useApp((s) => s.guideOpen);
   const settingsOpen = useApp((s) => s.settingsOpen);
-  const previewHtml = useApp((s) => s.reportPreviewHtml);
   const compareTable = useApp((s) => !!s.compareTable);
   const templatesOpen = useApp((s) => s.templatesOpen);
   const objectDialog = useApp((s) => s.objectDialog);
@@ -332,7 +330,8 @@ export default function App() {
   }, []);
 
   const sideW = panel === "investigate" ? invW : sideW0, setSideW = panel === "investigate" ? setInvW : setSideW0;
-  const cols = [RAIL_W, panel ? sideW : 0, "1fr", inspectorOpen ? inspW : 0].map((c) => (typeof c === "number" ? `${c}px` : c)).join(" ");
+  const side = !!panel && panel !== "report";                // RE1: the report takes the stage, not a side panel
+  const cols = [RAIL_W, side ? sideW : 0, "1fr", inspectorOpen ? inspW : 0].map((c) => (typeof c === "number" ? `${c}px` : c)).join(" ");
 
   return (
     <div className="app">
@@ -342,10 +341,10 @@ export default function App() {
       {({ recordings: <>
       <RecordingsBar />
       <div className="main" style={{ gridTemplateColumns: cols }}>
-        {panel && <PanelResizer label={t("resizePanel")} style={{ insetInlineStart: RAIL_W + sideW - 3 }} width={sideW} setWidth={setSideW}
+        {side && <PanelResizer label={t("resizePanel")} style={{ insetInlineStart: RAIL_W + sideW - 3 }} width={sideW} setWidth={setSideW}
           grow={+1} def={panel === "investigate" ? 380 : 280} max={() => window.innerWidth - RAIL_W - (inspectorOpen ? inspW : 0) - MIN_STAGE} />}
         {inspectorOpen && <PanelResizer label={t("resizePanel")} style={{ insetInlineEnd: inspW - 3 }} width={inspW} setWidth={setInspW}
-          grow={-1} def={320} max={() => window.innerWidth - RAIL_W - (panel ? sideW : 0) - MIN_STAGE} />}
+          grow={-1} def={320} max={() => window.innerWidth - RAIL_W - (side ? sideW : 0) - MIN_STAGE} />}
         <nav className="rail" aria-label="Panels">
           {RAIL.map((r) => {
             const I = Icon[r.icon];
@@ -364,10 +363,15 @@ export default function App() {
         </nav>
         <Suspense fallback={<aside className="side" />}>
           {panel === "data" ? <DataPanel /> : panel === "analysis" ? <AnalysisPanel /> : panel === "compare" ? <ComparePanel />
-            : panel === "report" ? <ReportPanel /> : panel === "log" && hasFiles ? <LogPanel />
+            : panel === "log" && hasFiles ? <LogPanel />
             : panel === "investigate" ? <InvestigatePanel /> : <div />}
         </Suspense>
-        <main className="stage">
+        {panel === "report" ? (
+          <main className="stage">
+            <Suspense fallback={<div className="rd" />}><ReportScreen /></Suspense>
+            <div className="notices"><Toasts /></div>
+          </main>
+        ) : <main className="stage">
           <StageBar />
           {runs.length > 0 && <DemoGuide />}
           {runs.length > 0 && <OverviewStrip />}
@@ -380,7 +384,7 @@ export default function App() {
               instead of a card over the plots and messages over the timeline's controls */}
           <div className="notices"><StartCard /><Toasts /></div>
           {runs.length > 0 && <Timeline />}
-        </main>
+        </main>}
         {inspectorOpen ? <Inspector /> : <div />}
       </div>
       </>,
@@ -396,7 +400,6 @@ export default function App() {
         {helpOpen && <Help />}
         {guideOpen && <GuideDialog />}
         {settingsOpen && <SettingsDialog />}
-        {previewHtml && <ReportPreview />}
         {compareTable && <CompareTable />}
         {templatesOpen && <TemplateLibrary />}
         {objectDialog && <ObjectDialog key={`${objectDialog.plotId}/${objectDialog.objectId ?? "new"}`} />}

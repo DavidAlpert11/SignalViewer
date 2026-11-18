@@ -43,6 +43,7 @@ import { laneMenuItems } from "../lanes";
 import { lineLook, setpointsIn } from "../desired";
 import OccChart from "./OccChart";
 import { copyForConfluence } from "../clip";
+import { addToReport } from "../reportDoc";
 
 interface Props { tab: Tab; plot: Plot; index: number; active: boolean }
 
@@ -218,6 +219,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     { label: t("copyImage"), run: copyImage, disabled: !plot.signals.length },
     // CP1: for a Confluence page (the HTML macro: interactive; pasted straight in: picture + table + notes)
     { label: t("clipPlot"), run: () => { void copyForConfluence(tab, plot); }, disabled: !plotHasContent(plot) },
+    { label: t("rdAddToReport"), run: () => addToReport(tab, tab.plots.indexOf(plot)), disabled: !plotHasContent(plot) },   // RE1
     // P7: the Places panel, docked in this Map
     ...(isMap ? [{ label: `${t("plPanel")}…`, run: () => useApp.setState({ placesPanel: plot.id }) }] : []),
     { label: "", run: () => {}, sep: true },

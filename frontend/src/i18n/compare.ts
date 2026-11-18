@@ -217,7 +217,6 @@ export const en = {
   startJudge: "Judge it against {name}",
   startJudgeWhy: "your golden run · {p}% of its signals",
   startJudgeBtn: "Judge it",
-  rVerdict: "Include the verdict against the baseline",
   // D4: what differs in the files' parameters (F3) - the same source as Checks > Parameters
   cmpParamsHead: "Parameters",
   cmpParamCol: "Parameter",
@@ -444,7 +443,6 @@ export const he: typeof en = {
   startJudge: "לבדוק מול {name}",
   startJudgeWhy: "ריצת הייחוס שלך · {p}% מהאותות שלה",
   startJudgeBtn: "לבדוק",
-  rVerdict: "לכלול את הפסיקה מול הבסיס",
   cmpParamsHead: "פרמטרים",
   cmpParamCol: "פרמטר",
   cmpParamsDiffer: "{n} שונים מ-{base}",

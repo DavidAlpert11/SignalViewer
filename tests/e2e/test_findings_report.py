@@ -50,14 +50,11 @@ def test_journal_and_report_sections(pg):
     _note(pg, "the cause", 6, 20)
     pg.locator(".notes-list li", has_text="the cause").locator(".note-status").select_option("open")
     pg.click("nav.rail button[aria-label='Report']")
-    pg.wait_for_selector(".report-investigation")
-    assert pg.is_checked(".report-investigation")
-    pg.click(".side .btn:has-text('Preview')")
-    pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').length > 1000")
+    pg.wait_for_selector(".rd .rd-text")                                      # RE1: the report as a document
+    assert "[[investigation]]" in pg.locator(".rd-text").input_value()          # the investigation is in it by default
+    pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').includes('How to reproduce')", timeout=30000)
     html = S(pg, "s.reportPreviewHtml")
     for part in ("Findings", "the cause", "Hypotheses checked and rejected", "an idea", "Analysis steps", "How to reproduce", "Speed &gt; 30"):
         assert part in html, part
-    pg.evaluate("window.__sv.setState({ reportPreviewHtml: null })")          # the preview covers the panel
-    pg.locator(".report-investigation").uncheck()
-    pg.click(".side .btn:has-text('Preview')")
-    pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').length > 1000 && !window.__sv.state().reportPreviewHtml.includes('How to reproduce')")
+    pg.locator(".rd-text").fill(pg.locator(".rd-text").input_value().replace("[[investigation]]", ""))   # taken out: gone from the report
+    pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').length > 1000 && !window.__sv.state().reportPreviewHtml.includes('How to reproduce')", timeout=30000)
