@@ -146,7 +146,8 @@ OUTREACH) were removed on 2026-11-18: `git show 7b16eef:docs/dev/<name>`.
   developer machine / CI before changing the fixtures.
 
 ## Milestone 2 — 1.2.0: flight-test tools
-- [ ] **T12 Live MAVLink** (UDP / TCP / serial) as a source, next to file following.
+- [x] **T12 Live MAVLink** (UDP / TCP / serial) as a source, next to file following. Shipped (reconciled 2026-11-18;
+  the check on a real radio / SITL stays with the owner).
   Works with SITL too. *Implemented, waiting for the SITL / radio check (see TASKS.md Q1).*
   `svcore/mavlive.py` `Receiver`: pymavlink connection (MAVLink 2, robust parsing,
   autoreconnect) in a thread; every frame is written as a .tlog record (8-byte BE µs + frame,
@@ -460,7 +461,7 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
   mode ignores them, reload says "send it again". "Save the Python client..." copies the file
   (bundled as data in the PyInstaller build: modules are archived there). Tests: backend
   `test_push.py` (8, the real client against the app on a real port), e2e `test_push.py`.
-- [ ] T40 Parquet, MF4, CAN + DBC. Spec: TASKS.md Q21.
+- [ ] T40 Parquet, MF4, CAN + DBC. Spec: TASKS.md Q21. (2026-11-18: Parquet and CAN + DBC done; MF4 open.)
   Parquet done 2026-10-18: `svcore/parquet_loader.py` (pyarrow): time = the chosen column, else the
   pandas index (from the file's pandas metadata), else a time-named column, else the first
   timestamp column; date-times -> seconds from the first; dictionary / text -> states (<= 1000
@@ -488,7 +489,8 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
   changed). Mechanical: cut by line ranges with a script; every action line identical, all old exports
   kept; comment fixes only (geoBase / compareTable carried other fields' comments). CLAUDE.md points
   to the new layout. tsc, build, whole e2e suite (158) green. Found on the way: F12.
-- [ ] T43 Release & reach (signing, docs site, public benchmark). Spec: TASKS.md Q24.
+- [ ] T43 Release & reach (signing, docs site, public benchmark). Spec: TASKS.md Q24. (2026-11-18: the docs site is
+  done; code signing and a public benchmark are open.)
 
 ## Milestone 5 — 1.6.0: examples, fixes, cleaner code (released 2026-10-18)
 v1.5.0 was tagged 2026-10-18 on T41 (T15, T27, T31, T39, T40 Parquet, T41) without the release
@@ -939,7 +941,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
   - [x] C10 Entry points (done 2026-11-15, L2): one Open ▾ (New study… · a table · a folder · a saved study of either kind - the *Common parameters* submenu and the welcome's second *Open study…* gone); one Save (Study ▾ / the palette save the study file when one is open); the study panel's own Undo / Redo / Save / × gone (the area bar's; *Close the study* in Clear ▾ and the palette); each palette command once (`sw-new-study`, no `cp-*`); the status line *Study: name · n tables · shown: part*. `count_controls` Sweeps 16 → 15. One report: Study ▾ → *Report of the study…* with a study file open (`POST /api/sweeps/study/report`: set-up, each table's goal, the shared answer with each table's verdict, the rounds; a table's own report stays in its Results). Open: the study pills in the top bar (TopBar is not L2's - requested from L3 / Final).
   - [x] B7 The Sweeps charts on the same styles: amber is the cursor's and time's only - a selection / active / the best (filters on the parallel plot, the brush, steps, goal tabs, the best value, the balanced choice) in `--select`, warnings (fails, to check, the edge kind, the deciding scenario) in `--warn`, proposals / changes / the convergence line in `--info`; the area's palette's amber moved from 2nd to 6th and *holds* is green (as the plots' traces, A1). The outputs' role colour waits for an L1 token (`TODO(L1 token)`). Done 2026-11-15 (L2): test_design_tokens, e2e test_sweeps_charts, test_study_demo, test_sweeps_groups; pictures dark / light.
   - [x] C11 The §4.7 walkthroughs as e2e (2026-11-15, L2): `test_sweeps_workspace.py` 10 / 10 green (1-2, 4, the rounds listed, the Run column, one Open, a study round read as its table with its goal + Undo, an old study file; walkthrough 3 - the example's question typed → 12 of 45, Next runs → Near the best → Export CSV, Save → `.svsweep`, reopened at the same step; 5 - a test program, Next round saves the `.svstudy.json`, Round 1 opens with the Set up's goal, Round 2 marked new; 6 - a table's goal edited in the area is the study table's, Together follows, one Ctrl+Z takes both back). Fixed on the way: Save after *I have results* wrote a `.svstudy.json` (C5's `fileKind` was never asked - now it routes the one Save); a round was never *new* (the loop rewrites the study file each round - *new* is now "written since you last looked": `seenAt`, UI only); a study table's goal edited in the four steps reaches the study file's table with no step of its own (`followTableGoals`; Undo gives back the table's own words). The demo has no Together ranking of its own, so 6's Together half runs on the three-drones study.
-- [ ] B1–B7 Plots (the plot card, legend with values, mode band, uPlot theme, timeline, Map / 3D chrome, Sweeps charts).
+- [x] B1–B7 Plots (the plot card, legend with values, mode band, uPlot theme, timeline, Map / 3D chrome, Sweeps charts).
 <!-- lane L3 -->
   - [x] B1 The plot card head: an eyebrow (*Plot n* when the plot has its own title, *Active* with several plots), the title, a muted meta (*n signals · two y axes*), the actions; the legend on a line of its own under the head; the card radius `--r-card`, the active ring `--select`. One head for every plot kind (time, X-Y, X-Y-Z, FFT, spectrogram, map, 3D). Done 2026-11-14 (L3).
   - [x] B2 The legend carries the cursor's values: the number in mono and ink (amber stays the cursor's), the unit muted after it (a span of its own, so a value reads as a number), Δ between the two cursors a quiet tag. The Inspector's cursor table stays (it has T2, Δ and the slope per signal - more than the legend); it is reviewed with D8. Done 2026-11-14 (L3).
@@ -951,26 +953,26 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
   - [x] D1 One top row + the stage bar (decision 5): in Recordings the top row holds the area's tools (`.area-tools`: open / save session, Templates, Live, Undo / Redo, Clear, Inspector) beside the search and the app's own buttons; the area's second row is gone (the plots get its 40 px; `.app` drops the row when no `.areabar`); the plot tabs (`PlotTabs`: rename, reorder, close, drop a plot on a tab, + and the views menu) open the stage bar. Sweeps / Fleet keep their own bars (their lanes). Open files as pills in the top row: not done (it would add controls; the file panel lists them). count_controls 42 / 105 / 58 / 16 (unchanged). Done 2026-11-14 (L3).
   - [x] D8 Inspector, timeline findings, notes: the Inspector's section titles as eyebrows (A4), the numbers of its value and statistics tables in mono, end-aligned; each line's statistics can be pinned to the run at a glance (☆ on the line's row → min / max / mean / range, by the signal's name, Undo-able – L5's D14 request (3)); the timeline's warnings and findings ◆ in `--warn` (amber stays the cursor's), errors `--danger`, notes `--info`. The Inspector's cursor table stays (T2, Δ, the slope – more than the legend). count_controls 42 / 107 / 60 / 16 – the same with and without D8 (the +2 / +2 since D1 came with other lanes' merged work). Done 2026-11-15 (L3).
 <!-- end lane L3 -->
-- [ ] M1–M6 The map, offline first (cameras named by what they do; a background picker, Satellite + roads, keep an area offline, My maps: MBTiles / own tile server, the offline map's look).
+- [x] M1–M6 The map, offline first (cameras named by what they do; a background picker, Satellite + roads, keep an area offline, My maps: MBTiles / own tile server, the offline map's look).
 <!-- lane L4 -->
   - [x] M2 Satellite + roads – one composed layer (`app/tiles.py` `COMPOSITES`), in 2D, 3D, the exported picture and the offline page; Esri's terms noted (no bulk download). 2026-11-14.
   - [x] M3 Keep this area offline – `app/tilekeep.py` (terms per source in `tiles.BULK`), the dialog `KeepAreaDialog.tsx`. 2026-11-14.
   - [x] M4 My maps – `app/mymaps.py` (raster MBTiles, a user's XYZ / TMS server, `my:<id>` layers), *Add a map…* and the list in the picker (not Settings: one place). 2026-11-14.
   - [x] B6 Map / 3D chrome – one glass bar top-start, the bottom docks (data box as an instrument, attitude and relation box bottom-end), `styles/map.css`. 2026-11-14.
-  - [ ] M1 Map background picker – `MapLayers.tsx` done 2026-11-14; open: the plot head's old select (PlotView, L3's file – requested).
+  - [x] M1 Map background picker – `MapLayers.tsx` done 2026-11-14; the plot head's old select removed (E1–E4, 2026-11-15).
   - [x] M6 Cameras named by what they do (Free · From above · Around it · Behind it · Cockpit 3D only), a picture each, Track up folded into Behind it; old sessions unchanged. 2026-11-15.
   - [x] M7 Two cameras (owner, 2026-11-16: "enough to mark whether the camera is free or on the object") – Free · On the object (2D and 3D); On the object: drag turns around it, wheel / + − towards it down to sitting on it (its model hidden within 15 m), the distance kept in the object's frame as the time jumps. From above, Around it, Behind it, Cockpit, Look at removed; old sessions read by `followObject` alone (`mapCamera`), an old *Behind it* setting = On the object; the flat drawing's N button = track up. The offline pages (`report_assets`) have the same two (an old link's `#cam=close / cockpit` reads as On the object, `top` as Free); the report's picture is always the 3D scene (the flat From above picture is gone). A double-click elsewhere (and 0) fits everything and sets Free; a double-click on an object, F and Ctrl+K *Map camera: on … / Free* put the camera (`actions.setMapCamera` - the one way); the 3D view's keys (arrows look around the object / move Free, + −, 0, F); the flight display a picture the wheel goes through, shown by default while sitting on the object (app and page). 2026-11-16.
   - [x] M5 The offline map's look: a quiet palette from the tokens' surfaces, roads wider close up, places under the tracks (2D). 2026-11-15.
   - [x] F5 Height profile – `app/heightprofile.py`, `/api/profile`, `HeightProfile.tsx` (*Profile* in the map bar); any format with positions; says why when the ground is coarse. 2026-11-15.
   - [x] F6 Vectors along the path – any two signals (north, east) as arrows on the track in 2D and 3D; a log's wind / a file's velocity offered by itself. 2026-11-15.
 <!-- end lane L4 -->
-- [ ] D1–D14 Every area adopts the look (pictures and a recount per area); D13 wording / icons audit; D14 profiles (templates with their at-a-glance numbers and chips). D11 (welcome) done 2026-11-14. D12 (Settings, palette, dialogs, library, Help, tour) done 2026-11-14. D13 (wording / icons audit; requests to L3 / L5 for their strings) done 2026-11-14.
+- [x] D1–D14 Every area adopts the look (pictures and a recount per area); D13 wording / icons audit; D14 profiles (templates with their at-a-glance numbers and chips). D11 (welcome) done 2026-11-14. D12 (Settings, palette, dialogs, library, Help, tour) done 2026-11-14. D13 (wording / icons audit; requests to L3 / L5 for their strings) done 2026-11-14.
 - [x] E1–E4 Docs, pictures, a test-bench example, 1.28.0 (the owner tags). Done 2026-11-15 (coordinator): E2 guides en + he and the
   positioning (any data), E4 `examples/bench` (Parquet + checks.json, welcome card), the lanes' requests finished (M1's last step, the
   Checks chip's run), dead backend code removed, CHANGELOG by theme, version 1.28.0, validation page, `frontend/dist`. Full e2e 460 / 461
   (the 3D click test then made robust: 13 / 13), quick_check, mkdocs --strict, test_perf_budget, the 1M-run measure (L2) green. E1: only the
   new card's pictures were made - the README pictures were not retaken this round.
-- [ ] F1–F7 New capabilities the owner picks (messages, window statistics, parameters + two logs compared, live instruments, height profile, vectors along the path, pop-out; F8 the Fleet for any format – later), all format-neutral (§3.6).
+- [ ] F1–F7 New capabilities (2026-11-18: F1–F6 done; F7 the pop-out window not started; F8 dropped with the Fleet in FL1) the owner picks (messages, window statistics, parameters + two logs compared, live instruments, height profile, vectors along the path, pop-out; F8 the Fleet for any format – later), all format-neutral (§3.6).
 <!-- lane L5 -->
   - [x] F3 (backend) Parameters of a run for every format + two runs compared. Done 2026-11-14: `svcore/runinfo.py` (log PARM / PARAM_VALUE / PX4 · MAT scalars, texts, struct fields (`Run.file_params`, v5 and v7.3) · constant signals · file-name numbers; one source - `investigate.run_params` (Runs × conditions) reads it), `GET /api/runs/{id}/parameters`, `POST /api/runs/parameters/compare`; test_run_parameters.py. Its screens come with D7 (Log / Checks) and D4 (Compare), after S1.
   - [x] F1 (backend) *The file* - the structure of any recording. Done 2026-11-14: `svcore/filestruct.py` (groups = a log's message types / an MCAP's topics / MAT-HDF5 structs / a table's column prefixes; per group and column: samples, rate, unit, gaps, state, own time; the time base), `GET /api/runs/{id}/structure` (a followed file is read as it is now); values at the cursor stay `/api/cursor`'s. test_file_structure.py (CSV, .mat, .bin, .ulg, .mcap, a followed MAVLink .tlog). The panel comes with D7 (the Log panel's place), after S1.
