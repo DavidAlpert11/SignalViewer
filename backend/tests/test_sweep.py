@@ -276,7 +276,7 @@ def test_cli_sweep_exit_codes(tmp_path, capsys):
 def test_routes_reload_changed_and_templates(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
     from app.main import app
-    import app.routes.sweep as rs
+    import app.routes.sweeps_templates as rs
     monkeypatch.setattr(rs, "TEMPLATES", str(tmp_path / "tpl"))
     c = TestClient(app)
     f = tmp_path / "t.csv"
@@ -700,7 +700,7 @@ def test_a_save_in_progress_is_not_listed_as_a_template(tmp_path, monkeypatch):
     that moment showed the template twice (the e2e templates test failed 2 runs in 10)."""
     from fastapi.testclient import TestClient
     from app.main import app
-    import app.routes.sweep as rs
+    import app.routes.sweeps_templates as rs
     monkeypatch.setattr(rs, "TEMPLATES", str(tmp_path / "tpl"))
     os.makedirs(tmp_path / "tpl")
     tpl = {"kind": "signalviewer-sweep-template", "name": "drone tpl", "columns": []}

@@ -37,6 +37,8 @@ from app.routes import (
     sweep,
     sweeps_common,
     sweeps_farm,
+    sweeps_report,
+    sweeps_templates,
     system,
     templates,
     video,
@@ -156,6 +158,8 @@ app.include_router(files.router)
 app.include_router(sweep.router)
 app.include_router(sweeps_common.router)    # W14 / W15
 app.include_router(sweeps_farm.router)      # W17 / W18
+app.include_router(sweeps_templates.router)
+app.include_router(sweeps_report.router)
 app.include_router(live.router)
 app.include_router(data.router)
 app.include_router(analysis.router)
