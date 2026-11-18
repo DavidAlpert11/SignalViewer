@@ -26,6 +26,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | The branch `claude/readme-redesign` (merged) | to delete | the owner deletes it on GitHub (refused from a cloud session) |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
 | CL2 - cleanup round (owner, 2026-11-18: every change without a version change) | done (full e2e at the end: see the Log) | - |
+| Release 1.29.1 (CL2; CHANGELOG 2026-11-18) | ready, not tagged | the owner runs build by hand (Actions -> build -> Run workflow) to check the packages, then tags v1.29.1 |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
 ## Open specs (waiting for the owner)
@@ -207,3 +208,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   here is 2.6 km down) arrives later. The test now waits for the tiles, reads again, and compares the readout with
   the globe's own pick (0.001 deg) and the object (0.05 deg): the file 16 / 16 twice, the test alone green. No app
   change; the version is not changed.
+- 2026-11-18 · Release 1.29.1 prepared (owner: yes): version in build.bat, version.py, CITATION.cff, the installer's two
+  files; CHANGELOG 1.29.1 with highlights; README / docs review - install.md (the version, where the examples are
+  written), performance.md (the load table), features.md, limitations.md (lite's Parquet example, heavy plots wait);
+  validation page made again (29 / 29). No interface change: pictures not retaken. ci run by hand ([ci]).

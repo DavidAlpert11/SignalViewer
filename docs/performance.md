@@ -34,3 +34,16 @@ runs with `--samples 2000000 --check 3`). Measured on a 2-CPU test machine:
 | Live append, 300-column CSV: 1,000 rows readable | < 1 s | 35 ms |
 
 Opening several files at once (1.23): four 55 MB ArduPilot logs in 1.4 s instead of 2.1 s on two cores.
+
+## Many requests at once (1.29.1)
+
+A stress test - a 10-million-row Parquet table and a log open, 48 requests at a time (plots, cursor, statistics,
+FFTs, spectrograms, new signals) for two minutes, on a 4-core machine. Heavy computations (an FFT, statistics, a
+spectrogram, a new signal) now run a few at a time (2–4 by the cores; `SV_HEAVY_JOBS` sets it), the others wait:
+
+| | Before 1.29.1 | 1.29.1 |
+|---|---|---|
+| 48 FFTs at once: the server's memory | 9.3 GB - stopped by the system | 3.0 GB |
+| 48 statistics requests at once | 12 GB | 1.6 GB |
+| Everything mixed | 9.2 GB | 4.2 – 4.8 GB |
+| Plot data during the FFT load (median / 95 %) | about 1 s, the server then stopped | 4 / 34 ms |

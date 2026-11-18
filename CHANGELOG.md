@@ -2,6 +2,10 @@
 
 ## Next – unreleased
 
+## 1.29.1 – 2026-11-18
+
+**Highlights:** **steadier with big files and many requests, and a smaller download.** Many heavy computations at once (FFTs, statistics, spectrograms, new signals on a long recording) could exhaust memory and stop the app; now a few run at a time while drawing and the cursor stay quick. Two new signals made at the same moment no longer overwrite each other. The packages no longer carry the examples' recordings - each is written the first time it is opened. No new features.
+
 - Fixed: **many requests at once on big files no longer bring the app down.** A stress test (48 requests at a time on a 10-million-row table) took the server past 9 GB until the system stopped it: every FFT, statistics, spectrogram and new signal was computed at the same time. Now a few run at once (2–4, by the computer's cores; `SV_HEAVY_JOBS` sets it) and the others wait their turn - the same test stays near 4 GB, and drawing and the cursor keep answering in a few milliseconds meanwhile.
 - Fixed: two new signals made at the same moment could take the same name, and the second replaced the first; listing the signals while one was being made could fail with *dictionary changed size during iteration*.
 - Fixed: the template library - after *Change folder* the old folder could come back (a late answer of an earlier refresh), the note beside a file read "not open – choose a file" for a moment before the suggestion came, and a suggestion that failed left *Open* greyed out.
