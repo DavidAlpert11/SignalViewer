@@ -2,6 +2,8 @@
 
 ## Next – unreleased
 
+- Changed: **smaller downloads.** The installer, the portable packages and `pip install signalviewer` no longer carry the examples' recordings (about 12 MB; the pip package goes from 27 to under 23 MB): the app writes an example's files the first time you open it - a second or two, once per version, in `~/.signalviewer/examples` - and they are exactly the files it carried before. From the source folder nothing changes. (`signalviewer-lite` offers the Parquet example only with its `[parquet]` extra.)
+
 ## 1.29.0 – 2026-11-17
 
 **Highlights:** **no point is left out of a picture, and every number is of all the data.** Sweeps draws every run of a big table – where many runs pass a shade, the rare ones (the outliers) as their own lines – and Keep, Exclude, groups, exports, counts and the Charts use every run, never the runs drawn. X-Y, 3D, map tracks, error traces and the envelope keep every short spike of a long recording. Sweeps' plots stay smooth with hundreds of thousands of runs, and *Settings → Sweeps* sets how many runs are drawn as lines.

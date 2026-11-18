@@ -28,8 +28,14 @@ const EXAMPLE_GROUPS = [
 type Example = { id: ExampleId; paths: string[]; open?: "study" | "sweep" | "summary" };
 
 /** An example opened as a new user would: recordings with their suggested view, a study in Sweeps. */
-export function openExample(ex: Example): void {
+export function openExample(example: Example): void {
   useApp.setState({ startOpen: false, demoGuide: null });
+  // the packages write the example's recordings on first use (a second or two): its paths once they are there
+  void api.prepareExample(example.id).then(openPrepared,
+    (e) => useApp.getState().toast({ kind: "error", text: String((e as Error).message) }));
+}
+
+function openPrepared(ex: Example): void {
   if (ex.open === "study") requestStudy(ex.paths[ex.paths.length - 1], ex.id === "smartSweepDemo");
   else if (ex.open === "sweep") requestAreaExample("sweeps", ex.paths[ex.paths.length - 1]);   // its .svsweep: the table and its question
   // FL1: a folder of recordings (its measures.json beside them) summed up, a row per recording in Sweeps

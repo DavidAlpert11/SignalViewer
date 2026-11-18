@@ -1,4 +1,4 @@
-"""C13: a simulation against its flight - examples/sim_vs_flight (tools/make_sim_vs_flight.py).
+"""C13: a simulation against its flight - examples/sim_vs_flight (svcore/example_data/make_sim_vs_flight.py).
 
 The model (.mat, from 0 s) and the vehicle (.bin, from boot: the test starts 104.37 s after boot)
 fly the same doublets; the vehicle's roll is less damped than the model's, its pitch matches."""
@@ -106,9 +106,7 @@ def test_xcorr_ignores_overlaps_where_a_side_does_not_move():
 
 
 def test_the_generator_runs(tmp_path):
-    root = os.path.join(os.path.dirname(__file__), "..", "..", "tools")
-    sys.path.insert(0, root)
-    import make_sim_vs_flight as m
+    from svcore.example_data import make_sim_vs_flight as m
     m.main(str(tmp_path))
     for f in ("sim_attitude_doublets.mat", "flight_attitude_doublets.bin", "tolerances.json"):
         assert (tmp_path / f).stat().st_size > 0

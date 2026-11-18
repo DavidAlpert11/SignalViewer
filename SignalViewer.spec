@@ -13,6 +13,8 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 ROOT = os.path.abspath(".")
 ONEFILE = os.environ.get("SV_ONEFILE") == "1"
+sys.path.insert(0, os.path.join(ROOT, "backend"))
+from svcore.example_data import GENERATED  # noqa: E402 - the examples' recordings written by code
 
 hidden = (
     collect_submodules("uvicorn")
@@ -40,7 +42,6 @@ datas = [
     (os.path.join(ROOT, "assets", "icon.ico"), "assets"),          # the window icon on Windows
     (os.path.join(ROOT, "LICENSE"), "."),                          # the app's licence (T32)
     (os.path.join(ROOT, "backend", "signalviewer", "push_client.py"), "clients"),  # T39: saved for the user as a file
-    (os.path.join(ROOT, "examples"), "examples"),                  # "Open an example" on the welcome screen
     # the built-in templates (T11b: data, read by svcore/templates.py for the app and the CLI)
     (os.path.join(ROOT, "backend", "svcore", "builtin_templates.json"), "svcore"),
     # 1.21: ArduPilot's device / parameter names for the hardware summary (svcore/hardware.py)
@@ -48,6 +49,15 @@ datas = [
     # L12: the names map objects are found by - one table for the app's UI and Python (svcore/objects.py)
     (os.path.join(ROOT, "backend", "svcore", "object_names.json"), "svcore"),
 ] + collect_data_files("docx") + collect_data_files("webview")
+# "Open an example" on the welcome screen - without its recordings: the app writes them on first use
+# (svcore/example_data, owner 2026-11-18)
+_ex = os.path.join(ROOT, "examples")
+for _d, _dirs, _names in os.walk(_ex):
+    _dirs[:] = [x for x in _dirs if x != "__pycache__"]
+    for _n in _names:
+        _rel = os.path.relpath(os.path.join(_d, _n), _ex).replace(os.sep, "/")
+        if _rel not in GENERATED and not _n.endswith(".pyc"):
+            datas.append((os.path.join(_d, _n), os.path.join("examples", os.path.dirname(_rel))))
 
 a = Analysis(
     ["run.py"],

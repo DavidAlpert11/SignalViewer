@@ -61,6 +61,7 @@ if __name__ == "__main__":
 # T59: the optional parts (backend/svcore/extras.py) - package -> its extra; "all" gets every one
 sys.path.insert(0, os.path.join(ROOT, "backend"))
 from svcore.extras import ALWAYS_OPTIONAL, EXTRAS  # noqa: E402
+from svcore.example_data import ignore_generated  # noqa: E402
 OPTIONAL = {pkg: extra for extra, pkgs in EXTRAS.items() for pkg in pkgs}
 
 
@@ -125,7 +126,9 @@ def stage(name="signalviewer"):
     shutil.copytree(os.path.join(ROOT, "backend", "app"), os.path.join(core, "app"), ignore=ign)
     shutil.copytree(os.path.join(ROOT, "backend", "svcore"), os.path.join(core, "svcore"), ignore=ign)
     shutil.copytree(dist, os.path.join(core, "ui"))
-    shutil.copytree(os.path.join(ROOT, "examples"), os.path.join(core, "examples"), ignore=ign)
+    # the examples without their recordings: the app writes them on first use (svcore/example_data)
+    ex = os.path.join(ROOT, "examples")
+    shutil.copytree(ex, os.path.join(core, "examples"), ignore=ignore_generated(ex, "__pycache__", "*.pyc", "tests"))
     shutil.copy2(os.path.join(ROOT, "run.py"), os.path.join(core, "run.py"))
     with open(os.path.join(pkg, "launcher.py"), "w", encoding="utf-8") as f:
         f.write(LAUNCHER)
@@ -240,6 +243,11 @@ def check(wheel, lite=False):
             assert "<div id=\"root\"" in page, "no UI page"
             ex = urllib.request.urlopen(base + "/api/examples", timeout=5).read().decode()
             assert "uav_flight.csv" in ex, ex
+            # the package carries no recordings: the app writes an example's on first use (svcore/example_data)
+            req = urllib.request.Request(base + "/api/examples/ardupilot/prepare", method="POST", data=b"{}",
+                                         headers={"Content-Type": "application/json"})
+            made = json.loads(urllib.request.urlopen(req, timeout=60).read())["paths"][0]
+            assert made.startswith(home) and os.path.getsize(made) > 100_000, made
             out = subprocess.run([os.path.join(bin_, "signalviewer-cli"), "info",
                                   os.path.join(ROOT, "examples", "run_012.csv")], env=env,
                                  capture_output=True, text=True, timeout=120)

@@ -16,8 +16,8 @@ import random
 import struct
 import sys
 
-sys.path.insert(0, os.path.dirname(__file__))
-import make_test_bin as mk                       # noqa: E402
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend"))
+from svcore.example_data import make_test_bin as mk  # noqa: E402
 os.environ.setdefault("MAVLINK20", "1")
 from pymavlink.dialects.v20 import ardupilotmega as mav  # noqa: E402
 

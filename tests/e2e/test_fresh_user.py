@@ -24,12 +24,11 @@ def _free_port():
         return s.getsockname()[1]
 
 
-@pytest.fixture()
-def fresh(tmp_path, browser):
+def _start(tmp_path, browser, **extra_env):
     home = tmp_path / "home"
     home.mkdir()
     port = _free_port()
-    env = dict(os.environ, HOME=str(home), USERPROFILE=str(home))
+    env = dict(os.environ, HOME=str(home), USERPROFILE=str(home), **extra_env)
     proc = subprocess.Popen([sys.executable, os.path.join(ROOT, "run.py"), "--port", str(port), "--no-open"],
                             env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     url = f"http://127.0.0.1:{port}"
@@ -50,6 +49,23 @@ def fresh(tmp_path, browser):
     ctx.close()
     proc.terminate()
     assert not errors, errors
+
+
+@pytest.fixture()
+def fresh(tmp_path, browser):
+    yield from _start(tmp_path, browser)
+
+
+@pytest.fixture()
+def packaged(tmp_path, browser):
+    """A new user of a package: its examples folder without the recordings (svcore/example_data writes them)."""
+    import shutil
+    sys.path.insert(0, os.path.join(ROOT, "backend"))
+    from svcore.example_data import ignore_generated
+    src, shipped = os.path.join(ROOT, "examples"), tmp_path / "examples"
+    shutil.copytree(src, shipped, ignore=ignore_generated(src))
+    assert not (shipped / "copter_flight.bin").exists()
+    yield from _start(tmp_path, browser, SV_EXAMPLES=str(shipped))
 
 
 def test_first_run(fresh):
@@ -87,3 +103,18 @@ def test_each_example_opens_ready(fresh, example):
     open_example(pg, example)
     pg.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length || (p.objects || []).length))",
                          timeout=30000)
+
+
+def test_a_package_writes_the_examples_recordings_on_first_use(packaged):
+    """Owner, 2026-11-18: the packages carry no example recordings; a card writes its files (once per version, in
+    ~/.signalviewer/examples) and opens them as before - a flight log, and a folder summed up in Sweeps."""
+    pg, home = packaged
+    pg.locator(".ex-card[data-example='ardupilot']").click()
+    pg.wait_for_function("window.__sv.state().runs.some((r) => r.format === 'bin')", timeout=60000)
+    path = pg.evaluate("window.__sv.state().runs[0].path")
+    assert path.startswith(os.path.join(home, ".signalviewer", "examples")) and os.path.getsize(path) > 100_000, path
+    pg.locator(".brand").click()                                        # back to the welcome screen
+    pg.locator(".ex-card[data-example='folderOfFlights']").click()
+    pg.wait_for_selector(".sw-steps", timeout=60000)                    # the folder's table in Sweeps
+    made = os.path.join(os.path.dirname(path), "folder_of_flights")
+    assert len([f for f in os.listdir(made) if f.endswith(".bin")]) == 10 and os.path.isfile(os.path.join(made, "measures.json"))

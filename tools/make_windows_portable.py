@@ -35,6 +35,8 @@ import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+sys.path.insert(0, os.path.join(ROOT, "backend"))
+from svcore.example_data import GENERATED, ignore_generated  # noqa: E402 - stdlib only
 PY_FULL, PY_MM = "3.12.10", "3.12"
 PY_URL = f"https://www.python.org/ftp/python/{PY_FULL}/python-{PY_FULL}-embed-amd64.zip"
 APP = "SignalViewer"
@@ -289,7 +291,9 @@ def main():
     shutil.copy2(os.path.join(ROOT, "assets", "icon.ico"), os.path.join(app, "assets"))
     # "Open an example" on the welcome screen (T09): routes/fs.py looks in app/examples (F10 - the
     # portable package had none, so the welcome line was hidden)
-    copy_dir(os.path.join(ROOT, "examples"), os.path.join(app, "examples"))
+    # (without their recordings: the app writes them on first use - svcore/example_data, owner 2026-11-18)
+    ex = os.path.join(ROOT, "examples")
+    shutil.copytree(lp(ex), lp(os.path.join(app, "examples")), ignore=ignore_generated(lp(ex), "__pycache__", "*.pyc"))
     shutil.copy2(os.path.join(ROOT, "installer", "portable", "make_shortcut.ps1"), app)
     for f in sorted(os.listdir(os.path.join(ROOT, "installer", "portable"))):
         if f.lower().endswith(".bat") or f == "README-HE.txt":
@@ -314,7 +318,8 @@ def main():
     must += [("app", "frontend", "dist", "models", f"{k}.glb") for k in ("aircraft", "uav", "drone", "missile", "ship", "vehicle")]
     must += [("app", "backend", "app", "basemap_data", f) for f in ("dem_world.npz", "dem_region.npz", "dem_israel.npz",
                                                                     "vectors_world.json.gz", "vectors_israel.json.gz")]
-    must += [("app", "examples", f) for f in sorted(os.listdir(os.path.join(ROOT, "examples")))]   # F10
+    must += [("app", "examples", f) for f in sorted(os.listdir(os.path.join(ROOT, "examples")))   # F10
+             if f not in GENERATED]
     bad = [os.path.join(*m) for m in must if not os.path.exists(lp(os.path.join(pkg, *m)))]
     if bad:
         die("The package is incomplete, missing: " + ", ".join(bad))

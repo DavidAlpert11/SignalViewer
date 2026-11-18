@@ -424,6 +424,8 @@ export const api = {
     segments: { t0: number; t1: number; value: number; label: string | null }[];
     byValue: { value: number; label: string | null; duration: number; count: number }[] }>("/api/segments", { signal }),
   examples: () => call<{ id: ExampleId; paths: string[]; open?: "study" | "sweep" | "summary" }[]>("/api/examples"),   // open "study": the last path is a .svstudy.json (W14 / W18)
+  // the example's files ready to open (the packages write the recordings on first use): the same entry, its paths
+  prepareExample: (id: string) => call<{ id: ExampleId; paths: string[]; open?: "study" | "sweep" | "summary" }>(`/api/examples/${encodeURIComponent(id)}/prepare`, undefined, "POST"),
   completePath: (text: string, base: string | null, exts?: string[]) =>
     call<{ dir: string | null; items: { name: string; path: string; dir: boolean }[]; common: string }>("/api/fs/complete", { text, base, exts }),
   listDir: (path?: string | null, exts?: string[]) => call<{ path: string; parent: string | null; entries: FsEntry[]; hidden?: number }>("/api/fs/list", { path, exts }),

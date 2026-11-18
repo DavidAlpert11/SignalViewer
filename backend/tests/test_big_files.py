@@ -9,10 +9,9 @@ import pytest
 
 HERE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(HERE, ".."))
-sys.path.insert(0, os.path.join(HERE, "..", "..", "tools"))
 from fastapi.testclient import TestClient  # noqa: E402
 
-import make_test_bin as mk  # noqa: E402
+from svcore.example_data import make_test_bin as mk  # noqa: E402
 from app.main import app  # noqa: E402
 from app.store import store  # noqa: E402
 from svcore import bin_loader as B  # noqa: E402

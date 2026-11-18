@@ -2013,8 +2013,8 @@ def test_checks_panel_for_any_file_and_a_logs_events(pg):
     open_files(pg, "run_a.csv")
     assert not pg.locator(".rail-log").is_disabled()                         # D7: Checks for any file (a CSV too)
     assert pg.locator(".rail-log").get_attribute("aria-label") == "Checks"
-    sys.path.insert(0, os.path.join(ROOT, "tools"))
-    import make_test_bin as mk
+    sys.path.insert(0, os.path.join(ROOT, "backend"))
+    from svcore.example_data import make_test_bin as mk
     mk.FMTS.clear()
     with open(os.path.join(pg.env["data"], "flight.bin"), "wb") as fh:
         fh.write(mk.header() + mk.body(1.0, 25.0, 50))

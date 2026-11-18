@@ -2,7 +2,9 @@
 
 import os
 import re
+import shutil
 import string
+import threading
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter
@@ -11,6 +13,8 @@ from pydantic import BaseModel
 from app import prefs
 from app.common import UPLOAD_DIR, fail, supported_now
 from app.store import store
+from app.version import __version__
+from svcore import example_data
 
 router = APIRouter()
 
@@ -83,14 +87,56 @@ EXAMPLE_SETS = [
 
 
 
+# owner, 2026-11-18: the packages carry no heavy example recordings - the app writes them on first use (svcore/
+# example_data), once per version, here; the small files beside them (checks.json, measures.json...) are copied in
+EXAMPLES_MADE = os.path.join(prefs.APP_DIR, "examples", __version__)
+_MAKING = threading.Lock()
+
+
+def _example_root(ex: Dict[str, Any]) -> Optional[str]:
+    """Where an example's files are: the shipped folder when it has them all (from source: the files in git),
+    else the folder they are written to - None when a file is neither shipped nor can be written here."""
+    if all(os.path.isfile(os.path.join(EXAMPLES, f)) for f in ex["files"]):
+        return EXAMPLES
+    if all(os.path.isfile(os.path.join(EXAMPLES, f)) or example_data.can_write(f) for f in ex["files"]):
+        return EXAMPLES_MADE
+    return None
+
+
+def _example_entry(ex: Dict[str, Any], root: str) -> Dict[str, Any]:
+    paths = [os.path.abspath(os.path.join(root, f)) for f in ex["files"]]
+    return {"id": ex["id"], "paths": paths, **({"open": ex["open"]} if "open" in ex else {})}
+
+
 @router.get("/api/examples")
 def list_examples():
-    out: list = []
-    for ex in EXAMPLE_SETS:
-        paths = [os.path.abspath(os.path.join(EXAMPLES, f)) for f in ex["files"]]
-        if all(os.path.isfile(p) for p in paths):
-            out.append({"id": ex["id"], "paths": paths, **({"open": ex["open"]} if "open" in ex else {})})
-    return out
+    return [_example_entry(ex, root) for ex in EXAMPLE_SETS if (root := _example_root(ex))]
+
+
+@router.post("/api/examples/{ex_id}/prepare")
+def prepare_example(ex_id: str):
+    """The example's files ready to open: written now if they are not yet (a second or two, once per version)."""
+    ex = next((e for e in EXAMPLE_SETS if e["id"] == ex_id), None)
+    root = _example_root(ex) if ex else None
+    if ex is None or root is None:
+        fail(404, f"The example {ex_id} is not part of this installation.")
+    if root == EXAMPLES_MADE:
+        with _MAKING:
+            try:
+                for folder in sorted({os.path.dirname(f) for f in ex["files"]}):     # the small files beside them
+                    src, dst = os.path.join(EXAMPLES, folder), os.path.join(EXAMPLES_MADE, folder)
+                    os.makedirs(dst, exist_ok=True)
+                    for name in os.listdir(src) if os.path.isdir(src) else []:
+                        p = os.path.join(src, name)
+                        if os.path.isfile(p) and not os.path.isfile(os.path.join(dst, name)):
+                            shutil.copy2(p, dst)
+                missing = [f for f in ex["files"] if not os.path.isfile(os.path.join(EXAMPLES_MADE, f))]
+                if missing:
+                    example_data.write(missing, EXAMPLES_MADE)
+            except OSError as e:
+                fail(500, f"Could not write the example's files to {EXAMPLES_MADE}: {e}. "
+                          "Check that this folder can be written (disk space, permissions) and try again.")
+    return _example_entry(ex, root)
 
 
 

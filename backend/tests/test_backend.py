@@ -564,7 +564,13 @@ def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
     assert all(os.path.isfile(p) for x in r for p in x["paths"])
     (tmp_path / "uav_flight.csv").write_text("t,a\n0,1\n")
     monkeypatch.setattr(m, "EXAMPLES", str(tmp_path))
-    assert [x["id"] for x in client.get("/api/examples").json()] == ["flight"]     # sets with a missing file left out
+    monkeypatch.setattr(m, "EXAMPLES_MADE", str(tmp_path / "made"))
+    r = client.get("/api/examples").json()
+    # owner, 2026-11-18: a recording the app can write counts as there (svcore/example_data); a set with a file
+    # that is neither shipped nor written by code (the sweeps' tables, a folder's measures.json) is left out
+    assert [x["id"] for x in r] == ["flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "investigate"]
+    assert r[0]["paths"] == [str(tmp_path / "uav_flight.csv")]                      # all shipped: as they are
+    assert r[1]["paths"][1] == str(tmp_path / "made" / "uav_flight_windy.csv")      # else where they will be written
 
 
 def test_two_flights_example_is_ready_to_compare():
@@ -625,8 +631,8 @@ def test_ardupilot_example_health_and_modes():
 
 
 def test_every_example_ships_in_every_package():
-    """F10: the welcome screen's examples exist in the repo and every package copies examples/ to
-    where routes/fs.py looks (beside backend/). The Windows portable build once left them out and
+    """F10: the welcome screen's examples exist in the repo and every package copies examples/ (without the
+    recordings the app writes itself) to where routes/fs.py looks (beside backend/). The Windows portable build once left them out and
     the welcome line silently disappeared."""
     from app.routes import fs as m
     root = os.path.join(os.path.dirname(__file__), "..", "..")
@@ -640,7 +646,12 @@ def test_every_example_ships_in_every_package():
         portable = f.read()
     assert 'os.path.join(app, "backend")' in portable and 'os.path.join(app, "examples")' in portable
     with open(os.path.join(root, "SignalViewer.spec"), encoding="utf-8") as f:
-        assert '"examples"), "examples")' in f.read()          # PyInstaller; run.py sets SV_EXAMPLES
+        spec = f.read()                                         # PyInstaller; run.py sets SV_EXAMPLES
+    assert 'os.path.join("examples", os.path.dirname(_rel))' in spec
+    # owner, 2026-11-18: every package leaves the recordings out - the app writes them (svcore/example_data)
+    assert "_rel not in GENERATED" in spec and "ignore_generated(lp(ex)" in portable
+    with open(os.path.join(root, "tools", "make_pypi.py"), encoding="utf-8") as f:
+        assert "ignore=ignore_generated(ex" in f.read()
 
 
 def test_formula_angles_and_quaternions():
