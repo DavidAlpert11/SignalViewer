@@ -35,7 +35,7 @@ def stream_start(req: StreamStart = StreamStart()):
     LIVE["since"] = time.time() - max(0.0, req.lookBack)
     LIVE["reported"] = set()
     LIVE["last_scan"] = 0.0
-    for lr in store.runs.values():
+    for lr in list(store.runs.values()):
         lr.last_change = 0.0
     return {"ok": True}
 

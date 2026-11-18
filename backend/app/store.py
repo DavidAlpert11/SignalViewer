@@ -11,7 +11,7 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
 
@@ -37,7 +37,6 @@ from app.livewatch import SETTLE_MAX, SETTLE_QUIET, TIME_SLACK, UPLOAD_DIR, Live
 from app import userreaders
 from svcore.analysis import HOLD_OPS, NAN_OPS, SAMPLING_OPS, DerivedDef, compute, is_discrete
 from svcore.memcache import CACHE as MEMCACHE, own_bytes
-import contextlib
 import json
 import re
 
@@ -124,6 +123,7 @@ class Store:
         self.runs: Dict[str, LoadedRun] = {}
         self.order: List[str] = []
         self.derived: Dict[str, DerivedDef] = {}
+        self._naming: Set[str] = set()  # names of new signals being computed (add_derived)
         # Changes made ON a signal itself (not new signals): {sig_id: {"expr", "scale", "offset", "dt"}}.
         # Applied every time the signal is read, so plots, cursor, stats, compare, reports and
         # exports all see the same values. The file's data is never modified.
@@ -434,7 +434,7 @@ class Store:
             if sg is None or sg.time is not None or sg.labels:
                 raise LoadError(f"{column} can not be the time of this file (it is not a numeric column on the file's time).")
             out["column"] = time_axis.analyze(np.asarray(sg.data), lr.run.original_names.get(column, column))
-            out["brokenDerived"] = [n for n, d in self.derived.items() if f"{run_id}/{column}" in d.sources]
+            out["brokenDerived"] = [n for n, d in list(self.derived.items()) if f"{run_id}/{column}" in d.sources]
         out.update(self._time_dependent(run_id))
         return out
 
@@ -462,8 +462,8 @@ class Store:
             mine[name] = hit
             return hit
 
-        derived = [n for n, d in self.derived.items() if belongs(n) and is_timed(d)]
-        edits = [sid.split("/", 1)[1] for sid, spec in self.transforms.items()
+        derived = [n for n, d in list(self.derived.items()) if belongs(n) and is_timed(d)]
+        edits = [sid.split("/", 1)[1] for sid, spec in list(self.transforms.items())
                  if sid.startswith(run_id + "/") and (spec.get("dt") or timed.search(str(spec.get("expr") or "")))]
         return {"timedDerived": derived, "timedEdits": edits}
 
@@ -732,7 +732,7 @@ class Store:
             return name
         lr = self.runs.get(run_id)
         # add the file name only when another open file has a signal with the same name
-        clash = any(rid != run_id and name in o.run.signals for rid, o in self.runs.items())
+        clash = any(rid != run_id and name in o.run.signals for rid, o in list(self.runs.items()))
         return f"{name} ({lr.name})" if lr and clash else name
 
     def add_derived(self, op: str, sources: List[str], params: dict, name: Optional[str] = None,
@@ -754,13 +754,21 @@ class Store:
         d = DerivedDef(name="", op=op, sources=list(sources), params=params)
         base = (name or "").strip() or d.formula(self.short_name)
         base = base.replace("/", "∕")  # "/" separates run id and name in signal ids
-        final, k = base, 2
-        while final in self.derived:
-            final, k = f"{base} ({k})", k + 1
-        d.name = final
-        self._refresh_derived(d)       # compute now so errors surface immediately
+        # the name chosen and held under the lock: two signals made at once took the same free name, and the
+        # second replaced the first (a stress test, 2026-11-18); the computing itself runs outside the lock
         with self._lock:
-            self.derived[final] = d
+            final, k = base, 2
+            while final in self.derived or final in self._naming:
+                final, k = f"{base} ({k})", k + 1
+            self._naming.add(final)
+        try:
+            d.name = final
+            self._refresh_derived(d)       # compute now so errors surface immediately
+            with self._lock:
+                self.derived[final] = d
+        finally:
+            with self._lock:
+                self._naming.discard(final)
         return d
 
     def remove_derived(self, name: str):
@@ -893,7 +901,7 @@ class Store:
                                                              if len(r.signals) <= WIDE and getattr(sg, "loaded", True) else None),
                          **({"labels": {str(k): v for k, v in sg.labels.items()}} if sg.labels else {}),
                          **({"transform": self.transforms[f"{lr.id}/{n}"]} if f"{lr.id}/{n}" in self.transforms else {})}
-                        for n, sg in r.signals.items()],
+                        for n, sg in list(r.signals.items())],
             "report": lr.load_report,
             "description": r.description or "",
             # dragged into a browser window: the app works on a COPY, edits to the original are not seen
@@ -908,7 +916,9 @@ class Store:
         if not self.derived:
             return None
         sigs = []
-        for name, d in self.derived.items():
+        with self._lock:                           # a copy under the lock: another request may add one meanwhile
+            items = list(self.derived.items())
+        for name, d in items:
             try:
                 t, _ = self.signal(f"{DERIVED_ID}/{name}")
                 ok, n = True, len(t)
@@ -922,7 +932,11 @@ class Store:
                 "start": 0, "end": 0, "timeOffset": 0, "importSettings": {}, "signals": sigs, "report": {}}
 
     def list(self) -> List[dict]:
-        out = [self.describe(self.runs[i]) for i in self.order if i in self.runs]
+        # the open files taken under the lock, described outside it: a request that opens, closes or makes a
+        # signal meanwhile cannot change what is being walked (48 requests at once: "dictionary changed size")
+        with self._lock:
+            loaded = [self.runs[i] for i in self.order if i in self.runs]
+        out = [self.describe(lr) for lr in loaded]
         d = self.describe_derived()
         return out + ([d] if d else [])
 

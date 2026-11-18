@@ -211,7 +211,7 @@ def _drives() -> List[str]:
 @router.get("/api/fs/places")
 def places():
     open_folders: List[str] = []
-    for lr in store.runs.values():
+    for lr in list(store.runs.values()):
         fp = getattr(lr.run, "file_path", "") or ""
         d = os.path.dirname(fp)
         if d and os.path.isdir(d) and d not in open_folders and not d.startswith(UPLOAD_DIR):
@@ -339,7 +339,7 @@ def _check_own(path: str, target: bool) -> str:
         fixed = {home, *(_norm(s["path"]) for s in _standard_folders()), *_own_roots(), *(_norm(d) for d in _drives())}
         if p in fixed:
             fail(403, f"{path} is a drive or one of your main folders - it is not renamed or deleted from here.")
-        open_files = {_norm(getattr(lr.run, "file_path", "") or "") for lr in store.runs.values()}
+        open_files = {_norm(getattr(lr.run, "file_path", "") or "") for lr in list(store.runs.values())}
         if any(f and _under(f, p) for f in open_files):
             fail(409, f"{os.path.basename(path)} is open in Signal Viewer - close it first (File > Close), then try again.")
     return os.path.realpath(os.path.expanduser(path))

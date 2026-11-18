@@ -59,7 +59,7 @@ def _locate_roots() -> List[str]:
     """Where dragged files usually come from: folders of open files, recently used folders,
     the last folder of the file dialog, and the usual user folders (OneDrive included)."""
     home = os.path.expanduser("~")
-    roots = [os.path.dirname(lr.run.file_path) for lr in store.runs.values()]
+    roots = [os.path.dirname(lr.run.file_path) for lr in list(store.runs.values())]
     roots += [x.get("folder", "") for x in prefs.list_recent()]
     for base in (home, os.path.join(home, "OneDrive")):
         for sub in ("Desktop", "Downloads", "Documents", "שולחן העבודה", "מסמכים", "הורדות"):
