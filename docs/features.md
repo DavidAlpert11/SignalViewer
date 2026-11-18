@@ -649,8 +649,8 @@ overshoot, energy...), with a second, finer sweep to merge. The same answer on t
 - WCAG AA contrast
 - Text size 100–125 %
 - Live mode with follow last N seconds
-- Heavy computations (FFT, statistics, spectrogram, a new signal) a few at a time, so many at once on a big file never exhaust memory; plots and the cursor answer meanwhile (1.29.1; `SV_HEAVY_JOBS`)
-- The examples' recordings are written the first time an example is opened (the packages do not carry them; 1.29.1)
+- Heavy computations (FFT, statistics, spectrogram, a new signal) a few at a time, so many at once on a big file never exhaust memory; plots and the cursor answer meanwhile (1.30.0; `SV_HEAVY_JOBS`)
+- The examples' recordings are written the first time an example is opened (the packages do not carry them; 1.30.0)
 
 ### Error details
 

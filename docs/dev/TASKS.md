@@ -26,7 +26,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | The branch `claude/readme-redesign` (merged) | to delete | the owner deletes it on GitHub (refused from a cloud session) |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
 | CL2 - cleanup round (owner, 2026-11-18: every change without a version change) | done (full e2e at the end: see the Log) | - |
-| Release - now 1.30.0 (owner, 2026-11-18: with CP1) | NOT released. On GitHub: a tag v1.29.1 (on 335fed1) and an empty published Release 'Signal Viewer 1.29.1' (its build failed on Windows: test_loop - fixed in 64ca504) | after CP1: version 1.30.0 (build.bat, version.py, CITATION.cff, installer x2; CHANGELOG 1.29.1 section -> 1.30.0), the owner deletes the v1.29.1 Release and tag on GitHub, then releases v1.30.0 from the website (Releases -> Draft a new release -> new tag on main) |
+| Release 1.30.0 (owner, 2026-11-18: "add and release") | prepared: version, CHANGELOG, README / docs reviewed, validation 29 / 29 | the build workflow by hand on main green on all three systems; the owner deletes the v1.29.1 Release and tag, then releases v1.30.0 from the website |
 | CP1 - copy a plot / a tab into a Confluence page (owner, 2026-11-18) | done - every sample, via an attachment (his Confluence itself not tested - no access) | the owner tries it on his Confluence 10.2: drag the file onto the page, Insert > HTML, paste |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
@@ -236,3 +236,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   Confluence page, the macro only fetches it. e2e: test_confluence_copy; quick_check green.
 - 2026-11-18 · CP2 (owner): copy a line or a whole plot to another plot - the plot's *Copy to…*, Ctrl+drop of its ⠿,
   the chip's *Copy to plot* / *Move to plot* (any tab). Vitest movePlots; e2e test_move_plots, test_move_plots_tabs.
+- 2026-11-18 · Release 1.30.0 prepared (owner: "add and release"): version in build.bat, version.py, CITATION.cff, the
+  installer's two files; CHANGELOG 1.29.1 (never published) + CP1 + CP2 -> 1.30.0 with highlights; README (Confluence,
+  English and Hebrew), docs "1.29.1" -> 1.30.0, validation page made again (29 / 29). Pictures not retaken (new menu
+  items only).

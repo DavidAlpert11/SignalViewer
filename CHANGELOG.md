@@ -2,16 +2,14 @@
 
 ## Next – unreleased
 
+## 1.30.0 – 2026-11-18
+
+**Highlights:** **plots into Confluence, live; copies of plots and lines; steadier with big files, a smaller download.** *Copy for Confluence* saves a plot or a tab with every sample and copies a few lines for Confluence's HTML macro: the plot is live in the page - zoom to every sample, the cursor, lines on and off, the statistics and the notes. A plot can be copied whole into another plot, and a line copied or moved to another plot from its legend chip. Many heavy computations at once no longer exhaust memory, and the packages no longer carry the examples' recordings (each is written the first time it is opened). (1.29.1 was never published: its build failed on Windows and macOS; everything in it is here.)
+
 - New: **copy a plot to another plot.** *Copy to…* in a plot's ⋯ menu (or Ctrl while dropping the plot by its ⠿ on another plot) makes a full copy and leaves the plot as it is: an empty plot becomes the copy - its type, every line with its colour and style, its axes; a plot of the same kind gets all its lines added. *New plot on this tab* and *New tab* are there too.
 - New: **copy or move a line to another plot from its legend chip.** Right-click a chip: *Copy to plot* and *Move to plot* list every plot, on any tab. (Dragging the chip still works - Ctrl while dropping copies; it now also reaches plots on other tabs through the menu.)
-
 - New: **Copy for Confluence (interactive), every sample.** A plot's ⋯ menu, a tab's right-click menu and Ctrl+K save the plot or the whole tab as a page with all its data and copy a few lines for Confluence. Drag the saved file onto the Confluence page (it becomes an attachment), choose *Insert → HTML* (the HTML macro, which an administrator turns on) and paste: the plot is live in the page - zoom down to every single sample, the cursor's values, lines on and off - with its statistics table and the notes; maps and 3D views as in the app's HTML report. The page's editor holds only those few lines (a whole page pasted into the macro, megabytes, could stall it); the reader's browser loads the attachment, in a frame of its own that cannot touch the page's look, and several can share one page. Without the attachment the box says what to do. Pasted straight into a page without the macro, Word or an e-mail, the same copy gives a picture with the statistics table and the notes.
 - Fixed: in a Hebrew report a negative number in the statistics table read *10.9-*; it now reads *-10.9*.
-
-## 1.29.1 – 2026-11-18
-
-**Highlights:** **steadier with big files and many requests, and a smaller download.** Many heavy computations at once (FFTs, statistics, spectrograms, new signals on a long recording) could exhaust memory and stop the app; now a few run at a time while drawing and the cursor stay quick. Two new signals made at the same moment no longer overwrite each other. The packages no longer carry the examples' recordings - each is written the first time it is opened. No new features.
-
 - Fixed: **many requests at once on big files no longer bring the app down.** A stress test (48 requests at a time on a 10-million-row table) took the server past 9 GB until the system stopped it: every FFT, statistics, spectrogram and new signal was computed at the same time. Now a few run at once (2–4, by the computer's cores; `SV_HEAVY_JOBS` sets it) and the others wait their turn - the same test stays near 4 GB, and drawing and the cursor keep answering in a few milliseconds meanwhile.
 - Fixed: two new signals made at the same moment could take the same name, and the second replaced the first; listing the signals while one was being made could fail with *dictionary changed size during iteration*.
 - Fixed: the template library - after *Change folder* the old folder could come back (a late answer of an earlier refresh), the note beside a file read "not open – choose a file" for a moment before the suggestion came, and a suggestion that failed left *Open* greyed out.

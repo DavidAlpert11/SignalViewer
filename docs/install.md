@@ -63,7 +63,7 @@ CAN, binary layouts, every plot and analysis, HTML reports. The rest are extras;
 
 Both install the same `signalviewer` Python package: install one of them, not both.
 
-The packages carry the examples without their recordings (1.29.1): the first time you open an example its files
+The packages carry the examples without their recordings (1.30.0): the first time you open an example its files
 are written to `~/.signalviewer/examples/<version>` - a second or two, once per version, the same recordings as before.
 
 ## From scripts
@@ -100,7 +100,7 @@ Verified by running the built app with no network interface at all.
 
 Build commands (Windows unless said):
 
-- `build.bat installer` → `dist\SignalViewer-Setup-1.29.1.exe`  
+- `build.bat installer` → `dist\SignalViewer-Setup-1.30.0.exe`  
   **Recommended.** One file; installs for the current user (no admin), Start-menu and desktop icons, *Open with* for data files, uninstaller
 - `build.bat portable` → `dist\SignalViewer-portable.zip`  
   Unzip anywhere and run `SignalViewer.exe` (fast start)

@@ -10,7 +10,7 @@
 * The right value axis follows its data: zooming the values (Shift+drag), panning, the axis limits dialog and linked value axes act on the left axis.
 * *Open with* (Explorer) is set up by the installer; with the portable packages, open files from the app or `SignalViewer file…`.
 * Installed with pip it opens in the browser (with `signalviewer-lite`, only the core readers are there until their extras are added - the app says which); `pip install "signalviewer[desktop]"` gives it its own window (on Linux that needs GTK or Qt).
-* With `signalviewer-lite` the *pump on a test bench* example (Parquet) is offered only once the `[parquet]` extra is installed: its recording is written on first use (1.29.1), which needs it.
+* With `signalviewer-lite` the *pump on a test bench* example (Parquet) is offered only once the `[parquet]` extra is installed: its recording is written on first use (1.30.0), which needs it.
 * Heavy computations - an FFT, statistics, a spectrogram, a new signal - run a few at a time (2–4, `SV_HEAVY_JOBS`): with many such plots of long recordings on screen, some are drawn a moment after the others.
 * The interactive HTML report lists the notes under its summary; it does not draw them on its plots (the PDF and Word reports do).
 * Columns with a time column of their own keep that column's unit unless it is changed: *Time axis…* gives them one scale of their own (a `time_boot_ms` column → ×0.001), the same for all of them - a file whose own time columns are in different units can put only one of those units in seconds.
