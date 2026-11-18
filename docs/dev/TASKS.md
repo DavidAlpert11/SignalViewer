@@ -26,7 +26,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | The branch `claude/readme-redesign` (merged) | to delete | the owner deletes it on GitHub (refused from a cloud session) |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
 | CL2 - cleanup round (owner, 2026-11-18: every change without a version change) | done (full e2e at the end: see the Log) | - |
-| Release 1.29.1 (CL2; CHANGELOG 2026-11-18) | ready, not tagged | the owner runs build by hand (Actions -> build -> Run workflow) to check the packages, then tags v1.29.1 |
+| Release 1.29.1 (CL2; CHANGELOG 2026-11-18) | tag v1.29.1 made on abd72ea, its build FAILED (test_example_data on all three systems) - fixed in 6b54ea8 | a build by hand on main checks the fix; then the owner deletes the release / tag v1.29.1 and makes it again on main |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
 ## Open specs (waiting for the owner)
@@ -212,3 +212,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   files; CHANGELOG 1.29.1 with highlights; README / docs review - install.md (the version, where the examples are
   written), performance.md (the load table), features.md, limitations.md (lite's Parquet example, heavy plots wait);
   validation page made again (29 / 29). No interface change: pictures not retaken. ci run by hand ([ci]).
+- 2026-11-18 · The v1.29.1 tag's build failed: test_example_data compared generated files byte for byte - Windows / macOS
+  differ in the math library's last bit (.bin, .mat), Linux CI in the Parquet bytes (another pyarrow). Now compared as
+  the app reads them (the same signals and values to the file's precision; CSV still byte for byte; a changed seed
+  still caught). Docs / CHANGELOG: "the same recordings". A build by hand on main started to check all three systems.
