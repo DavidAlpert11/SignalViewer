@@ -1,15 +1,17 @@
-# Working on Signal Viewer — rules for every change
+# Working on Signal Viewer — the one guide for every developer and AI agent
 
 You are working on Signal Viewer: a local, offline desktop app (Python FastAPI backend +
 React/TypeScript frontend, shown in a pywebview window or a browser) for analysing time
 signals: an engineering data analysis and validation workbench for **any** time-series or measurement
 data - test engineers (flight, vehicle, bench: .bin, .tlog, .ulg, CAN + DBC, CSV, Parquet, HDF5, .mcap) and
 simulation engineers (MATLAB/Simulink .mat, Python). ArduPilot logs are convenient sample data, not the
-product's identity: generic chrome and models; domain content only in profiles / templates (plan §3.6).
+product's identity: generic chrome and models; domain content only in profiles / templates.
+The owner writes in Hebrew - answer him in Hebrew; code, commits and docs stay in English.
 
-The work queue is `docs/dev/TASKS.md` (what to do next, in order, with full specs, current
-state and a log - written so another developer or agent can take over). `docs/dev/ROADMAP.md`
-is the catalogue of every task. Work one task at a time; when its "Done when" is met, tick it in
+This file holds every rule and practice (it is loaded by itself in a Claude Code session; the last section is
+the prompt to start one). The work queue is `docs/dev/TASKS.md` (what is open, the specs waiting for the owner,
+a log - written so another developer or agent can take over). `docs/dev/ROADMAP.md` is the catalogue of every
+task; `docs/dev/study.schema.json` is the study file's contract (code and tests read it). Work one task at a time; when its "Done when" is met, tick it in
 ROADMAP.md and update TASKS.md (current state, the task's status, the log). Update TASKS.md also
 when you stop in the middle of a task.
 
@@ -35,7 +37,10 @@ when you stop in the middle of a task.
 - Every workspace change goes through `commit` (undo/redo). UI-only state does not.
 - Sessions, templates and autosave stay **backward compatible**: old files must still open.
   New fields are optional with defaults; never rename or repurpose a saved field.
-- Heavy work stays in the backend; the UI receives decimated data only.
+- Heavy work stays in the backend; the UI receives decimated data only. One exception (owner, 2026-11-17, M35):
+  a Sweeps table goes to the page whole up to *Most lines to draw* (Settings) and is filtered and drawn there;
+  anything that turns a brush into a result (Keep, Exclude, groups, exports, counts) is resolved by the server on
+  the whole table (`svcore/sweep/select.py`), never from the rows drawn.
 - **No point is ever left out of a picture (owner, 2026-11-17).** Numbers (counts, statistics, conditions, exports)
   are always computed on all the data. What is drawn may be reduced only so that every point still counts: min/max
   per pixel (time plots), extreme-keeping thinning along a path (X-Y, 3D), or density per pixel with the sparse
@@ -81,3 +86,53 @@ when you stop in the middle of a task.
 - Match the existing code: short comments that explain *why*, no dead code, no new
   dependencies without a reason written in the task notes.
 - Error messages are for engineers in the field: say what happened and what to do.
+
+## How to work here (practical notes)
+- Setup: `pip install -r requirements.txt -r requirements-dev.txt`, `cd frontend && npm ci`. Run: `python run.py`
+  (builds the UI by itself when its sources changed).
+- Publishing (owner, 2026-11-17): only main remains. Show the owner the result first (on a branch if he wants to
+  look), or push straight to main when he says so; no pull request unless he asks. A remote branch cannot be deleted
+  from a cloud session - ask him. Without push access, patches (owner, 2026-10-19): ONE file with ALL commits since
+  GitHub's main (`git fetch origin`, `git rebase origin/main`, `git format-patch --stdout origin/main..HEAD`),
+  checked with `git am` on a fresh clone - never depending on an earlier patch.
+- e2e: Playwright, one file per process (`for f in tests/e2e/test_*.py; do python -m pytest -q "$f"; done`); a
+  Chromium of your own via `SV_CHROMIUM=/path/to/chrome`. Build the UI first and do not touch `frontend/src` while
+  the suite runs (`run.py` would rebuild, longer than the fixture's 20 s wait: *Connection refused*). Tests reach
+  the app through `window.__sv.state()` / `window.__sv.setState(...)` (`frontend/src/main.tsx`) and Sweeps through
+  `window.__svSweeps` (`idle()`, `filter()`...). Wait for the END state, never "something changed"; allow seconds.
+- CI (`.github/workflows/ci.yml`): every pull request, and a push to main only when asked (`[ci]` in the last
+  commit message, or Run workflow). `build.yml` (tag / by hand) runs the backend tests on Linux, macOS and Windows:
+  compare floats with a tolerance (`pytest.approx`, `np.allclose`), never `==`. Tests that compare byte lengths of a
+  file they wrote: `write_bytes`, not `write_text` (Windows writes `\r\n`). `docs.yml` builds the site on every push
+  that touches `docs/`, `mkdocs.yml`, `overrides/` (`mkdocs build --strict` must pass).
+- Cloud sandbox: `grep -vi pywebview requirements.txt > r.txt && pip install -r r.txt`; Chromium at
+  `/opt/pw-browsers/chromium` (`SV_CHROMIUM`); a background server started inside a tool call may die when the call
+  ends (`setsid nohup ... &`); never `pkill -f <pattern>` in a command line that contains the pattern; a clean probe:
+  `HOME=<tmp> python run.py ...` (no autosave); clean `/tmp/pytest-of-*` between big e2e runs (small disk).
+- Pictures and films for the README and the docs come from the app itself: `python tools/make_readme_media.py
+  [--only 44 45 ...]` (Playwright; the films need ffmpeg; the map scenes 05 28 31 44 46 need the internet; it does
+  not make `06_3d_terrain.png`). The welcome cards' pictures: `--only examples`. Long films:
+  `tools/make_demo_video.py`, `tools/make_training_video.py`; `tools/make_social_preview.py` after scene 31.
+
+## Releasing (the owner tags; an agent prepares)
+0. Run **ci** by hand first (Actions -> ci -> Run workflow, or `[ci]` in the last commit message).
+1. Refresh the pictures (above) when the interface changed.
+2. The version in `build.bat` (`VERSION`), `backend/app/version.py` (a test keeps the two equal), `CITATION.cff`
+   (`version`, `date-released`; a test checks it), `installer/SignalViewer.iss` (`AppVersion`),
+   `installer/version_info.txt` (four places). The workflow takes it from the tag.
+3. CHANGELOG: rename the open section to `## X.Y.Z – date` with a highlights line. **README review before EVERY
+   release (owner's rule):** check each CHANGELOG item against the README and the docs site - `docs/features.md`,
+   `docs/limitations.md` (remove what was fixed, add what is new), `docs/install.md` (file names with the version,
+   test counts), `docs/command-line.md`, the README's formats and highlights, its Hebrew section (short and
+   structured, in line with the English; no `~` outside code - GitHub strikes text between two), the pictures.
+4. Tag `vX.Y.Z` and push the tag - the build workflow builds the UI and every package (nothing built is committed).
+
+## Starting a new session (the prompt)
+Paste this, with the task in the last line:
+
+> You are working on Signal Viewer (repo davidalpert11/signalviewer, branch main). Read CLAUDE.md and follow it,
+> then `docs/dev/TASKS.md` (Current state, Open specs). The owner writes in Hebrew - answer him in Hebrew. Do not
+> change the version unless he asks for a release. Work one task at a time; after each, run the checks and the
+> relevant e2e, update CHANGELOG (user-facing), ROADMAP and TASKS, and commit small. Show him the result (a short
+> summary in Hebrew of what changed and why, and how to see it) before anything is merged into main.
+> Task: …

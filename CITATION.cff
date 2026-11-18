@@ -1,5 +1,5 @@
 # T67 (Q84): "Cite this repository" on GitHub. version / date-released change with every release
-# (docs/dev/TASKS.md -> Releasing, step 2; a test keeps the version equal to app/version.py).
+# (CLAUDE.md -> Releasing, step 2; a test keeps the version equal to app/version.py).
 cff-version: 1.2.0
 message: "If you use Signal Viewer in work you publish, please cite it as below."
 type: software
