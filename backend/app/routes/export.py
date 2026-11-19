@@ -119,6 +119,7 @@ class ReportRequest(BaseModel):
     items: List[dict] = []
     words: Dict[str, str] = {}
     base: str = ""
+    assets: Dict[str, dict] = {}    # RE2: the pictures kept in the session ({id: {name, mime, data}}), written asset:<id>
 
 
 
@@ -164,6 +165,18 @@ def open_page(req: OpenRequest):
     if not path.lower().endswith((".html", ".htm")) or not os.path.isfile(path):
         fail(400, "Only an HTML file the app saved can be opened here.")
     return {"opened": bool(webbrowser.open(Path(path).as_uri(), new=2))}
+
+
+class PartsRequest(BaseModel):
+    runs: Optional[List[str]] = None
+
+
+@router.post("/api/report/parts")
+async def report_parts(req: PartsRequest):
+    """RE2: what the report's ready-made parts would find in the open files (the Report screen's library): the
+    commanded / measured pairs, the map objects and the guessed reference, the state signals, the tracks."""
+    from app.reportparts import scan
+    return await heavy(scan, store, req.runs)
 
 
 @router.post("/api/report/preview")

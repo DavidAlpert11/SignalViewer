@@ -1,0 +1,364 @@
+{
+ "_about": "RE2: commanded / measured pairs found from names - the same cases run by frontend/src/desired.test.ts and backend/tests/test_report_parts.py (svcore/reportparts.py is the Python twin of desired.ts).",
+ "cases": [
+  {
+   "why": "ArduPilot copter: attitude and rate setpoints, nothing else",
+   "names": [
+    "ATT.DesRoll [deg]",
+    "ATT.Roll [deg]",
+    "ATT.DesPitch [deg]",
+    "ATT.Pitch [deg]",
+    "ATT.DesYaw [deg]",
+    "ATT.Yaw [deg]",
+    "ATT.AEKF",
+    "BARO[0].Alt [m]",
+    "BARO[0].Press [Pa]",
+    "BARO[0].Temp [degC]",
+    "BAT[0].Volt [V]",
+    "BAT[0].VoltR [V]",
+    "BAT[0].Curr [A]",
+    "BAT[0].CurrTot [Ah]",
+    "BAT[0].EnrgTot [Wh]",
+    "CTUN.ThI",
+    "CTUN.ThO",
+    "CTUN.ThH",
+    "CTUN.DAlt [m]",
+    "CTUN.Alt [m]",
+    "CTUN.BAlt [m]",
+    "CTUN.DCRt [m/s]",
+    "CTUN.CRt [m/s]",
+    "EV.Id",
+    "GPS[0].Status",
+    "GPS[0].GMS [s]",
+    "GPS[0].GWk",
+    "GPS[0].NSats [satellites]",
+    "GPS[0].HDop",
+    "GPS[0].Lat [deg]",
+    "GPS[0].Lng [deg]",
+    "GPS[0].Alt [m]",
+    "GPS[0].Spd [m/s]",
+    "GPS[0].GCrs [deg]",
+    "GPS[0].VZ [m/s]",
+    "GPS[0].U",
+    "IMU[0].GyrX [rad/s]",
+    "IMU[0].GyrY [rad/s]",
+    "IMU[0].GyrZ [rad/s]",
+    "IMU[0].AccX [m/s/s]",
+    "IMU[0].AccY [m/s/s]",
+    "IMU[0].AccZ [m/s/s]",
+    "MODE.Mode",
+    "MODE.ModeNum",
+    "MODE.Rsn",
+    "MSG.Message",
+    "POWR.Vcc [V]",
+    "POWR.VServo [V]",
+    "RATE.RDes [deg/s]",
+    "RATE.R [deg/s]",
+    "RATE.PDes [deg/s]",
+    "RATE.P [deg/s]",
+    "RATE.YDes [deg/s]",
+    "RATE.Y [deg/s]",
+    "RCIN.C1 [PWM]",
+    "RCIN.C2 [PWM]",
+    "RCIN.C3 [PWM]",
+    "RCIN.C4 [PWM]",
+    "RCOU.C1 [PWM]",
+    "RCOU.C2 [PWM]",
+    "RCOU.C3 [PWM]",
+    "RCOU.C4 [PWM]",
+    "VIBE[0].VibeX [m/s/s]",
+    "VIBE[0].VibeY [m/s/s]",
+    "VIBE[0].VibeZ [m/s/s]",
+    "VIBE[0].Clip",
+    "XKF3[0].IVN [m/s]",
+    "XKF3[0].IVE [m/s]",
+    "XKF3[0].IVD [m/s]",
+    "XKF4[0].SV",
+    "XKF4[0].SP",
+    "XKF4[0].SH",
+    "XKF4[0].SM"
+   ],
+   "pairs": [
+    [
+     "ATT.DesRoll [deg]",
+     "ATT.Roll [deg]"
+    ],
+    [
+     "ATT.DesPitch [deg]",
+     "ATT.Pitch [deg]"
+    ],
+    [
+     "ATT.DesYaw [deg]",
+     "ATT.Yaw [deg]"
+    ],
+    [
+     "RATE.RDes [deg/s]",
+     "RATE.R [deg/s]"
+    ],
+    [
+     "RATE.PDes [deg/s]",
+     "RATE.P [deg/s]"
+    ],
+    [
+     "RATE.YDes [deg/s]",
+     "RATE.Y [deg/s]"
+    ]
+   ]
+  },
+  {
+   "why": "PX4 topics and fields",
+   "names": [
+    "vehicle_attitude_setpoint.roll_body",
+    "vehicle_attitude.roll_body",
+    "rate.roll_sp",
+    "rate.roll",
+    "vehicle_local_position_setpoint.x",
+    "vehicle_local_position.x"
+   ],
+   "pairs": [
+    [
+     "vehicle_attitude_setpoint.roll_body",
+     "vehicle_attitude.roll_body"
+    ],
+    [
+     "rate.roll_sp",
+     "rate.roll"
+    ],
+    [
+     "vehicle_local_position_setpoint.x",
+     "vehicle_local_position.x"
+    ]
+   ]
+  },
+  {
+   "why": "no pair from look-alike names",
+   "names": [
+    "ARSP.Offset",
+    "ARSP.Off",
+    "GPS.Spd",
+    "GPS.S",
+    "XKF4.SP",
+    "XKF4.S",
+    "modes",
+    "mo"
+   ],
+   "pairs": []
+  },
+  {
+   "why": "a generic test: the report demo's names",
+   "names": [
+    "ctrl.alt_cmd [m]",
+    "ctrl.alt [m]",
+    "ctrl.speed_cmd [m/s]",
+    "ctrl.speed [m/s]",
+    "act.elevator [deg]",
+    "sim.lat [deg]"
+   ],
+   "pairs": [
+    [
+     "ctrl.alt_cmd [m]",
+     "ctrl.alt [m]"
+    ],
+    [
+     "ctrl.speed_cmd [m/s]",
+     "ctrl.speed [m/s]"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: roll_cmd",
+   "names": [
+    "roll_cmd",
+    "roll"
+   ],
+   "pairs": [
+    [
+     "roll_cmd",
+     "roll"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: ROLL_CMD",
+   "names": [
+    "ROLL_CMD",
+    "ROLL"
+   ],
+   "pairs": [
+    [
+     "ROLL_CMD",
+     "ROLL"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: cmd_roll",
+   "names": [
+    "cmd_roll",
+    "roll"
+   ],
+   "pairs": [
+    [
+     "cmd_roll",
+     "roll"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: RollCommanded",
+   "names": [
+    "RollCommanded",
+    "Roll"
+   ],
+   "pairs": [
+    [
+     "RollCommanded",
+     "Roll"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: desiredRoll",
+   "names": [
+    "desiredRoll",
+    "roll"
+   ],
+   "pairs": [
+    [
+     "desiredRoll",
+     "roll"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: TargetAlt",
+   "names": [
+    "TargetAlt",
+    "Alt"
+   ],
+   "pairs": [
+    [
+     "TargetAlt",
+     "Alt"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: alt_tgt",
+   "names": [
+    "alt_tgt",
+    "alt"
+   ],
+   "pairs": [
+    [
+     "alt_tgt",
+     "alt"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: speed-ref",
+   "names": [
+    "speed-ref",
+    "speed"
+   ],
+   "pairs": [
+    [
+     "speed-ref",
+     "speed"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: PitchReference",
+   "names": [
+    "PitchReference",
+    "Pitch"
+   ],
+   "pairs": [
+    [
+     "PitchReference",
+     "Pitch"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: yaw setpoint",
+   "names": [
+    "yaw setpoint",
+    "yaw"
+   ],
+   "pairs": [
+    [
+     "yaw setpoint",
+     "yaw"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: SetPointYaw",
+   "names": [
+    "SetPointYaw",
+    "Yaw"
+   ],
+   "pairs": [
+    [
+     "SetPointYaw",
+     "Yaw"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: thrust_demand",
+   "names": [
+    "thrust_demand",
+    "thrust"
+   ],
+   "pairs": [
+    [
+     "thrust_demand",
+     "thrust"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: TECS.hdem",
+   "names": [
+    "TECS.hdem",
+    "TECS.h"
+   ],
+   "pairs": [
+    [
+     "TECS.hdem",
+     "TECS.h"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: TECS.spdem",
+   "names": [
+    "TECS.spdem",
+    "TECS.sp"
+   ],
+   "pairs": [
+    [
+     "TECS.spdem",
+     "TECS.sp"
+    ]
+   ]
+  },
+  {
+   "why": "the owner's words: pos_set",
+   "names": [
+    "pos_set",
+    "pos"
+   ],
+   "pairs": [
+    [
+     "pos_set",
+     "pos"
+    ]
+   ]
+  }
+ ]
+}

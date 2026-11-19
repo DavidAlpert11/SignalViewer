@@ -221,7 +221,16 @@ def resolve(store, req: Dict, progress=None, for_html: bool = True) -> Tuple[Lis
     each plots item its plot data (for the page, or for pictures)."""
     from svcore.docfields import evaluate_fields
     items: List[dict] = [dict(x) for x in (req.get("items") or [])]
-    blocks = parse(str(req.get("text") or ""))
+    text = str(req.get("text") or "")
+    assets = req.get("assets") or {}
+    if assets:                                   # RE2: pictures kept in the session, written as asset:<id>
+        text = re.sub(r"\(asset:([\w-]+)\)", lambda m: "(%s)" % _asset_url(assets.get(m.group(1))) if assets.get(m.group(1)) else m.group(0), text)
+    if any(it.get("kind") == "part" for it in items):
+        # RE2: the ready-made parts write their Markdown in place of their marker, then it is parsed with the rest
+        from app.reportparts import WithExtra, expand_all
+        text, extra = expand_all(store, text, items, req.get("lang", "en"))
+        store = WithExtra(store, extra)
+    blocks = parse(text)
     values = [(k, it) for k, it in enumerate(items) if it.get("kind") == "value"]
     if values:
         for (k, it), res in zip(values, evaluate_fields([it for _, it in values], field_context(store))):
@@ -335,6 +344,13 @@ def _esc(s: str) -> str:
 
 def _err(text: str) -> str:
     return '<span class="field-err">⚠ %s</span>' % _esc(text)
+
+
+def _asset_url(a: dict) -> str:
+    mime = str(a.get("mime") or "image/png")
+    if not re.fullmatch(r"image/(png|jpeg|gif|webp)", mime):
+        mime = "image/png"
+    return "data:%s;base64,%s" % (mime, re.sub(r"[^A-Za-z0-9+/=]", "", str(a.get("data") or "")))
 
 
 def _img_src(src: str, base: str) -> Optional[str]:
@@ -591,6 +607,28 @@ def build_doc_pdf(store, req: Dict, path: str, progress=None):
         st.y -= size * gap * PT
 
     def table(head: List[str], rows: List[List[str]], size: float = 8.5):
+        # RE2: a long table (the parts' appendix) goes on over the next pages, its heading repeated
+        per = max(5, int((TOP - BOTTOM) / (size * 2.0 * PT)) - 2)
+        for k in range(0, max(1, len(rows)), per):
+            table_page(head, rows[k:k + per], size)
+
+    def picture(src: Optional[str]) -> bool:
+        """RE2: a picture of the user's on its own line, drawn at the page's width (at most a third of a page)."""
+        if not src or not src.startswith("data:image/") or ";base64," not in src or "svg" in src:
+            return False
+        try:
+            arr = R._png_array(src.split(",", 1)[1])
+        except Exception:
+            return False
+        hgt, wid = arr.shape[0], arr.shape[1]
+        w = 0.8
+        h = min(0.33, w * 8.27 / 11.69 * hgt / max(wid, 1))
+        need(h + 0.01)
+        ax = st.fig.add_axes((0.1, st.y - h, 0.8, h)); ax.imshow(arr); ax.set_axis_off()
+        st.y -= h + 6 * PT
+        return True
+
+    def table_page(head: List[str], rows: List[List[str]], size: float = 8.5):
         h = (len(rows) + 1) * size * 2.0 * PT
         need(min(h, TOP - BOTTOM))
         rtl = any(rtl_of(c) for c in head)
@@ -656,7 +694,10 @@ def build_doc_pdf(store, req: Dict, path: str, progress=None):
             if t == "heading":
                 text(plain(parse_inline(b["text"]), items), {1: 20, 2: 16, 3: 13.5}.get(b["level"], 12), "bold", gap=0.5)
             elif t == "para":
-                text(plain(parse_inline(b["text"]), items), indent=indent, color=color)
+                nodes = parse_inline(b["text"])
+                if len(nodes) == 1 and nodes[0][0] == "img" and picture(_img_src(nodes[0][2], req.get("base") or "")):
+                    continue
+                text(plain(nodes, items), indent=indent, color=color)
             elif t == "list":
                 num: Dict[int, int] = {}
                 for it in b["items"]:

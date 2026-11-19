@@ -58,6 +58,11 @@ def _three_objects(root: str) -> None:
     make_objects_fixture.main(root)
 
 
+def _report_demo(root: str) -> None:
+    from . import make_report_demo
+    make_report_demo.main(os.path.join(root, "report_demo"))
+
+
 _FOLDER = [f"folder_of_flights/X8-{v}_2026-{d}.bin" for v, d in (
     ("A", "09-02"), ("A", "09-09"), ("A", "09-16"), ("A", "09-23"), ("A", "09-30"), ("A", "10-07"),
     ("B", "09-05"), ("B", "09-19"), ("B", "10-03"), ("B", "10-17"))]
@@ -72,6 +77,7 @@ GENERATORS: List[Tuple[Sequence[str], Sequence[str], Callable[[str], None]]] = [
     (_FOLDER, [], _folder),
     (["ardupilot_lanes.csv", "local_frames.csv"], [], _local_frames),
     (["three_objects.csv"], [], _three_objects),
+    (["report_demo/mission_ref.csv", "report_demo/mission_gust.csv"], [], _report_demo),
 ]
 GENERATED: Dict[str, int] = {f: i for i, (files, _, _) in enumerate(GENERATORS) for f in files}
 
