@@ -222,9 +222,9 @@ def resolve(store, req: Dict, progress=None, for_html: bool = True) -> Tuple[Lis
     from svcore.docfields import evaluate_fields
     items: List[dict] = [dict(x) for x in (req.get("items") or [])]
     text = str(req.get("text") or "")
-    assets = req.get("assets") or {}
+    assets: Dict[str, dict] = req.get("assets") or {}
     if assets:                                   # RE2: pictures kept in the session, written as asset:<id>
-        text = re.sub(r"\(asset:([\w-]+)\)", lambda m: "(%s)" % _asset_url(assets.get(m.group(1))) if assets.get(m.group(1)) else m.group(0), text)
+        text = re.sub(r"\(asset:([\w-]+)\)", lambda m: "(%s)" % _asset_url(assets[m.group(1)]) if m.group(1) in assets else m.group(0), text)
     if any(it.get("kind") == "part" for it in items):
         # RE2: the ready-made parts write their Markdown in place of their marker, then it is parsed with the rest
         from app.reportparts import WithExtra, expand_all

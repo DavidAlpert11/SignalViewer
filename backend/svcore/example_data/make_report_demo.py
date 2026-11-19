@@ -20,6 +20,7 @@ import csv
 import math
 import os
 import sys
+from typing import Dict
 
 import numpy as np
 
@@ -40,7 +41,7 @@ def simulate(gust: bool):
     t = np.round(np.arange(0, 300 + dt / 2, dt), 3)
     n = len(t)
     rng = np.random.default_rng(12)
-    out = {k: np.zeros(n) for k in ("alt_cmd", "alt", "speed_cmd", "speed", "roll_cmd", "roll", "pitch_cmd", "pitch", "yaw",
+    out: Dict[str, np.ndarray] = {k: np.zeros(n) for k in ("alt_cmd", "alt", "speed_cmd", "speed", "roll_cmd", "roll", "pitch_cmd", "pitch", "yaw",
                                     "north", "east", "vn", "ve", "vd", "elevator")}
     alt = speed = roll = p_rate = pitch = yaw = north = east = 0.0
     gr = gq = 0.0                                      # the gust's own roll response: it rolls the vehicle, the path holds

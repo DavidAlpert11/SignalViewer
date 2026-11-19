@@ -196,7 +196,8 @@ def tracking(sp: Series, ms: Series, name: str = "", tol: Optional[float] = None
     res["score"] = (res["rms"] or 0.0) / size
     # the delay: how much later the measured value follows its command (cross-correlation), when it is clear
     L = lag(ts, ys, tm, ym, float(lo), float(hi), max_lag=min(5.0, (hi - lo) / 10))
-    res["delay"] = float(L["lag"]) if L.get("status") == "ok" and not L.get("weak") and not L.get("ambiguous") else None
+    lg = L.get("lag")
+    res["delay"] = float(lg) if isinstance(lg, (int, float)) and L.get("status") == "ok" and not L.get("weak") and not L.get("ambiguous") else None
     ss = steps(t, c, y, size)
     res["steps"] = len(ss)
     if ss:

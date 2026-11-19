@@ -11,7 +11,7 @@ and a part that finds nothing says so in one line.
 import math
 import os
 import re
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -22,7 +22,7 @@ PALETTE = ["#3D8BFD", "#E8590C", "#2F9E44", "#AE3EC9", "#F08C00", "#0CA678", "#E
 PARTS = ("tracking", "navigation", "states", "trajectory", "moments", "differences", "summary")
 UNITS = {"position": "m", "velocity": "m/s", "attitude": "deg"}
 
-S = {
+S: Dict[str, Dict[str, Any]] = {
     "en": {
         "none_trk": "No commanded / measured pairs in the open files (a pair is found by its names: Des…, …_cmd, …_setpoint, target…, …_ref).",
         "trk_intro": "**{n} commanded / measured pairs**, found by their names; each compared on all its samples (error = measured − commanded).",
@@ -354,6 +354,7 @@ def navigation(p: Part, rids: List[str], arg: str, o: Dict):
             why = S_["nav_chosen"]
         else:
             ref = guess_reference(objs)
+            assert ref is not None                       # two objects or more
             why = S_["nav_guess"].format(cls=ref["cls"])
         _navigation(p, objs, ref, why, o, st.get(g[0]).name if len(groups) > 1 else "")
         done = True
@@ -477,6 +478,8 @@ def _track_of(store, rid: str) -> Optional[dict]:
     if not objs:
         return None
     c = guess_reference(objs)
+    if c is None:
+        return None
     pk = c["picks"]
     t, lat = _sig(store, pk["lat"]["id"])
     _, lon = _sig(store, pk["lon"]["id"])
@@ -503,7 +506,7 @@ def trajectory(p: Part, rids: List[str], arg: str, o: Dict):
             objs = [c for c in objs if arg.strip().lower() in c["name"].lower()]
         if not objs:
             continue
-        c = guess_reference(objs) if not arg.strip() else objs[0]
+        c = (guess_reference(objs) if not arg.strip() else None) or objs[0]
         tr = _track_of_obj(st, c)
         if tr is None:
             continue
@@ -586,10 +589,10 @@ def moments(p: Part, rids: List[str], arg: str, o: Dict):
         ids = [f"{rid}/{n}" for n in st.get(rid).run.signals]
         errs = []
         for q in rp.setpoint_pairs(ids):
-            r = rp.tracking(_sig(st, q["setpoint"]), _sig(st, q["measured"]), q["measured"].split("/", 1)[1], None, st.is_state(q["setpoint"]))
-            if r.get("tmax") is not None:
-                c = rp.at(*_sig(st, q["setpoint"]), r["tmax"])
-                errs.append((r["score"], r["tmax"], rp.bare(q["measured"].split("/", 1)[1]), r["max"], c))
+            tk = rp.tracking(_sig(st, q["setpoint"]), _sig(st, q["measured"]), q["measured"].split("/", 1)[1], None, st.is_state(q["setpoint"]))
+            if tk.get("tmax") is not None:
+                ts_, ys_ = _sig(st, q["setpoint"])
+                errs.append((tk["score"], tk["tmax"], rp.bare(q["measured"].split("/", 1)[1]), tk["max"], rp.at(ts_, ys_, tk["tmax"])))
         for sc, tm, m, mx, c in sorted(errs, reverse=True)[:3]:
             rows.append((tm, M["error"].format(m=m), D["error"].format(v=fmt(mx), c=fmt(c)), "warn" if sc > 0.1 else "info"))
         for fl in ov.get("flags") or []:
@@ -669,12 +672,11 @@ def differences(p: Part, rids: List[str], arg: str, o: Dict):
             olab = st.labels(oid)
             if blab or olab:                             # text states: each file numbers its texts its own way
                 yb, yo, common_lab = _same_codes(yb, blab or {}, yo, olab or {})
-            if len(tb) == len(to) and np.array_equal(tb, to) and np.allclose(yb, yo, equal_nan=True, rtol=0, atol=0):
-                d = {"overall": 0.0, "peak": 0.0, "same": True}
-            else:
+            d: Optional[Dict] = {"overall": 0.0, "peak": 0.0, "same": True}
+            if not (len(tb) == len(to) and np.array_equal(tb, to) and np.allclose(yb, yo, equal_nan=True, rtol=0, atol=0)):
                 d = rp.difference((tb, yb), (to, yo), name, state)
-                if d is None:
-                    continue
+            if d is None:
+                continue
             d.update({"name": name, "rid": r, "oid": oid, "bid": bid, "state": state})
             if blab or olab:
                 d["labels"] = common_lab
@@ -734,9 +736,11 @@ def differences(p: Part, rids: List[str], arg: str, o: Dict):
     if not o.get("table"):
         # where the files differ, over the whole time: each top signal's difference as % of how much it moves
         lines = []
-        for k, d in enumerate(top):
+        for j, d in enumerate(top):
             tb, yb = _sig(st, d["bid"])
             to, yo = _sig(st, d["oid"])
+            if d.get("labels") is not None:              # text states on one numbering, as compared
+                yb, yo, _ = _same_codes(yb, st.labels(d["bid"]) or {}, yo, st.labels(d["oid"]) or {})
             a, b = max(tb[0], to[0]), min(tb[-1], to[-1])
             m = (tb >= a) & (tb <= b)
             t = tb[m]
@@ -745,7 +749,7 @@ def differences(p: Part, rids: List[str], arg: str, o: Dict):
             dd = y1 - yb[m]
             if per:
                 dd = (dd + per / 2) % per - per / 2
-            lines.append(sig_line(p.series(d["name"], t, np.abs(dd) / d["span"] * 100.0), d["name"], k))
+            lines.append(sig_line(p.series(d["name"], t, np.abs(dd) / d["span"] * 100.0), d["name"], j))
         p.plot(S_["diff_where"], lines, rng=None, caption=S_["diff_where_cap"])
         # each top signal zoomed on its own region (with a margin), every file's line
         for d in top:
