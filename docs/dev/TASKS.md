@@ -29,15 +29,14 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Release 1.30.0 (owner, 2026-11-18: "add and release") | prepared: version, CHANGELOG, README / docs reviewed, validation 29 / 29 | build (by hand, 0c42bd2), ci and docs green on all three systems; the owner deletes the v1.29.1 Release and tag, then releases v1.30.0 from the website |
 | CP1 - copy a plot / a tab into a Confluence page (owner, 2026-11-18) | done - every sample, via an attachment (his Confluence itself not tested - no access) | the owner tries it on his Confluence 10.2: drag the file onto the page, Insert > HTML, paste |
 | RE1 - the report as a document you write (owner, 2026-11-18) | built - 1.31.0 prepared (version, CHANGELOG, README, docs) | the owner looks at the examples and tags v1.31.0; next: RE1.3 (the written text in templates + CLI), the outline / numbering |
-| RE2 - the report area as a full editor + automatic sections (owner, 2026-11-19) | design with the owner - spec `docs/dev/REPORT_AUTO.md` | the owner's answers to §9; nothing built before his yes |
+| RE2 - ready reports made of ready-made parts (owner, 2026-11-19: decide and build) | built on branch `claude/re2-report-parts`, release 1.32.0 prepared (version, CHANGELOG, README, docs, pictures 48-50) | the owner looks (pictures, the demo examples/report_demo) and says merge; then tag v1.32.0. Next: RE2.6 block editor, RE2.7 |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
 ## Open specs (waiting for the owner)
 
-- **RE2 - a full report editor with automatic sections (owner, 2026-11-19).** Spec: `docs/dev/REPORT_AUTO.md` - paste tables /
-  pictures (stored in the session), live blocks `[[tracking]]` `[[objects]]` `[[states]]` `[[differences]]` `[[summary]]` with
-  *Expand to text*, *Make a report for me*, the document in templates + the CLI (RE1.3 folded in), a block editor. Joint design:
-  the 10 questions in §9 are with the owner; do not implement before his answers.
+- **RE2 - built in 1.32.0 (2026-11-19).** The owner left the questions to the agent ("decide, build, prepare a version"). Decisions:
+  `docs/dev/REPORT_AUTO.md` §0. Open: RE2.6 (block editor), RE2.7 (expand to text, report checks, numbering, Confluence of the
+  document, Sweeps parts), the CLI making the written report.
 - **RE1 - done in 1.31.0 (2026-11-18).** The owner left the 10 questions to the agent ("most convenient and simple, e.g.
   [tab1.plot1], variables, formulas - decide, build, release"). Decisions: `docs/dev/REPORT_EDITOR.md` §0. Open: RE1.3
   (templates / CLI carry the text), RE1.4's outline and numbering, RE1.5 (Markdown export, Confluence of the document), RE1.6 (Sweeps).
@@ -263,3 +262,11 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   objects / objcompare / relate, overview phases / transitions / story, templates / batch / CLI. Found: names and pairs resolve in TS
   only (the CLI cannot make a document); pictures are paths. Spec docs/dev/REPORT_AUTO.md with phases RE2.1-RE2.7 and 10 questions.
   No code changed.
+- 2026-11-19 · RE2 built (owner: "propose, decide, build, prepare a version; templates by category clicked from the side; not only ArduPilot";
+  then "a recording that shows every template"): svcore/reportparts.py + app/reportparts.py (tracking, navigation, states, trajectory,
+  moments, differences, summary - Markdown in place of the marker before parsing), /api/report/parts, the library (reportReady.ts,
+  ReportParts.tsx), [[plot …]], paste tables / pictures (reportPaste.ts, ws.report.assets; PDF draws pictures, long tables over
+  pages), my report templates (prefs), template `report`; examples/report_demo (make_report_demo.py, in GENERATORS). Release 1.32.0
+  prepared (version files, CHANGELOG, README en + he, features / limitations / reports.md, validation page). Tests: backend
+  test_report_parts (12) + full backend; Vitest reportReady / reportDoc / desired; e2e test_report_parts (2), test_report_doc.
+  Pictures 48 / 49 / 50 (make_readme_media). Branch claude/re2-report-parts - not merged: the owner looks first.

@@ -1,4 +1,4 @@
-# RE2 - the report area as a full editor, with automatic sections (design, waiting for the owner)
+# RE2 - the report area: ready reports made of ready-made parts (1.32.0; the rest phased)
 
 The owner (2026-11-19, Hebrew, translated): *"An area where the report can be edited as a complete report editor:
 import tables from outside (e.g. from Word) and external pictures. How to generate things automatically in the
@@ -9,22 +9,40 @@ files are loaded it shows, in some smart way, the main differences between them 
 and a focus on the central region of the change. Also other smart ideas of what this area needs and how we can help
 make it automatic. And saving a template, etc."*
 
-Status: **design only - a joint session with the owner. Nothing is built until he says so.** Builds on RE1
-(`REPORT_EDITOR.md` §0, 1.31.0). Answers go into §9 and the decisions table §0 as they come.
+Status: **RE2.1 + RE2.2 + RE2.3 + RE2.4 + most of RE2.5 built in 1.32.0** (owner, 2026-11-19: "propose a nice idea and
+build it; I liked that on the side you click a template and it is added to the report - templates with sub-templates
+by category: all the commands vs execution, the navigation comparisons with the reference guessed and changeable,
+comparisons when several files... a ready report made of parts that the user edits; decide the open questions;
+prepare a new version, pictures, documentation; not only ArduPilot"; and "also code that makes a recording showing
+every template: navigation, commands vs execution, the scenario, special moments, comparison to another file").
 
----
+## 0. Decided (2026-11-19, the owner left the questions to the agent)
 
-## 0. Decisions (filled in with the owner)
-
-| # | Question | Proposed | Owner |
+| # | Question | Decided | Why |
 |---|---|---|---|
-| 1 | Source of truth | Markdown stays (RE1); the editor gets better on top of it | - |
-| 2 | Editor | Our own block editor over the same Markdown (no dependency); CodeMirror as the fallback | - |
-| 3 | Pictures | Stored in the session (`ws.report.assets`, downscaled, capped), embedded in every output | - |
-| 4 | Automatic sections | Live `[[...]]` blocks, each with *Expand to text* | - |
-| 5 | First deliverable | RE2.1 paste / pictures + RE2.2 commanded vs actual | - |
+| 1 | Source of truth | Markdown stays; a part is a `[[name args \| options]]` line in it | old sessions open; diffs; one parser for the three outputs |
+| 2 | Editor | The plain textarea stays this round; the block editor (§2.2 B) is RE2.6, later | the owner's ask was the parts library - built first |
+| 3 | Where parts are made | The server writes each part as ordinary Markdown + plot items **in place of its marker before parsing** (`app/reportparts.py expand_all`) | the page, PDF and Word draw it with the code that draws everything; *Expand to text* later is the same Markdown |
+| 4 | The library | The Report screen's *Insert* list starts with **Ready reports** (auto / control / navigation / compare, offered when they fit), the user's own report templates, then **Ready-made parts by category** (commanded vs actual · navigation, reference guessed + a select · the scenario · comparing files, baseline guessed + a select · what to look at) - built from `/api/report/parts` (scan) | the owner: "click a template on the side and it is added; sub-templates by category" |
+| 5 | A ready report on a written report | Replaces a report nobody wrote yet; else goes in at the caret without its title | no dialog, nothing lost (Undo) |
+| 6 | Pictures | In the session (`ws.report.assets`, downscaled to 2000 px, 5 MB each / 20 MB all), `![name](asset:<id>)`; a template carries the ones its text uses; PDF now draws pictures | one file travels |
+| 7 | Paste | HTML (Word / web) and TSV (Excel) -> Markdown tables in the browser, merged cells repeated; Ctrl+Shift+V plain | no dependency |
+| 8 | The comparison measure | RMS(d) / S, S = the baseline's 1st-99th percentile span; **overall** and **in its region** (the largest RMS in 1 % slices); region above 1/4 of the peak; first divergence = |d|/S above max(2 %, 5 x its median) for 0.2 % of the samples; levels same < 2 % < small < 10 % < large (by the larger of the two) | the owner's "mostly the same, a central region different" must stand out |
+| 9 | Baseline / reference guess | Baseline: the file named ref / baseline / golden / nominal..., else the first; reference: truth, else receiver, else navigation; with several files and no `ref`, each file against its own | what an engineer would pick; always shown and changeable |
+| 10 | My report templates | The app's settings (`sv.reportTemplates`), any session; a session template (library *Save*) also carries `report` (optional field) and brings it to a session with no report | the user's, not one session's |
+| 11 | CLI batch with the written report (RE1.3's rest) | Not this round - the name resolver of `{{ }}` and `[[tab.plot]]` is in the browser; the parts themselves are server-side already | next |
+| 12 | Demo | `examples/report_demo` (generic names, deterministic; `tools/make_report_demo.py`) | shows every part, not a flight log |
 
----
+Built: `backend/svcore/reportparts.py` (pairs - the Python twin of desired.ts with shared cases
+`backend/tests/data/setpoint_cases.json` -, tracking with steps, difference, region, timeline, path facts),
+`backend/app/reportparts.py` (the parts, en / he, `scan`, `expand_all`, `WithExtra`), `/api/report/parts`,
+`frontend/src/reportReady.ts` + `components/ReportParts.tsx` (the library), `reportPaste.ts`, `reportDoc.ts`
+(`[[part]]`, `[[plot …]]`), `templates.ts` (`report`). Tests: `backend/tests/test_report_parts.py`,
+`frontend/src/reportReady.test.ts`, `reportDoc.test.ts`, `desired.test.ts`, `tests/e2e/test_report_parts.py`.
+Pictures 48 / 49 / 50. Open: RE2.6 (block editor), *Expand to text*, report checks before export, numbering / toc,
+the CLI making the written report, Sweeps parts.
+
+The proposal as first written follows (§0 above supersedes it where they differ).
 
 ## 1. What exists (studied 2026-11-19, main = 1.31.0)
 

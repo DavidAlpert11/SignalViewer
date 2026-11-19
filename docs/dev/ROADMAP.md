@@ -1051,8 +1051,17 @@ On a big table Sweeps drew a random sample of the runs (above 50,000) and severa
 ## RE1 - 1.31.0: the report as a document you write (owner, 2026-11-18). Spec: docs/dev/REPORT_EDITOR.md (§0: the decisions).
 - [x] RE1.1 MVP (1.31.0; the syntax simplified to [[tab.plot]] and {{ max(Roll) }} by name): the report screen, Markdown, fields stat / table / plot / tab / notes / meta, broken references, `ws.report.doc`, the default document (the side panel absorbed), HTML / PDF / Word by one path.
 - [x] RE1.2 The investigation in the text: conditions (when=, stretches, holds), formulas, variables, findings, process / verdict; the Insert list with drag, *Add to report* (plot, tab, Ctrl+K). Not done: chips over the text (plain textarea).
-- [ ] RE1.3 The document in a template (slot references), applied to a new recording; the CLI batch makes it.
+- [ ] RE1.3 The document in a template, applied to a new recording: done in 1.32.0 (RE2: `report` in a template, signals by name). Left: the CLI batch makes it.
 - [ ] RE1.4 Math, callouts, page breaks: done in 1.31.0. Left: the outline, figure / table numbering.
 - [ ] RE1.5 Markdown + images export; Copy for Confluence of the document.
 - [ ] RE1.6 Sweeps results as fields (a snapshot, refreshed when the study is open).
 - [x] RE1.F Hebrew in PDF / pictures printed backwards with matplotlib 3.11 (libraqm orders it; report._bidi now only without it).
+
+## RE2 - 1.32.0: ready reports made of ready-made parts (owner, 2026-11-19). Spec: docs/dev/REPORT_AUTO.md (§0: the decisions).
+- [x] RE2.1 Paste tables (Word / web HTML, Excel TSV) as Markdown; pictures pasted / dropped / chosen kept in the session (`ws.report.assets`), in page, PDF and Word; a PDF table goes on over pages.
+- [x] RE2.2 Commanded vs actual `[[tracking]]` (pairs: Python twin of desired.ts, shared cases; error, delay, steps' overshoot / settling, tolerance pass / fail); `[[plot A, B]]`.
+- [x] RE2.3 `[[differences]]`: overall and in-region difference, the central region, first divergence, zoomed plots, states and parameters that differ; the baseline guessed by name.
+- [x] RE2.4 `[[states]]`, `[[trajectory]]`, `[[moments]]`, `[[navigation]]` (objcompare; reference guessed, per file).
+- [x] RE2.5 The library: ready reports (auto / control / navigation / compare), parts by category with the reference / baseline choice, `[[summary]]`, the user's report templates, a session template carries the report; demo recordings examples/report_demo. Left: the CLI makes the written report.
+- [ ] RE2.6 The block editor (per-paragraph RTL, table grid, cards, drag, outline).
+- [ ] RE2.7 *Expand to text*; report checks before export; numbering / toc; Confluence copy of the document; Sweeps parts.

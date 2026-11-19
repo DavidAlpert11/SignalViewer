@@ -18,8 +18,14 @@
 * The strip's flags are deliberately few: a signal that is mostly flat (a set point, a counter, a switch) is never flagged as stuck or saturated, nor is anything in the first or last 5% of the run. Files with more than 300 signals are scanned on their first 300.
 * Written reports (1.31): the editor is plain text (Markdown) - a line that mixes Hebrew and English shows in the
   editor in the browser's bidi order (the preview and the files are laid out per paragraph); math is matplotlib's
-  mathtext (no matrices or aligned equations); a template and the command line's batch reports do not carry the
-  written text yet (they make the report of the template's tabs); one written report per session.
+  mathtext (no matrices or aligned equations); a template saved in the app carries the written report (1.32), but the
+  command line's batch reports do not make it yet (they make the report of the template's tabs); one written report
+  per session.
+* Ready-made report parts (1.32): pairs, objects and states are found by the signals' names - a pair named
+  otherwise is not found (write its plot with `[[plot A, B]]` and its values with `{{ }}`); `[[differences]]`
+  compares the files on their recorded time (no automatic time alignment - align them first in Compare when their
+  clocks differ); `[[navigation]]` compares objects with a latitude / longitude or a local position with its origin
+  (as *Compare objects…*); `[[trajectory]]` reads a latitude / longitude track. The parts are not offered in Sweeps.
 * Reports: "Stretches together" (occurrences) plots are not drawn in reports yet; a finding's plot is the time plots of the tab it was found in (up to two) at its view. The journal keeps the last 200 steps; it is saved with the session, not with templates.
 * Runs × conditions works on the open files: a folder of runs is opened (up to 200 files at a time, each read into memory) - for a folder of hundreds, *Summarize a folder* reads one file at a time into a Sweeps table instead. Parameters come from signals that hold one value and from numbers in file names; a side file of parameters is not read yet.
 * What changed first finds a change in level (beyond 4 times the usual noise, 3 samples in a row); a change only in how a signal oscillates (same level, more shaking) shows only when it pushes samples that far. It reads the usual level well before the span - an event that has been building for longer than that is measured against its own start. Near the start of the file it reads it from whatever is there before the span; with nothing before it, it says so instead of answering.

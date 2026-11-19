@@ -1033,6 +1033,55 @@ def img_examples(browser, app):
                 ctx.close()
 
 
+def _report_parts(pg, app, he=False):
+    """RE2: the two demo recordings open, the Report screen, the automatic report made of ready-made parts."""
+    if he:
+        pg.evaluate("() => window.__sv.setState({ lang: 'he' })")
+    open_api(pg, app, "report_demo/mission_ref.csv", "report_demo/mission_gust.csv")
+    pg.click("nav.rail button[aria-label='%s']" % ("דוח" if he else "Report"))
+    pg.wait_for_selector(".rd-parts .rd-cat-tracking", timeout=30000)
+    pg.locator(".rd-ready .rd-lib-item").first.click()
+    pg.wait_for_function("(window.__sv.state().ws.report?.doc?.text || '').includes('[[differences]]')", timeout=20000)
+    pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').includes('class=\"plot')", timeout=90000)
+    pg.wait_for_timeout(3000)
+
+
+def _preview_to(pg, text):
+    """Scroll the live preview to the first heading / paragraph that has this text."""
+    fr = next(f for f in pg.frames if f != pg.main_frame)
+    fr.evaluate("""t => { const el = [...document.querySelectorAll('h1,h2,h3,p,strong')].find(e => e.textContent.includes(t));
+      if (el) el.scrollIntoView({ block: 'start' }); }""", text)
+    pg.wait_for_timeout(1500)
+
+
+def img_48_report_parts(b, app):
+    """RE2: the ready-made parts beside the text - ready reports, parts by category (commanded vs actual, navigation
+    with the guessed reference, the scenario, comparing files) - and the automatic report's What to look at."""
+    ctx, pg = page(b, app)
+    _report_parts(pg, app)
+    _preview_to(pg, "What to look at")
+    shot(pg, "48_report_parts"); ctx.close()
+
+
+def img_49_report_differences(b, app):
+    """RE2: two runs of the same mission compared - the central region of the change, the first to diverge, the
+    signals ranked, each zoomed on its own region."""
+    ctx, pg = page(b, app)
+    _report_parts(pg, app)
+    pg.click(".rd-head .seg button:nth-child(3)")          # Preview: the page at the screen's width
+    pg.wait_for_timeout(2500)
+    _preview_to(pg, "The central region of the change")
+    shot(pg, "49_report_differences"); ctx.close()
+
+
+def img_50_report_parts_hebrew(b, app):
+    """RE2: the same automatic report in Hebrew (the report's language follows the app's)."""
+    ctx, pg = page(b, app)
+    _report_parts(pg, app, he=True)
+    _preview_to(pg, "פקודה / ביצוע")
+    shot(pg, "50_report_parts_hebrew"); ctx.close()
+
+
 SCENES = [(n, f) for n, f in sorted(globals().items()) if n.startswith("img_")]
 
 
