@@ -214,7 +214,11 @@ def _frame_rule(b: np.ndarray, P: np.ndarray, force: Dict) -> Optional[Dict]:
             continue
         v = b[Pn[ok] + o].astype(int)
         c, f = _mode(dn[ok] - v)
-        if f >= 0.7 and (best is None or f > best["fit"]):
+        # a length byte counts the payload (or the frame): the frame is it plus the header / checksum, never less
+        if not 2 <= c <= 16 and c != 0:
+            continue
+        # frames all of one length: any constant byte "fits" - the length byte is the first that fits (nearly) as well
+        if f >= 0.7 and (best is None or f > best["fit"] + 0.02):
             best = {"how": "length", "off": o, "add": c, "fit": f}
     if best and best["fit"] >= 0.9:
         return best
@@ -378,8 +382,12 @@ def decode(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Optional[Di
         maxlen = 1024 if rule["how"] == "length" else 4 * int(max(rule.get("lens", {}).values() or [rule.get("len", 8)]))
         frames, _r, _o = _walk(b, P, rule, h, None, maxlen)
         covered = sum(L for _p, L, _ok in frames)
-        # the pair that frames most of the stream; a longer frame rule wins a tie (a header inside a payload is rare)
+        # the pair that frames most of the stream; on a tie (the same frames shifted by a byte) the one whose frames
+        # carry a checksum - the true start
         sc = covered / n * rule["fit"]
+        if sc >= 0.3:
+            cs = _find_checksum(raw, [(p, L) for p, L, _ok in frames], rule)
+            sc *= 1 + (cs[2] if cs else 0)
         if best is None or sc > best[0] + 1e-9:
             best = (sc, h, P, rule, maxlen)
     if best is None or best[0] < 0.3:
@@ -430,7 +438,7 @@ def characterise(tm: np.ndarray, ty: np.ndarray, ln: np.ndarray, ok: np.ndarray,
     """Per type: count, share, lengths, rate, period and jitter, first / last, checksum errors; the order (the
     repeating sequence, else the commonest transitions); the largest gaps between messages."""
     n = len(tm)
-    types = []
+    types: List[Dict] = []
     for v in np.unique(ty):
         m = ty == v
         tt = tm[m]
@@ -442,7 +450,7 @@ def characterise(tm: np.ndarray, ty: np.ndarray, ln: np.ndarray, ok: np.ndarray,
                       "period": float(np.median(d)) if len(d) else None, "jitter": float(np.std(d)) if len(d) > 1 else None,
                       "maxInterval": float(d.max()) if len(d) else None,
                       "first": float(tt[0]), "last": float(tt[-1]), "errors": int((~ok[m]).sum()) if checked else 0})
-    types.sort(key=lambda x: -x["count"])
+    types.sort(key=lambda x: -int(x["count"]))
     order: Dict = {"period": None, "sequence": [], "fit": None, "transitions": []}
     if len(np.unique(ty)) > 1 and n >= 4:
         for p in range(1, min(400, n // 2) + 1):

@@ -117,8 +117,12 @@ A link recorded **both ways in one signal**, with a column beside it that says w
 RX, `direction`, `port`, `channel`…), is split: each direction is its own stream. Anything can be forced:
 `[[messages | header AA55, checksum sum8]]` (`length N` / `type N`: the offset of that byte; `checksum none`).
 
-In the signal list, right-click a byte signal (or select the byte columns) → **Decode as messages…**: a new tab with
-the bytes, the message type, the length, the interval and the checksum good / bad - derived signals like any other.
+In the signal list, right-click a byte signal (or select the byte columns) → **Decode as messages…**: say what it
+carries - **only TX**, **only RX**, or **both, with a column that says the direction of each byte** (choose the
+column and which of its values is TX) - and, if you want, the header and the checksum. The definition is kept in the
+session and used by `[[messages]]` (a signal not defined is still found by itself). A new tab shows the bytes, the
+message type, the length, the interval and the checksum good / bad - derived signals like any other, one line per
+direction.
 `[[overview]]` leaves a byte stream's bytes out of its statistics (they are not measurements).
 
 *Help → Examples → a serial link, byte by byte* opens a demo (`examples/serial_link`): TX (header AA 55, a length

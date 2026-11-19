@@ -126,6 +126,11 @@ export interface ReportMeta { title: string; intro: string; summary: string; lan
   /** RE2: pictures pasted or dropped into the report, kept in the session (downscaled), written ![name](asset:<id>) */
   assets?: Record<string, ReportAsset> }
 export interface ReportDoc { v: 1; text: string }
+/** MSG1 (owner, 2026-11-19): a signal (or byte columns) defined as a stream of messages - which way it goes: only
+ *  TX, only RX, or both with a direction column that says whose each byte is (txValue: the column's code for TX).
+ *  Saved with the session; *Decode as messages…* writes it, the report's [[messages]] uses it (else it guesses). */
+export interface MessageStream { id: string; sources: string[]; carries: "tx" | "rx" | "both";
+  dir?: string | null; txValue?: number | null; header?: string; checksum?: string }
 export interface ReportAsset { name: string; mime: string; data: string; w: number; h: number }
 /** 26.U4: pass / fail per signal and file against a baseline, as a report section */
 export interface ReportVerdict { id: string; title: string; summary: string[]; head: string[]; rows: string[][] }
@@ -146,6 +151,7 @@ export interface JournalStep { id: string; at: number; text: string; view?: Save
 /** U1: the rest of a template's tabs - its id, the files its slots were given, the tab names left. */
 export interface MoreTabs { tpl: string; name: string; builtin?: boolean; bind: Record<string, string>; tabs: string[] }
 export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta; notes?: Note[];
+  messageStreams?: MessageStream[];
   /** State lanes on every time plot of every tab (signal ids), beside each tab's own sharedStates. */
   globalStates?: string[];
   /** "Always as a state", by signal NAME (every open file): true = a lane wherever it is added,

@@ -2,45 +2,75 @@ import { api, type SignalInfo } from "./api";
 import { findDerived } from "./peers";
 import { translate } from "./i18n";
 import { actions, useApp } from "./store";
+import type { MessageStream } from "./store/model";
 import { freeGroup } from "./frames";
 
-/* MSG1: *Decode as messages…* - the messages of a byte stream (svcore/bytestream.py finds the header, the length,
-   the type and the checksum by itself) as derived signals of the op "messages" - type, length, interval, checksum
-   good, at the messages' times - and a tab with one plot per quantity, the bytes first. A stream recorded both ways
-   (a direction column beside it with text values, e.g. TX / RX): each direction its own stream, its own lines. */
+/* MSG1: *Decode as messages…* - a signal of bytes (or byte columns, one message per row) defined as a stream of
+   messages (owner, 2026-11-19): it carries only TX, only RX, or both - with a direction column beside it that says
+   whose each byte is. The definition is kept in the session (ws.messageStreams, one Undo) and the report's
+   [[messages]] uses it. The messages themselves (svcore/bytestream.py finds the header, the length, the type and
+   the checksum, unless given) become derived signals of the op "messages" - type, length, interval, checksum good -
+   and a tab with one plot per quantity, the bytes first, one line per direction. */
 
 export const DIR_NAME = /^(.*[._ ])?(dir|direction|rxtx|tx_rx|rx_tx|txrx|port|channel|src|source)$/i;
 const WHATS = [["type", "msgType"], ["length", "msgLen"], ["interval", "msgInterval"], ["ok", "msgOk"]] as const;
 const bare = (id: string) => id.slice(id.indexOf("/") + 1);
 const safe = (s: string) => s.replace(/[^\w-]+/g, "_").replace(/^_+|_+$/g, "") || "bytes";
+const uid = () => `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
-/** The direction column beside a byte signal (text values, 2..4 of them), if its file has one. */
-export function directionOf(sigId: string): SignalInfo | null {
+/** A direction column beside a byte signal: text values (2..4), named like one first. */
+export function directionCandidates(sigId: string): SignalInfo[] {
   const rid = sigId.slice(0, sigId.indexOf("/"));
   const run = useApp.getState().runs.find((r) => r.id === rid);
-  return run?.signals.find((s) => s.id !== sigId && DIR_NAME.test(s.name) && s.labels
-    && Object.keys(s.labels).length >= 2 && Object.keys(s.labels).length <= 4) ?? null;
+  const few = (s: SignalInfo) => !!s.labels && Object.keys(s.labels).length >= 2 && Object.keys(s.labels).length <= 4;
+  const list = (run?.signals ?? []).filter((s) => s.id !== sigId && few(s));
+  return [...list.filter((s) => DIR_NAME.test(s.name)), ...list.filter((s) => !DIR_NAME.test(s.name))];
 }
 
-/** Make the message signals of these byte signals (one stream byte by byte, or several columns, one message per
- *  row) and plot them in a new tab. Not a byte stream: a message says why. */
-export async function decodeAsMessages(ids: string[]) {
+/** The definition to start from: the one kept for these signals, else a guess (a direction column -> both; a name
+ *  with rx -> RX; else TX). */
+export function streamFor(ids: string[]): MessageStream {
+  const kept = (useApp.getState().ws.messageStreams ?? []).find((m) => m.sources.join(",") === ids.join(","));
+  if (kept) return kept;
+  const dir = ids.length === 1 ? directionCandidates(ids[0]).find((s) => DIR_NAME.test(s.name)) : undefined;
+  const tx = dir?.labels ? Object.entries(dir.labels).find(([, v]) => /tx|out|send|up/i.test(v))?.[0] ?? Object.keys(dir.labels)[0] : null;
+  return { id: uid(), sources: ids, carries: dir ? "both" : /(^|[^a-z])rx|recv|receive|down/i.test(bare(ids[0])) ? "rx" : "tx",
+    dir: dir?.id ?? null, txValue: tx === null ? null : Number(tx) };
+}
+
+/** The streams of a definition: (label, sources, params) - both ways: one per direction value. */
+export function streamsOf(def: MessageStream): { label: string; sources: string[]; params: Record<string, unknown> }[] {
+  const prm: Record<string, unknown> = {};
+  if (def.header) prm.header = def.header;
+  if (def.checksum) prm.checksum = def.checksum;
+  if (def.carries !== "both" || !def.dir) return [{ label: def.carries.toUpperCase(), sources: def.sources, params: prm }];
+  const run = useApp.getState().runs.find((r) => r.id === def.dir!.slice(0, def.dir!.indexOf("/")));
+  const labels = run?.signals.find((s) => s.id === def.dir)?.labels ?? {};
+  const codes = Object.keys(labels).map(Number).sort((a, b) => a - b);
+  const tx = def.txValue ?? codes[0] ?? 0;
+  return [tx, ...codes.filter((c) => c !== tx)].map((c, i) => ({
+    label: i === 0 ? "TX" : codes.length > 2 ? `RX ${labels[String(c)] ?? c}` : "RX", sources: [def.sources[0], def.dir!], params: { ...prm, dir: c } }));
+}
+
+/** Keep the definition (one Undo step), make the message signals and plot them in a new tab. */
+export async function decodeAsMessages(def: MessageStream) {
   const st = useApp.getState();
   const tr = (k: string, v: Record<string, string | number> = {}) => translate(st.lang, k as never, v);
+  const ids = def.sources;
   const name = ids.length === 1 ? bare(ids[0]) : `${bare(ids[0])}…${bare(ids[ids.length - 1])}`;
-  const dir = ids.length === 1 ? directionOf(ids[0]) : null;
-  const streams: { label: string; sources: string[]; params: Record<string, unknown> }[] = dir
-    ? Object.entries(dir.labels!).map(([code, text]) => ({ label: text, sources: [ids[0], dir.id], params: { dir: Number(code) } }))
-    : [{ label: "", sources: ids, params: {} }];
+  st.commit((ws) => {
+    const key = ids.join(",");
+    ws.messageStreams = [...(ws.messageStreams ?? []).filter((m) => m.sources.join(",") !== key), def];
+    return ws;
+  });
   const per: Record<string, string[]> = Object.fromEntries(WHATS.map(([w]) => [w, []]));
   const made: string[] = [];
   try {
-    for (const s of streams) {
+    for (const s of streamsOf(def)) {
       const runs = useApp.getState().runs;
-      const base = safe(name) + (s.label ? "_" + safe(s.label) : "");
       const have = WHATS.map(([w]) => findDerived(runs, "messages", { what: w, ...s.params }, s.sources, ["group"]));
       if (have.every(Boolean)) { WHATS.forEach(([w], i) => per[w].push(have[i]!)); continue; }
-      const g = freeGroup(`${base}.msg`, runs, WHATS.map(([w]) => w));
+      const g = freeGroup(`${safe(name)}_${safe(s.label)}.msg`, runs, WHATS.map(([w]) => w));
       for (const [w] of WHATS) {
         const r = await api.createDerived("messages", s.sources, { what: w, ...s.params, group: g }, `${g}.${w}`);
         useApp.setState({ runs: r.runs });
@@ -52,11 +82,11 @@ export async function decodeAsMessages(ids: string[]) {
     for (const id of made) await api.deleteDerived(id.slice("derived/".length)).catch(() => {});
     if (made.length) useApp.setState({ runs: await api.listRuns() });
     st.toast({ kind: "error", text: tr("msgNone", { name, msg: String((e as Error).message) }) });
-    return;
+    return false;
   }
-  const tab = tr("msgTab", { name: dir ? bare(ids[0]) : name });
   actions.plotsInNewTab([
     { title: tr("msgBytes"), ids: ids.slice(0, 4) },
     ...WHATS.map(([w, k]) => ({ title: tr(k), ids: per[w] })),
-  ], tab);
+  ], tr("msgTab", { name }));
+  return true;
 }

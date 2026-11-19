@@ -961,11 +961,54 @@ def hexb(v: int) -> str:
     return "0x%02X" % int(v)
 
 
-def find_streams(store, rids: Sequence[str]) -> List[Dict]:
-    """The byte streams of these files, decoded: a byte-by-byte signal (split by a direction column beside it), or
-    columns byte_0..byte_N (one message per row). Each: name, rid, ids, params, the decode."""
+def defined_streams(store, rids: Sequence[str], defs: Sequence[Dict]) -> List[Tuple[str, str, List[str], Dict]]:
+    """The streams the user defined (ws.messageStreams, owner 2026-11-19): only TX, only RX, or both with a direction
+    column (txValue = its code for TX; the other values are RX). (rid, name, ids, params) each."""
+    out: List[Tuple[str, str, List[str], Dict]] = []
+    for d in defs or []:
+        src = [str(x) for x in d.get("sources") or []]
+        if not src or any(x.split("/")[0] not in rids or not _has(store, x) for x in src):
+            continue
+        rid = src[0].split("/")[0]
+        name = src[0].split("/", 1)[1] if len(src) == 1 else "%s…%s" % (src[0].split("/", 1)[1], src[-1].split("/", 1)[1])
+        prm = {k: d[k] for k in ("header", "checksum") if d.get(k)}
+        carries = d.get("carries") or "tx"
+        dir_ = d.get("dir")
+        if carries == "both" and dir_ and _has(store, dir_) and len(src) == 1:
+            from svcore import bytestream as bs
+            vals = bs.directions(_sig(store, dir_)[1])
+            tx = d.get("txValue")
+            tx = float(tx) if tx is not None else (vals[0] if vals else 0.0)
+            out.append((rid, "%s TX" % name, src + [dir_], {**prm, "dir": tx}))
+            for v in vals:
+                if abs(v - tx) > 1e-9:
+                    out.append((rid, "%s RX" % name if len(vals) == 2 else "%s RX %g" % (name, v), src + [dir_], {**prm, "dir": v}))
+        else:
+            out.append((rid, "%s %s" % (name, "RX" if carries == "rx" else "TX"), src, prm))
+    return out
+
+
+def _has(store, sid: str) -> bool:
+    try:
+        store.signal(sid)
+        return True
+    except KeyError:
+        return False
+
+
+def find_streams(store, rids: Sequence[str], defs: Optional[Sequence[Dict]] = None) -> List[Dict]:
+    """The byte streams of these files, decoded: the ones the user defined (TX / RX / both with a direction column),
+    and in the other signals the ones found by themselves - a byte-by-byte signal (split by a direction column beside
+    it), or columns byte_0..byte_N (one message per row). Each: name, rid, ids, params, the decode."""
     from svcore import bytestream as bs
     out: List[Dict] = []
+    mine = defined_streams(store, rids, defs or [])
+    taken = {i for _r, _n, ids, _p in mine for i in ids}
+    for rid, name, ids, prm in mine:
+        try:
+            out.append({"name": name, "rid": rid, "ids": ids, "params": prm, "r": bs.decode([_sig(store, i) for i in ids], prm)})
+        except bs.StreamError as e:
+            out.append({"name": name, "rid": rid, "ids": ids, "params": prm, "error": str(e)})
     for rid in rids:
         run = store.get(rid).run
         names = list(run.signals)
@@ -975,16 +1018,16 @@ def find_streams(store, rids: Sequence[str]) -> List[Dict]:
             m = _COLS.match(n)
             if m:
                 groups.setdefault(m.group(1), []).append((int(m.group(2)), n))
-        in_cols = set()
+        in_cols: set = set()
         tried: List[Tuple[str, List[str], Dict]] = []
         for pre, cols in groups.items():
-            if len(cols) >= 4:
+            if len(cols) >= 4 and not any(f"{rid}/{n}" in taken for _i, n in cols):
                 cols.sort()
                 in_cols.update(n for _i, n in cols)
                 tried.append(("%s%s…%s" % (pre, cols[0][1][len(pre):], cols[-1][1][len(pre):]), [f"{rid}/{n}" for _i, n in cols], {}))
         for n in names:
             sid = f"{rid}/{n}"
-            if n in in_cols or n in dirs or store.is_state(sid):
+            if n in in_cols or n in dirs or sid in taken or store.is_state(sid):
                 continue
             if not bs.is_byte_like(_sig(store, sid)[1]):
                 continue
@@ -1009,13 +1052,16 @@ def find_streams(store, rids: Sequence[str]) -> List[Dict]:
     return out
 
 
-def messages(p: Part, rids: List[str], arg: str, o: Dict):
+def messages(p: Part, rids: List[str], arg: str, o: Dict, defs: Optional[Sequence[Dict]] = None):
     """MSG1: each byte stream's messages - the framing found, a table per type, the order, the gaps; one plot per
     quantity (messages per second by type, the interval by type, the checksum errors) with every stream's lines."""
     from svcore import bytestream as bs
     st, S_ = p.store, p.S
     force = {k: o[k] for k in ("header", "length", "type", "checksum") if k in o}
-    streams = find_streams(st, rids)
+    streams = find_streams(st, rids, defs)
+    for s_ in [x for x in streams if x.get("error")]:
+        p.say("⚠ **%s**: %s" % (s_["name"], s_["error"]))
+    streams = [x for x in streams if not x.get("error")]
     if force:                                            # forced framing: decode the byte-like signals again with it
         again = []
         for s_ in streams:
@@ -1030,7 +1076,9 @@ def messages(p: Part, rids: List[str], arg: str, o: Dict):
     if not streams:
         p.say("*%s*" % S_["none_msg"])
         return
-    rate_lines, int_lines, err_lines = [], [], []
+    rate_lines: List[dict] = []
+    int_lines: List[dict] = []
+    err_lines: List[dict] = []
     k = 0
     for s_ in streams:
         r, name = s_["r"], s_["name"]
@@ -1089,10 +1137,10 @@ def messages(p: Part, rids: List[str], arg: str, o: Dict):
         p.plot(S_["msg_err"], err_lines)
 
 
-def byte_streams(store, rid: str) -> List[str]:
+def byte_streams(store, rid: str, defs: Optional[Sequence[Dict]] = None) -> List[str]:
     """The names of a file's signals that are byte streams (the overview leaves their statistics out)."""
     out: List[str] = []
-    for s_ in find_streams(store, [rid]):
+    for s_ in find_streams(store, [rid], defs):
         out += [i.split("/", 1)[1] for i in s_["ids"]]
     return out
 
@@ -1166,6 +1214,8 @@ def _one(store, k: int, it: dict, items: List[dict], extra, lang: str, highlight
         rids = _runs(store, it.get("runs"))
         if part == "summary":
             summary(p, highlights, o)
+        elif part == "messages":
+            messages(p, rids, str(it.get("arg") or ""), o, it.get("streams"))
         else:
             RUN[part](p, rids, str(it.get("arg") or ""), o)
     except PartError as e:
@@ -1202,7 +1252,7 @@ class WithExtra:
 
 # ------------------------------------------------------------------------------------------------ the library
 
-def scan(store, rids: Optional[Sequence[str]] = None) -> Dict:
+def scan(store, rids: Optional[Sequence[str]] = None, defs: Optional[Sequence[Dict]] = None) -> Dict:
     """What the parts would find - for the Report screen's library: the files, the pairs, the objects with the
     guessed reference, the state signals, the tracks."""
     rids = _runs(store, rids)
@@ -1218,4 +1268,4 @@ def scan(store, rids: Optional[Sequence[str]] = None) -> Dict:
             "base": store.get(guess_base(store, rids)).name if rids else None,
             "states": [{"name": s.split("/", 1)[1], "file": store.get(s.split("/")[0]).name} for s in state_signals(store, rids)],
             "tracks": sum(1 for c in objs if c.get("pos") == "lla"),
-            "streams": [{"name": s_["name"], "file": store.get(s_["rid"]).name, "count": s_["r"]["count"]} for s_ in find_streams(store, rids)]}
+            "streams": [{"name": s_["name"], "file": store.get(s_["rid"]).name, "count": s_["r"]["count"]} for s_ in find_streams(store, rids, defs) if not s_.get("error")]}

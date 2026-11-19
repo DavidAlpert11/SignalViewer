@@ -343,7 +343,7 @@ export const api = {
     const r = await call<{ n: number; x: string; y: string }>("/api/derived/preview", { op, sources, params, x0, x1 });
     return { x: decode(r.x, Float64Array), y: decode(r.y, Float32Array) };
   },
-  reportParts: (runs?: string[]) => call<ReportScan>("/api/report/parts", { runs: runs ?? null }),
+  reportParts: (runs?: string[], streams?: unknown[]) => call<ReportScan>("/api/report/parts", { runs: runs ?? null, streams: streams ?? null }),
   reportPreview: (body: Record<string, unknown>) => call<{ html: string }>("/api/report/preview", body),
   reload: (id: string) => call<RunInfo>(`/api/runs/${id}/reload`, {}),
   /** Q123: open files saved again since they were read -> when (epoch s). A stat each, nothing read. */

@@ -158,7 +158,7 @@ export function deleteMyPart(name: string): MyPart[] {
 /** The Report screen with the automatic report of the open files (the report demo example; a report already
  *  written is kept - the screen only opens). One Undo step. */
 export async function openAutoReport(id: ReadyId = "auto"): Promise<void> {
-  const scan = await api.reportParts();
+  const scan = await api.reportParts(undefined, useApp.getState().ws.messageStreams);
   const st = useApp.getState();
   const lang = st.ws.report?.lang ?? st.lang;
   if (!st.ws.report?.doc) {

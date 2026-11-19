@@ -169,6 +169,7 @@ def open_page(req: OpenRequest):
 
 class PartsRequest(BaseModel):
     runs: Optional[List[str]] = None
+    streams: Optional[List[dict]] = None          # MSG1: ws.messageStreams - the streams the user defined
 
 
 @router.post("/api/report/parts")
@@ -176,7 +177,7 @@ async def report_parts(req: PartsRequest):
     """RE2: what the report's ready-made parts would find in the open files (the Report screen's library): the
     commanded / measured pairs, the map objects and the guessed reference, the state signals, the tracks."""
     from app.reportparts import scan
-    return await heavy(scan, store, req.runs)
+    return await heavy(scan, store, req.runs, req.streams)
 
 
 @router.post("/api/report/preview")

@@ -117,7 +117,8 @@ export function resolveRef(ws: Workspace, raw: string, lang: Lang): DocItem | Sp
     const runs = st.runs.filter((r) => r.format !== "derived").map((r) => r.id);
     // the map layer the app shows: a part's map is drawn on it (from the tiles kept), as a plot's map is
     return { kind: "part", part: head, arg: name.slice(head.length).trim(), opts: raw2, runs, src: raw,
-      mapBase: effectiveBase(st.geoBase, st.offlineOnly || st.offlineForced) };
+      mapBase: effectiveBase(st.geoBase, st.offlineOnly || st.offlineForced),
+      ...(head === "messages" && ws.messageStreams?.length ? { streams: ws.messageStreams } : {}) };
   }
   if (head === "plot" && name.length > 5 && !findTab(ws, name)) return plotRefItem(name.slice(5).trim(), opts, raw, lang);
   const plotLabel = translate(lang, "plotTitle", { n: "{n}" });

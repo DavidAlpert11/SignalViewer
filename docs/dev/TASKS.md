@@ -127,6 +127,9 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   with plots). Decisions: the demo is its own example (not in report_demo, whose automatic report would get a link section);
   Fletcher-16 is UBX's (wraps at 256); a heartbeat breaking the order still lets the 6-message sequence stand (>= 90 %);
   CHANGELOG lines in 1.32.0 (not tagged yet - move to Next if the owner prefers). Pushed first, checks after (owner's word).
+  The owner then asked how a signal is defined as messages - only TX, only RX, or both with a direction column: the dialog
+  *Decode as messages* (components/MessagesDialog.tsx) keeps `ws.messageStreams` (sources, carries, dir, txValue, header,
+  checksum; optional field, old sessions unchanged), sent with [[messages]] and the library's scan.
 - 2026-11-19 · CLR1: Clear → *The report* (text + pictures, asks when written, one Undo), the clear-tabs toasts say when the
   written report points at the cleared tabs (+ *Clear the report too*), the Report screen's ↺ menu (*Empty* / *Back to the
   report from the tabs*). e2e: test_report_doc (3), test_features -k clear (5).

@@ -16,7 +16,8 @@ const ONE: ReportScan = { files: [{ id: "a", name: "bench.csv" }], pairs: [], ob
 
 test("the categories: each part one insert, a pair once however many files have it, the choices written only when changed", () => {
   const c = partCategories(SCAN, "en");
-  expect(c.map((x) => x.id)).toEqual(["tracking", "navigation", "scenario", "compare", "summary"]);
+  expect(c.map((x) => x.id)).toEqual(["tracking", "navigation", "scenario", "compare", "messages", "summary"]);
+  expect(c[4].empty).toBeTruthy();                                  // no byte stream: the category says so
   const trk = c[0].parts.map((p) => p.insert);
   expect(trk).toContain("[[tracking]]");
   expect(trk.filter((x) => x.startsWith("[[tracking ctrl.roll"))).toEqual(["[[tracking ctrl.roll | top 1]]"]);
@@ -26,6 +27,19 @@ test("the categories: each part one insert, a pair once however many files have 
   const none = partCategories(ONE, "he");
   expect(none[0].empty).toBeTruthy();
   expect(none[3].parts).toEqual([]);
+});
+
+test("MSG1: byte streams found - the Messages category, the Link review, the automatic report's section", () => {
+  const scan = { ...ONE, streams: [{ name: "tx_byte", file: "link.csv", count: 1829 }, { name: "byte RX", file: "mixed.csv", count: 1738 }] };
+  const cat = partCategories(scan, "en").find((x) => x.id === "messages")!;
+  expect(cat.empty).toBeUndefined();
+  expect(cat.parts.map((p) => p.insert)).toEqual(["[[messages]]", "[[messages | table]]", "[[messages tx_byte]]", "[[messages byte RX]]"]);
+  expect(readyReports(scan, "en").map((r) => r.id)).toContain("messages");
+  const text = readyText("messages", scan, "en");
+  expect(text).toContain("[[messages]]");
+  expect(text).not.toContain("[[tracking]]");
+  expect(readyText("auto", scan, "en")).toContain("[[messages]]");
+  expect(readyText("auto", ONE, "en")).not.toContain("[[messages]]");
 });
 
 test("ready reports: only the ones that fit; the automatic one has only parts that found something", () => {

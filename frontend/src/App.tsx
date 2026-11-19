@@ -18,6 +18,7 @@ const ObjectDialog = lazyPreload(() => import("./components/ObjectDialog"));
 const CompareObjectsDialog = lazyPreload(() => import("./components/CompareObjectsDialog"));
 const PlaceDialog = lazyPreload(() => import("./components/PlaceDialog"));
 const CompareSimilarDialog = lazyPreload(() => import("./components/CompareSimilarDialog"));
+const MessagesDialog = lazyPreload(() => import("./components/MessagesDialog"));
 const PlaceOnMapDialog = lazyPreload(() => import("./components/PlaceOnMapDialog"));
 const TransformDialog = lazyPreload(() => import("./components/TransformDialog"));
 const RetargetDialog = lazyPreload(() => import("./components/RetargetDialog"));
@@ -91,6 +92,7 @@ export default function App() {
   const compareDialog = useApp((s) => s.compareDialog);
   const placeEdit = useApp((s) => s.placeEdit);
   const similarDialog = useApp((s) => s.similarDialog);
+  const messagesDialog = useApp((s) => s.messagesDialog);
   const placeDialog = useApp((s) => s.placeDialog);
   const transformOpen = useApp((s) => !!s.transformTargets);
   const retargetOpen = useApp((s) => !!s.retarget);
@@ -406,6 +408,7 @@ export default function App() {
         {compareDialog && <CompareObjectsDialog key={compareDialog.plotId} />}
         {placeEdit && <PlaceDialog key={placeEdit.id ?? "new"} />}
         {similarDialog && <CompareSimilarDialog key={`${similarDialog.runId}/${similarDialog.ids.join(",")}`} />}
+        {messagesDialog && <MessagesDialog key={messagesDialog.ids.join(",")} />}
         {placeDialog && <PlaceOnMapDialog key={placeDialog} />}
         {syncFor && <SyncDialog />}
         {transformOpen && <TransformDialog />}

@@ -19,11 +19,12 @@ export default function ReportParts({ block, ready, text, selected }: { block: (
   const [choice, setChoice] = useState<Choice>({});
   const [mine, setMine] = useState<MyReport[]>(myReports);
   const [own, setOwn] = useState<MyPart[]>(myParts);
+  const streamsKey = useApp((s) => JSON.stringify(s.ws.messageStreams ?? []));
   useEffect(() => {
     let gone = false;
-    api.reportParts().then((r) => { if (!gone) setScan(r); }).catch(() => { if (!gone) setScan(null); });
+    api.reportParts(undefined, useApp.getState().ws.messageStreams).then((r) => { if (!gone) setScan(r); }).catch(() => { if (!gone) setScan(null); });
     return () => { gone = true; };
-  }, [version]);
+  }, [version, streamsKey]);
   if (!scan) return null;
   const item = (label: string, insert: string, title?: string, run?: () => void) => (
     <button key={label + insert} className="rd-lib-item" title={title ?? insert} draggable

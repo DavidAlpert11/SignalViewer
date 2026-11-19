@@ -101,8 +101,9 @@ def test_forced_options():
         bs.decode([(t, y)], {"header": "AA5"})
 
 
-def _csv(name):
-    return np.genfromtxt(os.path.join(EX, name), delimiter=",", names=True, dtype=None, encoding="utf-8")
+def _csv(name, text=False):
+    # an empty cell is NaN only when read as floats (dtype=None would make it -1)
+    return np.genfromtxt(os.path.join(EX, name), delimiter=",", names=True, dtype=None if text else float, encoding="utf-8")
 
 
 def test_demo_two_signals_columns_and_mixed():
@@ -117,7 +118,7 @@ def test_demo_two_signals_columns_and_mixed():
     c = _csv("link_columns.csv")
     cols = bs.decode([(c["time"], c["byte_%d" % i].astype(float)) for i in range(16)])
     assert (cols["count"], cols["errors"], cols["resyncs"]) == (1829, 2, 1)
-    m = _csv("link_mixed.csv")
+    m = _csv("link_mixed.csv", text=True)
     d_rx = (m["dir"] == "RX").astype(float)
     both = [(m["time"], m["byte"].astype(float)), (m["time"], d_rx)]
     assert bs.decode(both, {"dir": 1})["count"] == 1738
@@ -153,3 +154,20 @@ def test_report_part_on_the_demo():
     assert len(items) == 3                                 # rate, interval, checksum errors - one plot per quantity
     assert any(h["level"] == "warn" for h in p.highlights)
     assert {s_["name"] for s_ in scan(st)["streams"]} == set(names)
+
+
+def test_defined_streams_tx_rx_both():
+    """Owner, 2026-11-19: a signal defined as only TX, only RX, or both with a direction column (TX's code given)."""
+    from app.store import Store
+    from app.reportparts import find_streams
+    st = Store()
+    a = st.open_file(os.path.join(EX, "link_tx_rx.csv")).id
+    m = st.open_file(os.path.join(EX, "link_mixed.csv")).id
+    lab = st.labels(f"{m}/dir")
+    tx_code = [int(k) for k, v in lab.items() if v == "TX"][0]
+    defs = [{"sources": [f"{a}/rx_byte"], "carries": "rx"},
+            {"sources": [f"{m}/byte"], "carries": "both", "dir": f"{m}/dir", "txValue": tx_code}]
+    got = {s_["name"]: s_["r"]["count"] for s_ in find_streams(st, [a, m], defs)}
+    assert got["rx_byte RX"] == 1738 and got["byte TX"] == 1829 and got["byte RX"] == 1738
+    assert got["tx_byte"] == 1829                          # not defined: found by itself
+    assert "rx_byte" not in got                            # defined: not found twice
