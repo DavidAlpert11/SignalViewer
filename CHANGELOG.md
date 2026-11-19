@@ -16,6 +16,7 @@
 - New: **your own report templates**: *Save as my report template…* keeps the report under a name, offered again under *Ready reports* in any session. A template saved from the template library now carries the written report, and brings it to a session that has none.
 - New: **a recording overview for any recording** `[[overview]]` (not only flight logs): each file's signals, duration and rate, its data quality, every signal's statistics and its first signals plotted - the automatic report starts with it, so a car's, a bench's or a simulation's recording gets a report too.
 - New: **demo recordings** for the report - *Help → Examples → a report made for you* opens them with the automatic report (`examples/report_demo`, written by `tools/make_report_demo.py`): one generic test mission with a scenario, four commanded / measured pairs, a truth, an estimate and a receiver - and the same mission with a gust and the receiver lost in the middle.
+- New: **clear only the report.** *Clear → The report* empties the report's text and pictures (its title, language and theme stay; it asks first, one Undo brings it back), and the Report screen's ↺ offers *Empty* beside *Back to the report made from the open tabs*. *Clear → All tabs* now says when the written report still points at the tabs that went, with *Clear the report too*.
 - Fixed: a long table in a PDF report ran off the page; it now goes on over the next pages.
 
 ## 1.31.0 – 2026-11-18

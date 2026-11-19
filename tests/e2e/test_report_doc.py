@@ -106,3 +106,52 @@ def test_add_to_report_from_a_plot_and_back(pg):
     pg.wait_for_function("document.querySelector('.rd-text').value.includes('{{ mean(RPM) }}')")
     pg.locator(".rail button[aria-label='Report']").click()                # the same button goes back to the plots
     pg.wait_for_selector(".plot")
+
+
+def test_clear_and_the_report(pg):
+    """CLR1: Clear > All tabs says when the written report pointed at them (and clears it too on request); Clear >
+    The report empties only the report (one Undo); the Report screen's reset menu has Empty."""
+    open_files(pg, "run_a.csv")
+    sig(pg, "Speed").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
+    pg.evaluate("() => window.__sv.state().commit(ws => { ws.tabs[0].name = 'Drive'; ws.tabs[0].plots[0].title = 'Speed'; "
+                "ws.report = { title: 'T', intro: '', summary: '', lang: 'en', theme: 'light', scope: 'tab', "
+                "doc: { v: 1, text: '# Drive test\\n\\n[[Drive]]\\n\\n[[Drive.Speed]]\\n\\n[[toc]]' } }; return ws; })")
+
+    def pick(text):
+        pg.click(".area-tools [aria-label='Clear']")
+        pg.locator(".menu.ctx button", has_text=text).click()
+
+    # all tabs: the toast says the report's 2 references are gone, and offers to clear the report too
+    pick("All tabs (1)")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 0")
+    toast = pg.locator(".toast", has_text="refers to 2 plots or tabs")
+    toast.wait_for()
+    toast.locator("button", has_text="Clear the report too").click()
+    pg.wait_for_function("window.__sv.state().ws.report.doc.text === ''")
+    assert S(pg, "s.ws.report.title") == "T"                                 # its settings stay
+    pg.evaluate("() => window.__sv.state().undo()")
+    pg.wait_for_function("window.__sv.state().ws.report.doc.text.includes('[[Drive]]')")
+
+    # the Clear menu's "The report": asks (it has text), empties, one Undo brings it back; the tabs are untouched
+    pg.evaluate("() => window.__sv.state().undo()")                          # the tabs back too
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
+    pick("The report")
+    pg.click(".dialog-foot .btn.primary")
+    pg.wait_for_function("window.__sv.state().ws.report.doc.text === ''")
+    assert S(pg, "s.ws.tabs[0].plots[0].signals.length") == 1
+    pg.locator(".toast button", has_text="Undo").click()
+    pg.wait_for_function("window.__sv.state().ws.report.doc.text.includes('[[Drive]]')")
+
+    # the Report screen: ↺ > Empty
+    pg.locator(".rail button[aria-label='Report']").click()
+    pg.wait_for_selector(".rd .rd-text")
+    pg.locator(".rd-reset").click()
+    pg.locator(".menu.ctx button", has_text="Empty").click()
+    pg.click(".dialog-foot .btn.primary")
+    pg.wait_for_function("window.__sv.state().ws.report.doc.text === '' && document.querySelector('.rd-text').value === ''")
+    # ↺ > Back to the report made from the open tabs
+    pg.locator(".rd-reset").click()
+    pg.locator(".menu.ctx button", has_text="Back to the report").click()
+    pg.click(".dialog-foot .btn.primary")
+    pg.wait_for_function("document.querySelector('.rd-text').value.includes('[[Drive]]')")

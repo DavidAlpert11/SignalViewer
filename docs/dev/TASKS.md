@@ -27,7 +27,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Release 1.32.0 - RE2 ready reports made of parts (owner, 2026-11-19) | in main; version, CHANGELOG, README, docs, pictures 48-51, the agent's cleanup and skills | the owner checks, deletes the old branches and tags v1.32.0 (the commands were given) |
 | Reports - open work | see `docs/dev/REPORTS.md` "Open" | the CLI making the written report; RE2.6 block editor; RE2.7 |
 | MSG1 - byte-stream messages: a dedicated plot and a report (owner, 2026-11-19) | asked, spec below (Open specs); not started | build it (the owner: "make the app do it", decide the details) |
-| CLR1 - Clear and the report (owner, 2026-11-19: "when the recording is cleared, what happens to the report? how is it cleared?") | asked; studied below | propose in one line, then build (small) |
+| CLR1 - Clear and the report (owner, 2026-11-19: "when the recording is cleared, what happens to the report? how is it cleared?") | done (2026-11-19): the proposal below built | the owner looks |
 | README review for 1.32 (owner, 2026-11-19: "update the README") | the RE2 lines are in; a full pass not done | do the full pass before the owner tags v1.32.0 |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
@@ -73,8 +73,9 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   (the Report screen's ↺ goes back to the report made from the open tabs). Proposed: the Clear menu gets **The report**
   (empties `ws.report.doc` and its pictures, one Undo, asks first when it has text); *Clear all tabs* says in its
   toast that the report's references to those tabs are now broken, with *Clear the report too*; the Report screen's
-  ↺ menu: *Empty* / *Back to the report from the tabs*. Ask the owner in one line, then build (en + he, e2e
-  test_report_doc).
+  ↺ menu: *Empty* / *Back to the report from the tabs*. **Built 2026-11-19** as proposed (`clearing.ts clearReport`,
+  `reportTabRefs`; also *All tabs, notes, derived signals* says it; Ctrl+K "Clear: The report"); e2e
+  test_report_doc::test_clear_and_the_report.
 - **Reports (RE1 1.31.0, RE2 1.32.0)** - how they work, every decision and what is open: `docs/dev/REPORTS.md`.
 - **SW2 - the owner (2026-11-16): investigate chosen scenarios from Sweeps without loading everything.** "Many
   scenarios are run without recording, only a summary row each; to investigate, the interesting ones are run again
@@ -120,6 +121,9 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-19 · CLR1: Clear → *The report* (text + pictures, asks when written, one Undo), the clear-tabs toasts say when the
+  written report points at the cleared tabs (+ *Clear the report too*), the Report screen's ↺ menu (*Empty* / *Back to the
+  report from the tabs*). e2e: test_report_doc (3), test_features -k clear (5).
 - 2026-11-19 · RE2 (1.32.0): ready reports made of ready-made parts - tracking, navigation, states, trajectory (a map), moments,
   differences (overall / in its region, the central region, first divergence), overview (any recording), summary, toc; the library
   (categories, guessed reference / baseline, my report templates, my parts); paste tables / pictures; a template carries its report;

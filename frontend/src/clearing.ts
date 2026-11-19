@@ -5,6 +5,8 @@ import { translate } from "./i18n";
 import { clearEverything } from "./files";
 import type { Workspace } from "./store/model";
 import { homeRun } from "./peers";
+import { metaOf, tabRef } from "./reportDoc";
+import { confirmAsk } from "./components/Overlays";
 
 /**
  * T63: one Clear button, five scopes, from the smallest to everything. All but the last keep the
@@ -24,10 +26,37 @@ function forgetViews() {
   useApp.setState({ ranges: {}, yRanges: {}, zoomHistory: {}, selected: null, multi: [], preview: null, yExtents: {} });
 }
 
-function undoToast(text: string, undo?: () => Promise<void>) {
+function undoToast(text: string, undo?: () => Promise<void>, action2?: { label: string; run: () => void }) {
   const st = useApp.getState();
-  st.toast({ kind: "info", text, undoesWs: true,
+  st.toast({ kind: "info", text, undoesWs: true, action2,
     action: { label: translate(st.lang, "undo"), run: undo ?? (async () => useApp.getState().undo()) } });
+}
+
+/** CLR1: how many of the written report's [[references]] point at the tabs (or their plots) of `ws`. */
+export function reportTabRefs(ws: Workspace): number {
+  const text = ws.report?.doc?.text;
+  if (!text) return 0;                       // no written report: the default one follows the tabs by itself
+  const names = new Set(ws.tabs.map((tb) => tabRef(ws, tb).toLowerCase()));
+  return [...text.matchAll(/\[\[([^\]|]+?)(?:\|[^\]]*)?\]\]/g)]
+    .filter((m) => names.has(m[1].trim().split(".")[0].trim().toLowerCase())).length;
+}
+
+/** CLR1: the report emptied - its text and its pictures; its title / language / theme stay. One Undo. */
+export async function clearReport(ask = true) {
+  const st = useApp.getState();
+  const t = (k: Parameters<typeof translate>[1]) => translate(st.lang, k);
+  const written = (st.ws.report?.doc?.text ?? "").trim();
+  if (ask && written && !await confirmAsk(t("clearReportAsk"), t("clearReportAskText"), t("clearReportOk"), true)) return;
+  useApp.getState().commit((ws) => { ws.report = { ...metaOf(ws, st.lang), doc: { v: 1, text: "" }, assets: undefined }; return ws; });
+  undoToast(t("clearReportDone"));
+}
+
+/** After the tabs are cleared: the toast says when the written report pointed at them, with "clear it too". */
+function tabsClearedToast(text: string, refs: number, undo?: () => Promise<void>) {
+  const st = useApp.getState();
+  if (!refs) { undoToast(text, undo); return; }
+  undoToast(text + " " + translate(st.lang, "clearReportRefs", { n: refs }), undo,
+    { label: translate(st.lang, "clearReportToo"), run: () => { void clearReport(false); } });
 }
 
 export function closeOtherTabs() {
@@ -41,9 +70,10 @@ export function closeOtherTabs() {
 
 export function clearAllTabs() {
   const st = useApp.getState();
+  const refs = reportTabRefs(st.ws);
   st.commit((ws) => { const t = freshTab(); ws.tabs = [t]; ws.activeTab = t.id; return ws; });
   forgetViews();
-  undoToast(translate(st.lang, "clearAllTabsDone"));
+  tabsClearedToast(translate(st.lang, "clearAllTabsDone"), refs);
 }
 
 /** Everything made on the data - tabs, notes, derived signals, in-place edits - goes; the files
@@ -54,13 +84,14 @@ export async function clearWork() {
   const items = derived.map((s) => ({ name: s.name, op: s.op!, sources: s.sources!, params: s.params }));
   const edited = st.runs.flatMap((r) => r.signals.filter((s) => s.transform).map((s) => s.id));
   const wsBefore: Workspace = structuredClone(st.ws);
+  const refs = reportTabRefs(st.ws);
   for (const s of derived) await api.deleteDerived(s.name).catch(() => {});
   let previous: Awaited<ReturnType<typeof api.setTransformSpecs>>["previous"] = {};
   if (edited.length) previous = (await api.setTransformSpecs(Object.fromEntries(edited.map((id) => [id, null])))).previous;
   st.commit((ws) => { const t = freshTab(); ws.tabs = [t]; ws.activeTab = t.id; ws.notes = []; return ws; });
   forgetViews();
   useApp.setState({ runs: await api.listRuns(), dataVersion: useApp.getState().dataVersion + 1 });
-  undoToast(translate(st.lang, "clearWorkDone", { d: items.length, e: edited.length }), async () => {
+  tabsClearedToast(translate(st.lang, "clearWorkDone", { d: items.length, e: edited.length }), refs, async () => {
     if (items.length) await api.restoreDerived(items);
     if (edited.length) await api.setTransformSpecs(previous);
     useApp.setState({ runs: await api.listRuns(), dataVersion: useApp.getState().dataVersion + 1 });
@@ -81,6 +112,7 @@ export function clearMenuItems(): MenuItem[] {
     { label: t("clearOtherTabs", { n: Math.max(0, tabs - 1) }), run: closeOtherTabs, disabled: tabs < 2 },
     { label: t("clearAllTabs", { n: tabs }), run: clearAllTabs },
     { label: t("clearWork", { d: derived, e: edits }), run: () => { clearWork(); } },
+    { label: t("clearReportItem"), run: () => { void clearReport(); }, disabled: st.ws.report?.doc?.text === "" && !st.ws.report?.assets },
     { label: "", run: () => {}, sep: true },
     { label: t("clearEverythingN", { f: files }), run: clearEverything, danger: true },
   ];

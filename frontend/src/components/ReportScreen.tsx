@@ -9,7 +9,8 @@ import { api } from "../api";
 import { runJob } from "../files";
 import { replayFileName } from "../replay";
 import { Icon } from "../icons";
-import { confirmAsk } from "./Overlays";
+import { confirmAsk, openMenu } from "./Overlays";
+import { clearReport } from "../clearing";
 import { refFor, wordAt } from "../formulaRefs";
 import { fuzzySort } from "../fuzzy";
 import { DOC_STATS, PARTS, SPECIALS, defaultDocText, docBody, docText, metaOf, plotRef, tabRef } from "../reportDoc";
@@ -273,7 +274,11 @@ export default function ReportScreen() {
         <button className="btn primary replay-make" disabled={!!busy} onClick={() => make("html")}>{busy === "html" ? t("loading") : "HTML"}</button>
         <button className="btn outline rd-pdf" disabled={!!busy} onClick={() => make("pdf")}>{busy === "pdf" ? t("loading") : "PDF"}</button>
         <button className="btn outline rd-docx" disabled={!!busy} onClick={() => make("docx")}>{busy === "docx" ? t("loading") : "Word"}</button>
-        <button className="iconbtn" title={t("rdReset")} aria-label={t("rdReset")} onClick={reset}><Icon.Reset /></button>
+        <button className="iconbtn rd-reset" title={t("rdResetMenu")} aria-label={t("rdResetMenu")} aria-haspopup="menu"
+          onClick={(e) => openMenu(e, [
+            { label: t("rdEmpty"), run: () => { commitText(text); typing.current = false; void clearReport(); } },
+            { label: t("rdReset"), run: () => { void reset(); } },
+          ])}><Icon.Reset /></button>
       </div>
       <div className={`rd-body rd-${view}`}>
         {view !== "show" && (

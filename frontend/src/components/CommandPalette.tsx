@@ -1,5 +1,5 @@
 import { stepEvent } from "../events";
-import { clearAllTabs, clearWork, closeOtherTabs } from "../clearing";
+import { clearAllTabs, clearReport, clearWork, closeOtherTabs } from "../clearing";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { refreshAll, toggleLive } from "../live";
 import { mavlinkDisconnect } from "../mavlink";
@@ -93,6 +93,7 @@ export default function CommandPalette() {
       { id: "clearothertabs", label: `${t("clearMenu")}: ${t("clearOtherTabs", { n: Math.max(0, useApp.getState().ws.tabs.length - 1) })}`, group: t("tab"), icon: <Icon.Eraser />, run: closeOtherTabs },
       { id: "clearalltabs", label: `${t("clearMenu")}: ${t("clearAllTabs", { n: useApp.getState().ws.tabs.length })}`, group: t("tab"), icon: <Icon.Eraser />, run: clearAllTabs },
       { id: "clearwork", label: `${t("clearMenu")}: ${t("clearWork", { d: useApp.getState().runs.find((r) => r.format === "derived")?.signals.length ?? 0, e: useApp.getState().runs.reduce((n, r) => n + r.signals.filter((s) => s.transform).length, 0) })}`, group: t("files"), icon: <Icon.Trash />, run: () => { clearWork(); } },
+      { id: "clearreport", label: `${t("clearMenu")}: ${t("clearReportItem")}`, group: t("report"), icon: <Icon.Eraser />, run: () => { void clearReport(); } },
       // CP1: the active plot / the tab for a Confluence page
       { id: "clipplot", label: t("clipPlot"), group: t("report"), icon: <Icon.Copy />, run: () => { const tb = activeTab(st().ws); const p = tb?.plots[tb.active ?? 0]; if (tb && p) void copyForConfluence(tb, p); } },
       { id: "cliptab", label: t("clipTab"), group: t("report"), icon: <Icon.Copy />, run: () => { const tb = activeTab(st().ws); if (tb) void copyForConfluence(tb); } },

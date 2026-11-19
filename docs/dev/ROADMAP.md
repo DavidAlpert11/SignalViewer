@@ -1063,5 +1063,6 @@ On a big table Sweeps drew a random sample of the runs (above 50,000) and severa
 - [x] RE2.3 `[[differences]]`: overall and in-region difference, the central region, first divergence, zoomed plots, states and parameters that differ; the baseline guessed by name.
 - [x] RE2.4 `[[states]]`, `[[trajectory]]`, `[[moments]]`, `[[navigation]]` (objcompare; reference guessed, per file).
 - [x] RE2.5 The library: ready reports (auto / control / navigation / compare), parts by category with the reference / baseline choice, `[[summary]]`, the user's report templates, a session template carries the report; demo recordings examples/report_demo. Left: the CLI makes the written report.
+- [x] CLR1 Clear and the report (owner, 2026-11-19): Clear → *The report* (text + pictures, asks, one Undo), *All tabs* / *the work* say when the written report pointed at the cleared tabs (+ *Clear the report too*), the Report screen's ↺ menu: *Empty* / *Back to the report from the tabs*; Ctrl+K. e2e test_report_doc.
 - [ ] RE2.6 The block editor (per-paragraph RTL, table grid, cards, drag, outline).
 - [ ] RE2.7 *Expand to text*; report checks before export; numbering / toc; Confluence copy of the document; Sweeps parts.
