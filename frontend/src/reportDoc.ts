@@ -26,7 +26,7 @@ const DOC_FUNCS = [...DOC_STATS, "stretches", "holds", "abs", "sqrt", "round", "
 export const SPECIALS = ["notes", "findings", "investigation", "process", "verdict"] as const;
 /** RE2: the ready-made parts - each finds what it needs in the open files by the signals' names and writes its
  *  sentence, tables and plots on the server (backend/app/reportparts.py). `[[tracking]]`, `[[tracking roll | tol 2]]`. */
-export const PARTS = ["toc", "overview", "tracking", "navigation", "states", "trajectory", "moments", "differences", "summary"] as const;
+export const PARTS = ["toc", "overview", "tracking", "navigation", "states", "trajectory", "moments", "differences", "messages", "summary"] as const;
 export type PartName = typeof PARTS[number];
 const MARK = (n: number) => `\u27e6${n}\u27e7`;
 

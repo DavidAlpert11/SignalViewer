@@ -11,7 +11,7 @@ import { translate, type TKey } from "./i18n";
 
 type Lang = "en" | "he";
 export interface PartEntry { label: string; insert: string; title?: string }
-export interface PartCategory { id: "tracking" | "navigation" | "scenario" | "compare" | "summary"; title: string; found: string; empty?: string; parts: PartEntry[] }
+export interface PartCategory { id: "tracking" | "navigation" | "scenario" | "compare" | "messages" | "summary"; title: string; found: string; empty?: string; parts: PartEntry[] }
 export interface Choice { reference?: string; base?: string }
 
 /** The library's categories for what was found. A category with nothing found says so and has no parts. */
@@ -50,13 +50,20 @@ export function partCategories(scan: ReportScan, lang: Lang, choice: Choice = {}
         { label: t("rpDiffTable"), insert: `[[differences${baseOpt ? baseOpt + ", table" : " | table"}]]` },
         { label: t("rpDiffTop"), insert: `[[differences${baseOpt ? baseOpt + ", top 12" : " | top 12"}]]` },
       ] : [] },
+    { id: "messages", title: t("rpCatMessages"), found: t("rpFoundStreams", { n: (scan.streams ?? []).length }),
+      empty: (scan.streams ?? []).length ? undefined : t("rpNoStreams"),
+      parts: (scan.streams ?? []).length ? [
+        { label: t("rpMsgAll"), insert: "[[messages]]", title: t("rpMsgHint") },
+        { label: t("rpMsgTable"), insert: "[[messages | table]]" },
+        ...(scan.streams ?? []).map((s) => ({ label: `${s.name} (${s.count})`, insert: `[[messages ${s.name}]]` })),
+      ] : [] },
     { id: "summary", title: t("rpCatSummary"), found: "", parts: [{ label: t("rpSummary"), insert: "[[summary]]", title: t("rpSummaryHint") },
       { label: t("rpToc"), insert: "[[toc]]", title: t("rpTocHint") }] },
   ];
   return out;
 }
 
-export type ReadyId = "auto" | "control" | "navigation" | "compare";
+export type ReadyId = "auto" | "control" | "navigation" | "compare" | "messages";
 
 /** The ready reports that fit what was found (the automatic one always). */
 export function readyReports(scan: ReportScan, lang: Lang): { id: ReadyId; label: string; hint: string }[] {
@@ -65,6 +72,7 @@ export function readyReports(scan: ReportScan, lang: Lang): { id: ReadyId; label
     { id: "auto" as const, label: t("rpReadyAuto"), hint: t("rpReadyAutoHint") },
     ...(scan.pairs.length ? [{ id: "control" as const, label: t("rpReadyControl"), hint: t("rpReadyControlHint") }] : []),
     ...(scan.objects.length >= 2 ? [{ id: "navigation" as const, label: t("rpReadyNav"), hint: t("rpReadyNavHint") }] : []),
+    ...((scan.streams ?? []).length ? [{ id: "messages" as const, label: t("rpReadyMessages"), hint: t("rpReadyMessagesHint") }] : []),
     ...(scan.files.length >= 2 ? [{ id: "compare" as const, label: t("rpReadyCompare"), hint: t("rpReadyCompareHint") }] : []),
   ];
 }
@@ -76,14 +84,16 @@ export function readyText(id: ReadyId, scan: ReportScan, lang: Lang, choice: Cho
   const ref = choice.reference && choice.reference !== scan.reference ? ` | ref ${choice.reference}` : "";
   const base = choice.base && choice.base !== (scan.base ?? scan.files[0]?.name) ? ` | base ${choice.base}` : "";
   const files = scan.files.map((f) => f.name).join(", ");
-  const has = { pairs: scan.pairs.length > 0, nav: scan.objects.length >= 2, states: scan.states.length > 0, tracks: scan.tracks > 0, many: scan.files.length >= 2 };
+  const has = { pairs: scan.pairs.length > 0, nav: scan.objects.length >= 2, states: scan.states.length > 0, tracks: scan.tracks > 0, many: scan.files.length >= 2,
+    streams: (scan.streams ?? []).length > 0 };
   const want = {
-    auto: { scenario: true, tracking: has.pairs, nav: has.nav, compare: has.many },
-    control: { scenario: has.states, tracking: true, nav: false, compare: has.many },
-    navigation: { scenario: has.tracks, tracking: false, nav: true, compare: false },
-    compare: { scenario: false, tracking: false, nav: false, compare: true },
+    auto: { scenario: true, tracking: has.pairs, nav: has.nav, compare: has.many && !has.streams, messages: has.streams },
+    control: { scenario: has.states, tracking: true, nav: false, compare: has.many, messages: false },
+    navigation: { scenario: has.tracks, tracking: false, nav: true, compare: false, messages: false },
+    compare: { scenario: false, tracking: false, nav: false, compare: true, messages: false },
+    messages: { scenario: false, tracking: false, nav: false, compare: false, messages: true },
   }[id];
-  const title = { auto: "rpTitleAuto", control: "rpTitleControl", navigation: "rpTitleNav", compare: "rpTitleCompare" }[id] as TKey;
+  const title = { auto: "rpTitleAuto", control: "rpTitleControl", navigation: "rpTitleNav", compare: "rpTitleCompare", messages: "rpTitleMessages" }[id] as TKey;
   const out = [`# ${t(title)}${files ? ` - ${files}` : ""}`, t("rpIntro"), "[[toc]]", "[[summary]]"];
   if (id === "compare") out.push(`## ${t("rpHCompare")}`, `[[differences${base}]]`);
   if (id === "auto") out.push(`## ${t("rpHRecording")}`, "[[overview]]");
@@ -93,6 +103,7 @@ export function readyText(id: ReadyId, scan: ReportScan, lang: Lang, choice: Cho
     if (has.tracks) out.push("[[trajectory]]");
     out.push(`### ${t("rpHMoments")}`, "[[moments]]");
   }
+  if (want.messages && has.streams) out.push(`## ${t("rpHMessages")}`, "[[messages]]");
   if (want.tracking && has.pairs) out.push(`## ${t("rpHTracking")}`, "[[tracking]]");
   if (want.nav && has.nav) out.push(`## ${t("rpHNav")}`, `[[navigation${ref}]]`);
   if (want.compare && id !== "compare" && has.many) out.push(`## ${t("rpHCompare")}`, `[[differences${base}]]`);
@@ -146,12 +157,12 @@ export function deleteMyPart(name: string): MyPart[] {
 
 /** The Report screen with the automatic report of the open files (the report demo example; a report already
  *  written is kept - the screen only opens). One Undo step. */
-export async function openAutoReport(): Promise<void> {
+export async function openAutoReport(id: ReadyId = "auto"): Promise<void> {
   const scan = await api.reportParts();
   const st = useApp.getState();
   const lang = st.ws.report?.lang ?? st.lang;
   if (!st.ws.report?.doc) {
-    const text = readyText("auto", scan, lang, {}, (st.ws.notes ?? []).length > 0);
+    const text = readyText(id, scan, lang, {}, (st.ws.notes ?? []).length > 0);
     st.commit((w) => { w.report = { title: "", intro: "", summary: "", lang, theme: "light", scope: "tab", ...(w.report ?? {}), doc: { v: 1, text } }; return w; });
   }
   useApp.setState({ panel: "report" });

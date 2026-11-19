@@ -1,3 +1,4 @@
+import { decodeAsMessages } from "../messages";
 import { countRender } from "../perf";
 import { kindsText, signalLines } from "../quality";
 import { DATA_EXTS } from "../values";
@@ -212,6 +213,8 @@ export default function DataPanel() {
         { label: "", run: () => {}, sep: true },
         { label: t("tfEditMany", { n: originals.length }), run: () => useApp.setState({ transformTargets: originals }), disabled: !originals.length },
         createSignalItem(sel),
+        // MSG1: byte columns, one message per row (byte_0..byte_N)
+        { label: t("sigDecodeMessages"), run: () => { void decodeAsMessages(originals); used(); }, disabled: originals.length < 2 },
         { label: "", run: () => {}, sep: true },
         ...groupItems(sel, inGroup),
         ...madeItems(sel),
@@ -236,6 +239,8 @@ export default function DataPanel() {
     // T49 item 7: one way to change a signal itself (the same as Create signals > Change this signal)
     ...(sig.id.startsWith("derived/") ? [] : [{ label: t("tfEdit"), run: () => useApp.setState({ transformTargets: [sig.id] }) }]),
     createSignalItem(sig.id),
+    // MSG1: a byte stream (whole numbers 0..255): its messages found and plotted
+    ...(sig.labels || sig.discrete || sig.id.startsWith("derived/") ? [] : [{ label: t("sigDecodeMessages"), run: () => { void decodeAsMessages([sig.id]); } }]),
     // a state (texts, or a few values): a lane on the tab or on every tab without adding it to a plot first
     ...(sig.labels || sig.discrete ? [{ label: "", run: () => {}, sep: true }, ...laneMenuForSignal(sig.id)] : []),
     // 26.A5: held or interpolated between samples - what was detected, and the user's correction

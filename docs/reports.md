@@ -84,6 +84,7 @@ recording brings the report (only when that session has no report of its own yet
 | `[[trajectory]]` | the track's facts - duration, distance travelled, farthest from the start, highest, fastest - and **the tracks on a map** (every file's, on the map layer the app shows; only map tiles already kept are used, else the offline world map) |
 | `[[moments]]` | **special moments** on one time line: the phases, every change of a state (*gps.status OK → LOST*), leaving and returning to the ground, highest, farthest, the largest tracking errors, a signal stuck or at its limit, a gap, a spike |
 | `[[differences]]` | **the files compared** (two or more open): see below |
+| `[[messages]]` | **the messages of a byte stream** (a serial link, a radio, a bus recorded byte by byte): see below |
 | `[[summary]]` | **what to look at**: the most important things the other parts found, worst first - put it at the top |
 | `[[toc]]` | **a table of contents**: the report's headings (`##`, `###`) - those the parts write too - as links that jump to them in the page |
 | `[[plot Roll, DesRoll \| 10..60]]` | a plot made from names, in no tab; a name in several files is drawn from each; `[[plot xy Lon, Lat]]` |
@@ -94,6 +95,35 @@ Options after `|`, separated by commas: `top 5` (how many plotted), `table` (tab
 `skip yaw`, `ref NAME`, `base FILE`, `position` / `velocity` / `attitude`, `min 2s` (states shorter than that not
 listed). A part that finds nothing says so in one line; an unknown option is a red ⚠ that lists the known ones.
 Every number is computed on every sample.
+
+### Messages in a byte stream
+
+A signal that holds a link's bytes one by one (whole numbers 0..255) - or columns `byte_0 … byte_N` with one
+message per row - is decoded by itself: the **header** (the 2-byte pair that recurs and frames best), how a
+message's **length** is known (a length byte at offset 2-4, else its type, else one fixed length), the **type**
+byte (few values, the one that decides the length), and the **checksum** in the last 1 or 2 bytes (sum8, xor8,
+−sum8, ~sum8 with or without the header, CRC-16 CCITT, CRC-16 Modbus, Fletcher-16 as UBX - the one most messages
+match). A message that does not end where the next header starts and fails its checksum is broken: the decoder
+resyncs to the next header and counts it.
+
+`[[messages]]` writes, for each stream: how many messages, the framing found, the checksum and its errors, the
+broken frames; a table per message type - count, share, length, rate, period and jitter, the longest interval,
+first and last, checksum errors; **the order** (the sequence that repeats, e.g. `0x20 0x10 0x20 0x20 0x20 0x20`,
+else the commonest transitions); **the gaps** (no messages for 1.5 s from 18 s); and one plot per quantity with
+every stream's lines: *messages per second by type* (a dropout falls to zero), *the interval between messages of
+a type*, *the checksum errors*. Checksum errors and gaps go to `[[summary]]`.
+
+A link recorded **both ways in one signal**, with a column beside it that says whose byte it is (`dir` with TX /
+RX, `direction`, `port`, `channel`…), is split: each direction is its own stream. Anything can be forced:
+`[[messages | header AA55, checksum sum8]]` (`length N` / `type N`: the offset of that byte; `checksum none`).
+
+In the signal list, right-click a byte signal (or select the byte columns) → **Decode as messages…**: a new tab with
+the bytes, the message type, the length, the interval and the checksum good / bad - derived signals like any other.
+`[[overview]]` leaves a byte stream's bytes out of its statistics (they are not measurements).
+
+*Help → Examples → a serial link, byte by byte* opens a demo (`examples/serial_link`): TX (header AA 55, a length
+byte, sum8) and RX (header EB 90, CRC-16) as two signals, and the same link as one signal with a `dir` column -
+with a few checksum errors, a broken length byte and a 1.5 s dropout - in a *Link review* report.
 
 ### Comparing files: the main differences and the central region of the change
 

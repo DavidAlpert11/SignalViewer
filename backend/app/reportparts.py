@@ -19,7 +19,7 @@ from svcore import reportparts as rp
 from svcore.docfields import format_value
 
 PALETTE = ["#3D8BFD", "#E8590C", "#2F9E44", "#AE3EC9", "#F08C00", "#0CA678", "#E64980", "#1C7ED6"]
-PARTS = ("toc", "overview", "tracking", "navigation", "states", "trajectory", "moments", "differences", "summary")
+PARTS = ("toc", "overview", "tracking", "navigation", "states", "trajectory", "moments", "differences", "messages", "summary")
 UNITS = {"position": "m", "velocity": "m/s", "attitude": "deg"}
 
 S: Dict[str, Dict[str, Any]] = {
@@ -77,6 +77,20 @@ S: Dict[str, Dict[str, Any]] = {
         "ov_kind": {"missing": "missing values", "gaps": "gaps", "duplicates": "repeated time stamps", "backwards": "time going back", "rateChanges": "rate changes"},
         "ov_head": ["Signal", "Min", "Max", "Mean", "Std", "Max at (s)"], "ov_more": "The first {n} of {m} signals (| top N for more).",
         "ov_states": "State signals (distinct values): {list}.", "ov_hl": "{f}: {n} signals with data-quality problems ({kinds})",
+        "none_msg": "No byte stream with repeating messages in the open files (a signal of whole numbers 0..255 byte by byte, or columns byte_0..byte_N one message per row).",
+        "msg_intro": "**{name}**{file} - **{n} messages** in {d} s ({bytes} bytes); header **{h}**, {framing}; {cs}.",
+        "msg_cs": "checksum {s} ({over}): **{e} errors**", "msg_nocs": "no checksum found",
+        "msg_lost": " {r} broken frames resynced, {o} bytes outside messages.",
+        "msg_head": ["Type", "Count", "Share", "Length (bytes)", "Rate (Hz)", "Period (s)", "Jitter (ms)", "Longest interval (s)", "First (s)", "Last (s)", "Checksum errors"],
+        "msg_order": "**The order** repeats every {p} messages: {seq} ({f} of the messages follow it).",
+        "msg_trans": "**The commonest transitions:** {list}.",
+        "msg_gaps": "**No messages for:** {list}.", "msg_gap": "{dt} s from {a} s",
+        "msg_rate": "Messages per second, by type", "msg_rate_cap": "Counted in 1-second bins - a dropout falls to zero.",
+        "msg_int": "Interval between messages of a type (s)", "msg_int_cap": "Each type's period over time: jitter, missed messages and dropouts stand out.",
+        "msg_err": "Checksum errors (running count)",
+        "msg_hl_err": "{name}: {e} checksum errors in {n} messages", "msg_hl_gap": "{name}: no messages for {dt} s from {a} s",
+        "msg_hl_resync": "{name}: {r} broken frames resynced", "msg_hl": "{name}: {n} messages, {k} types, header {h}",
+        "ov_streams": "Byte streams (decoded by [[messages]], their bytes are not measurements): {list}.",
         "toc": "Contents", "toc_none": "No headings yet (## a heading).",
         "sum_none": "Nothing to point out: the report's automatic parts found nothing unusual.",
         "sum_intro": "**What to look at** - the most important things the parts below found:",
@@ -136,6 +150,20 @@ S: Dict[str, Dict[str, Any]] = {
         "ov_kind": {"missing": "ערכים חסרים", "gaps": "חורים", "duplicates": "חותמות זמן כפולות", "backwards": "זמן שחוזר אחורה", "rateChanges": "שינויי קצב"},
         "ov_head": ["סיגנל", "מינימום", "מקסימום", "ממוצע", "סטיית תקן", "מקסימום בזמן (ש')"], "ov_more": "{n} הראשונים מתוך {m} סיגנלים (| top N ליותר).",
         "ov_states": "סיגנלי מצב (מספר ערכים): {list}.", "ov_hl": "{f}: {n} סיגנלים עם בעיות איכות נתונים ({kinds})",
+        "none_msg": "אין בקבצים הפתוחים זרם בתים עם הודעות חוזרות (סיגנל של מספרים שלמים 0..255 בית אחר בית, או עמודות byte_0..byte_N הודעה בשורה).",
+        "msg_intro": "**{name}**{file} - **{n} הודעות** ב-{d} ש' ({bytes} בתים); כותרת **{h}**, {framing}; {cs}.",
+        "msg_cs": "checksum {s} ({over}): **{e} שגיאות**", "msg_nocs": "לא נמצא checksum",
+        "msg_lost": " {r} מסגרות שבורות - סונכרן מחדש, {o} בתים מחוץ להודעות.",
+        "msg_head": ["סוג", "כמות", "חלק", "אורך (בתים)", "קצב (Hz)", "מחזור (ש')", "ריצוד (ms)", "המרווח הארוך ביותר (ש')", "ראשונה (ש')", "אחרונה (ש')", "שגיאות checksum"],
+        "msg_order": "**הסדר** חוזר כל {p} הודעות: {seq} ({f} מההודעות לפיו).",
+        "msg_trans": "**המעברים הנפוצים:** {list}.",
+        "msg_gaps": "**אין הודעות במשך:** {list}.", "msg_gap": "{dt} ש' מ-{a} ש'",
+        "msg_rate": "הודעות בשנייה, לפי סוג", "msg_rate_cap": "נספר בחלונות של שנייה - נפילה של הקשר יורדת לאפס.",
+        "msg_int": "המרווח בין הודעות מאותו סוג (ש')", "msg_int_cap": "המחזור של כל סוג לאורך הזמן: ריצוד, הודעות חסרות ונפילות בולטים.",
+        "msg_err": "שגיאות checksum (ספירה מצטברת)",
+        "msg_hl_err": "{name}: {e} שגיאות checksum ב-{n} הודעות", "msg_hl_gap": "{name}: אין הודעות במשך {dt} ש' מ-{a} ש'",
+        "msg_hl_resync": "{name}: {r} מסגרות שבורות - סונכרן מחדש", "msg_hl": "{name}: {n} הודעות, {k} סוגים, כותרת {h}",
+        "ov_streams": "זרמי בתים (מפוענחים ב-[[messages]], הבתים שלהם אינם מדידות): {list}.",
         "toc": "תוכן העניינים", "toc_none": "אין עדיין כותרות (## כותרת).",
         "sum_none": "אין מה להדגיש: החלקים האוטומטיים של הדוח לא מצאו דבר חריג.",
         "sum_intro": "**על מה להסתכל** - הדברים החשובים ביותר שהחלקים שלהלן מצאו:",
@@ -144,7 +172,8 @@ S: Dict[str, Dict[str, Any]] = {
     },
 }
 KNOWN = {"tracking": "top N, table, tol X, outside X%, skip NAME", "navigation": "ref NAME, position, velocity, attitude, top N, table",
-         "states": "min Xs, table", "trajectory": "table", "moments": "top N", "differences": "base NAME, top N, table, small X%, large X%", "summary": "top N", "toc": "", "overview": "top N, plots N, table"}
+         "states": "min Xs, table", "trajectory": "table", "moments": "top N", "differences": "base NAME, top N, table, small X%, large X%", "summary": "top N", "toc": "", "overview": "top N, plots N, table",
+         "messages": "header AA55, length N, type N, checksum NAME, table"}
 
 
 class PartError(Exception):
@@ -191,6 +220,10 @@ def options(part: str, opts: Sequence[str]) -> Dict:
         if m:
             v = float(m.group(2))
             out[m.group(1).lower()] = int(v) if m.group(1).lower() == "top" else (v / 100 if m.group(3) == "%" or m.group(1).lower() in ("small", "large") else v)
+            continue
+        m = re.fullmatch(r"(header|length|type|checksum)\s*[= ]\s*(\S+)", o, re.I)
+        if m and part == "messages":
+            out[m.group(1).lower()] = m.group(2)
             continue
         m = re.fullmatch(r"(ref|base|skip)\s*[= ]\s*(.+)", o, re.I)
         if m:
@@ -600,8 +633,10 @@ def overview(p: Part, rids: List[str], arg: str, o: Dict):
             names = [n for n in names if flt in n.lower()]
         nums: List[str] = []
         states_: List[str] = []
+        streams = set(byte_streams(st, rid))
         for n in names:
-            (states_ if st.is_state(f"{rid}/{n}") else nums).append(n)
+            if n not in streams:
+                (states_ if st.is_state(f"{rid}/{n}") else nums).append(n)
         t0, t1 = float(run.start_time + (run.time_offset or 0)), float(run.end_time + (run.time_offset or 0))
         rate = (len(run.time) - 1) / (run.end_time - run.start_time) if run.end_time > run.start_time and len(run.time) > 1 else None
         p.say(S_["ov_intro"].format(f=lr.name, n=len(names), d=secs(t1 - t0), t0=secs(t0), t1=secs(t1),
@@ -628,6 +663,8 @@ def overview(p: Part, rids: List[str], arg: str, o: Dict):
             p.say(table(S_["ov_head"], rows))
             if len(nums) > len(rows):
                 p.say(S_["ov_more"].format(n=len(rows), m=len(nums)))
+        if streams:
+            p.say(S_["ov_streams"].format(list=", ".join(n for n in names if n in streams)))
         if states_:
             p.say(S_["ov_states"].format(list=", ".join("%s (%d)" % (n, len(st.labels(f"{rid}/{n}") or {}) or
                                                                      len(np.unique(_sig(st, f"{rid}/{n}")[1][np.isfinite(_sig(st, f"{rid}/{n}")[1])])))
@@ -914,6 +951,153 @@ def _same(a, b) -> bool:
 
 # ------------------------------------------------------------------------------------------------ summary
 
+# ------------------------------------------------------------------------------------------------ messages
+
+_COLS = re.compile(r"^(.*?)(?:byte|b|data)[_\[]?(\d+)\]?$", re.I)
+_DIR = re.compile(r"^(.*[._ ])?(dir|direction|rxtx|tx_rx|rx_tx|txrx|port|channel|src|source)$", re.I)
+
+
+def hexb(v: int) -> str:
+    return "0x%02X" % int(v)
+
+
+def find_streams(store, rids: Sequence[str]) -> List[Dict]:
+    """The byte streams of these files, decoded: a byte-by-byte signal (split by a direction column beside it), or
+    columns byte_0..byte_N (one message per row). Each: name, rid, ids, params, the decode."""
+    from svcore import bytestream as bs
+    out: List[Dict] = []
+    for rid in rids:
+        run = store.get(rid).run
+        names = list(run.signals)
+        dirs = [n for n in names if _DIR.match(n)]
+        groups: Dict[str, List[Tuple[int, str]]] = {}
+        for n in names:
+            m = _COLS.match(n)
+            if m:
+                groups.setdefault(m.group(1), []).append((int(m.group(2)), n))
+        in_cols = set()
+        tried: List[Tuple[str, List[str], Dict]] = []
+        for pre, cols in groups.items():
+            if len(cols) >= 4:
+                cols.sort()
+                in_cols.update(n for _i, n in cols)
+                tried.append(("%s%s…%s" % (pre, cols[0][1][len(pre):], cols[-1][1][len(pre):]), [f"{rid}/{n}" for _i, n in cols], {}))
+        for n in names:
+            sid = f"{rid}/{n}"
+            if n in in_cols or n in dirs or store.is_state(sid):
+                continue
+            if not bs.is_byte_like(_sig(store, sid)[1]):
+                continue
+            split = False
+            for dn in dirs:
+                yd = _sig(store, f"{rid}/{dn}")[1]
+                vals = bs.directions(yd)
+                if vals:
+                    lab = store.labels(f"{rid}/{dn}") or {}
+                    for v in vals:
+                        tried.append(("%s %s" % (n, lab.get(int(v), lab.get(str(int(v)), "%s=%g" % (dn, v)))), [sid, f"{rid}/{dn}"], {"dir": v}))
+                    split = True
+                    break
+            if not split:
+                tried.append((n, [sid], {}))
+        for name, ids, prm in tried:
+            try:
+                r = bs.decode([_sig(store, i) for i in ids], prm)
+            except bs.StreamError:
+                continue
+            out.append({"name": name, "rid": rid, "ids": ids, "params": prm, "r": r})
+    return out
+
+
+def messages(p: Part, rids: List[str], arg: str, o: Dict):
+    """MSG1: each byte stream's messages - the framing found, a table per type, the order, the gaps; one plot per
+    quantity (messages per second by type, the interval by type, the checksum errors) with every stream's lines."""
+    from svcore import bytestream as bs
+    st, S_ = p.store, p.S
+    force = {k: o[k] for k in ("header", "length", "type", "checksum") if k in o}
+    streams = find_streams(st, rids)
+    if force:                                            # forced framing: decode the byte-like signals again with it
+        again = []
+        for s_ in streams:
+            try:
+                again.append({**s_, "r": bs.decode([_sig(st, i) for i in s_["ids"]], {**s_["params"], **force})})
+            except bs.StreamError as e:
+                raise PartError("%s: %s" % (s_["name"], e))
+        streams = again
+    flt = arg.strip().lower()
+    if flt:
+        streams = [s_ for s_ in streams if flt in s_["name"].lower()]
+    if not streams:
+        p.say("*%s*" % S_["none_msg"])
+        return
+    rate_lines, int_lines, err_lines = [], [], []
+    k = 0
+    for s_ in streams:
+        r, name = s_["r"], s_["name"]
+        file = " (%s)" % _name(st, s_["rid"]) if len(rids) > 1 else ""
+        cs = r["checksum"]
+        cst = S_["msg_cs"].format(s=cs["scheme"], over=cs["over"], e=r["errors"]) if cs else S_["msg_nocs"]
+        lost = S_["msg_lost"].format(r=r["resyncs"], o=r["outside"]) if r["resyncs"] or r["outside"] else ""
+        p.say(S_["msg_intro"].format(name=name, file=file, n=r["count"], d=secs(r["duration"]), bytes=r["bytes"], h=r["header"],
+                                     framing=r["framing"], cs=cst) + lost)
+        rows = [[hexb(x["type"]) if r["typeOffset"] is not None else "—", str(x["count"]), pct(x["share"]),
+                 ", ".join(str(v) for v in x["lengths"]), fmt(x["rate"]), secs(x["period"]),
+                 "—" if x["jitter"] is None else "%.3g" % (x["jitter"] * 1000), secs(x["maxInterval"]), secs(x["first"]), secs(x["last"]),
+                 str(x["errors"]) if cs else "—"] for x in r["types"]]
+        p.say(table(S_["msg_head"], rows))
+        od = r["order"]
+        if od["period"]:
+            seq = " ".join(hexb(v) for v in od["sequence"][:24]) + (" …" if len(od["sequence"]) > 24 else "")
+            p.say(S_["msg_order"].format(p=od["period"], seq=seq, f=pct(od["fit"])))
+        elif od["transitions"]:
+            p.say(S_["msg_trans"].format(list=", ".join("%s → %s (%d)" % (hexb(x["from"]), hexb(x["to"]), x["count"]) for x in od["transitions"][:6])))
+        if r["gaps"]:
+            p.say(S_["msg_gaps"].format(list=", ".join(S_["msg_gap"].format(dt=secs(g["dt"]), a=secs(g["from"])) for g in r["gaps"])))
+        label = name + file
+        if r["errors"]:
+            p.hl("warn", 5 + r["errors"], S_["msg_hl_err"].format(name=label, e=r["errors"], n=r["count"]))
+        for g in r["gaps"][:2]:
+            p.hl("warn", 3 + g["dt"], S_["msg_hl_gap"].format(name=label, dt=secs(g["dt"]), a=secs(g["from"])))
+        if r["resyncs"]:
+            p.hl("info", 1 + r["resyncs"], S_["msg_hl_resync"].format(name=label, r=r["resyncs"]))
+        p.hl("info", 0.5, S_["msg_hl"].format(name=label, n=r["count"], k=len(r["types"]), h=r["header"]))
+        m = r["messages"]
+        t = np.asarray(m["t"], dtype=np.float64)
+        if len(t) < 2:
+            continue
+        edges = np.arange(math.floor(t[0]), math.ceil(t[-1]) + 1.0, 1.0)
+        if len(edges) < 2:
+            edges = np.array([t[0], t[0] + 1.0])
+        for x in r["types"][:8]:
+            sel = m["type"] == x["type"] if r["typeOffset"] is not None else np.ones(len(t), dtype=bool)
+            tt = t[sel]
+            lab = "%s %s" % (name, hexb(x["type"])) if r["typeOffset"] is not None else name
+            cnt, _e = np.histogram(tt, edges)
+            rate_lines.append(sig_line(p.series(lab, edges[:-1] + 0.5, cnt.astype(np.float64)), lab, k))
+            if len(tt) > 1:
+                int_lines.append(sig_line(p.series(lab + " Δt", tt[1:], np.diff(tt)), lab, k))
+            k += 1
+        if cs and r["errors"]:
+            err_lines.append(sig_line(p.series(name + " errors", t, np.cumsum(~m["ok"]).astype(np.float64)), name, len(err_lines)))
+    if o.get("table"):
+        return
+    if rate_lines:
+        p.plot(S_["msg_rate"], rate_lines, caption=S_["msg_rate_cap"])
+    if int_lines:
+        p.plot(S_["msg_int"], int_lines, caption=S_["msg_int_cap"])
+    if err_lines:
+        p.plot(S_["msg_err"], err_lines)
+
+
+def byte_streams(store, rid: str) -> List[str]:
+    """The names of a file's signals that are byte streams (the overview leaves their statistics out)."""
+    out: List[str] = []
+    for s_ in find_streams(store, [rid]):
+        out += [i.split("/", 1)[1] for i in s_["ids"]]
+    return out
+
+
+
 def summary(p: Part, highlights: List[Dict], o: Dict):
     S_ = p.S
     if not highlights:
@@ -926,7 +1110,7 @@ def summary(p: Part, highlights: List[Dict], o: Dict):
     p.say("\n".join("- %s %s" % (mark.get(h["level"], "•"), h["text"]) for h in hs))
 
 
-RUN = {"overview": overview, "moments": moments, "tracking": tracking, "navigation": navigation, "states": states, "trajectory": trajectory, "differences": differences}
+RUN = {"overview": overview, "moments": moments, "messages": messages, "tracking": tracking, "navigation": navigation, "states": states, "trajectory": trajectory, "differences": differences}
 
 
 def expand_all(store, text: str, items: List[dict], lang: str) -> Tuple[str, Dict[str, Tuple[np.ndarray, np.ndarray]]]:
@@ -1033,4 +1217,5 @@ def scan(store, rids: Optional[Sequence[str]] = None) -> Dict:
             "reference": ref["name"] if ref else None,
             "base": store.get(guess_base(store, rids)).name if rids else None,
             "states": [{"name": s.split("/", 1)[1], "file": store.get(s.split("/")[0]).name} for s in state_signals(store, rids)],
-            "tracks": sum(1 for c in objs if c.get("pos") == "lla")}
+            "tracks": sum(1 for c in objs if c.get("pos") == "lla"),
+            "streams": [{"name": s_["name"], "file": store.get(s_["rid"]).name, "count": s_["r"]["count"]} for s_ in find_streams(store, rids)]}

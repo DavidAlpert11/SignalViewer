@@ -30,10 +30,11 @@ MULTI = {"mean", "sum", "min", "max", "norm"}
 FRAME = {"frame"}
 VECSMOOTH = {"vecsmooth"}
 RELATE = {"relate"}         # N7: two map objects compared (svcore/relate.py)
+MESSAGES = {"messages"}     # MSG1: the messages of a byte stream, one quantity at their times (svcore/bytestream.py)
 # C2 / C2b: the operations that align several sources (a state source held unless `params.hold: false`).
 # A recipe saved before 1.23 has no `hold` and is restored with false (its numbers unchanged); new: true.    # Q102: a vector (2-3 components) smoothed over a window in seconds
 PY = {"py"}                 # T31: the user's own Python operations (params: {"op": "file.py:fn", "args": {...}})
-OPS = UNARY | BINARY | MULTI | FORMULA | FRAME | VECSMOOTH | PY | RELATE
+OPS = UNARY | BINARY | MULTI | FORMULA | FRAME | VECSMOOTH | PY | RELATE | MESSAGES
 HOLD_OPS = BINARY | MULTI | FORMULA
 # 26.A3: the operations whose result depends on how samples are spaced in time - `params.sampling`
 # "time" (filters across gaps / rate changes as in time; smooth / RMS windows in `seconds`) or "samples"
@@ -103,6 +104,7 @@ class DerivedDef:
             "frame": lambda: frame_name(n[:3], p),
             "vecsmooth": lambda: vecsmooth_name(n, p),
             "relate": lambda: _relate_name(n, p),
+            "messages": lambda: _messages_name(n, p),
             "py": lambda: _py_name(n, p),
         }[self.op]()
 
@@ -110,6 +112,11 @@ class DerivedDef:
 def _relate_name(n: List[str], p: Dict) -> str:
     from svcore.relate import relate_name
     return relate_name(n, p)
+
+
+def _messages_name(n: List[str], p: Dict) -> str:
+    from svcore.bytestream import messages_name
+    return messages_name(n, p)
 
 
 def _upd_name(n: List[str], p: Dict) -> str:
@@ -334,6 +341,13 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict,
     if op == "relate":
         from svcore.relate import relate
         return relate(signals, params, rep)
+
+    if op == "messages":
+        from svcore.bytestream import StreamError, messages_signal
+        try:
+            return messages_signal(signals, params)
+        except StreamError as e:
+            raise OpError(str(e)) from None
 
     if op in BINARY:
         if len(signals) != 2:

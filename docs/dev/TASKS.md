@@ -26,7 +26,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
 | Release 1.32.0 - RE2 ready reports made of parts (owner, 2026-11-19) | in main; version, CHANGELOG, README, docs, pictures 48-51, the agent's cleanup and skills | the owner checks, deletes the old branches and tags v1.32.0 (the commands were given) |
 | Reports - open work | see `docs/dev/REPORTS.md` "Open" | the CLI making the written report; RE2.6 block editor; RE2.7 |
-| MSG1 - byte-stream messages: a dedicated plot and a report (owner, 2026-11-19) | asked, spec below (Open specs); not started | build it (the owner: "make the app do it", decide the details) |
+| MSG1 - byte-stream messages: a dedicated plot and a report (owner, 2026-11-19) | built 2026-11-19 (pushed before the checks, owner's word); + the owner's TX / RX demos | checks / e2e, then fix |
 | CLR1 - Clear and the report (owner, 2026-11-19: "when the recording is cleared, what happens to the report? how is it cleared?") | done (2026-11-19): the proposal below built | the owner looks |
 | README review for 1.32 (owner, 2026-11-19: "update the README") | the RE2 lines are in; a full pass not done | do the full pass before the owner tags v1.32.0 |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
@@ -121,6 +121,12 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-19 · MSG1: svcore/bytestream.py (framing found by itself, resync, a direction column), the op `messages`, *Decode as
+  messages…* (a tab: bytes, type, length, interval, checksum ok), `[[messages]]` + *Link review*, `[[overview]]` leaves byte
+  streams out, demo examples/serial_link (owner, mid-task: TX and RX as two signals; one signal mixed with a dir column; a report
+  with plots). Decisions: the demo is its own example (not in report_demo, whose automatic report would get a link section);
+  Fletcher-16 is UBX's (wraps at 256); a heartbeat breaking the order still lets the 6-message sequence stand (>= 90 %);
+  CHANGELOG lines in 1.32.0 (not tagged yet - move to Next if the owner prefers). Pushed first, checks after (owner's word).
 - 2026-11-19 · CLR1: Clear → *The report* (text + pictures, asks when written, one Undo), the clear-tabs toasts say when the
   written report points at the cleared tabs (+ *Clear the report too*), the Report screen's ↺ menu (*Empty* / *Back to the
   report from the tabs*). e2e: test_report_doc (3), test_features -k clear (5).

@@ -187,6 +187,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - A made signal (Create signals): *Rename…* (the plots, the groups and the signals made from it follow), *Change the formula…* and *Delete* (also the Delete key, also several) - what was made from it is asked about and deleted too; one *Undo* puts all of it back in every plot
 - Smart search: substrings, letters in order (“spd” → Speed), one typo (“sepeed” → Speed); exact matches win
 - Right-click: add, new plot, use as X, Create signal ▸ (derivative, integral, other operations… – Create signals opens with the signal chosen)
+- **Messages in a byte stream** (MSG1): right-click a signal of bytes (or select byte columns, one message per row) ▸ *Decode as messages…* - the header, length, type and checksum found by themselves, broken messages resynced; a tab with the message type, length, interval and checksum good / bad; a stream recorded both ways is split by its direction column (TX / RX); the report part `[[messages]]` ([Reports](reports.md#messages-in-a-byte-stream))
 
 ### Legend names
 
