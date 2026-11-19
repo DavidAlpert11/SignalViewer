@@ -1074,6 +1074,17 @@ def img_49_report_differences(b, app):
     shot(pg, "49_report_differences"); ctx.close()
 
 
+def img_51_report_map(b, app):
+    """RE2: the trajectory part - both runs' tracks on the map; then navigation errors one plot per axis."""
+    ctx, pg = page(b, app)
+    _report_parts(pg, app)
+    pg.click(".rd-head .seg button:nth-child(3)")
+    pg.wait_for_timeout(2500)
+    _preview_to(pg, "The tracks on the map")
+    pg.wait_for_timeout(3000)
+    shot(pg, "51_report_map"); ctx.close()
+
+
 def img_50_report_parts_hebrew(b, app):
     """RE2: the same automatic report in Hebrew (the report's language follows the app's)."""
     ctx, pg = page(b, app)

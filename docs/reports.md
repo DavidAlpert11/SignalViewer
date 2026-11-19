@@ -68,22 +68,26 @@ not one format:
 *Control review*, *Navigation review*, *Comparison of the files* (offered when they fit). A report nobody wrote yet
 is replaced; otherwise the parts go in where the cursor is. Edit the result like any text - delete a part, move it,
 write around it. **Save as my report template…** keeps your report under a name and offers it again in any
-session; a session template saved from the template library carries the report too, and opening it on the next
+session; **My parts** (at the end of the list) keeps any piece you select in the text - a paragraph, a table, a few
+parts with their options - under a name, one click into any report; a session template saved from the template library carries the report too, and opening it on the next
 recording brings the report (only when that session has no report of its own yet).
 
 **Ready-made parts**, by category - each one click (or drag) into the text:
 
 | Write | Puts in |
 |---|---|
-| `[[tracking]]` | **commanded vs actual**: every command and its measured value, paired by name (`DesRoll`/`Roll`, `roll_cmd`/`roll`, `alt_target`/`alt`, `x_setpoint`/`x`…) - RMS and largest error (and when), bias, delay, and for each step of the command the overshoot and settling time; a table, worst first, and the worst pairs plotted (the command dashed, the error on the right axis) |
+| `[[tracking]]` | **commanded vs actual**: every command and its measured value, paired by name (`DesRoll`/`Roll`, `roll_cmd`/`roll`, `alt_target`/`alt`, `x_setpoint`/`x`…) - RMS and largest error (and when), bias, delay, and for each step of the command the overshoot and settling time; a table, worst first, and the worst pairs plotted (the command dashed, the error on the right axis - the axis titled with its name and in its colour) |
 | `[[tracking roll \| tol 2, outside 1%]]` | only the pairs named like *roll*; pass / fail: the error within ±2 for all but 1 % of the time |
 | `[[navigation]]` | **navigation errors between objects**: each map object's position, velocity and attitude error against the reference - RMS, mean, 95 %, largest and when - and the worst plotted. The reference is guessed (a simulation's truth, else a receiver), shown in the list and changeable: `[[navigation \| ref GPS, position]]`. With several files, each file against its own reference |
 | `[[states]]` `[[states Mode]]` | **the scenario**: each state signal (a mode, a phase, a status - text values) as a time line: every stretch, its duration and where it was (height, distance from the start); most time in, the changes |
-| `[[trajectory]]` | the track's facts - duration, distance travelled, farthest from the start, highest, fastest - and the track |
+| `[[trajectory]]` | the track's facts - duration, distance travelled, farthest from the start, highest, fastest - and **the tracks on a map** (every file's, on the map layer the app shows; only map tiles already kept are used, else the offline world map) |
 | `[[moments]]` | **special moments** on one time line: the phases, every change of a state (*gps.status OK → LOST*), leaving and returning to the ground, highest, farthest, the largest tracking errors, a signal stuck or at its limit, a gap, a spike |
 | `[[differences]]` | **the files compared** (two or more open): see below |
 | `[[summary]]` | **what to look at**: the most important things the other parts found, worst first - put it at the top |
+| `[[toc]]` | **a table of contents**: the report's headings (`##`, `###`) - those the parts write too - as links that jump to them in the page |
 | `[[plot Roll, DesRoll \| 10..60]]` | a plot made from names, in no tab; a name in several files is drawn from each; `[[plot xy Lon, Lat]]` |
+
+![The trajectory part: both runs' tracks on the map, then the special moments](images/51_report_map.png)
 
 Options after `|`, separated by commas: `top 5` (how many plotted), `table` (tables only), `tol 2`, `outside 1%`,
 `skip yaw`, `ref NAME`, `base FILE`, `position` / `velocity` / `attitude`, `min 2s` (states shorter than that not

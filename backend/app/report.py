@@ -858,6 +858,14 @@ def draw_axes(ax, pdata: Dict, theme: str = "light"):
         ax2.tick_params(colors=th["axis"], labelsize=8)
         for sp in ax2.spines.values():
             sp.set_color(th["grid"])
+        # RE2: each axis says whose it is - its lines' names, the right one in its (first) line's colour
+        right = [x for x in pdata["signals"] if x.get("axis") == "right"]
+        left = [x for x in pdata["signals"] if x.get("axis") != "right"]
+        ax2.set_ylabel(_bidi(", ".join(x["label"] for x in right)), color=right[0]["color"], fontsize=8, fontweight="bold")
+        ax2.tick_params(axis="y", colors=right[0]["color"])
+        ax2.spines["right"].set_color(right[0]["color"])
+        if left:
+            ax.set_ylabel(_bidi(", ".join(x["label"] for x in left)), color=th["axis"], fontsize=8)
     for s in pdata["signals"]:
         x, y = s.get("x"), s.get("y")
         if x is None or not len(x):

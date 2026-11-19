@@ -49,9 +49,11 @@ def test_a_ready_report_made_of_parts(demo):
     ref = lib.locator(".rd-cat-navigation select")
     assert "guessed" in ref.locator("option:checked").inner_text()          # the truth guessed as the reference
     lib.locator(".rd-ready .rd-lib-item", has_text="Automatic report").click()
-    committed(pg, "[[summary]]", "[[tracking]]", "[[navigation]]", "[[states]]", "[[moments]]", "[[differences]]")
+    committed(pg, "[[toc]]", "[[summary]]", "[[tracking]]", "[[navigation]]", "[[states]]", "[[moments]]", "[[differences]]")
     preview_has(pg, "What to look at", "commanded / measured pairs", "Navigation errors against", "mission.phase",
-                "The central region of the change: 141.0", "First to diverge", 'class="plot')
+                "The central region of the change: 141.0", "First to diverge", 'class="plot',
+                "Contents", 'href="#h-commanded-vs-actual"', 'id="h-commanded-vs-actual"', "The tracks on the map",
+                "Δnorth - Position error [m]")
     shot(pg, "re2_ready_report.png")
     # a part at the caret: one pair's tracking, after the title
     ed = pg.locator(".rd-text")
@@ -87,4 +89,15 @@ def test_paste_a_word_table_and_a_picture_and_keep_a_report_template(demo):
     pg.locator(".dialog input").fill("Bench report")
     pg.locator(".dialog .btn.primary").click()
     pg.wait_for_selector(".rd-mine .rd-lib-item:has-text('Bench report')")
+    # my own part: the selected text kept under a name, one click into the text again
+    pg.evaluate("() => { const e = document.querySelector('.rd-text'); const i = e.value.indexOf('**Results**'); e.focus(); e.setSelectionRange(i, i + 11); }")
+    pg.locator(".rd-save-part").click()
+    pg.locator(".dialog input").fill("Results line")
+    pg.locator(".dialog .btn.primary").click()
+    item = pg.locator(".rd-cat-mine .rd-lib-item", has_text="Results line")
+    item.wait_for()
+    n = pg.evaluate("() => (window.__sv.state().ws.report.doc.text.match(/\\*\\*Results\\*\\*/g) || []).length")
+    pg.evaluate("() => { const e = document.querySelector('.rd-text'); e.focus(); e.setSelectionRange(e.value.length, e.value.length); }")
+    item.click()                                   # (with text selected the part replaces it, as any insert)
+    pg.wait_for_function("n => (window.__sv.state().ws.report.doc.text.match(/\\*\\*Results\\*\\*/g) || []).length === n + 1", arg=n, timeout=10000)
     assert S(pg, "s.ws.report.assets") and len(S(pg, "Object.keys(s.ws.report.assets)")) == 1

@@ -127,6 +127,10 @@
       return o;
     }));
     var hasRight = spec.mode === "time" && spec.signals.some(function (s) { return s.axis === "right"; });
+    // RE2: with a second axis, each axis says whose it is - its lines' names, the right one in its line's colour
+    var sideNames = function (right) { return spec.signals.filter(function (s) { return (s.axis === "right") === right; })
+      .map(function (s) { return s.label; }).join(", "); };
+    var rightColor = hasRight ? spec.signals.filter(function (s) { return s.axis === "right"; })[0].color : null;
     if (spec.mode === "time") {
       var r0 = spec.range;
       data = this.timeData(r0 ? r0[0] : null, r0 ? r0[1] : null);
@@ -134,8 +138,10 @@
         cursor: { y: false, drag: { x: true, y: false, setScale: false }, bind: { dblclick: function () { return null; } } },
         scales: hasRight ? { x: { time: false, auto: !r0, range: r0 ? function () { return [r0[0], r0[1]]; } : undefined }, y2: { auto: true } }
           : { x: { time: false, auto: !r0, range: r0 ? function () { return [r0[0], r0[1]]; } : undefined } },
-        axes: [Object.assign({}, axis, { size: 34 }), Object.assign({}, axis, { size: 56, values: ticks })]
-          .concat(hasRight ? [Object.assign({}, axis, { scale: "y2", side: 1, size: 56, values: ticks, grid: { show: false } })] : []),
+        axes: [Object.assign({}, axis, { size: 34 }), Object.assign({}, axis, { size: 56, values: ticks },
+            hasRight ? { label: sideNames(false), labelSize: 16, labelFont: "11px sans-serif" } : {})]
+          .concat(hasRight ? [Object.assign({}, axis, { scale: "y2", side: 1, size: 56, values: ticks, grid: { show: false },
+            label: sideNames(true), labelSize: 16, labelFont: "bold 11px sans-serif", stroke: rightColor })] : []),
         series: series,
         hooks: { draw: [drawStates, drawCursor], setSelect: [function (u) {
           if (u.select.width < 4) return;

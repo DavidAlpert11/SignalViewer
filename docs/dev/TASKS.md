@@ -29,7 +29,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Release 1.30.0 (owner, 2026-11-18: "add and release") | prepared: version, CHANGELOG, README / docs reviewed, validation 29 / 29 | build (by hand, 0c42bd2), ci and docs green on all three systems; the owner deletes the v1.29.1 Release and tag, then releases v1.30.0 from the website |
 | CP1 - copy a plot / a tab into a Confluence page (owner, 2026-11-18) | done - every sample, via an attachment (his Confluence itself not tested - no access) | the owner tries it on his Confluence 10.2: drag the file onto the page, Insert > HTML, paste |
 | RE1 - the report as a document you write (owner, 2026-11-18) | built - 1.31.0 prepared (version, CHANGELOG, README, docs) | the owner looks at the examples and tags v1.31.0; next: RE1.3 (the written text in templates + CLI), the outline / numbering |
-| RE2 - ready reports made of ready-made parts (owner, 2026-11-19: decide and build) | built on branch `claude/re2-report-parts`, release 1.32.0 prepared (version, CHANGELOG, README, docs, pictures 48-50) | the owner looks (pictures, the demo examples/report_demo) and says merge; then tag v1.32.0. Next: RE2.6 block editor, RE2.7 |
+| RE2 - ready reports made of ready-made parts (owner, 2026-11-19: decide and build) | merged into main (owner: "merge and push to main, I will check and go back a commit if needed"); release 1.32.0 prepared (version, CHANGELOG, README, docs, pictures 48-51) | the owner checks and tags v1.32.0. Next: RE2.6 block editor, RE2.7 |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
 ## Open specs (waiting for the owner)
@@ -270,3 +270,9 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   prepared (version files, CHANGELOG, README en + he, features / limitations / reports.md, validation page). Tests: backend
   test_report_parts (12) + full backend; Vitest reportReady / reportDoc / desired; e2e test_report_parts (2), test_report_doc.
   Pictures 48 / 49 / 50 (make_readme_media). Branch claude/re2-report-parts - not merged: the owner looks first.
+- 2026-11-19 · RE2 owner's round 2 (before the merge): the trajectory as a map (every file's track, app/mapimage.py, the app's map layer);
+  a second value axis titled with its lines' names, the right one in its colour (viewer.js, report.draw_axes); [[toc]] (the
+  headings, the parts' too, as links; h2 / h3 ids); My parts (the selected text kept under a name, prefs sv.reportMyParts);
+  navigation errors one plot per axis, every object of every file a line, the noisiest drawn underneath. Whole e2e (one file at a
+  time): 512 passed; test_sweeps_data_columns (1) and test_sweeps_groups (2 errors) failed while the UI was rebuilt during the run -
+  alone: 12 + 2 passed. test_report_parts (2), test_report_doc (2) green after the round. Pictures 48-51.

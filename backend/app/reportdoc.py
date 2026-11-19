@@ -346,6 +346,11 @@ def _err(text: str) -> str:
     return '<span class="field-err">⚠ %s</span>' % _esc(text)
 
 
+def _heading_id(text: str) -> str:
+    from app.reportparts import heading_id
+    return heading_id(text)
+
+
 def _asset_url(a: dict) -> str:
     mime = str(a.get("mime") or "image/png")
     if not re.fullmatch(r"image/(png|jpeg|gif|webp)", mime):
@@ -428,7 +433,9 @@ def blocks_html(blocks: List[dict], items: List[dict], S: Dict, theme: str, plot
         if k is not None:
             out.append(_item_html(items[k], S, theme, plots_out))
         elif t == "heading":
-            out.append('<h%d dir="auto">%s</h%d>' % (b["level"], inline_html(parse_inline(b["text"]), items, base), b["level"]))
+            # RE2: an h2 / h3 has an id, so [[toc]]'s links jump to it
+            hid = ' id="%s"' % _esc(_heading_id(MARK.sub("", b["text"]))) if b["level"] in (2, 3) else ""
+            out.append('<h%d dir="auto"%s>%s</h%d>' % (b["level"], hid, inline_html(parse_inline(b["text"]), items, base), b["level"]))
         elif t == "para":
             out.append('<p dir="auto">%s</p>' % inline_html(parse_inline(b["text"]), items, base))
         elif t == "list":

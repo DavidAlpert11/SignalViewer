@@ -6,9 +6,11 @@ import { api, type ReportScan } from "../api";
 import { useApp } from "../store";
 import { useT } from "../i18n";
 import { prompt } from "./Overlays";
-import { deleteMyReport, myReports, partCategories, readyReports, readyText, saveMyReport, type Choice, type MyReport } from "../reportReady";
+import { deleteMyPart, deleteMyReport, myParts, myReports, saveMyPart, type MyPart, partCategories, readyReports, readyText, saveMyReport, type Choice, type MyReport } from "../reportReady";
 
-export default function ReportParts({ block, ready, text }: { block: (s: string) => void; ready: (s: string) => void; text: string }) {
+export default function ReportParts({ block, ready, text, selected }: { block: (s: string) => void; ready: (s: string) => void; text: string;
+  /** the text selected in the editor now ("" when none) - what *Save as my part* keeps */
+  selected: () => string }) {
   const t = useT();
   const lang = useApp((s) => s.ws.report?.lang ?? s.lang);
   const version = useApp((s) => s.runs.map((r) => r.id + ":" + (r.version ?? "")).join(","));
@@ -16,6 +18,7 @@ export default function ReportParts({ block, ready, text }: { block: (s: string)
   const [scan, setScan] = useState<ReportScan | null>(null);
   const [choice, setChoice] = useState<Choice>({});
   const [mine, setMine] = useState<MyReport[]>(myReports);
+  const [own, setOwn] = useState<MyPart[]>(myParts);
   useEffect(() => {
     let gone = false;
     api.reportParts().then((r) => { if (!gone) setScan(r); }).catch(() => { if (!gone) setScan(null); });
@@ -32,6 +35,14 @@ export default function ReportParts({ block, ready, text }: { block: (s: string)
     if (!name?.trim()) return;
     setMine(saveMyReport(name.trim(), text));
     useApp.getState().toast({ kind: "info", text: t("rpSavedMine", { name: name.trim() }) });
+  };
+  const savePart = async () => {
+    const sel = selected().trim();
+    if (!sel) { useApp.getState().toast({ kind: "error", text: t("rpMyPartNoSel") }); return; }
+    const name = await prompt(t("rpMyPartSave"), t("rpMyPartAsk"), sel.split("\n")[0].replace(/^#+\s*/, "").slice(0, 40));
+    if (!name?.trim()) return;
+    setOwn(saveMyPart(name.trim(), sel));
+    useApp.getState().toast({ kind: "info", text: t("rpMyPartSaved", { name: name.trim() }) });
   };
   const cats = partCategories(scan, lang, choice);
   return (
@@ -67,6 +78,19 @@ export default function ReportParts({ block, ready, text }: { block: (s: string)
           {c.empty ? <p className="hint">{c.empty}</p> : <div className="rd-lib-tab">{c.parts.map((p) => item(p.label, p.insert, p.title))}</div>}
         </details>
       ))}
+      <details className="rd-cat rd-cat-mine" open>
+        <summary><b>{t("rpMyParts")}</b>{own.length > 0 && <span className="hint"> · {own.length}</span>}</summary>
+        {own.length === 0 && <p className="hint">{t("rpMyPartsEmpty")}</p>}
+        <div className="rd-lib-tab">
+          {own.map((m) => (
+            <span key={m.name} className="rd-mine">
+              {item(m.name, m.text, m.text.slice(0, 300))}
+              <button className="iconbtn rd-mine-del" title={t("rpMineDelete")} aria-label={t("rpMineDelete")} onClick={() => setOwn(deleteMyPart(m.name))}>×</button>
+            </span>
+          ))}
+          <button className="btn outline rd-save-part" onMouseDown={(e) => e.preventDefault()} onClick={savePart}>{t("rpMyPartSave")}</button>
+        </div>
+      </details>
     </div>
   );
 }

@@ -48,7 +48,8 @@ export function partCategories(scan: ReportScan, lang: Lang, choice: Choice = {}
         { label: t("rpDiffTable"), insert: `[[differences${baseOpt ? baseOpt + ", table" : " | table"}]]` },
         { label: t("rpDiffTop"), insert: `[[differences${baseOpt ? baseOpt + ", top 12" : " | top 12"}]]` },
       ] : [] },
-    { id: "summary", title: t("rpCatSummary"), found: "", parts: [{ label: t("rpSummary"), insert: "[[summary]]", title: t("rpSummaryHint") }] },
+    { id: "summary", title: t("rpCatSummary"), found: "", parts: [{ label: t("rpSummary"), insert: "[[summary]]", title: t("rpSummaryHint") },
+      { label: t("rpToc"), insert: "[[toc]]", title: t("rpTocHint") }] },
   ];
   return out;
 }
@@ -81,7 +82,7 @@ export function readyText(id: ReadyId, scan: ReportScan, lang: Lang, choice: Cho
     compare: { scenario: false, tracking: false, nav: false, compare: true },
   }[id];
   const title = { auto: "rpTitleAuto", control: "rpTitleControl", navigation: "rpTitleNav", compare: "rpTitleCompare" }[id] as TKey;
-  const out = [`# ${t(title)}${files ? ` - ${files}` : ""}`, t("rpIntro"), "[[summary]]"];
+  const out = [`# ${t(title)}${files ? ` - ${files}` : ""}`, t("rpIntro"), "[[toc]]", "[[summary]]"];
   if (id === "compare") out.push(`## ${t("rpHCompare")}`, `[[differences${base}]]`);
   if (want.scenario) {
     out.push(`## ${t("rpHScenario")}`);
@@ -122,4 +123,20 @@ export function deleteMyReport(name: string): MyReport[] {
  *  without its title (a report has one title). */
 export function readyInsert(text: string, untouched: boolean): { replace: boolean; text: string } {
   return untouched ? { replace: true, text } : { replace: false, text: text.replace(/^#\s+[^\n]*\n+/, "") };
+}
+
+// the user's own parts: any piece of a report kept under a name, offered in the library's *My parts*
+export interface MyPart { name: string; text: string; at: number }
+const PKEY = "sv.reportMyParts";
+export const myParts = (): MyPart[] => getPrefValue<MyPart[]>(PKEY) ?? [];
+export function saveMyPart(name: string, text: string): MyPart[] {
+  const list = myParts().filter((r) => r.name !== name);
+  list.push({ name, text, at: Date.now() });
+  setPref(PKEY, list);
+  return list;
+}
+export function deleteMyPart(name: string): MyPart[] {
+  const list = myParts().filter((r) => r.name !== name);
+  setPref(PKEY, list);
+  return list;
 }

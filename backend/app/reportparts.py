@@ -19,7 +19,7 @@ from svcore import reportparts as rp
 from svcore.docfields import format_value
 
 PALETTE = ["#3D8BFD", "#E8590C", "#2F9E44", "#AE3EC9", "#F08C00", "#0CA678", "#E64980", "#1C7ED6"]
-PARTS = ("tracking", "navigation", "states", "trajectory", "moments", "differences", "summary")
+PARTS = ("toc", "tracking", "navigation", "states", "trajectory", "moments", "differences", "summary")
 UNITS = {"position": "m", "velocity": "m/s", "attitude": "deg"}
 
 S: Dict[str, Dict[str, Any]] = {
@@ -28,7 +28,7 @@ S: Dict[str, Dict[str, Any]] = {
         "trk_intro": "**{n} commanded / measured pairs**, found by their names; each compared on all its samples (error = measured − commanded).",
         "trk_head": ["Commanded", "Measured", "RMS error", "Max error", "at (s)", "Bias", "Delay (s)", "Steps", "Overshoot", "Settling (s)"],
         "trk_tol": ["Outside ±{tol}", "Pass"], "file": "File", "pass": "✔ pass", "fail": "✖ fail",
-        "trk_plot": "{m} vs its command", "error": "error", "not_settled": "not settled ({n})",
+        "trk_plot": "{m} vs its command", "error": "error (right axis)", "not_settled": "not settled ({n})",
         "trk_cap": "Largest error {max} at {t} s; RMS {rms}.", "trk_cap_steps": " {n} steps, overshoot up to {o} % (at {to} s).",
         "trk_hl": "{m} followed {s} with RMS error {rms} (max {max} at {t} s)", "trk_hl_fail": "{m} outside ±{tol} for {out} % of the time",
         "none_nav": "Fewer than two map objects with a position in the open files - nothing to compare.",
@@ -36,7 +36,7 @@ S: Dict[str, Dict[str, Any]] = {
         "nav_guess": "the reference was guessed: {cls} - choose another with | ref NAME", "nav_chosen": "the chosen reference",
         "qty": {"position": "Position", "velocity": "Velocity", "attitude": "Attitude"},
         "nav_head": ["Object", "Error", "RMS", "Mean", "95 %", "Max", "at (s)"],
-        "nav_plot": "{q} error of {o} against {ref}", "nav_hl": "{o}: {q} error up to {max} {u} (at {t} s), 95 % within {p95} {u}",
+        "nav_plot": "{q} error of {o} against {ref}", "nav_axis": "{c} - {q} error [{u}] against {ref}", "nav_hl": "{o}: {q} error up to {max} {u} (at {t} s), 95 % within {p95} {u}",
         "nav_left": "Left out: {list}.",
         "none_st": "No state signals in the open files (a mode, phase or state - text values or a few whole-number levels).",
         "st_intro": "**{name}** - {n} stretches, {c} changes{dropped}.", "st_dropped": " ({n} shorter than {min} s not listed)",
@@ -45,7 +45,7 @@ S: Dict[str, Dict[str, Any]] = {
         "st_most": "Most time in **{s}** ({p} %). Changes: {list}.", "st_hl": "{name}: {n} changes, most time in {s} ({p} %)",
         "none_tr": "No map object with a latitude and a longitude in the open files.",
         "tr_head": ["", "Value", "at (s)"], "tr_dur": "Duration", "tr_trav": "Distance travelled", "tr_far": "Farthest from the start",
-        "tr_high": "Highest", "tr_low": "Lowest", "tr_speed": "Fastest (ground speed)", "tr_plot": "Track of {o}",
+        "tr_high": "Highest", "tr_low": "Lowest", "tr_speed": "Fastest (ground speed)", "tr_plot": "Track of {o}", "tr_map": "The tracks on the map",
         "tr_intro": "**{o}** in {f}, from {t0} s to {t1} s.",
         "tr_hl": "{o}: {d} travelled, {far} from the start at most",
         "none_diff": "One file is open - open two or more to compare them.",
@@ -72,6 +72,7 @@ S: Dict[str, Dict[str, Any]] = {
                    "highest": "{v} m", "farthest": "{v}", "error": "{v} (command {c})", "takeoff": "{v} m above the start", "landing": ""},
         "edge": {"max": "maximum", "min": "minimum"},
         "mo_hl": "{f}: {what} at {t} s",
+        "toc": "Contents", "toc_none": "No headings yet (## a heading).",
         "sum_none": "Nothing to point out: the report's automatic parts found nothing unusual.",
         "sum_intro": "**What to look at** - the most important things the parts below found:",
         "bad_opt": "{part}: the option \"{o}\" is not known (known: {known}).",
@@ -82,7 +83,7 @@ S: Dict[str, Dict[str, Any]] = {
         "trk_intro": "**{n} זוגות פקודה / ביצוע**, שנמצאו לפי השמות; כל זוג מושווה על כל הדגימות (שגיאה = ביצוע − פקודה).",
         "trk_head": ["פקודה", "ביצוע", "שגיאת RMS", "שגיאה מרבית", "בזמן (ש')", "הטיה", "השהיה (ש')", "צעדים", "Overshoot", "התייצבות (ש')"],
         "trk_tol": ["מחוץ ל-±{tol}", "תקין"], "file": "קובץ", "pass": "✔ תקין", "fail": "✖ נכשל",
-        "trk_plot": "{m} מול הפקודה", "error": "שגיאה", "not_settled": "לא התייצב ({n})",
+        "trk_plot": "{m} מול הפקודה", "error": "שגיאה (ציר ימני)", "not_settled": "לא התייצב ({n})",
         "trk_cap": "השגיאה הגדולה ביותר {max} בזמן {t} ש'; RMS {rms}.", "trk_cap_steps": " {n} צעדים, overshoot עד {o} % (בזמן {to} ש').",
         "trk_hl": "{m} עקב אחרי {s} בשגיאת RMS {rms} (מרבית {max} בזמן {t} ש')", "trk_hl_fail": "{m} מחוץ ל-±{tol} ב-{out} % מהזמן",
         "none_nav": "פחות משני אובייקטים עם מיקום בקבצים הפתוחים - אין מה להשוות.",
@@ -90,7 +91,7 @@ S: Dict[str, Dict[str, Any]] = {
         "nav_guess": "הייחוס נוחש: {cls} - לבחירת אחר | ref שם", "nav_chosen": "הייחוס שנבחר",
         "qty": {"position": "מיקום", "velocity": "מהירות", "attitude": "זוויות"},
         "nav_head": ["אובייקט", "שגיאה", "RMS", "ממוצע", "95 %", "מרבית", "בזמן (ש')"],
-        "nav_plot": "שגיאת {q} של {o} מול {ref}", "nav_hl": "{o}: שגיאת {q} עד {max} {u} (בזמן {t} ש'), 95 % בתוך {p95} {u}",
+        "nav_plot": "שגיאת {q} של {o} מול {ref}", "nav_axis": "{c} - שגיאת {q} [{u}] מול {ref}", "nav_hl": "{o}: שגיאת {q} עד {max} {u} (בזמן {t} ש'), 95 % בתוך {p95} {u}",
         "nav_left": "לא הושוו: {list}.",
         "none_st": "אין בקבצים הפתוחים סיגנלי מצב (מוד, שלב או מצב - ערכי טקסט או כמה רמות שלמות).",
         "st_intro": "**{name}** - {n} קטעים, {c} מעברים{dropped}.", "st_dropped": " ({n} קצרים מ-{min} ש' לא ברשימה)",
@@ -99,7 +100,7 @@ S: Dict[str, Dict[str, Any]] = {
         "st_most": "רוב הזמן ב-**{s}** ({p} %). מעברים: {list}.", "st_hl": "{name}: {n} מעברים, רוב הזמן ב-{s} ({p} %)",
         "none_tr": "אין בקבצים הפתוחים אובייקט עם קו רוחב וקו אורך.",
         "tr_head": ["", "ערך", "בזמן (ש')"], "tr_dur": "משך", "tr_trav": "מרחק שעבר", "tr_far": "הכי רחוק מההתחלה",
-        "tr_high": "הגובה הרב ביותר", "tr_low": "הגובה הנמוך ביותר", "tr_speed": "המהירות הגבוהה ביותר (קרקע)", "tr_plot": "המסלול של {o}",
+        "tr_high": "הגובה הרב ביותר", "tr_low": "הגובה הנמוך ביותר", "tr_speed": "המהירות הגבוהה ביותר (קרקע)", "tr_plot": "המסלול של {o}", "tr_map": "המסלולים על המפה",
         "tr_intro": "**{o}** ב-{f}, מ-{t0} ש' עד {t1} ש'.",
         "tr_hl": "{o}: עבר {d}, התרחק עד {far} מההתחלה",
         "none_diff": "פתוח קובץ אחד - פתח שניים או יותר כדי להשוות.",
@@ -125,6 +126,7 @@ S: Dict[str, Dict[str, Any]] = {
                    "highest": "{v} מ'", "farthest": "{v}", "error": "{v} (פקודה {c})", "takeoff": "{v} מ' מעל ההתחלה", "landing": ""},
         "edge": {"max": "מקסימום", "min": "מינימום"},
         "mo_hl": "{f}: {what} בזמן {t} ש'",
+        "toc": "תוכן העניינים", "toc_none": "אין עדיין כותרות (## כותרת).",
         "sum_none": "אין מה להדגיש: החלקים האוטומטיים של הדוח לא מצאו דבר חריג.",
         "sum_intro": "**על מה להסתכל** - הדברים החשובים ביותר שהחלקים שלהלן מצאו:",
         "bad_opt": "{part}: האפשרות \"{o}\" אינה מוכרת (מוכרות: {known}).",
@@ -132,7 +134,7 @@ S: Dict[str, Dict[str, Any]] = {
     },
 }
 KNOWN = {"tracking": "top N, table, tol X, outside X%, skip NAME", "navigation": "ref NAME, position, velocity, attitude, top N, table",
-         "states": "min Xs, table", "trajectory": "table", "moments": "top N", "differences": "base NAME, top N, table, small X%, large X%", "summary": "top N"}
+         "states": "min Xs, table", "trajectory": "table", "moments": "top N", "differences": "base NAME, top N, table, small X%, large X%", "summary": "top N", "toc": ""}
 
 
 class PartError(Exception):
@@ -207,6 +209,7 @@ class Part:
         self.S = S.get(lang, S["en"])
         self.md: List[str] = []
         self.highlights: List[Dict] = []
+        self.base = ""                                   # the app's map layer (the part item's "mapBase")
 
     def say(self, text: str):
         self.md.append(text)
@@ -217,6 +220,14 @@ class Part:
         if x:
             sp["xSignal"], sp["xLabel"] = x, x.split("/", 1)[-1]
         self.items.append({"kind": "plots", "plots": [sp], "table": table, "tab": "", "auto": True})
+        self.md.append("\u27e6%d\u27e7" % (len(self.items) - 1))
+
+    def map(self, title: str, objects: List[dict], caption: str = ""):
+        """A map of tracks (app/mapimage.py: the picture in PDF / Word, the interactive offline map in the page), on
+        the map layer the app shows (only the tiles it has kept are used; else the offline world map)."""
+        sp = {"title": title, "caption": caption, "mode": "geo", "signals": [],
+              "geo": {"objects": objects, "base": self.base or "offline", "cursor": None, "places": [], "names": True, "trackWidth": 2.5}}
+        self.items.append({"kind": "plots", "plots": [sp], "table": "none", "tab": "", "auto": True})
         self.md.append("\u27e6%d\u27e7" % (len(self.items) - 1))
 
     def series(self, label: str, t, y) -> str:
@@ -343,6 +354,8 @@ def navigation(p: Part, rids: List[str], arg: str, o: Dict):
     want = o.get("ref") or arg.strip()
     groups = [rids] if want or len(rids) < 2 else [[r] for r in rids]
     done = False
+    acc: Dict[Tuple[str, str], List] = {}
+    refs: List[str] = []
     for g in groups:
         objs = detect_objects(st, g)
         if len(objs) < 2:
@@ -356,13 +369,23 @@ def navigation(p: Part, rids: List[str], arg: str, o: Dict):
             ref = guess_reference(objs)
             assert ref is not None                       # two objects or more
             why = S_["nav_guess"].format(cls=ref["cls"])
-        _navigation(p, objs, ref, why, o, st.get(g[0]).name if len(groups) > 1 else "")
+        _navigation(p, objs, ref, why, o, st.get(g[0]).name if len(groups) > 1 else "", acc)
+        refs.append(ref["name"])
         done = True
     if not done:
         p.say("*%s*" % S_["none_nav"])
+        return
+    if not o.get("table"):
+        # one plot per axis (owner: every component on one plot cannot be read): in it every compared object - of
+        # every file, so two runs' errors are seen together; horizontal / vertical are left to the tables
+        for (q, c), lines in acc.items():
+            # the noisiest underneath, the smooth ones on top - a receiver's noise must not hide an estimate's error
+            lines = sorted(lines, key=lambda x: -float(np.nanstd(np.diff(np.asarray(x[1][1], dtype=np.float64)))) if len(x[1][1]) > 2 else 0.0)
+            p.plot(S_["nav_axis"].format(c=c, q=S_["qty"][q], u=UNITS[q], ref=" / ".join(dict.fromkeys(refs))),
+                   [sig_line(p.series("%s %s" % (lab, c), *ts), lab, k) for k, (lab, ts) in enumerate(lines)])
 
 
-def _navigation(p: Part, objs: List[dict], ref: dict, why: str, o: Dict, file: str):
+def _navigation(p: Part, objs: List[dict], ref: dict, why: str, o: Dict, file: str, acc: Dict[Tuple[str, str], List]):
     from svcore.objcompare import compare
     st, S_ = p.store, p.S
     what = o.get("what") or ["position", "velocity", "attitude"]
@@ -384,11 +407,12 @@ def _navigation(p: Part, objs: List[dict], ref: dict, why: str, o: Dict, file: s
             w = max(rs, key=lambda r: r["max_abs"] or 0)
             p.hl("info", 0.5 + (w["p95_abs"] or 0) / (1 + abs(w["p95_abs"] or 0)) * 0.1,
                  S_["nav_hl"].format(o=named(obj), q=S_["qty"][q], max=fmt(w["max_abs"]), u=u, t=secs(w["t_max_abs"]), p95=fmt(w["p95_abs"])))
-        if not o.get("table"):
-            for ob in sorted(by, key=lambda ob: -max(r["rms"] or 0 for r in by[ob]))[:o.get("top", 1)]:
-                comps = res["errors"][q][ob]
-                lines = [sig_line(p.series(c, *ts), c, k) for k, (c, ts) in enumerate(comps.items())]
-                p.plot(S_["nav_plot"].format(q=S_["qty"][q], o=named(ob), ref=named(ref["name"])), lines)
+        # the plots come after every file's tables (navigation): one plot per axis, each object a line
+        obs = sorted(by, key=lambda ob: -max(r["rms"] or 0 for r in by[ob]))[:o.get("top", 4)]
+        for c in [c for c in res["errors"][q][obs[0]] if c not in ("horizontal error", "vertical error")]:
+            for ob in obs:
+                if c in res["errors"][q][ob]:
+                    acc.setdefault((q, c), []).append((named(ob), res["errors"][q][ob][c]))
     left = ["%s (%s)" % (x.get("object"), x.get("why") or x.get("reason") or "") for q in res.get("left_out", {}).values() for x in q]
     reasons = ["%s: %s" % (S_["qty"].get(q, q), r) for q, r in res.get("reasons", {}).items()]
     if left or reasons:
@@ -498,8 +522,10 @@ def _track_of(store, rid: str) -> Optional[dict]:
 
 
 def trajectory(p: Part, rids: List[str], arg: str, o: Dict):
+    """Each file's track (its reference object: the truth, else the receiver...) - its facts - and one map with every
+    file's track, so two runs of one route are seen together."""
     st, S_ = p.store, p.S
-    found = False
+    tracks: List[dict] = []
     for rid in rids:
         objs = [c for c in detect_objects(st, [rid]) if c.get("pos") == "lla"]
         if arg.strip():
@@ -508,12 +534,10 @@ def trajectory(p: Part, rids: List[str], arg: str, o: Dict):
             continue
         c = (guess_reference(objs) if not arg.strip() else None) or objs[0]
         tr = _track_of_obj(st, c)
-        if tr is None:
-            continue
-        found = True
-        f = rp.path_facts(tr["t"], tr["lat"], tr["lon"], tr["alt"])
+        f = rp.path_facts(tr["t"], tr["lat"], tr["lon"], tr["alt"]) if tr else {}
         if not f:
             continue
+        name = c["name"] if len(rids) < 2 or ":" in c["name"] else "%s: %s" % (_name(st, rid), c["name"])
         p.say(S_["tr_intro"].format(o=c["name"], f=_name(st, rid), t0=secs(f["t0"]), t1=secs(f["t1"])))
         rows = [[S_["tr_dur"], secs(f["t1"] - f["t0"]) + (" s" if p.lang == "en" else " ש'"), ""],
                 [S_["tr_trav"], dist(f["travelled"], p.lang), ""],
@@ -523,11 +547,15 @@ def trajectory(p: Part, rids: List[str], arg: str, o: Dict):
         if "speed" in f:
             rows.append([S_["tr_speed"], fmt(f["speed"]) + " m/s", ""])
         p.say(table(S_["tr_head"], rows))
-        p.hl("info", 0.2, S_["tr_hl"].format(o=c["name"], d=dist(f["travelled"], p.lang), far=dist(f["farthest"], p.lang)))
-        if not o.get("table"):
-            p.plot(S_["tr_plot"].format(o=c["name"]), [sig_line(tr["latId"], "lat", 0)], mode="xy", x=tr["lonId"])
-    if not found:
+        p.hl("info", 0.2, S_["tr_hl"].format(o=name, d=dist(f["travelled"], p.lang), far=dist(f["farthest"], p.lang)))
+        pk = c["picks"]
+        tracks.append({"name": name, "color": PALETTE[len(tracks) % len(PALETTE)], "lat": pk["lat"]["id"], "lon": pk["lon"]["id"],
+                       "alt": pk["alt"]["id"] if "alt" in pk else None, "track": None})
+    if not tracks:
         p.say("*%s*" % S_["none_tr"])
+        return
+    if not o.get("table"):
+        p.map(S_["tr_map"] if len(tracks) > 1 else S_["tr_plot"].format(o=tracks[0]["name"]), tracks)
 
 
 def _track_of_obj(store, c: dict) -> Optional[dict]:
@@ -842,18 +870,44 @@ def expand_all(store, text: str, items: List[dict], lang: str) -> Tuple[str, Dic
     for k, it in enumerate(list(items)):
         if it.get("kind") != "part":
             continue
-        if it.get("part") == "summary":
+        if it.get("part") in ("summary", "toc"):
             later.append(k)
             continue
         out = out.replace("\u27e6%d\u27e7" % k, _one(store, k, it, items, extra, lang, highlights))
     for k in later:
+        if items[k].get("part") == "toc":
+            continue
         out = out.replace("\u27e6%d\u27e7" % k, _one(store, k, items[k], items, extra, lang, highlights))
+    for k in later:                                      # the table of contents last: the parts' headings are in
+        if items[k].get("part") == "toc":
+            out = out.replace("\u27e6%d\u27e7" % k, toc_markdown(out, S.get(lang, S["en"])))
+            items[k] = {"kind": "done"}
     return out, extra
+
+
+def heading_id(text: str) -> str:
+    """The anchor of a heading in the page (app/reportdoc.py gives each h2 / h3 this id; [[toc]] links to it)."""
+    return "h-" + (re.sub(r"[^\w\u0590-\u05FF]+", "-", text.strip().lower()).strip("-") or "x")
+
+
+def toc_markdown(text: str, S_: Dict[str, Any]) -> str:
+    """[[toc]]: the document's headings (## and ###, after the title) as a list of links - the page's links jump."""
+    from app.reportdoc import parse, MARK
+    lines = []
+    for b in parse(text):
+        if b["t"] == "heading" and b["level"] in (2, 3):
+            t = MARK.sub("", b["text"]).strip()
+            if t:
+                lines.append("%s- [%s](#%s)" % ("  " * (b["level"] - 2), t.replace("[", "(").replace("]", ")"), heading_id(t)))
+    if not lines:
+        return "\n\n*%s*\n\n" % S_["toc_none"]
+    return "\n\n**%s**\n\n%s\n\n" % (S_["toc"], "\n".join(lines))
 
 
 def _one(store, k: int, it: dict, items: List[dict], extra, lang: str, highlights: List[Dict]) -> str:
     part = str(it.get("part") or "")
     p = Part(store, items, extra, lang)
+    p.base = str(it.get("mapBase") or "")
     try:
         o = options(part, it.get("opts") or [])
         rids = _runs(store, it.get("runs"))

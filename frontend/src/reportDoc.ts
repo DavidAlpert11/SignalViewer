@@ -16,6 +16,7 @@ import { processSection } from "./reportProcess";
 import { investigationSections } from "./investigation";
 import { replayInfo } from "./replay";
 import { usedAssets } from "./reportPaste";
+import { effectiveBase } from "./mapBase";
 
 type Lang = "en" | "he";
 export const REPORT_DEFAULT: ReportMeta = { title: "", intro: "", summary: "", lang: "he", theme: "light", scope: "tab" };
@@ -25,7 +26,7 @@ const DOC_FUNCS = [...DOC_STATS, "stretches", "holds", "abs", "sqrt", "round", "
 export const SPECIALS = ["notes", "findings", "investigation", "process", "verdict"] as const;
 /** RE2: the ready-made parts - each finds what it needs in the open files by the signals' names and writes its
  *  sentence, tables and plots on the server (backend/app/reportparts.py). `[[tracking]]`, `[[tracking roll | tol 2]]`. */
-export const PARTS = ["tracking", "navigation", "states", "trajectory", "moments", "differences", "summary"] as const;
+export const PARTS = ["toc", "tracking", "navigation", "states", "trajectory", "moments", "differences", "summary"] as const;
 export type PartName = typeof PARTS[number];
 const MARK = (n: number) => `\u27e6${n}\u27e7`;
 
@@ -112,8 +113,11 @@ export function resolveRef(ws: Workspace, raw: string, lang: Lang): DocItem | Sp
   if ((PARTS as readonly string[]).includes(head) && !findTab(ws, name)) {
     // the options keep their case (a reference object's or a file's name)
     const raw2 = rest.join("|").split(",").map((x) => x.trim()).filter(Boolean);
-    const runs = useApp.getState().runs.filter((r) => r.format !== "derived").map((r) => r.id);
-    return { kind: "part", part: head, arg: name.slice(head.length).trim(), opts: raw2, runs, src: raw };
+    const st = useApp.getState();
+    const runs = st.runs.filter((r) => r.format !== "derived").map((r) => r.id);
+    // the map layer the app shows: a part's map is drawn on it (from the tiles kept), as a plot's map is
+    return { kind: "part", part: head, arg: name.slice(head.length).trim(), opts: raw2, runs, src: raw,
+      mapBase: effectiveBase(st.geoBase, st.offlineOnly || st.offlineForced) };
   }
   if (head === "plot" && name.length > 5 && !findTab(ws, name)) return plotRefItem(name.slice(5).trim(), opts, raw, lang);
   const plotLabel = translate(lang, "plotTitle", { n: "{n}" });

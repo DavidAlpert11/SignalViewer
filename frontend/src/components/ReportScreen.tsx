@@ -279,7 +279,8 @@ export default function ReportScreen() {
         {view !== "show" && (
           <aside className="rd-lib" aria-label={t("rdLibrary")}>
             <p className="hint">{t("rdLibHint")}</p>
-            <ReportParts block={block} ready={ready} text={text} />
+            <ReportParts block={block} ready={ready} text={text}
+              selected={() => { const el = ed.current; return el ? el.value.slice(el.selectionStart ?? 0, el.selectionEnd ?? 0) : ""; }} />
             <h3 className="eyebrow">{t("rdLibPlots")}</h3>
             {ws.tabs.map((tb, ti) => (
               <div key={tb.id} className="rd-lib-tab">

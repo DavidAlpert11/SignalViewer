@@ -93,7 +93,7 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 .rd-mine { display: flex; align-items: center; }
 .rd-mine > .rd-lib-item { flex: 1; }
 .rd-mine-del { width: 22px; height: 22px; font-size: 14px; }
-.rd-save-mine { align-self: flex-start; margin-top: 4px; font-size: 12px; padding: 2px 8px; }
+.rd-save-mine, .rd-save-part { align-self: flex-start; margin-top: 4px; font-size: 12px; padding: 2px 8px; }
 .rd-cat { border-top: 1px solid var(--line); padding: 4px 0; }
 .rd-cat > summary { cursor: pointer; padding: 3px 2px; list-style-position: inside; }
 .rd-cat > summary .hint { font-weight: 400; }
