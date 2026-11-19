@@ -70,6 +70,8 @@ EXAMPLE_SETS = [
     {"id": "ardupilot", "files": ["copter_flight.bin"]},                               # T45: a flight log
     {"id": "simVsFlight", "files": ["sim_vs_flight/sim_attitude_doublets.mat",         # C13: a model against its flight
                                      "sim_vs_flight/flight_attitude_doublets.bin"]},
+    # RE2: two runs of one generic test mission - "open": "report" = the Report screen with the automatic report
+    {"id": "reportDemo", "open": "report", "files": ["report_demo/mission_ref.csv", "report_demo/mission_gust.csv"]},
     {"id": "investigate", "files": ["investigate/heavy_payload.csv",                  # the Investigate tools,
                                     "investigate/light_payload.csv"]},                # with a known answer
     # FL1: "open": "summary" = the folder of the first file summed up with its measures.json, one row per recording in Sweeps

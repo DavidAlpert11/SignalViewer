@@ -170,3 +170,21 @@ def test_a_long_appendix_table_goes_on_over_pages(tmp_path):
     build_doc_pdf(s, req, str(tmp_path / "long.pdf"))
     from pypdf import PdfReader
     assert len(PdfReader(str(tmp_path / "long.pdf")).pages) >= 3
+
+
+def test_the_overview_fits_any_recording(tmp_path):
+    # not a flight log: a bench run with a needle, missing values and a text state - the overview finds them all
+    t = np.arange(0, 100, 0.01)
+    pressure = np.sin(t)
+    pressure[7777] = 99.0
+    temp = 20 + t / 10
+    temp[100:150] = np.nan
+    pd.DataFrame({"Time": t, "Pressure": pressure, "Temp": temp, "Valve": np.where(t < 50, "OPEN", "SHUT")}).to_csv(tmp_path / "bench.csv", index=False)
+    s = Store()
+    rid = s.open_file(str(tmp_path / "bench.csv")).id
+    md, items, _ = parts(s, [rid], "overview", "summary")
+    assert "**bench.csv** - 3 signals" in md and "about 100 samples a second" in md
+    assert "| Pressure | -1 | 99 |" in md and "| 77.8 |" in md                 # the needle, on every sample
+    assert "Temp (missing values)" in md and "Valve (2)" in md
+    assert "data-quality problems" in md                                     # in What to look at
+    assert sum(1 for it in items if it.get("kind") == "plots") == 2         # Pressure and Temp, one plot each

@@ -101,3 +101,13 @@ def test_paste_a_word_table_and_a_picture_and_keep_a_report_template(demo):
     item.click()                                   # (with text selected the part replaces it, as any insert)
     pg.wait_for_function("n => (window.__sv.state().ws.report.doc.text.match(/\\*\\*Results\\*\\*/g) || []).length === n + 1", arg=n, timeout=10000)
     assert S(pg, "s.ws.report.assets") and len(S(pg, "Object.keys(s.ws.report.assets)")) == 1
+
+
+def test_the_report_demo_example_opens_the_automatic_report(pg):
+    """Help -> Examples -> a report made for you: the two runs, the Report screen, the automatic report."""
+    pg.locator(".topbar .menubar-btn", has_text="Help").click()
+    pg.locator(".menu.ctx button", has_text="Examples").click()
+    pg.locator(".menu.ctx.sub button", has_text="a report made for you").click()
+    pg.wait_for_selector(".rd .rd-text", timeout=30000)
+    committed(pg, "[[toc]]", "[[tracking]]", "[[navigation]]", "[[differences]]", timeout=30000)
+    preview_has(pg, "The central region of the change", "commanded / measured pairs")

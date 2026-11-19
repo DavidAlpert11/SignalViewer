@@ -4,7 +4,8 @@
    the parts that fit; the user edits the result like any text. The user's own reports are kept as report
    templates (the app's settings: they belong to the user, not to one session) and as part of a session template
    (templates.ts: `report`). Nothing here knows a log format. */
-import type { ReportScan } from "./api";
+import { api, type ReportScan } from "./api";
+import { useApp } from "./store";
 import { getPrefValue, setPref } from "./prefs";
 import { translate, type TKey } from "./i18n";
 
@@ -37,6 +38,7 @@ export function partCategories(scan: ReportScan, lang: Lang, choice: Choice = {}
       ] : [] },
     { id: "scenario", title: t("rpCatScenario"), found: t("rpFoundScenario", { s: scan.states.length, t: scan.tracks }),
       parts: [
+        { label: t("rpOverview"), insert: "[[overview]]", title: t("rpOverviewHint") },
         ...(scan.states.length ? [{ label: t("rpStatesAll"), insert: "[[states]]" }] : []),
         ...[...new Set(scan.states.map((s) => s.name))].map((n) => ({ label: t("rpStatesOne", { name: n }), insert: `[[states ${n}]]` })),
         ...(scan.tracks ? [{ label: t("rpTrajectory"), insert: "[[trajectory]]" }] : []),
@@ -84,6 +86,7 @@ export function readyText(id: ReadyId, scan: ReportScan, lang: Lang, choice: Cho
   const title = { auto: "rpTitleAuto", control: "rpTitleControl", navigation: "rpTitleNav", compare: "rpTitleCompare" }[id] as TKey;
   const out = [`# ${t(title)}${files ? ` - ${files}` : ""}`, t("rpIntro"), "[[toc]]", "[[summary]]"];
   if (id === "compare") out.push(`## ${t("rpHCompare")}`, `[[differences${base}]]`);
+  if (id === "auto") out.push(`## ${t("rpHRecording")}`, "[[overview]]");
   if (want.scenario) {
     out.push(`## ${t("rpHScenario")}`);
     if (has.states) out.push("[[states]]");
@@ -139,4 +142,17 @@ export function deleteMyPart(name: string): MyPart[] {
   const list = myParts().filter((r) => r.name !== name);
   setPref(PKEY, list);
   return list;
+}
+
+/** The Report screen with the automatic report of the open files (the report demo example; a report already
+ *  written is kept - the screen only opens). One Undo step. */
+export async function openAutoReport(): Promise<void> {
+  const scan = await api.reportParts();
+  const st = useApp.getState();
+  const lang = st.ws.report?.lang ?? st.lang;
+  if (!st.ws.report?.doc) {
+    const text = readyText("auto", scan, lang, {}, (st.ws.notes ?? []).length > 0);
+    st.commit((w) => { w.report = { title: "", intro: "", summary: "", lang, theme: "light", scope: "tab", ...(w.report ?? {}), doc: { v: 1, text } }; return w; });
+  }
+  useApp.setState({ panel: "report" });
 }

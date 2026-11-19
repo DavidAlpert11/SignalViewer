@@ -35,6 +35,7 @@ test("ready reports: only the ones that fit; the automatic one has only parts th
   for (const p of ["[[summary]]", "[[states]]", "[[trajectory]]", "[[moments]]", "[[tracking]]", "[[navigation]]", "[[differences]]"]) expect(full).toContain(p);
   const bare = readyText("auto", ONE, "he");
   expect(bare).toContain("[[moments]]");
+  expect(bare).toContain("[[overview]]");                                  // any recording: its overview
   for (const p of ["[[tracking]]", "[[navigation]]", "[[differences]]", "[[states]]"]) expect(bare).not.toContain(p);
   expect(bare.startsWith("# דוח ניסוי - bench.csv")).toBe(true);
   expect(readyText("compare", SCAN, "en", { base: "mission_gust.csv" })).toContain("[[differences | base mission_gust.csv]]");

@@ -76,6 +76,7 @@ recording brings the report (only when that session has no report of its own yet
 
 | Write | Puts in |
 |---|---|
+| `[[overview]]` | **the recording, whatever it holds** (not only flight logs): each file's signals, duration and rate, its data quality (missing values, gaps, repeated or backward time stamps, rate changes), every numeric signal's min / max / mean / std on all its samples, its state signals, and its first signals plotted - one plot each, every file's line in it. The automatic report always starts with it |
 | `[[tracking]]` | **commanded vs actual**: every command and its measured value, paired by name (`DesRoll`/`Roll`, `roll_cmd`/`roll`, `alt_target`/`alt`, `x_setpoint`/`x`…) - RMS and largest error (and when), bias, delay, and for each step of the command the overshoot and settling time; a table, worst first, and the worst pairs plotted (the command dashed, the error on the right axis - the axis titled with its name and in its colour) |
 | `[[tracking roll \| tol 2, outside 1%]]` | only the pairs named like *roll*; pass / fail: the error within ±2 for all but 1 % of the time |
 | `[[navigation]]` | **navigation errors between objects**: each map object's position, velocity and attitude error against the reference - RMS, mean, 95 %, largest and when - and the worst plotted. The reference is guessed (a simulation's truth, else a receiver), shown in the list and changeable: `[[navigation \| ref GPS, position]]`. With several files, each file against its own reference |
@@ -125,7 +126,14 @@ Time and counter signals are not compared; signals in one file only are listed.
 a scenario (`mission.phase`: IDLE, TAKEOFF, CRUISE, TURN, DESCENT, LAND), four commanded / measured pairs
 (`ctrl.alt_cmd`/`ctrl.alt`, speed, roll with steps, pitch), three objects (`sim.*` the truth, `nav.*` the estimate,
 `gps.*` the receiver) and a receiver status. `mission_gust.csv` is the same mission with a gust at 140–160 s and the
-receiver lost at 150–170 s. Open both, *Report*, *Automatic report*.
+receiver lost at 150–170 s. **Help → Examples → a report made for you** opens both and the automatic report;
+or open them yourself, *Report*, *Automatic report*.
+
+**Other recordings:** the automatic report works on any open files - each part looks for what it needs by the
+signals' names and is left out when it finds nothing. A car's, a bench's or a simulation's recording without
+commands, positions or modes still gets the recording overview (signals, quality, statistics, plots), the
+special moments (stuck or saturated signals, gaps, spikes, state changes) and, with two files or more, what
+differs between them.
 
 ## Tables and pictures from outside
 

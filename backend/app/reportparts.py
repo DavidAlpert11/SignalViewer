@@ -19,7 +19,7 @@ from svcore import reportparts as rp
 from svcore.docfields import format_value
 
 PALETTE = ["#3D8BFD", "#E8590C", "#2F9E44", "#AE3EC9", "#F08C00", "#0CA678", "#E64980", "#1C7ED6"]
-PARTS = ("toc", "tracking", "navigation", "states", "trajectory", "moments", "differences", "summary")
+PARTS = ("toc", "overview", "tracking", "navigation", "states", "trajectory", "moments", "differences", "summary")
 UNITS = {"position": "m", "velocity": "m/s", "attitude": "deg"}
 
 S: Dict[str, Dict[str, Any]] = {
@@ -72,6 +72,11 @@ S: Dict[str, Dict[str, Any]] = {
                    "highest": "{v} m", "farthest": "{v}", "error": "{v} (command {c})", "takeoff": "{v} m above the start", "landing": ""},
         "edge": {"max": "maximum", "min": "minimum"},
         "mo_hl": "{f}: {what} at {t} s",
+        "ov_intro": "**{f}** - {n} signals, {d} s (from {t0} to {t1} s){r}.", "ov_rate": "about {r} samples a second",
+        "ov_quality": "Data quality: {n} signals need a look - {kinds}: {list}.", "ov_clean": "Data quality: nothing to say - no missing values, gaps, repeated or backward time stamps, or rate changes.",
+        "ov_kind": {"missing": "missing values", "gaps": "gaps", "duplicates": "repeated time stamps", "backwards": "time going back", "rateChanges": "rate changes"},
+        "ov_head": ["Signal", "Min", "Max", "Mean", "Std", "Max at (s)"], "ov_more": "The first {n} of {m} signals (| top N for more).",
+        "ov_states": "State signals (distinct values): {list}.", "ov_hl": "{f}: {n} signals with data-quality problems ({kinds})",
         "toc": "Contents", "toc_none": "No headings yet (## a heading).",
         "sum_none": "Nothing to point out: the report's automatic parts found nothing unusual.",
         "sum_intro": "**What to look at** - the most important things the parts below found:",
@@ -126,6 +131,11 @@ S: Dict[str, Dict[str, Any]] = {
                    "highest": "{v} מ'", "farthest": "{v}", "error": "{v} (פקודה {c})", "takeoff": "{v} מ' מעל ההתחלה", "landing": ""},
         "edge": {"max": "מקסימום", "min": "מינימום"},
         "mo_hl": "{f}: {what} בזמן {t} ש'",
+        "ov_intro": "**{f}** - {n} סיגנלים, {d} ש' (מ-{t0} עד {t1} ש'){r}.", "ov_rate": "בערך {r} דגימות בשנייה",
+        "ov_quality": "איכות הנתונים: {n} סיגנלים דורשים בדיקה - {kinds}: {list}.", "ov_clean": "איכות הנתונים: אין מה לציין - אין ערכים חסרים, חורים, חותמות זמן כפולות או אחורה, או שינויי קצב.",
+        "ov_kind": {"missing": "ערכים חסרים", "gaps": "חורים", "duplicates": "חותמות זמן כפולות", "backwards": "זמן שחוזר אחורה", "rateChanges": "שינויי קצב"},
+        "ov_head": ["סיגנל", "מינימום", "מקסימום", "ממוצע", "סטיית תקן", "מקסימום בזמן (ש')"], "ov_more": "{n} הראשונים מתוך {m} סיגנלים (| top N ליותר).",
+        "ov_states": "סיגנלי מצב (מספר ערכים): {list}.", "ov_hl": "{f}: {n} סיגנלים עם בעיות איכות נתונים ({kinds})",
         "toc": "תוכן העניינים", "toc_none": "אין עדיין כותרות (## כותרת).",
         "sum_none": "אין מה להדגיש: החלקים האוטומטיים של הדוח לא מצאו דבר חריג.",
         "sum_intro": "**על מה להסתכל** - הדברים החשובים ביותר שהחלקים שלהלן מצאו:",
@@ -134,7 +144,7 @@ S: Dict[str, Dict[str, Any]] = {
     },
 }
 KNOWN = {"tracking": "top N, table, tol X, outside X%, skip NAME", "navigation": "ref NAME, position, velocity, attitude, top N, table",
-         "states": "min Xs, table", "trajectory": "table", "moments": "top N", "differences": "base NAME, top N, table, small X%, large X%", "summary": "top N", "toc": ""}
+         "states": "min Xs, table", "trajectory": "table", "moments": "top N", "differences": "base NAME, top N, table, small X%, large X%", "summary": "top N", "toc": "", "overview": "top N, plots N, table"}
 
 
 class PartError(Exception):
@@ -571,6 +581,65 @@ def _track_of_obj(store, c: dict) -> Optional[dict]:
     return {"t": t, "lat": lat, "lon": lon, "alt": alt, "latId": pk["lat"]["id"], "lonId": pk["lon"]["id"]}
 
 
+# ------------------------------------------------------------------------------------------------ overview
+
+def overview(p: Part, rids: List[str], arg: str, o: Dict):
+    """Any recording, whatever it holds (owner, 2026-11-19: not only flight logs): each file's size and rate, its data
+    quality (svcore/quality.py, the Quality dialog's checks), every numeric signal's statistics on all its samples,
+    its state signals, and its first signals plotted - one plot each."""
+    from svcore.ops import compute_signal_stats
+    from svcore.quality import run_quality
+    st, S_ = p.store, p.S
+    shown: Dict[str, List[str]] = {}
+    for rid in rids:
+        lr = st.get(rid)
+        run = lr.run
+        names = list(run.signals)
+        flt = arg.strip().lower()
+        if flt:
+            names = [n for n in names if flt in n.lower()]
+        nums: List[str] = []
+        states_: List[str] = []
+        for n in names:
+            (states_ if st.is_state(f"{rid}/{n}") else nums).append(n)
+        t0, t1 = float(run.start_time + (run.time_offset or 0)), float(run.end_time + (run.time_offset or 0))
+        rate = (len(run.time) - 1) / (run.end_time - run.start_time) if run.end_time > run.start_time and len(run.time) > 1 else None
+        p.say(S_["ov_intro"].format(f=lr.name, n=len(names), d=secs(t1 - t0), t0=secs(t0), t1=secs(t1),
+                                    r=(", " + S_["ov_rate"].format(r=fmt(rate))) if rate else ""))
+        q = run_quality((n, sg.time if sg.time is not None else run.time, sg.data, st.is_state(f"{rid}/{n}"))
+                        for n, sg in ((n, run.signals[n]) for n in names))
+        bad = [r for r in q["signals"] if r["issues"]]
+        if bad:
+            kinds = ", ".join("%s %d" % (S_["ov_kind"].get(k, k), c) for k, c in q["count"].items() if c)
+            p.say(S_["ov_quality"].format(n=len(bad), kinds=kinds, list=", ".join(
+                "%s (%s)" % (r["name"], ", ".join(S_["ov_kind"].get(k, k) for k in r["issues"])) for r in bad[:8]) + (" …" if len(bad) > 8 else "")))
+            p.hl("warn", 2.0, S_["ov_hl"].format(f=lr.name, n=len(bad), kinds=kinds))
+        else:
+            p.say(S_["ov_clean"])
+        rows = []
+        for n in nums[:o.get("top", 60)]:
+            t, y = _sig(st, f"{rid}/{n}")
+            ss = compute_signal_stats(t, y) or {}
+            tmax = None
+            if len(y) and np.isfinite(y).any():
+                tmax = float(t[int(np.nanargmax(y))])
+            rows.append([n, fmt(ss.get("min")), fmt(ss.get("max")), fmt(ss.get("mean")), fmt(ss.get("std")), secs(tmax)])
+        if rows:
+            p.say(table(S_["ov_head"], rows))
+            if len(nums) > len(rows):
+                p.say(S_["ov_more"].format(n=len(rows), m=len(nums)))
+        if states_:
+            p.say(S_["ov_states"].format(list=", ".join("%s (%d)" % (n, len(st.labels(f"{rid}/{n}") or {}) or
+                                                                     len(np.unique(_sig(st, f"{rid}/{n}")[1][np.isfinite(_sig(st, f"{rid}/{n}")[1])])))
+                                                         for n in states_[:20])))
+        for n in nums[:o.get("plots", 4)]:
+            shown.setdefault(n, []).append(f"{rid}/{n}")
+    # the first signals plotted, one plot each - a signal several files have: every file's line in one plot
+    if not o.get("table"):
+        for n, ids in shown.items():
+            p.plot(n, [sig_line(i, _label(st, i, rids), k) for k, i in enumerate(ids)])
+
+
 # ------------------------------------------------------------------------------------------------ moments
 
 def moments(p: Part, rids: List[str], arg: str, o: Dict):
@@ -857,7 +926,7 @@ def summary(p: Part, highlights: List[Dict], o: Dict):
     p.say("\n".join("- %s %s" % (mark.get(h["level"], "•"), h["text"]) for h in hs))
 
 
-RUN = {"moments": moments, "tracking": tracking, "navigation": navigation, "states": states, "trajectory": trajectory, "differences": differences}
+RUN = {"overview": overview, "moments": moments, "tracking": tracking, "navigation": navigation, "states": states, "trajectory": trajectory, "differences": differences}
 
 
 def expand_all(store, text: str, items: List[dict], lang: str) -> Tuple[str, Dict[str, Tuple[np.ndarray, np.ndarray]]]:

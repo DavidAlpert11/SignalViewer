@@ -11,10 +11,11 @@ import { requestStudy } from "../sweeps/studyOpen";
 import { requestAreaExample } from "../areaExample";
 import { summarizeFolder } from "../folderSummary";
 import { startDemoGuide } from "../demoGuide";
+import { openAutoReport } from "../reportReady";
 
-export const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", bench: "exampleBench", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate", folderOfFlights: "exampleFolderOfFlights", commonGains: "exampleCommonGains", smartSweepDemo: "exampleSmartSweepDemo", sweepTable: "exampleSweepTable" } as const satisfies Record<ExampleId, string>;
-const EXAMPLE_DESC = { flight: "exampleFlightDesc", twoFlights: "exampleTwoFlightsDesc", car: "exampleCarDesc", bench: "exampleBenchDesc", ardupilot: "exampleArdupilotDesc", simVsFlight: "exampleSimVsFlightDesc", investigate: "exampleInvestigateDesc", folderOfFlights: "exampleFolderOfFlightsDesc", commonGains: "exampleCommonGainsDesc", smartSweepDemo: "exampleSmartSweepDemoDesc", sweepTable: "exampleSweepTableDesc" } as const satisfies Record<ExampleId, string>;
-const EXAMPLE_ICON = { flight: Icon.Globe, twoFlights: Icon.Compare, car: Icon.Table, bench: Icon.Analysis, ardupilot: Icon.Log, simVsFlight: Icon.Analysis, investigate: Icon.Search, folderOfFlights: Icon.Table, commonGains: Icon.Merge, smartSweepDemo: Icon.Reload, sweepTable: Icon.Table } satisfies Record<ExampleId, unknown>;
+export const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", bench: "exampleBench", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate", folderOfFlights: "exampleFolderOfFlights", commonGains: "exampleCommonGains", smartSweepDemo: "exampleSmartSweepDemo", sweepTable: "exampleSweepTable", reportDemo: "exampleReportDemo" } as const satisfies Record<ExampleId, string>;
+const EXAMPLE_DESC = { flight: "exampleFlightDesc", twoFlights: "exampleTwoFlightsDesc", car: "exampleCarDesc", bench: "exampleBenchDesc", ardupilot: "exampleArdupilotDesc", simVsFlight: "exampleSimVsFlightDesc", investigate: "exampleInvestigateDesc", folderOfFlights: "exampleFolderOfFlightsDesc", commonGains: "exampleCommonGainsDesc", smartSweepDemo: "exampleSmartSweepDemoDesc", sweepTable: "exampleSweepTableDesc", reportDemo: "exampleReportDemoDesc" } as const satisfies Record<ExampleId, string>;
+const EXAMPLE_ICON = { flight: Icon.Globe, twoFlights: Icon.Compare, car: Icon.Table, bench: Icon.Analysis, ardupilot: Icon.Log, simVsFlight: Icon.Analysis, investigate: Icon.Search, folderOfFlights: Icon.Table, commonGains: Icon.Merge, smartSweepDemo: Icon.Reload, sweepTable: Icon.Table, reportDemo: Icon.Report } satisfies Record<ExampleId, unknown>;
 
 /** FR11 (owner, 2026-11-16): six cards on the welcome screen, one of them a Sweeps example; every example (these
  *  and the others) is in Help -> Examples. */
@@ -25,7 +26,7 @@ const EXAMPLE_GROUPS = [
   { area: "sweeps", label: "areaSweeps", hint: "exampleGroupSweeps" },
 ] as const;
 
-type Example = { id: ExampleId; paths: string[]; open?: "study" | "sweep" | "summary" };
+type Example = { id: ExampleId; paths: string[]; open?: "study" | "sweep" | "summary" | "report" };
 
 /** An example opened as a new user would: recordings with their suggested view, a study in Sweeps. */
 export function openExample(example: Example): void {
@@ -40,6 +41,8 @@ function openPrepared(ex: Example): void {
   else if (ex.open === "sweep") requestAreaExample("sweeps", ex.paths[ex.paths.length - 1]);   // its .svsweep: the table and its question
   // FL1: a folder of recordings (its measures.json beside them) summed up, a row per recording in Sweeps
   else if (ex.open === "summary") void summarizeFolder(ex.paths[0].replace(/[\\/][^\\/]*$/, "")).then((ok) => { if (ok) void startDemoGuide(ex.id, []); });
+  // RE2: the two runs, then the Report screen with the automatic report made of the parts that fit them
+  else if (ex.open === "report") void openPaths(ex.paths).then(() => openAutoReport());
   // RV5: once its view is open, the demo's own setup and its line of what to do next
   else void openPaths(ex.paths, undefined, { autoView: true }).then((ids) => startDemoGuide(ex.id, ids));
 }
