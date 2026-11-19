@@ -26,10 +26,55 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
 | Release 1.32.0 - RE2 ready reports made of parts (owner, 2026-11-19) | in main; version, CHANGELOG, README, docs, pictures 48-51, the agent's cleanup and skills | the owner checks, deletes the old branches and tags v1.32.0 (the commands were given) |
 | Reports - open work | see `docs/dev/REPORTS.md` "Open" | the CLI making the written report; RE2.6 block editor; RE2.7 |
+| MSG1 - byte-stream messages: a dedicated plot and a report (owner, 2026-11-19) | asked, spec below (Open specs); not started | build it (the owner: "make the app do it", decide the details) |
+| CLR1 - Clear and the report (owner, 2026-11-19: "when the recording is cleared, what happens to the report? how is it cleared?") | asked; studied below | propose in one line, then build (small) |
+| README review for 1.32 (owner, 2026-11-19: "update the README") | the RE2 lines are in; a full pass not done | do the full pass before the owner tags v1.32.0 |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
 ## Open specs (waiting for the owner)
 
+- **MSG1 - messages in a byte stream (owner, 2026-11-19, Hebrew, translated):** *"Say we put in signals of messages that
+  repeat: header1, header2, sometimes the next byte is the message size or type, then more details, and at the end
+  sometimes a checksum. If such signals of a message, byte by byte over time, are recognised - make the app produce a
+  dedicated plot for it, and a report that characterises what happens: the number of messages, the order of the
+  messages, the packet size, etc. A report for that too."* The agent's design (2026-11-19, the owner left the details):
+  - `backend/svcore/bytestream.py` (pure, tested): input a byte stream (t, y: integers 0..255) - one signal byte by
+    byte, or several column signals `byte_0..byte_N` / `b[0]..` / `data0..` (one message per row, NaN = no byte) joined
+    row by row into one stream. **Framing found by itself:** the header = the 2-byte pair that recurs (top ~20 pairs by
+    count, scored by how well it frames: a length byte at offset 2-4 that equals the frame length minus a constant in
+    >= 70 % of frames, else frames whose type byte decides their length); walk with the length field and resync to the
+    next header after a bad frame (count resyncs, bytes outside frames). **Type** = the byte at offset 2-4 (not the
+    length) with few values (<= 32) that best decides the length. **Checksum** = the last 1 or 2 bytes, schemes tried:
+    sum8, xor8, -sum8, ~sum8 over the frame with / without the header, CRC-16 CCITT-FALSE / Modbus, Fletcher-16 (UBX);
+    the one that matches >= 80 % is reported, its failures counted. Options to force any of it (`header AA55`,
+    `length 2`, `type 3`, `checksum sum8`). Output: messages [{t (first byte), i, len, type, ok}], per type: count,
+    share, lengths, rate (Hz), period and jitter, first / last time, checksum errors; the order - the smallest period p
+    with types[i] == types[i+p] for >= 90 % (the repeating sequence), else the commonest transitions; the largest gaps.
+    Every number on every byte (CLAUDE.md).
+  - **The dedicated plot:** a derived operation `messages` (svcore/analysis.py, beside `relate`: params `{what: type |
+    length | ok | interval | count, header?, ...}`, one derived signal per what, at the messages' times) - so it is in
+    the session and Undo like any made signal; the signal list's right-click **Decode as messages...**
+    (components/DataPanel.tsx sigMenu1; for several selected column signals too) makes them and a tab "Messages: <sig>"
+    with one plot each: the raw bytes, the type (a state), the length, the interval, the checksum errors
+    (`plotActions.plotTabs`; relation.ts makeGroup is the pattern). Not a byte stream: an error saying why.
+  - **The report part** `[[messages]]` / `[[messages <signal>]]` (skill `sv-report-part`): the framing found, a table per
+    type, the order, gaps, highlights (checksum errors, gaps -> warn), the plots one per quantity; `scan()` lists the
+    streams found (prefilter: int 0..255, >= 8 distinct values, framing succeeds); the library's category *Messages
+    (byte streams)*; a ready report includes it when found; `[[overview]]` should not list a byte stream's statistics
+    as if it were a measurement (say "a byte stream - see Messages").
+  - **Demo:** a serial link recording in `examples/report_demo/` (skill `sv-example`): header AA 55, a length byte, a
+    type byte, payload, sum8 checksum; types at 50 / 10 / 1 Hz; a few corrupted bytes and a dropout; and the same as
+    columns (one message per row). Help -> Examples. Docs: `docs/reports.md`, a feature line, CHANGELOG (1.32.0 is not
+    tagged yet - it may go into 1.32.0 if the owner agrees, else `## Next`).
+- **CLR1 - Clear and the report (studied 2026-11-19):** the Clear menu (`frontend/src/clearing.ts clearMenuItems`:
+  this tab / other tabs / all tabs / the work / everything) never touches `ws.report` except *Clear everything* (a new
+  workspace: the report gone too). So after *Clear all tabs* the report keeps `[[tab.plot]]` references to tabs that
+  are gone (red ⚠ in the preview) and there is no way to empty only the report but select-all + delete in the editor
+  (the Report screen's ↺ goes back to the report made from the open tabs). Proposed: the Clear menu gets **The report**
+  (empties `ws.report.doc` and its pictures, one Undo, asks first when it has text); *Clear all tabs* says in its
+  toast that the report's references to those tabs are now broken, with *Clear the report too*; the Report screen's
+  ↺ menu: *Empty* / *Back to the report from the tabs*. Ask the owner in one line, then build (en + he, e2e
+  test_report_doc).
 - **Reports (RE1 1.31.0, RE2 1.32.0)** - how they work, every decision and what is open: `docs/dev/REPORTS.md`.
 - **SW2 - the owner (2026-11-16): investigate chosen scenarios from Sweeps without loading everything.** "Many
   scenarios are run without recording, only a summary row each; to investigate, the interesting ones are run again
