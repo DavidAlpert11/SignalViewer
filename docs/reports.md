@@ -106,10 +106,13 @@ byte (few values, the one that decides the length), and the **checksum** in the 
 match). A message that does not end where the next header starts and fails its checksum is broken: the decoder
 resyncs to the next header and counts it.
 
-`[[messages]]` writes, for each stream: how many messages, the framing found, the checksum and its errors, the
-broken frames; a table per message type - count, share, length, rate, period and jitter, the longest interval,
+`[[messages]]` writes, for each stream: how many messages, the checksum and its errors, the broken frames;
+**the packet** - a table of what every message is made of: the fixed header, the byte that gives the length, the
+byte that gives the message type (and its kinds), the payload of each kind, and whether there is a checksum (which,
+over which bytes); a table per message type - count, share, length, rate, period and jitter, the longest interval,
 first and last, checksum errors; **the order** (the sequence that repeats, e.g. `0x20 0x10 0x20 0x20 0x20 0x20`,
-else the commonest transitions); **the gaps** (no messages for 1.5 s from 18 s); and one plot per quantity with
+else the commonest transitions) and **the messages in order** as they came (the first 40, and a plot of the type
+over the first seconds); **the gaps** (no messages for 1.5 s from 18 s); and one plot per quantity with
 every stream's lines: *messages per second by type* (a dropout falls to zero), *the interval between messages of
 a type*, *the checksum errors*. Checksum errors and gaps go to `[[summary]]`.
 

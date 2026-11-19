@@ -78,8 +78,8 @@ S: Dict[str, Dict[str, Any]] = {
         "ov_head": ["Signal", "Min", "Max", "Mean", "Std", "Max at (s)"], "ov_more": "The first {n} of {m} signals (| top N for more).",
         "ov_states": "State signals (distinct values): {list}.", "ov_hl": "{f}: {n} signals with data-quality problems ({kinds})",
         "none_msg": "No byte stream with repeating messages in the open files (a signal of whole numbers 0..255 byte by byte, or columns byte_0..byte_N one message per row).",
-        "msg_intro": "**{name}**{file} - **{n} messages** in {d} s ({bytes} bytes); header **{h}**, {framing}; {cs}.",
-        "msg_cs": "checksum {s} ({over}): **{e} errors**", "msg_nocs": "no checksum found",
+        "msg_intro": "**{name}**{file} - **{n} messages** in {d} s ({bytes} bytes); header **{h}**; {cs}.",
+        "msg_cs": "checksum {s}: **{e} errors**", "msg_nocs": "no checksum found",
         "msg_lost": " {r} broken frames resynced, {o} bytes outside messages.",
         "msg_head": ["Type", "Count", "Share", "Length (bytes)", "Rate (Hz)", "Period (s)", "Jitter (ms)", "Longest interval (s)", "First (s)", "Last (s)", "Checksum errors"],
         "msg_order": "**The order** repeats every {p} messages: {seq} ({f} of the messages follow it).",
@@ -90,6 +90,15 @@ S: Dict[str, Dict[str, Any]] = {
         "msg_err": "Checksum errors (running count)",
         "msg_hl_err": "{name}: {e} checksum errors in {n} messages", "msg_hl_gap": "{name}: no messages for {dt} s from {a} s",
         "msg_hl_resync": "{name}: {r} broken frames resynced", "msg_hl": "{name}: {n} messages, {k} types, header {h}",
+        "msg_struct": "**The packet** - what every message of this stream is made of:",
+        "msg_struct_head": ["Part", "Bytes (from 0)", "What"],
+        "msg_f": {"header": "Header", "length": "Length", "type": "Message type", "payload": "Payload", "checksum": "Checksum"},
+        "msg_w": {"header": "fixed {h}", "length": "the message's length: frame = this byte + {a}", "type": "{n} kinds: {list}",
+                  "type_len": "{n} kinds: {list} - each kind its own length", "payload": "{list}",
+                  "payload_fixed": "{n} bytes", "checksum": "{s} over the bytes from {a} up to it", "none": "no checksum found", "fixed": "every message {n} bytes"},
+        "msg_last": ["the last byte", "the last 2 bytes"], "msg_per": "{t}: {n} bytes",
+        "msg_seq": "**The messages in order** (the first {n}, from {t} s): {list}",
+        "msg_seq_plot": "Message type in order - the first {s} s", "msg_seq_cap": "Each message a step: which kind came after which.",
         "ov_streams": "Byte streams (decoded by [[messages]], their bytes are not measurements): {list}.",
         "toc": "Contents", "toc_none": "No headings yet (## a heading).",
         "sum_none": "Nothing to point out: the report's automatic parts found nothing unusual.",
@@ -151,8 +160,8 @@ S: Dict[str, Dict[str, Any]] = {
         "ov_head": ["סיגנל", "מינימום", "מקסימום", "ממוצע", "סטיית תקן", "מקסימום בזמן (ש')"], "ov_more": "{n} הראשונים מתוך {m} סיגנלים (| top N ליותר).",
         "ov_states": "סיגנלי מצב (מספר ערכים): {list}.", "ov_hl": "{f}: {n} סיגנלים עם בעיות איכות נתונים ({kinds})",
         "none_msg": "אין בקבצים הפתוחים זרם בתים עם הודעות חוזרות (סיגנל של מספרים שלמים 0..255 בית אחר בית, או עמודות byte_0..byte_N הודעה בשורה).",
-        "msg_intro": "**{name}**{file} - **{n} הודעות** ב-{d} ש' ({bytes} בתים); כותרת **{h}**, {framing}; {cs}.",
-        "msg_cs": "checksum {s} ({over}): **{e} שגיאות**", "msg_nocs": "לא נמצא checksum",
+        "msg_intro": "**{name}**{file} - **{n} הודעות** ב-{d} ש' ({bytes} בתים); כותרת **{h}**; {cs}.",
+        "msg_cs": "checksum {s}: **{e} שגיאות**", "msg_nocs": "לא נמצא checksum",
         "msg_lost": " {r} מסגרות שבורות - סונכרן מחדש, {o} בתים מחוץ להודעות.",
         "msg_head": ["סוג", "כמות", "חלק", "אורך (בתים)", "קצב (Hz)", "מחזור (ש')", "ריצוד (ms)", "המרווח הארוך ביותר (ש')", "ראשונה (ש')", "אחרונה (ש')", "שגיאות checksum"],
         "msg_order": "**הסדר** חוזר כל {p} הודעות: {seq} ({f} מההודעות לפיו).",
@@ -163,6 +172,15 @@ S: Dict[str, Dict[str, Any]] = {
         "msg_err": "שגיאות checksum (ספירה מצטברת)",
         "msg_hl_err": "{name}: {e} שגיאות checksum ב-{n} הודעות", "msg_hl_gap": "{name}: אין הודעות במשך {dt} ש' מ-{a} ש'",
         "msg_hl_resync": "{name}: {r} מסגרות שבורות - סונכרן מחדש", "msg_hl": "{name}: {n} הודעות, {k} סוגים, כותרת {h}",
+        "msg_struct": "**הפקטה** - ממה בנויה כל הודעה בזרם הזה:",
+        "msg_struct_head": ["חלק", "בתים (מ-0)", "מה"],
+        "msg_f": {"header": "כותרת", "length": "אורך", "type": "סוג ההודעה", "payload": "תוכן", "checksum": "Checksum"},
+        "msg_w": {"header": "קבועה {h}", "length": "אורך ההודעה: המסגרת = הבית הזה + {a}", "type": "{n} סוגים: {list}",
+                  "type_len": "{n} סוגים: {list} - לכל סוג אורך משלו", "payload": "{list}",
+                  "payload_fixed": "{n} בתים", "checksum": "{s} על הבתים מ-{a} ועד לפניו", "none": "לא נמצא checksum", "fixed": "כל הודעה {n} בתים"},
+        "msg_last": ["הבית האחרון", "2 הבתים האחרונים"], "msg_per": "{t}: {n} בתים",
+        "msg_seq": "**ההודעות לפי הסדר** ({n} הראשונות, מ-{t} ש'): {list}",
+        "msg_seq_plot": "סוג ההודעה לפי הסדר - {s} השניות הראשונות", "msg_seq_cap": "כל הודעה מדרגה: איזה סוג בא אחרי איזה.",
         "ov_streams": "זרמי בתים (מפוענחים ב-[[messages]], הבתים שלהם אינם מדידות): {list}.",
         "toc": "תוכן העניינים", "toc_none": "אין עדיין כותרות (## כותרת).",
         "sum_none": "אין מה להדגיש: החלקים האוטומטיים של הדוח לא מצאו דבר חריג.",
@@ -1079,18 +1097,20 @@ def messages(p: Part, rids: List[str], arg: str, o: Dict, defs: Optional[Sequenc
     rate_lines: List[dict] = []
     int_lines: List[dict] = []
     err_lines: List[dict] = []
+    seq_lines: List[Tuple[dict, float, float]] = []
     k = 0
     for s_ in streams:
         r, name = s_["r"], s_["name"]
         file = " (%s)" % _name(st, s_["rid"]) if len(rids) > 1 else ""
         cs = r["checksum"]
-        cst = S_["msg_cs"].format(s=cs["scheme"], over=cs["over"], e=r["errors"]) if cs else S_["msg_nocs"]
+        cst = S_["msg_cs"].format(s=cs["scheme"], e=r["errors"]) if cs else S_["msg_nocs"]
         lost = S_["msg_lost"].format(r=r["resyncs"], o=r["outside"]) if r["resyncs"] or r["outside"] else ""
-        p.say(S_["msg_intro"].format(name=name, file=file, n=r["count"], d=secs(r["duration"]), bytes=r["bytes"], h=r["header"],
-                                     framing=r["framing"], cs=cst) + lost)
+        p.say(S_["msg_intro"].format(name=name, file=file, n=r["count"], d=secs(r["duration"]), bytes=r["bytes"], h=r["header"], cs=cst) + lost)
+        p.say(S_["msg_struct"])
+        p.say(table(S_["msg_struct_head"], structure(r, S_)))
         rows = [[hexb(x["type"]) if r["typeOffset"] is not None else "—", str(x["count"]), pct(x["share"]),
                  ", ".join(str(v) for v in x["lengths"]), fmt(x["rate"]), secs(x["period"]),
-                 "—" if x["jitter"] is None else "%.3g" % (x["jitter"] * 1000), secs(x["maxInterval"]), secs(x["first"]), secs(x["last"]),
+                 "—" if x["jitter"] is None else "0" if x["jitter"] < 1e-9 else "%.3g" % (x["jitter"] * 1000), secs(x["maxInterval"]), secs(x["first"]), secs(x["last"]),
                  str(x["errors"]) if cs else "—"] for x in r["types"]]
         p.say(table(S_["msg_head"], rows))
         od = r["order"]
@@ -1099,6 +1119,10 @@ def messages(p: Part, rids: List[str], arg: str, o: Dict, defs: Optional[Sequenc
             p.say(S_["msg_order"].format(p=od["period"], seq=seq, f=pct(od["fit"])))
         elif od["transitions"]:
             p.say(S_["msg_trans"].format(list=", ".join("%s → %s (%d)" % (hexb(x["from"]), hexb(x["to"]), x["count"]) for x in od["transitions"][:6])))
+        if r["typeOffset"] is not None and r["count"] > 1:
+            ty = r["messages"]["type"]
+            k_ = min(40, len(ty))
+            p.say(S_["msg_seq"].format(n=k_, t=secs(float(r["messages"]["t"][0])), list=" ".join(hexb(v) for v in ty[:k_])))
         if r["gaps"]:
             p.say(S_["msg_gaps"].format(list=", ".join(S_["msg_gap"].format(dt=secs(g["dt"]), a=secs(g["from"])) for g in r["gaps"])))
         label = name + file
@@ -1125,16 +1149,56 @@ def messages(p: Part, rids: List[str], arg: str, o: Dict, defs: Optional[Sequenc
             if len(tt) > 1:
                 int_lines.append(sig_line(p.series(lab + " Δt", tt[1:], np.diff(tt)), lab, k))
             k += 1
+        if r["typeOffset"] is not None:
+            span = min(2.0, float(t[-1] - t[0]))
+            seq_lines.append((sig_line(p.series(name + " type", t, m["type"].astype(np.float64)), name, len(seq_lines), state=True), t[0], span))
         if cs and r["errors"]:
             err_lines.append(sig_line(p.series(name + " errors", t, np.cumsum(~m["ok"]).astype(np.float64)), name, len(err_lines)))
     if o.get("table"):
         return
+    if seq_lines:
+        t0 = min(x[1] for x in seq_lines)
+        span = max(x[2] for x in seq_lines)
+        p.plot(S_["msg_seq_plot"].format(s="%g" % span), [x[0] for x in seq_lines], rng=[float(t0), float(t0 + span)], caption=S_["msg_seq_cap"])
     if rate_lines:
         p.plot(S_["msg_rate"], rate_lines, caption=S_["msg_rate_cap"])
     if int_lines:
         p.plot(S_["msg_int"], int_lines, caption=S_["msg_int_cap"])
     if err_lines:
         p.plot(S_["msg_err"], err_lines)
+
+
+def structure(r: Dict, S_: Dict[str, Any]) -> List[List[str]]:
+    """The packet's parts: the fixed header, the length / type bytes, the payload (per type), the checksum."""
+    from svcore.bytestream import SCHEMES_1
+    F, W = S_["msg_f"], S_["msg_w"]
+    rule, toff, cs = r["rule"], r["typeOffset"], r["checksum"]
+    k = (1 if cs["scheme"] in SCHEMES_1 else 2) if cs else 0
+    rows = [[F["header"], "0–1", W["header"].format(h=r["header"])]]
+    fields = []
+    if rule["how"] == "length":
+        fields.append((rule["off"], [F["length"], str(rule["off"]), W["length"].format(a=rule["add"])]))
+    if toff is not None:
+        kinds = ", ".join(hexb(x["type"]) for x in sorted(r["types"], key=lambda x: x["type"]))
+        fields.append((toff, [F["type"], str(toff), W["type_len" if rule["how"] == "type" else "type"].format(n=len(r["types"]), list=kinds)]))
+    fields.sort()
+    rows += [f for _o, f in fields]
+    start = max([1] + [o for o, _f in fields]) + 1
+    lens = sorted({L for x in r["types"] for L in x["lengths"]})
+    if len(lens) == 1:
+        rows.append([F["payload"], "%d–%d" % (start, lens[0] - k - 1), W["payload_fixed"].format(n=lens[0] - k - start)])
+    else:
+        per = ", ".join(S_["msg_per"].format(t=hexb(x["type"]) if toff is not None else "?", n=x["lengths"][0] - k - start)
+                        for x in sorted(r["types"], key=lambda x: x["type"]))
+        rows.append([F["payload"], "%d…" % start, W["payload"].format(list=per)])
+    if cs:
+        a = 2 if cs["over"].startswith("without") else 0
+        rows.append([F["checksum"], S_["msg_last"][k - 1], W["checksum"].format(s=cs["scheme"], a=a)])
+    else:
+        rows.append([F["checksum"], "—", W["none"]])
+    if rule["how"] == "fixed":
+        rows.append(["", "", W["fixed"].format(n=rule["len"])])
+    return rows
 
 
 def byte_streams(store, rid: str, defs: Optional[Sequence[Dict]] = None) -> List[str]:

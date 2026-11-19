@@ -151,7 +151,11 @@ def test_report_part_on_the_demo():
     md = "\n".join(p.md)
     assert "1829 messages" in md and "1738 messages" in md and "AA 55" in md and "EB 90" in md and "crc16ccitt" in md
     assert "0x20" in md and "No messages for" in md
-    assert len(items) == 3                                 # rate, interval, checksum errors - one plot per quantity
+    assert len(items) == 4                                 # order, rate, interval, checksum errors - one plot per quantity
+    # the packet's structure (owner, 2026-11-19): the fixed header, the length / type byte, the payload, the checksum
+    assert "| Header | 0–1 | fixed AA 55 |" in md and "| Length | 2 |" in md and "| Message type | 3 | 3 kinds: 0x01, 0x10, 0x20 |" in md
+    assert "| Message type | 2 | 3 kinds: 0x81, 0x82, 0x83 |" in md and "crc16ccitt over the bytes from 2" in md
+    assert "**The messages in order** (the first 40" in md and "0x20 0x10 0x01 0x20" in md
     assert any(h["level"] == "warn" for h in p.highlights)
     assert {s_["name"] for s_ in scan(st)["streams"]} == set(names)
 
