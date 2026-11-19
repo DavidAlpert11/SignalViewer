@@ -1,0 +1,54 @@
+// RE2: the ready-made parts' library and the ready reports - made from what the open files have, in both languages
+import { expect, test } from "vitest";
+import "./store";                  // the store first (its modules import each other)
+import type { ReportScan } from "./api";
+import { partCategories, readyInsert, readyReports, readyText } from "./reportReady";
+import { rowsToMarkdown, tsvToMarkdown, usedAssets } from "./reportPaste";
+
+const SCAN: ReportScan = {
+  files: [{ id: "a", name: "mission_ref.csv" }, { id: "b", name: "mission_gust.csv" }],
+  pairs: [{ setpoint: "ctrl.roll_cmd [deg]", measured: "ctrl.roll [deg]", file: "mission_ref.csv" },
+    { setpoint: "ctrl.roll_cmd [deg]", measured: "ctrl.roll [deg]", file: "mission_gust.csv" }],
+  objects: [{ name: "sim", cls: "truth", pos: "lla" }, { name: "nav", cls: "navigation", pos: "lla" }],
+  reference: "sim", base: "mission_ref.csv", states: [{ name: "mission.phase", file: "mission_ref.csv" }], tracks: 2,
+};
+const ONE: ReportScan = { files: [{ id: "a", name: "bench.csv" }], pairs: [], objects: [], reference: null, base: "bench.csv", states: [], tracks: 0 };
+
+test("the categories: each part one insert, a pair once however many files have it, the choices written only when changed", () => {
+  const c = partCategories(SCAN, "en");
+  expect(c.map((x) => x.id)).toEqual(["tracking", "navigation", "scenario", "compare", "summary"]);
+  const trk = c[0].parts.map((p) => p.insert);
+  expect(trk).toContain("[[tracking]]");
+  expect(trk.filter((x) => x.startsWith("[[tracking ctrl.roll"))).toEqual(["[[tracking ctrl.roll | top 1]]"]);
+  expect(c[1].parts[0].insert).toBe("[[navigation]]");
+  expect(partCategories(SCAN, "en", { reference: "nav" })[1].parts.map((p) => p.insert)).toContain("[[navigation | ref nav, position]]");
+  expect(partCategories(SCAN, "en", { base: "mission_gust.csv" })[3].parts[0].insert).toBe("[[differences | base mission_gust.csv]]");
+  const none = partCategories(ONE, "he");
+  expect(none[0].empty).toBeTruthy();
+  expect(none[3].parts).toEqual([]);
+});
+
+test("ready reports: only the ones that fit; the automatic one has only parts that found something", () => {
+  expect(readyReports(SCAN, "en").map((r) => r.id)).toEqual(["auto", "control", "navigation", "compare"]);
+  expect(readyReports(ONE, "en").map((r) => r.id)).toEqual(["auto"]);
+  const full = readyText("auto", SCAN, "en");
+  for (const p of ["[[summary]]", "[[states]]", "[[trajectory]]", "[[moments]]", "[[tracking]]", "[[navigation]]", "[[differences]]"]) expect(full).toContain(p);
+  const bare = readyText("auto", ONE, "he");
+  expect(bare).toContain("[[moments]]");
+  for (const p of ["[[tracking]]", "[[navigation]]", "[[differences]]", "[[states]]"]) expect(bare).not.toContain(p);
+  expect(bare.startsWith("# דוח ניסוי - bench.csv")).toBe(true);
+  expect(readyText("compare", SCAN, "en", { base: "mission_gust.csv" })).toContain("[[differences | base mission_gust.csv]]");
+});
+
+test("a ready report replaces an untouched report, else goes in without its title", () => {
+  expect(readyInsert("# T\n\n[[summary]]\n", true)).toEqual({ replace: true, text: "# T\n\n[[summary]]\n" });
+  expect(readyInsert("# T\n\n[[summary]]\n", false)).toEqual({ replace: false, text: "[[summary]]\n" });
+});
+
+test("tables pasted from a spreadsheet; pipes escaped; only the pictures the text uses are kept", () => {
+  expect(tsvToMarkdown("Run\tMax roll\nA\t12.5\nB\t9|1\n")).toBe("| Run | Max roll |\n|---|---|\n| A | 12.5 |\n| B | 9\\|1 |");
+  expect(tsvToMarkdown("just a line\nand another")).toBeNull();
+  expect(rowsToMarkdown([["a", "b", "c"], ["1"]])).toBe("| a | b | c |\n|---|---|---|\n| 1 |  |  |");
+  const a = { name: "x", mime: "image/png", data: "AAAA", w: 1, h: 1 };
+  expect(Object.keys(usedAssets("![x](asset:ab12) text", { ab12: a, cd34: a }))).toEqual(["ab12"]);
+});

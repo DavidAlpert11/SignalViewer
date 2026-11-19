@@ -146,6 +146,17 @@ export interface DiffTrace { t: number[]; d: (number | null)[]; lo?: (number | n
 export interface CompareRow { id: string; valid: boolean; matchPct?: number; samples?: number; rmsDiff?: number; maxAbsDiff?: number; meanDiff?: number; rmsPct?: number; correlation?: number; withinPct?: number; pass?: boolean; outsidePct?: number; trace?: DiffTrace }
 export interface CompareFileStats { run: string; mean: number | null; std: number | null; min: number | null; max: number | null; rms: number | null }
 export interface CompareDiff { run: string; rmsDiff: number; rmsPct: number; maxAbsDiff: number; meanDiff: number; stdDiff: number; correlation: number; withinPct?: number | null; pass?: boolean | null; outsidePct?: number | null }
+/** RE2: what the report's ready-made parts would find in the open files (backend/app/reportparts.py scan) */
+export interface ReportScan {
+  files: { id: string; name: string }[];
+  pairs: { setpoint: string; measured: string; file: string }[];
+  objects: { name: string; cls: string; pos: string }[];
+  reference: string | null;
+  /** the baseline file guessed (its name says ref / baseline / golden..., else the first) */
+  base: string | null;
+  states: { name: string; file: string }[];
+  tracks: number;
+}
 export interface CompareAllRow {
   name: string; runs?: string[]; baseline?: string; error?: string;
   /** C13: the signal of each file in this row (run id -> name), when names differ by their unit */
@@ -220,6 +231,9 @@ export interface Template {
   places?: import("./store").Place[];   // P7: the session's places: added (by name and position) when the template opens
   /** D14 (a profile): its run-at-a-glance numbers and its pinned searches - added when the template opens (optional) */
   glance?: GlanceItem[]; searches?: PinnedSearch[]; instruments?: string[];   // + F4
+  /** RE2: the written report (Markdown, signals by name - the same text fits the next recording) - set when the
+   *  template opens on a session that has no written report yet */
+  report?: { v: 1; text: string; assets?: Record<string, import("./store").ReportAsset> };
   generator?: "quicklook" | "compare" | "objects";   // built-in templates whose tabs are made from the files themselves
   builtin?: boolean; saved?: number; file?: string; broken?: boolean;
 }
@@ -327,6 +341,7 @@ export const api = {
     const r = await call<{ n: number; x: string; y: string }>("/api/derived/preview", { op, sources, params, x0, x1 });
     return { x: decode(r.x, Float64Array), y: decode(r.y, Float32Array) };
   },
+  reportParts: (runs?: string[]) => call<ReportScan>("/api/report/parts", { runs: runs ?? null }),
   reportPreview: (body: Record<string, unknown>) => call<{ html: string }>("/api/report/preview", body),
   reload: (id: string) => call<RunInfo>(`/api/runs/${id}/reload`, {}),
   /** Q123: open files saved again since they were read -> when (epoch s). A stat each, nothing read. */

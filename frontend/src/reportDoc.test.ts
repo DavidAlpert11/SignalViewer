@@ -83,3 +83,29 @@ describe("RE1: references in the written report", () => {
     expect(appendToDoc(structuredClone(after), "en", "x").report?.doc?.text.endsWith("x\n")).toBe(true);
   });
 });
+
+describe("RE2: ready-made parts and plots written in the text", () => {
+  beforeEach(() => { setup(); });
+  it("a part is sent to the server with its words, its options in their case and the open files", () => {
+    const ws = useApp.getState().ws;
+    const p = R(resolveRef(ws, "tracking roll | tol 2, ref GPS", "en"));
+    expect(p).toMatchObject({ kind: "part", part: "tracking", arg: "roll", opts: ["tol 2", "ref GPS"], runs: ["r1", "r2"] });
+    expect(R(resolveRef(ws, "summary", "en")).part).toBe("summary");
+  });
+  it("[[plot …]]: a name in two files is drawn from each, a window and an unknown name said", () => {
+    const ws = useApp.getState().ws;
+    const p = R(resolveRef(ws, "plot Roll, RollDes | 10..60", "en"));
+    expect(p.kind).toBe("plots");
+    expect(p.plots[0].signals.map((s: { id: string }) => s.id)).toEqual(["r1/Roll", "r2/Roll", "r1/RollDes"]);
+    expect(p.plots[0].range).toEqual([10, 60]);
+    expect(R(resolveRef(ws, "plot {r2.csv:Roll}", "en")).plots[0].signals.map((s: { id: string }) => s.id)).toEqual(["r2/Roll"]);
+    expect(R(resolveRef(ws, "plot xy Speed, Roll", "en")).plots[0]).toMatchObject({ mode: "xy", xSignal: "r2/Speed" });
+    expect(R(resolveRef(ws, "plot Nope", "en")).error).toMatch(/Nope/);
+  });
+  it("a tab named like a part keeps its name: it is written tab<n>", () => {
+    useApp.getState().commit((w) => { w.tabs[0].name = "tracking"; return w; });
+    const ws = useApp.getState().ws;
+    expect(tabRef(ws, ws.tabs[0])).toBe("tab1");
+    expect(R(resolveRef(ws, "tracking", "en")).kind).toBe("plots");        // an old reference to that tab still finds it
+  });
+});

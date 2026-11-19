@@ -122,8 +122,11 @@ export interface ReportMeta { title: string; intro: string; summary: string; lan
   verdict?: ReportVerdict; includeVerdict?: boolean;
   /** RE1: the report as the user wrote it (Markdown with [[plots]] and {{values}}, reportDoc.ts); absent = the
    *  document made from the fields above, as the Report panel made it before 1.31 */
-  doc?: ReportDoc }
+  doc?: ReportDoc;
+  /** RE2: pictures pasted or dropped into the report, kept in the session (downscaled), written ![name](asset:<id>) */
+  assets?: Record<string, ReportAsset> }
 export interface ReportDoc { v: 1; text: string }
+export interface ReportAsset { name: string; mime: string; data: string; w: number; h: number }
 /** 26.U4: pass / fail per signal and file against a baseline, as a report section */
 export interface ReportVerdict { id: string; title: string; summary: string[]; head: string[]; rows: string[][] }
 /** A note at a moment of the recording ("vibration starts here"): shown on every time plot, saved

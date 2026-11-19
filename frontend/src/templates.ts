@@ -5,6 +5,7 @@ import { detectObjects, type Candidate } from "./objectDetect";
 import { addedSummary } from "./objectAdd";
 import { trackOfClass } from "./mapObjects";
 import { mergeProfile, profileOf } from "./store/actions/profile";   // D14
+import { usedAssets } from "./reportPaste";
 
 const OBJ_ROLES: TplObjectRole[] = ["lat", "lon", "alt", "yaw", "pitch", "roll", "qw", "qx", "qy", "qz"];
 
@@ -121,7 +122,8 @@ export function templateFromTabs(tabs: Tab[], name: string): { template: Templat
   const places = st.ws.places ?? [];
   // D14: the run-at-a-glance numbers and the pinned searches - a template is a profile
   return { template: { version: 2, id: "", name, slots, tabs: tplTabs, ...(conds.length ? { conditions: conds } : {}), ...(places.length ? { places } : {}),
-    ...profileOf(st.ws) }, skipped, slotRuns };
+    ...profileOf(st.ws), ...(st.ws.report?.doc?.text.trim() ? { report: { v: 1 as const, text: st.ws.report.doc.text,
+      ...(Object.keys(usedAssets(st.ws.report.doc.text, st.ws.report.assets)).length ? { assets: usedAssets(st.ws.report.doc.text, st.ws.report.assets) } : {}) } } : {}) }, skipped, slotRuns };
 }
 
 /** The templates' conditions not in the workspace yet (by name) - new ids, combinations re-pointed;
@@ -350,6 +352,12 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
     res.conditions = mergeConditions(ws, withIncluded);
     // D14: the profile's at-a-glance numbers (its own first, then its parts') and pinned searches
     if (!opts.rest) mergeProfile(ws, withIncluded);
+    // RE2: the template's written report - never over a report already written in this session
+    const rep = withIncluded.find((x) => x.report?.text)?.report;
+    if (rep && !opts.rest && !ws.report?.doc) {
+      ws.report = { title: "", intro: "", summary: "", lang: st.lang, theme: "light", scope: "tab", ...(ws.report ?? {}), doc: { v: 1, text: rep.text },
+        ...(rep.assets ? { assets: { ...(ws.report?.assets ?? {}), ...rep.assets } } : {}) };
+    }
     // P7: its places not in the session yet (the same name at the same position is the same place)
     const key = (p: { name: string; lat: number; lon: number }) => `${p.name}|${p.lat.toFixed(6)}|${p.lon.toFixed(6)}`;
     const have = new Set((ws.places ?? []).map(key));

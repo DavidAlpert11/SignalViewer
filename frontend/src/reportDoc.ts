@@ -8,13 +8,14 @@
    works on the next recording; they are resolved here to stable ids "<runId>/<name>" for the server, which
    computes every value on all the data (backend/svcore/docfields.py) and draws the page / PDF / Word
    (backend/app/reportdoc.py). What cannot be found is said in place, never left out without a word. */
-import { activeTab, signalName, useApp, type ReportMeta, type Tab, type Workspace } from "./store";
+import { activeTab, signalName, TRACE_COLORS, useApp, type ReportMeta, type Tab, type Workspace } from "./store";
 import { translate, type TKey } from "./i18n";
 import { pagePlot, pagePlots, plotSpec } from "./plotSpec";
 import { resolveFormula } from "./formulaRefs";
 import { processSection } from "./reportProcess";
 import { investigationSections } from "./investigation";
 import { replayInfo } from "./replay";
+import { usedAssets } from "./reportPaste";
 
 type Lang = "en" | "he";
 export const REPORT_DEFAULT: ReportMeta = { title: "", intro: "", summary: "", lang: "he", theme: "light", scope: "tab" };
@@ -22,6 +23,10 @@ export const REPORT_DEFAULT: ReportMeta = { title: "", intro: "", summary: "", l
 export const DOC_STATS = ["max", "min", "mean", "rms", "std", "range", "first", "final", "samples", "duration", "tmax", "tmin", "absmax", "integral"] as const;
 const DOC_FUNCS = [...DOC_STATS, "stretches", "holds", "abs", "sqrt", "round", "floor", "ceil", "log10", "log", "exp"];
 export const SPECIALS = ["notes", "findings", "investigation", "process", "verdict"] as const;
+/** RE2: the ready-made parts - each finds what it needs in the open files by the signals' names and writes its
+ *  sentence, tables and plots on the server (backend/app/reportparts.py). `[[tracking]]`, `[[tracking roll | tol 2]]`. */
+export const PARTS = ["tracking", "navigation", "states", "trajectory", "moments", "differences", "summary"] as const;
+export type PartName = typeof PARTS[number];
 const MARK = (n: number) => `\u27e6${n}\u27e7`;
 
 export const metaOf = (ws: Workspace, lang: Lang): ReportMeta => ({ ...REPORT_DEFAULT, lang, ...(ws.report ?? {}) });
@@ -31,7 +36,8 @@ export function tabRef(ws: Workspace, tab: Tab): string {
   const i = ws.tabs.indexOf(tab);
   const n = (tab.name ?? "").trim();
   const same = ws.tabs.filter((t) => (t.name ?? "").trim().toLowerCase() === n.toLowerCase()).length;
-  return n && same === 1 && !/[[\]|.]/.test(n) && !(SPECIALS as readonly string[]).includes(n.toLowerCase()) && !/^tab\s*\d+$/i.test(n) ? n : `tab${i + 1}`;
+  const reserved = [...SPECIALS, ...PARTS, "plot"] as readonly string[];
+  return n && same === 1 && !/[[\]|.]/.test(n) && !reserved.includes(n.toLowerCase().split(/\s+/)[0]) && !/^tab\s*\d+$/i.test(n) ? n : `tab${i + 1}`;
 }
 
 /** [[tab.plot]] for a plot: its title when it is unique in its tab, else plot<n>. */
@@ -76,7 +82,7 @@ export function appendToDoc(ws: Workspace, lang: Lang, piece: string): Workspace
 
 // ------------------------------------------------------------------------------------------------ resolve
 
-export interface DocItem { kind: "value" | "plots" | "notes" | "sections" | "error" | "special"; [k: string]: unknown }
+export interface DocItem { kind: "value" | "plots" | "notes" | "sections" | "error" | "special" | "part"; [k: string]: unknown }
 export interface Prepared { text: string; items: DocItem[]; problems: string[]; plots: number }
 
 function findTab(ws: Workspace, name: string): Tab | undefined {
@@ -102,6 +108,14 @@ export function resolveRef(ws: Workspace, raw: string, lang: Lang): DocItem | Sp
   const opts = rest.join("|").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
   const name = target.trim();
   if ((SPECIALS as readonly string[]).includes(name.toLowerCase())) return { kind: "special", special: name.toLowerCase(), opts };
+  const head = name.split(/\s+/)[0].toLowerCase();
+  if ((PARTS as readonly string[]).includes(head) && !findTab(ws, name)) {
+    // the options keep their case (a reference object's or a file's name)
+    const raw2 = rest.join("|").split(",").map((x) => x.trim()).filter(Boolean);
+    const runs = useApp.getState().runs.filter((r) => r.format !== "derived").map((r) => r.id);
+    return { kind: "part", part: head, arg: name.slice(head.length).trim(), opts: raw2, runs, src: raw };
+  }
+  if (head === "plot" && name.length > 5 && !findTab(ws, name)) return plotRefItem(name.slice(5).trim(), opts, raw, lang);
   const plotLabel = translate(lang, "plotTitle", { n: "{n}" });
   let tab = findTab(ws, name), pi: number | null = null;
   if (!tab) {                                         // tab.plot: the first dot that splits into a tab and its plot
@@ -129,6 +143,47 @@ export function resolveRef(ws: Workspace, raw: string, lang: Lang): DocItem | Sp
   if (!chosen.length) return { kind: "error", error: t("rdEmptyTab", { name }), src: raw };
   const plots = chosen.map(({ p, pi: i }) => ({ ...plotSpec(tab!, p, i, plotLabel), ...(range !== undefined ? { range } : {}) }));
   return { kind: "plots", plots, ...(table ? { table } : {}), tab: tab.name || `${translate(lang, "tab")} ${ws.tabs.indexOf(tab) + 1}`, src: raw };
+}
+
+/** RE2: `[[plot Roll, RollDes | 10..60]]` - a plot made in the text from signal names, in no tab: what the
+ *  ready-made parts write when expanded, and a quick plot without building a tab. A name in several open files is
+ *  drawn from each (a comparison); `{file:name}` one file's; `plot xy Lon, Lat` an X-Y. */
+function plotRefItem(body: string, opts: string[], raw: string, lang: Lang): DocItem {
+  const t = (k: TKey, p?: Record<string, string | number>) => translate(lang, k, p);
+  const runs = useApp.getState().runs.filter((r) => r.format !== "derived");
+  let xy = false;
+  if (/^xy\s/i.test(body)) { xy = true; body = body.slice(3).trim(); }
+  const noUnit = (n: string) => n.replace(/ \[[^\]]*\]$/, "").toLowerCase();
+  const ids: string[] = [];
+  for (let name of body.split(",").map((x) => x.trim()).filter(Boolean)) {
+    let pool = runs;
+    const m = /^\{([^:}]+):([^}]+)\}$/.exec(name);
+    if (m) { pool = runs.filter((r) => r.name === m[1].trim() || r.id === m[1].trim()); name = m[2].trim(); }
+    else name = name.replace(/^\{|\}$/g, "");
+    let hits = pool.flatMap((r) => r.signals.filter((s) => s.name === name).map((s) => s.id));
+    if (!hits.length) hits = pool.flatMap((r) => r.signals.filter((s) => noUnit(s.name) === noUnit(name)).map((s) => s.id));
+    if (!hits.length) return { kind: "error", error: t("rdNoSignal", { name }), src: raw };
+    ids.push(...hits.filter((h) => !ids.includes(h)));
+  }
+  if (!ids.length || (xy && ids.length < 2)) return { kind: "error", error: t("rdPlotEmpty"), src: raw };
+  let range: [number, number] | null = null;
+  let table: "only" | "none" | undefined;
+  for (const o of opts) {
+    const w = /^(-?[\d.]+)\s*(?:\.\.|–|-|to)\s*(-?[\d.]+)\s*s?$/.exec(o), a = /^around\s+(-?[\d.]+)\s*s?$/.exec(o);
+    if (w && +w[2] > +w[1]) range = [+w[1], +w[2]];
+    else if (a) range = [+a[1] - 10, +a[1] + 10];
+    else if (o === "no table" || o === "notable") table = "none";
+    else if (o === "table" || o === "table only") table = "only";
+    else if (o !== "all") return { kind: "error", error: t("rdBadOption", { opt: o }), src: raw };
+  }
+  const st = useApp.getState();
+  const isState = (id: string) => !!st.runs.flatMap((r) => r.signals).find((s) => s.id === id)?.labels;
+  const lines = (xy ? ids.slice(1) : ids).map((id, k) => ({ id, label: signalName(st.runs, id), color: TRACE_COLORS[k % TRACE_COLORS.length],
+    width: 1.5, scale: 1, offset: 0, state: isState(id), tOffset: 0 }));
+  const title = (xy ? ids.slice(1) : ids).map((id) => signalName(st.runs, id, false)).filter((v, i, a) => a.indexOf(v) === i).join(", ");
+  const plot = { title, caption: "", mode: xy ? "xy" : "time", range, signals: lines,
+    ...(xy ? { xSignal: ids[0], xLabel: signalName(st.runs, ids[0], false) } : {}) };
+  return { kind: "plots", plots: [plot], ...(table ? { table } : {}), tab: "", src: raw };
 }
 
 const FMT = /\s:\s*([<>^=]?[+\- ]?#?0?\d*[,_]?(?:\.\d+)?[bcdeEfFgGnosxX%]?)\s*$/;
@@ -225,6 +280,7 @@ export async function docBody(format: "html" | "pdf" | "docx", path: string, typ
   return {
     body: { path, format, title, lang: meta.lang, theme: meta.theme, text: p.text, items: p.items,
       notes: (st.ws.notes ?? []).filter((n) => n.status !== "rejected").map((n) => ({ t: n.t, ...(n.t2 !== undefined ? { t2: n.t2 } : {}), text: n.text })),
+      assets: usedAssets(text, meta.assets),
       words: { calloutNOTE: tr("rdNote"), calloutTIP: tr("rdTip"), calloutWARNING: tr("rdWarning"), calloutIMPORTANT: tr("rdImportant"), calloutFINDING: tr("rdFinding") },
       ...(format === "html" && p.plots ? { replay: replayInfo(meta.lang, false) } : {}) },
     prepared: p,

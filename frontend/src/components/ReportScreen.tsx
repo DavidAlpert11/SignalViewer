@@ -12,7 +12,10 @@ import { Icon } from "../icons";
 import { confirmAsk } from "./Overlays";
 import { refFor, wordAt } from "../formulaRefs";
 import { fuzzySort } from "../fuzzy";
-import { DOC_STATS, SPECIALS, defaultDocText, docBody, docText, metaOf, plotRef, tabRef } from "../reportDoc";
+import { DOC_STATS, PARTS, SPECIALS, defaultDocText, docBody, docText, metaOf, plotRef, tabRef } from "../reportDoc";
+import ReportParts from "./ReportParts";
+import { MAX_ALL, MAX_ONE, assetBytes, assetId, htmlToMarkdown, pictureAsset, tsvToMarkdown } from "../reportPaste";
+import { readyInsert } from "../reportReady";
 
 type View = "write" | "both" | "show";
 const FUNCS = [...DOC_STATS, "stretches", "holds"];
@@ -118,6 +121,49 @@ export default function ReportScreen() {
     put(p);
   };
 
+  // RE2: a ready report replaces a report nobody wrote yet, else goes in at the caret (without its title)
+  const ready = (doc: string) => {
+    const untouched = !ws.report?.doc || text.trim() === defaultDocText({ ...ws, report: { ...meta, doc: undefined } }, lang).trim() || !text.trim();
+    const r = readyInsert(doc, untouched);
+    if (r.replace) { typing.current = false; setText(r.text); commitText(r.text); }
+    else block(r.text.trim());
+  };
+  // RE2: a picture kept in the session (downscaled), written ![name](asset:<id>) where the cursor is
+  const addPictures = async (files: File[]) => {
+    const st = useApp.getState();
+    for (const f of files.filter((x) => x.type.startsWith("image/"))) {
+      try {
+        const a = await pictureAsset(f, f.name || "picture");
+        if (assetBytes(a) > MAX_ONE) { st.toast({ kind: "error", text: t("rpPictureBig", { name: a.name, mb: (assetBytes(a) / 1048576).toFixed(1) }) }); continue; }
+        const all = useApp.getState().ws.report?.assets ?? {};
+        const total = Object.values(all).reduce((n, x) => n + assetBytes(x), 0) + assetBytes(a);
+        if (total > MAX_ALL) { st.toast({ kind: "error", text: t("rpPicturesFull", { mb: (MAX_ALL / 1048576).toFixed(0) }) }); return; }
+        const id = await assetId(a.data);
+        commitText(ed.current?.value ?? text);
+        useApp.getState().commit((w) => { const m = metaOf(w, lang); w.report = { ...m, assets: { ...(m.assets ?? {}), [id]: a } }; return w; });
+        block(`![${a.name.replace(/[[\]()]/g, " ")}](asset:${id})`);
+      } catch (e) {
+        st.toast({ kind: "error", text: t("rpPictureBad", { name: f.name, msg: String((e as Error).message) }) });
+      }
+    }
+  };
+  const plainPaste = useRef(false);
+  const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (plainPaste.current) { plainPaste.current = false; return; }      // Ctrl+Shift+V: as plain text
+    const files = Array.from(e.clipboardData.files ?? []).filter((f) => f.type.startsWith("image/"));
+    const html = e.clipboardData.getData("text/html"), plain = e.clipboardData.getData("text/plain");
+    if (files.length && !plain.trim()) { e.preventDefault(); void addPictures(files); return; }
+    const tsv = tsvToMarkdown(plain);
+    const md = html ? htmlToMarkdown(html) : null;
+    // a spreadsheet's cells: its tab-separated text has the exact numbers (its HTML has its formatting)
+    const piece = tsv && (!md || /<table/i.test(html)) ? tsv : md?.text;
+    if (!piece) return;
+    e.preventDefault();
+    if (md?.merged && piece === md.text) useApp.getState().toast({ kind: "info", text: t("rpPasteMerged") });
+    put(asBlock(ed.current, piece));
+  };
+  const pictureInput = useRef<HTMLInputElement>(null);
+
   const make = async (format: "html" | "pdf" | "docx") => {
     commitText(text);
     const ext = { html: ".html", pdf: ".pdf", docx: ".docx" }[format];
@@ -155,7 +201,7 @@ export default function ReportScreen() {
     const ref = before.lastIndexOf("[["), refEnd = before.lastIndexOf("]]");
     if (ref >= 0 && ref > refEnd && !before.slice(ref).includes("\n")) {
       const typed = before.slice(ref + 2);
-      const all = [...SPECIALS, ...ws.tabs.flatMap((tb) => [tabRef(ws, tb), ...tb.plots.map((_p, i) => plotRef(ws, tb, i))])];
+      const all = [...SPECIALS, ...PARTS, ...ws.tabs.flatMap((tb) => [tabRef(ws, tb), ...tb.plots.map((_p, i) => plotRef(ws, tb, i))])];
       return { start: ref + 2, close: !text.slice(caret).startsWith("]]"), list: (typed ? fuzzySort(all, (x) => x, typed) : all).slice(0, 8) };
     }
     const val = before.lastIndexOf("{{"), valEnd = before.lastIndexOf("}}");
@@ -177,6 +223,7 @@ export default function ReportScreen() {
   };
 
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "v") plainPaste.current = true;
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === "b" || e.key === "i")) {
       e.preventDefault(); put("", e.key === "b" ? ["**", "**"] : ["*", "*"]);
     } else if (e.key === "Tab" && suggestions?.list.length && !e.shiftKey) {
@@ -184,6 +231,8 @@ export default function ReportScreen() {
     }
   };
   const onDrop = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    const pics = Array.from(e.dataTransfer.files ?? []).filter((f) => f.type.startsWith("image/"));
+    if (pics.length) { e.preventDefault(); e.stopPropagation(); void addPictures(pics); return; }
     const s = e.dataTransfer.getData("application/x-sv-report");
     if (!s) return;
     e.preventDefault();
@@ -230,6 +279,7 @@ export default function ReportScreen() {
         {view !== "show" && (
           <aside className="rd-lib" aria-label={t("rdLibrary")}>
             <p className="hint">{t("rdLibHint")}</p>
+            <ReportParts block={block} ready={ready} text={text} />
             <h3 className="eyebrow">{t("rdLibPlots")}</h3>
             {ws.tabs.map((tb, ti) => (
               <div key={tb.id} className="rd-lib-tab">
@@ -260,6 +310,9 @@ export default function ReportScreen() {
               {tool("!", t("rdCallout"), () => block("> [!NOTE]\n> "))}
               {tool("↧", t("rdPageBreak"), () => block("\\newpage"))}
               {tool("🔗", t("rdLink"), () => put("text", ["[", "](https://)"]))}
+              {tool("🖼", t("rpPicture"), () => pictureInput.current?.click(), "rd-picture")}
+              <input ref={pictureInput} type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden
+                onChange={(e) => { void addPictures(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
               <span className="spacer" />
               {tool(dir === "rtl" ? "⇤" : "⇥", t("rdDirection"), () => setDir(dir === "rtl" ? "ltr" : "rtl"))}
               {tool("?", t("rdHelp"), () => setHelp(!help), help ? "on" : "")}
@@ -277,7 +330,7 @@ export default function ReportScreen() {
               aria-label={t("report")}
               onChange={(e) => { edit(e.target.value); setCaret(e.target.selectionStart ?? 0); }}
               onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
-              onKeyDown={onKey} onDrop={onDrop}
+              onKeyDown={onKey} onDrop={onDrop} onPaste={onPaste}
               onBlur={() => { typing.current = false; commitText(text); }} />
           </section>
         )}

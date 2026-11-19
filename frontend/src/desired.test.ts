@@ -53,3 +53,9 @@ test("Plot the commanded / measured pairs: a new tab, a plot per pair, one Undo;
   expect(actions.plotSetpointPairs("b")).toBe(0);
   expect(useApp.getState().past?.length).toBe(past);
 });
+
+// RE2: the same cases as the Python twin (backend/svcore/reportparts.py, backend/tests/test_report_parts.py)
+import CASES from "../../backend/tests/data/setpoint_cases.json";
+test("the shared cases: desired.ts and svcore/reportparts.py find the same pairs", () => {
+  for (const c of CASES.cases) expect(pairs(c.names), c.why).toEqual(c.pairs);
+});
