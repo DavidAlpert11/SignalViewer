@@ -114,6 +114,11 @@ when you stop in the middle of a task.
   not make `06_3d_terrain.png`). The welcome cards' pictures: `--only examples`. Long films:
   `tools/make_demo_video.py`, `tools/make_training_video.py`; `tools/make_social_preview.py` after scene 31.
 
+## Skills (`.claude/skills/`, loaded in a Claude Code session in this repository)
+`sv-checks` (the checks and which e2e files to run), `sv-release` (preparing a version, the owner's commands),
+`sv-report-part` (the report's ready-made parts), `sv-media` (pictures and films), `sv-example` (a new example).
+They are the practical steps; this file stays the rules. Keep them current when a procedure changes.
+
 ## Releasing (the owner tags; an agent prepares)
 0. Run **ci** by hand first (Actions -> ci -> Run workflow, or `[ci]` in the last commit message).
 1. Refresh the pictures (above) when the interface changed.
