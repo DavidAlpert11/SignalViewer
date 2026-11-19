@@ -47,7 +47,7 @@ simulation engineers, and it runs entirely on your machine: no account, no cloud
 - **Sweeps** – the parameter sets that hold in every scenario, and a loop that runs your simulation until the best
   stops changing.
 - **No point left out** – numbers always use all the data; plots are reduced only so that every spike is still drawn.
-- **One file to send** – write the report like Markdown, with `[[tab.plot]]` for a plot and `{{ max(Roll) }}` for a value of every sample, a live preview beside it; an offline HTML page that opens with how the conclusion was reached, PDF and Word from the same text; a plot or a tab live in a Confluence page (every sample, through its HTML macro).
+- **One file to send** – one click writes a ready report made of parts (commanded vs actual, navigation errors between objects, the scenario and its special moments, and the main differences between files with the central region of the change), or write it like Markdown, with `[[tab.plot]]` for a plot and `{{ max(Roll) }}` for a value of every sample, a live preview beside it; an offline HTML page that opens with how the conclusion was reached, PDF and Word from the same text; a plot or a tab live in a Confluence page (every sample, through its HTML macro).
 - **English and Hebrew** (right to left), light and dark themes.
 
 ## Quick start
@@ -106,6 +106,8 @@ default. [Map and 3D](https://davidalpert11.github.io/SignalViewer/maps-and-3d/)
 **Send the answer.** One HTML file that opens with the process in brief – the data, what was checked, what it
 shows, the conclusion – then the plots, map and 3D on one time bar. Any browser, no install. Or a plot or a tab
 straight into a Confluence page, still live: zoom to every sample, the cursor, the statistics and the notes.
+*Automatic report* looks at what the files have and writes a report of ready-made parts you then edit - with
+several files, the signals that differ most and the central region of the change, zoomed.
 A folder of recordings becomes one table too: the same numbers measured in each, one row per recording.
 
 <p align="center"><a href="docs/images/42_report_process.png"><img src="docs/images/42_report_process.png" alt="A report opening with 'The process in brief', then the plots with their statistics" width="80%"></a></p>
@@ -182,7 +184,7 @@ Exit codes and JUnit XML for CI; also export, a Sweeps table from a folder of re
 - **בוחרים פרמטרים (Sweeps):** אילו סטים עומדים בכל תרחיש, סט אחד לכמה מערכות, ולולאה שמריצה את הקוד שלכם עד התכנסות.
 - **אף נקודה לא נעלמת:** המספרים תמיד על כל הנתונים, והגרף מוקטן רק כך שכל קפיצה עדיין מצוירת.
 - **מפה ותלת־ממד:** תצלומי לוויין או מפה לא מקוונת, מעל פני השטח האמיתיים – הרגע של הסמן על המסלול ובכל הגרפים יחד.
-- **שולחים את התשובה:** כותבים את הדוח כמו Markdown, עם גרפים וערכים מהנתונים ותצוגה חיה; דוח HTML אחד שנפתח ב"התהליך בקצרה", וגם PDF ו־Word, או גרף ולשונית חיים בתוך דף Confluence. תיקייה של הקלטות – טבלה אחת, שורה לכל הקלטה.
+- **שולחים את התשובה:** לחיצה אחת כותבת דוח מוכן מחלקים (פקודה מול ביצוע, שגיאות ניווט בין אובייקטים, התרחיש והרגעים המיוחדים, וההבדלים העיקריים בין קבצים עם האזור המרכזי של השינוי), או כותבים את הדוח כמו Markdown, עם גרפים וערכים מהנתונים ותצוגה חיה; דוח HTML אחד שנפתח ב"התהליך בקצרה", וגם PDF ו־Word, או גרף ולשונית חיים בתוך דף Confluence. תיקייה של הקלטות – טבלה אחת, שורה לכל הקלטה.
 
 **התקנה:** מ־[השחרור האחרון](https://github.com/DavidAlpert11/SignalViewer/releases/latest) (Windows, Linux, macOS), או <code dir="ltr">pip install signalviewer</code>. **מדריך:** [docs/GUIDE.he.md](docs/GUIDE.he.md).
 
