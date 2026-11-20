@@ -73,7 +73,7 @@ def test_every_area_has_its_demo(pg):
     assert "Help → Examples" in pg.locator(".examples-more").inner_text()
     pg.locator(".topbar .menubar-btn", has_text="Help").click()          # every example is there, the six too
     pg.locator(".menu.ctx button", has_text="Examples").click()
-    assert pg.locator(".menu.ctx.sub button").count() == 12
+    assert pg.locator(".menu.ctx.sub button").count() == 13                # 1.32.0: + the serial link (MSG1)
     pg.keyboard.press("Escape")
     open_example(pg, "sweepTable")
     pg.wait_for_function("window.__sv.state().area === 'sweeps'")
