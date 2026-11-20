@@ -128,6 +128,8 @@ the message types of the logs (MAVLink included), the links running now and a li
 </tr>
 </table>
 
+<p align="center"><a href="docs/images/55_messages_panel.png"><img src="docs/images/55_messages_panel.png" alt="The Messages panel: a serial link's byte streams with their message types and rates, a flight log's message types with fields, count and rate - and a message's fields plotted" width="80%"></a></p>
+
 <p align="center"><a href="docs/images/42_report_process.png"><img src="docs/images/42_report_process.png" alt="A report opening with 'The process in brief', then the plots with their statistics" width="80%"></a></p>
 
 ## Supported formats
@@ -190,7 +192,7 @@ Exit codes and JUnit XML for CI; also export, a Sweeps table from a folder of re
 [Validation](docs/validation.md) ·
 [Known limitations](docs/limitations.md) ·
 [What's new](CHANGELOG.md) ·
-🎓 [Training film, nine short chapters](docs/media/training.mp4)
+🎓 [Training film with narration, ten short chapters](docs/media/training.mp4)
 
 ## בעברית בקצרה
 

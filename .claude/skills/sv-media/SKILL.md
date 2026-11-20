@@ -18,5 +18,10 @@ python tools/make_readme_media.py --only examples     # the welcome cards' pictu
   `shot(pg, "<NN>_<name>")` -> `docs/images/<NN>_<name>.png`. Reports: `_report_parts`, `_preview_to(pg, text)`.
 - Map / satellite scenes (05 28 31 44 46) need the internet; films need ffmpeg; `06_3d_terrain.png` is not made here.
 - Long films: `tools/make_demo_video.py`, `tools/make_training_video.py`; after scene 31: `tools/make_social_preview.py`.
+- The training film is **narrated** (`tools/narration.py`): `pip install piper-tts`; the voice (en_US-lessac-medium) is
+  fetched once into `~/.cache/signalviewer/voices` (or `SV_VOICE=<.onnx>`); `--silent` for none. A chapter's words are
+  `f.say(...)` / `f.cap(..., say=...)` - the next step waits until the line is said. In a cloud sandbox Playwright's
+  video needs `ln -sf /usr/bin/ffmpeg /opt/pw-browsers/ffmpeg-1013/ffmpeg-linux` (its own ffmpeg is not installed).
+  Examples without a welcome card open through Help -> Examples (`help_example`: sideways into the submenu, then down).
 - Look at every picture you made (Read it) before committing; show the owner with the file-sending tool.
 - A picture used in the README or docs is referenced as `docs/images/…` / `images/…`; `mkdocs build --strict` checks.

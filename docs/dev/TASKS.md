@@ -22,7 +22,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | SW2 (b) - Run again with recording | spec agreed in parts | the owner's final yes on "Open specs" below - do not implement before |
 | BR1 - the app as one process (README, docs home, welcome groups) | proposed | the owner's yes on the wording below |
 | Stability on Windows with a GPU (Out of Memory, the 3D shader) | waiting for numbers | the owner runs `tools/measure_maps.py --gpu`; the e2e suite's memory |
-| Films in Hebrew + a narration script; GitHub About texts | offered / with the owner (About texts proposed 2026-11-17) | his choice; he pastes the About texts |
+| Films in Hebrew + a narration script; GitHub About texts | the English training film is narrated (2026-11-20); a Hebrew voice is possible (Piper he_IL) | his choice; he pastes the About texts |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
 | Release 1.32.0 - RE2 ready reports + CLR1, MSG1, MSG2, LINK1, MSG3 (owner, 2026-11-20: "prepare a release") | READY 2026-11-20 except one e2e (MSG3 in, every picture refreshed, the whole e2e 96/97 files green, quick_check, mkdocs --strict); earlier: CHANGELOG 1.32.0 – 2026-11-20 with new highlights, CITATION date, README (bytes to signals: why, tour with pictures 52 / 53, formats, Hebrew), docs (messages.md, features, limitations, install counts, reports.he.md with the ready parts), pictures 52-54 | the owner tags v1.32.0 (commands given); the old claude/* branches are already gone from GitHub |
 | Reports - open work | see `docs/dev/REPORTS.md` "Open" | the CLI making the written report; RE2.6 block editor; RE2.7 |
@@ -158,6 +158,11 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-20 · The training film narrated (owner: "a training film with a narrating voice that explains the capabilities and how
+  to use them"): tools/narration.py (Piper, en_US-lessac-medium, offline once fetched; clips laid at the film's moments, the cut
+  waits taken out), make_training_video.py - every chapter spoken, a new chapter 6 Messages (the panel, propose, make the
+  recording, live links), chapter 7 Reports on the report made for you; the script brought up to date (examples without a
+  welcome card through Help -> Examples). README: picture 55, the film's line. A Hebrew voice exists in Piper (he_IL) - offered.
 - 2026-11-20 · Release 1.32.0 ready (with MSG3): CHANGELOG (MSG3 bullet, highlights), README (English + Hebrew), docs (messages.md
   with picture 55, features, limitations, reports), every README / docs picture made again (the rail's new button; 53 in the
   panel; 55 new) and the welcome cards; the media script's fixes (two helpers named `_example`, the MAVLink selector meeting
