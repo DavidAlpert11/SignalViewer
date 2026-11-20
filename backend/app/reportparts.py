@@ -99,6 +99,15 @@ S: Dict[str, Dict[str, Any]] = {
         "msg_last": ["the last byte", "the last 2 bytes"], "msg_per": "{t}: {n} bytes",
         "msg_seq": "**The messages in order** (the first {n}, from {t} s): {list}",
         "msg_seq_plot": "Message type in order - the first {s} s", "msg_seq_cap": "Each message a step: which kind came after which.",
+        "msg_link": "**{a} ↔ {b} - requests and replies** (a reply is the answer in the other direction within {to} s):",
+        "msg_link_head": ["Request", "Reply", "Paired by", "Requests", "Answered", "Unanswered", "Retries", "Latency mean (ms)", "95 % (ms)", "Max (ms)", "at (s)", "Replies without a request"],
+        "msg_by_id": "byte {j} echoed", "msg_by_next": "the next answer",
+        "msg_link_none": "**{a} ↔ {b}:** no message answers another - streaming both ways.",
+        "msg_unans": "**Unanswered** ({req}): {n} - at {list} s.", "msg_retry": "**Sent again** ({req}) before an answer: at {list} s.",
+        "msg_hs": "**The handshake** at {t} s: {seq}.", "msg_hs_again": "**Again** at {t} s - a reconnect: {seq}.",
+        "msg_lat": "Reply latency (s)", "msg_lat_cap": "Each answered request at its time; the gaps are the unanswered ones.",
+        "msg_hl_unans": "{a} ↔ {b}: {n} of {m} {req} unanswered", "msg_hl_reconnect": "{a} ↔ {b}: the handshake again at {t} s (a reconnect)",
+        "msg_hl_retry": "{a} ↔ {b}: {req} sent again {n} times", "msg_hl_lat": "{a} ↔ {b}: {req} answered in {mean} ms on average, {max} ms at most (at {t} s)",
         "ov_streams": "Byte streams (decoded by [[messages]], their bytes are not measurements): {list}.",
         "toc": "Contents", "toc_none": "No headings yet (## a heading).",
         "sum_none": "Nothing to point out: the report's automatic parts found nothing unusual.",
@@ -181,6 +190,15 @@ S: Dict[str, Dict[str, Any]] = {
         "msg_last": ["הבית האחרון", "2 הבתים האחרונים"], "msg_per": "{t}: {n} בתים",
         "msg_seq": "**ההודעות לפי הסדר** ({n} הראשונות, מ-{t} ש'): {list}",
         "msg_seq_plot": "סוג ההודעה לפי הסדר - {s} השניות הראשונות", "msg_seq_cap": "כל הודעה מדרגה: איזה סוג בא אחרי איזה.",
+        "msg_link": "**{a} ↔ {b} - בקשות ותשובות** (תשובה היא ההודעה בכיוון השני בתוך {to} ש'):",
+        "msg_link_head": ["בקשה", "תשובה", "הותאמו לפי", "בקשות", "נענו", "לא נענו", "שליחות חוזרות", "השהיה ממוצעת (ms)", "95 % (ms)", "מרבית (ms)", "בזמן (ש')", "תשובות בלי בקשה"],
+        "msg_by_id": "בית {j} חוזר בתשובה", "msg_by_next": "התשובה הבאה",
+        "msg_link_none": "**{a} ↔ {b}:** אף הודעה לא עונה לאחרת - זרימה בשני הכיוונים.",
+        "msg_unans": "**לא נענו** ({req}): {n} - בזמנים {list} ש'.", "msg_retry": "**נשלחו שוב** ({req}) לפני תשובה: בזמנים {list} ש'.",
+        "msg_hs": "**לחיצת היד** בזמן {t} ש': {seq}.", "msg_hs_again": "**שוב** בזמן {t} ש' - התחברות מחדש: {seq}.",
+        "msg_lat": "השהיית התשובה (ש')", "msg_lat_cap": "כל בקשה שנענתה בזמן שלה; החורים הם הבקשות שלא נענו.",
+        "msg_hl_unans": "{a} ↔ {b}: {n} מתוך {m} {req} לא נענו", "msg_hl_reconnect": "{a} ↔ {b}: לחיצת היד שוב בזמן {t} ש' (התחברות מחדש)",
+        "msg_hl_retry": "{a} ↔ {b}: {req} נשלחה שוב {n} פעמים", "msg_hl_lat": "{a} ↔ {b}: {req} נענתה בממוצע תוך {mean} ms, לכל היותר {max} ms (בזמן {t} ש')",
         "ov_streams": "זרמי בתים (מפוענחים ב-[[messages]], הבתים שלהם אינם מדידות): {list}.",
         "toc": "תוכן העניינים", "toc_none": "אין עדיין כותרות (## כותרת).",
         "sum_none": "אין מה להדגיש: החלקים האוטומטיים של הדוח לא מצאו דבר חריג.",
@@ -992,7 +1010,10 @@ def defined_streams(store, rids: Sequence[str], defs: Sequence[Dict]) -> List[Tu
         prm = {k: d[k] for k in ("header", "checksum") if d.get(k)}
         carries = d.get("carries") or "tx"
         dir_ = d.get("dir")
-        if carries == "both" and dir_ and _has(store, dir_) and len(src) == 1:
+        if carries == "pair" and len(src) == 2:         # two signals: the first TX, the second RX
+            out.append((rid, "%s TX" % src[0].split("/", 1)[1], src[:1], prm))
+            out.append((rid, "%s RX" % src[1].split("/", 1)[1], src[1:], prm))
+        elif carries == "both" and dir_ and _has(store, dir_) and len(src) == 1:
             from svcore import bytestream as bs
             vals = bs.directions(_sig(store, dir_)[1])
             tx = d.get("txValue")
@@ -1154,8 +1175,11 @@ def messages(p: Part, rids: List[str], arg: str, o: Dict, defs: Optional[Sequenc
             seq_lines.append((sig_line(p.series(name + " type", t, m["type"].astype(np.float64)), name, len(seq_lines), state=True), t[0], span))
         if cs and r["errors"]:
             err_lines.append(sig_line(p.series(name + " errors", t, np.cumsum(~m["ok"]).astype(np.float64)), name, len(err_lines)))
+    lat_lines = links(p, streams, rids)
     if o.get("table"):
         return
+    if lat_lines:
+        p.plot(S_["msg_lat"], lat_lines, caption=S_["msg_lat_cap"])
     if seq_lines:
         t0 = min(x[1] for x in seq_lines)
         span = max(x[2] for x in seq_lines)
@@ -1166,6 +1190,64 @@ def messages(p: Part, rids: List[str], arg: str, o: Dict, defs: Optional[Sequenc
         p.plot(S_["msg_int"], int_lines, caption=S_["msg_int_cap"])
     if err_lines:
         p.plot(S_["msg_err"], err_lines)
+
+
+def _times(ts: Sequence[float], n: int = 12) -> str:
+    return ", ".join(secs(x) for x in list(ts)[:n]) + (" …" if len(ts) > n else "")
+
+
+def links(p: Part, streams: List[Dict], rids: Sequence[str]) -> List[dict]:
+    """Both directions of a link (two streams of one file: TX and RX, or one signal split by its direction): which
+    message answers which, the latency, what went unanswered or was sent again, the handshake and reconnects."""
+    from svcore import bytestream as bs
+    S_ = p.S
+    lines: List[dict] = []
+    by: Dict[str, List[Dict]] = {}
+    for s_ in streams:
+        by.setdefault(s_["rid"], []).append(s_)
+    for rid, ss in by.items():
+        if len(ss) != 2:
+            continue
+        # the side that sends (TX) first
+        ss = sorted(ss, key=lambda x: (0 if re.search(r"tx|send|out|up", x["name"], re.I) else 1, x["name"]))
+        a, b = ss[0]["name"], ss[1]["name"]
+        e = bs.exchange(ss[0]["r"], ss[1]["r"], (a, b))
+        hs = e["handshake"]
+        if hs:
+            seq = lambda h: " → ".join("%s %s" % (x["dir"], hexb(x["type"])) for x in h["steps"])
+            p.say(S_["msg_hs"].format(t=secs(hs[0]["t"]), seq=seq(hs[0])))
+            for h in hs[1:]:
+                p.say(S_["msg_hs_again"].format(t=secs(h["t"]), seq=seq(h)))
+                p.hl("warn", 4, S_["msg_hl_reconnect"].format(a=a, b=b, t=secs(h["t"])))
+        if not e["pairs"]:
+            p.say(S_["msg_link_none"].format(a=a, b=b))
+            continue
+        p.say(S_["msg_link"].format(a=a, b=b, to=secs(e["timeout"])))
+        rows = []
+        for q in e["pairs"]:
+            lt = q["latency"] or {}
+            ms = lambda v: "—" if v is None else "%.3g" % (v * 1000)
+            rows.append(["%s %s" % (q["from"], hexb(q["request"])), "%s %s" % (q["to"], hexb(q["reply"])),
+                         S_["msg_by_id"].format(j=q["echo"]["request"]) if q["echo"] else S_["msg_by_next"],
+                         str(q["requests"]), str(q["replies"]), str(len(q["unanswered"])), str(len(q["retries"])),
+                         ms(lt.get("mean")), ms(lt.get("p95")), ms(lt.get("max")), secs(lt.get("tmax")), str(len(q["orphans"]))])
+        p.say(table(S_["msg_link_head"], rows))
+        for k, q in enumerate(e["pairs"]):
+            req = hexb(q["request"])
+            if q["unanswered"]:
+                p.say(S_["msg_unans"].format(req=req, n=len(q["unanswered"]), list=_times(q["unanswered"])))
+                p.hl("warn", 4 + len(q["unanswered"]), S_["msg_hl_unans"].format(a=a, b=b, n=len(q["unanswered"]), m=q["requests"] - len(q["retries"]), req=req))
+            if q["retries"]:
+                p.say(S_["msg_retry"].format(req=req, list=_times(q["retries"])))
+                p.hl("info", 2 + len(q["retries"]), S_["msg_hl_retry"].format(a=a, b=b, req=req, n=len(q["retries"])))
+            lt = q["latency"]
+            if lt and q["replies"] >= 5:
+                p.hl("info", 1, S_["msg_hl_lat"].format(a=a, b=b, req=req, mean="%.3g" % (lt["mean"] * 1000), max="%.3g" % (lt["max"] * 1000), t=secs(lt["tmax"])))
+                lab = "%s → %s" % (req, hexb(q["reply"]))
+                if len(rids) > 1:
+                    lab = "%s: %s" % (_name(p.store, rid), lab)
+                lines.append(sig_line(p.series(lab + " latency", q["t"], q["lat"]), lab, len(lines)))
+    return lines
 
 
 def structure(r: Dict, S_: Dict[str, Any]) -> List[List[str]]:

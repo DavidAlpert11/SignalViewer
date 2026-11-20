@@ -2,11 +2,11 @@
 and a report. Two directions, two message formats, on purpose different:
 
     TX (ground -> vehicle)  header AA 55, a length byte (the payload's), a type byte, the payload, sum8 checksum
-                            types 0x20 setpoint 50 Hz, 0x10 command 10 Hz, 0x01 heartbeat 1 Hz
     RX (vehicle -> ground)  header EB 90, a type byte, a length byte, the payload, CRC-16 CCITT
-                            types 0x82 attitude 50 Hz, 0x81 status 10 Hz, 0x83 acknowledge 1 Hz
+    the protocol            see below: a handshake, commands answered by an ACK that echoes their sequence byte,
+                            streaming both ways
     faults                  a few corrupted payload bytes (checksum errors), a corrupted length byte (the decoder
-                            resyncs), RX silent for 1.5 s at 18 s (a dropout)
+                            resyncs), unanswered commands, a retry, RX silent for 1.5 s at 18 s and a reconnect
 
     link_tx_rx.csv      time, tx_byte, rx_byte      - each direction its own signal (a cell is empty without a byte)
     link_mixed.csv      time, byte, dir             - both directions in one signal, dir (TX / RX) says whose byte
@@ -44,49 +44,81 @@ def rx_frame(typ: int, payload: bytes) -> bytes:
     return body + bytes([c >> 8, c & 0xFF])
 
 
+# (owner, 2026-11-19: "a handshake, answers, reply packets") - the protocol of the demo:
+#   TX 0x01 HELLO -> RX 0x81 HELLO_ACK, TX 0x02 CONFIG -> RX 0x82 CONFIG_ACK       the handshake, at 0 s and after the dropout
+#   TX 0x10 COMMAND [seq, ...] 10 Hz -> RX 0x90 ACK [seq, status] 3-6 ms later      request / reply, the sequence byte echoed
+#   TX 0x20 SETPOINT 50 Hz, 0x05 HEARTBEAT 1 Hz; RX 0xA0 ATTITUDE 50 Hz, 0xA1 STATUS 10 Hz   streaming, never answered
+#   faults: commands lost (no ACK) at 3 places; one command sent again (a retry, same seq) 20 ms later and answered;
+#   RX silent 18.0-19.5 s (the commands sent then unanswered), then a reconnect (the handshake again)
+LOST = (77, 141, 222)                    # the commands (by number) whose ACK never comes
+RETRY = 101                              # a command not answered at first, sent again 20 ms later
+DROP = (18.0, 19.5)
+
+
 def link() -> Tuple[List[Tuple[float, int]], List[Tuple[float, int]], List[Tuple[float, bytes]]]:
     """(time, byte) of each direction, and TX's frames (time of the first byte, bytes)."""
     rng = np.random.default_rng(20261119)
-    tx: List[Tuple[float, int]] = []
-    rx: List[Tuple[float, int]] = []
-    frames: List[Tuple[float, bytes]] = []
+    ev_tx: List[Tuple[float, bytes]] = []
+    ev_rx: List[Tuple[float, bytes]] = []
+
+    def handshake(t0: float):
+        ev_tx.append((t0, tx_frame(0x01, bytes([1, 0]))))
+        ev_rx.append((t0 + 0.004, rx_frame(0x81, bytes([1]))))
+        ev_tx.append((t0 + 0.010, tx_frame(0x02, bytes([50, 1, 0, 0]))))
+        ev_rx.append((t0 + 0.014, rx_frame(0x82, bytes([0]))))
+
+    def rx_up(t: float) -> bool:
+        return not DROP[0] <= t < DROP[1]
+
+    handshake(0.0003)
+    handshake(DROP[1] + 0.0003)
     seq = 0
-    for k in range(int(DURATION * 50)):
+    for k in range(1, int(DURATION * 50)):
         t = k * 0.02
-        frames_tx = [tx_frame(0x20, bytes(rng.integers(0, 256, 8).tolist()))]
-        if k % 5 == 0:
-            frames_tx.append(tx_frame(0x10, bytes([seq & 0xFF]) + bytes(rng.integers(0, 256, 5).tolist())))
-            seq += 1
-        if k % 50 == 0:
-            frames_tx.append(tx_frame(0x01, bytes([1, 0])))
-        at = t + 0.0003
-        for f in frames_tx:
-            b = bytearray(f)
-            if k in (233, 811):                          # a byte hit by noise: a checksum error
-                b[6] ^= 0x10
-            if k == 1102 and f[3] == 0x20:               # the length byte hit: the decoder resyncs
-                b[2] = 0x3F
-            frames.append((round(at, 6), bytes(b)))
-            for x in b:
-                tx.append((round(at, 6), x))
-                at += BYTE_S
-            at += 0.0002
-        if 18.0 <= t < 19.5:                             # RX silent: a dropout
+        if DROP[1] <= t < DROP[1] + 0.02:                # the reconnect's handshake takes this tick
             continue
-        frames_rx = [rx_frame(0x82, bytes(rng.integers(0, 256, 12).tolist()))]
-        if k % 5 == 2:
-            frames_rx.append(rx_frame(0x81, bytes(rng.integers(0, 256, 10).tolist())))
-        if k % 50 == 7:
-            frames_rx.append(rx_frame(0x83, bytes([0x10, seq & 0xFF])))
-        at = t + 0.0061
-        for f in frames_rx:
-            b = bytearray(f)
+        b = bytearray(tx_frame(0x20, bytes(rng.integers(0, 256, 8).tolist())))
+        if k in (233, 811):                              # a byte hit by noise: a checksum error
+            b[6] ^= 0x10
+        if k == 1102:                                    # the length byte hit: the decoder resyncs
+            b[2] = 0x3F
+        ev_tx.append((t + 0.0003, bytes(b)))
+        if k % 50 == 25:
+            ev_tx.append((t + 0.0025, tx_frame(0x05, bytes([seq & 0xFF]))))
+        if k % 5 == 0:
+            n = seq
+            payload = bytes([n & 0xFF]) + bytes(rng.integers(0, 256, 5).tolist())
+            ev_tx.append((t + 0.0020, tx_frame(0x10, payload)))
+            late = float(rng.uniform(0.003, 0.006))
+            if n == RETRY:                               # no answer: the same command again 20 ms later, answered
+                ev_tx.append((t + 0.0220, tx_frame(0x10, payload)))
+                ev_rx.append((t + 0.0220 + late + 0.002, rx_frame(0x90, bytes([n & 0xFF, 0]))))
+            elif n not in LOST and rx_up(t + 0.002 + late):
+                ev_rx.append((t + 0.0020 + late + 0.002, rx_frame(0x90, bytes([n & 0xFF, 0]))))
+            seq += 1
+        if rx_up(t):
+            b = bytearray(rx_frame(0xA0, bytes(rng.integers(0, 256, 12).tolist())))
             if k in (402, 1333):
                 b[9] ^= 0x01
-            for x in b:
-                rx.append((round(at, 6), x))
+            ev_rx.append((t + 0.0101, bytes(b)))
+            if k % 5 == 2:
+                ev_rx.append((t + 0.0131, rx_frame(0xA1, bytes(rng.integers(0, 256, 10).tolist()))))
+
+    def serial(ev: List[Tuple[float, bytes]]):
+        out: List[Tuple[float, int]] = []
+        frames: List[Tuple[float, bytes]] = []
+        free = 0.0
+        for t, f in sorted(ev, key=lambda x: x[0]):
+            at = max(t, free)                             # one byte at a time on the wire
+            frames.append((round(at, 6), f))
+            for x in f:
+                out.append((round(at, 6), x))
                 at += BYTE_S
-            at += 0.0002
+            free = at + 0.0001
+        return out, frames
+
+    tx, frames = serial(ev_tx)
+    rx, _f = serial(ev_rx)
     return tx, rx, frames
 
 

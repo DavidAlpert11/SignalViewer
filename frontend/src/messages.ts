@@ -34,7 +34,11 @@ export function streamFor(ids: string[]): MessageStream {
   if (kept) return kept;
   const dir = ids.length === 1 ? directionCandidates(ids[0]).find((s) => DIR_NAME.test(s.name)) : undefined;
   const tx = dir?.labels ? Object.entries(dir.labels).find(([, v]) => /tx|out|send|up/i.test(v))?.[0] ?? Object.keys(dir.labels)[0] : null;
-  return { id: uid(), sources: ids, carries: dir ? "both" : /(^|[^a-z])rx|recv|receive|down/i.test(bare(ids[0])) ? "rx" : "tx",
+  const rxName = (id: string) => /(^|[^a-z])rx|recv|receive|down/i.test(bare(id));
+  // two signals, one named like TX and one like RX: the two directions of one link (TX first)
+  if (ids.length === 2 && rxName(ids[0]) !== rxName(ids[1]))
+    return { id: uid(), sources: rxName(ids[0]) ? [ids[1], ids[0]] : ids, carries: "pair" };
+  return { id: uid(), sources: ids, carries: dir ? "both" : rxName(ids[0]) ? "rx" : "tx",
     dir: dir?.id ?? null, txValue: tx === null ? null : Number(tx) };
 }
 
@@ -43,6 +47,7 @@ export function streamsOf(def: MessageStream): { label: string; sources: string[
   const prm: Record<string, unknown> = {};
   if (def.header) prm.header = def.header;
   if (def.checksum) prm.checksum = def.checksum;
+  if (def.carries === "pair") return def.sources.slice(0, 2).map((s, i) => ({ label: i ? "RX" : "TX", sources: [s], params: prm }));
   if (def.carries !== "both" || !def.dir) return [{ label: def.carries.toUpperCase(), sources: def.sources, params: prm }];
   const run = useApp.getState().runs.find((r) => r.id === def.dir!.slice(0, def.dir!.indexOf("/")));
   const labels = run?.signals.find((s) => s.id === def.dir)?.labels ?? {};
@@ -84,9 +89,27 @@ export async function decodeAsMessages(def: MessageStream) {
     st.toast({ kind: "error", text: tr("msgNone", { name, msg: String((e as Error).message) }) });
     return false;
   }
+  // both directions: each answered request's reply latency over time (svcore exchange) - if anything answers
+  const lat: string[] = [];
+  const two = streamsOf(def);
+  if (two.length >= 2) {
+    const prm = def.carries === "pair" ? { what: "latency", link: true } : { what: "latency", dir: two[0].params.dir, rxdir: two[1].params.dir };
+    const src = def.carries === "pair" ? def.sources.slice(0, 2) : [def.sources[0], def.dir!];
+    const have = findDerived(useApp.getState().runs, "messages", prm, src, ["group"]);
+    if (have) lat.push(have);
+    else {
+      try {
+        const g = freeGroup(`${safe(name)}.link`, useApp.getState().runs, ["latency"]);
+        const r = await api.createDerived("messages", src, { ...prm, group: g }, `${g}.latency`);
+        useApp.setState({ runs: r.runs });
+        lat.push(r.id);
+      } catch { /* nothing answers anything: streaming both ways - the other plots stand */ }
+    }
+  }
   actions.plotsInNewTab([
     { title: tr("msgBytes"), ids: ids.slice(0, 4) },
     ...WHATS.map(([w, k]) => ({ title: tr(k), ids: per[w] })),
+    ...(lat.length ? [{ title: tr("msgLatency"), ids: lat }] : []),
   ], tr("msgTab", { name }));
   return true;
 }

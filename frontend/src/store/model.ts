@@ -129,7 +129,8 @@ export interface ReportDoc { v: 1; text: string }
 /** MSG1 (owner, 2026-11-19): a signal (or byte columns) defined as a stream of messages - which way it goes: only
  *  TX, only RX, or both with a direction column that says whose each byte is (txValue: the column's code for TX).
  *  Saved with the session; *Decode as messages…* writes it, the report's [[messages]] uses it (else it guesses). */
-export interface MessageStream { id: string; sources: string[]; carries: "tx" | "rx" | "both";
+/*  carries "pair": two signals, the first TX and the second RX (tx_byte / rx_byte). */
+export interface MessageStream { id: string; sources: string[]; carries: "tx" | "rx" | "both" | "pair";
   dir?: string | null; txValue?: number | null; header?: string; checksum?: string }
 export interface ReportAsset { name: string; mime: string; data: string; w: number; h: number }
 /** 26.U4: pass / fail per signal and file against a baseline, as a report section */

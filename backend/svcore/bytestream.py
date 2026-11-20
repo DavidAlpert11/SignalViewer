@@ -418,7 +418,8 @@ def decode(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Optional[Di
            "typeOffset": toff, "checksum": None if not check else {"scheme": check[0], "over": "without the header" if check[1] else "with the header"},
            "messages": {"t": tm, "type": ty, "len": ln, "ok": ok, "start": st},
            "count": int(len(st)), "errors": int((~ok).sum()) if check else 0, "resyncs": int(resyncs), "outside": int(outside),
-           "inFrames": int(ln.sum())}
+           "inFrames": int(ln.sum()), "raw": b,
+           "ckLen": 0 if not check else (1 if check[0] in SCHEMES_1 else 2)}
     out.update(characterise(tm, ty, ln, ok, bool(check)))
     _CACHE[key] = out
     while len(_CACHE) > 8:
@@ -474,7 +475,7 @@ def characterise(tm: np.ndarray, ty: np.ndarray, ln: np.ndarray, ok: np.ndarray,
 
 # ------------------------------------------------------------------------------------------------ as signals
 
-WHATS = ("type", "length", "ok", "interval", "count")
+WHATS = ("type", "length", "ok", "interval", "count", "latency")
 
 
 def messages_signal(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Dict) -> Tuple[np.ndarray, np.ndarray]:
@@ -483,6 +484,8 @@ def messages_signal(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Di
     what = params.get("what", "type")
     if what not in WHATS:
         raise StreamError("Unknown message quantity \"%s\": use one of %s." % (what, ", ".join(WHATS)))
+    if what == "latency":
+        return latency_signal(signals, params)
     r = decode(signals, params)
     m = r["messages"]
     t = np.asarray(m["t"], dtype=np.float64)
@@ -502,8 +505,187 @@ def messages_signal(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Di
     return t, y
 
 
+def link_sides(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Dict) -> Tuple[Dict, Dict]:
+    """The two directions of a link: one signal + its direction column (params dir = TX's code, rxdir = RX's), or two
+    signals, TX then RX (params link)."""
+    keep = {k: params[k] for k in ("header", "checksum") if params.get(k)}
+    if params.get("rxdir") not in (None, ""):
+        return decode(signals, {**keep, "dir": params["dir"]}), decode(signals, {**keep, "dir": params["rxdir"]})
+    if len(signals) != 2:
+        raise StreamError("A reply's latency needs both directions: the TX and the RX signal, or the bytes and their direction.")
+    return decode([signals[0]], keep), decode([signals[1]], keep)
+
+
+def latency_signal(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Dict) -> Tuple[np.ndarray, np.ndarray]:
+    """Each answered request's reply latency (s), at the request's time - every pair type in one signal."""
+    a, b = link_sides(signals, params)
+    e = exchange(a, b)
+    t = np.array([x for p_ in e["pairs"] for x in p_["t"]], dtype=np.float64)
+    y = np.array([x for p_ in e["pairs"] for x in p_["lat"]], dtype=np.float64)
+    if not len(t):
+        raise StreamError("No message here answers another (no request / reply pairs found between the two directions).")
+    o = np.argsort(t, kind="stable")
+    return t[o], y[o]
+
+
 def messages_name(n: List[str], p: Dict) -> str:
     src = n[0] if len(n) == 1 else "%s…%s" % (n[0], n[-1]) if n else "?"
     return "%s(%s)" % ({"type": "msg_type", "length": "msg_len", "ok": "msg_ok", "interval": "msg_interval",
-                        "count": "msg_count"}.get(str(p.get("what")), "messages"), src)
+                        "count": "msg_count", "latency": "reply_latency"}.get(str(p.get("what")), "messages"), src)
+
+
+# ------------------------------------------------------------------------------------------------ both ways
+
+def _payload(r: Dict, i: int) -> np.ndarray:
+    """Message i's bytes after the header and its length / type bytes, before the checksum."""
+    m = r["messages"]
+    st, L = int(m["start"][i]), int(m["len"][i])
+    first = 2 + sum(1 for o in (r["rule"].get("off") if r["rule"]["how"] == "length" else None, r["typeOffset"]) if o is not None)
+    return r["raw"][st + first: st + L - r["ckLen"]]
+
+
+def _echo(ra: Dict, ia: np.ndarray, rb: Dict, ib: np.ndarray) -> Optional[Tuple[int, int, float]]:
+    """A byte of the request echoed in its reply (a sequence number, an id): (offset in the request's payload,
+    offset in the reply's, share of the pairs it holds for) when >= 80 %."""
+    if len(ia) < 2:
+        return None
+    pa = [_payload(ra, int(i)) for i in ia]
+    pb = [_payload(rb, int(j)) for j in ib]
+    na, nb = min(len(x) for x in pa), min(len(x) for x in pb)
+    best = None
+    for j in range(min(na, 8)):
+        for k in range(min(nb, 8)):
+            f = float(np.mean([x[j] == y[k] for x, y in zip(pa, pb)]))
+            if f >= 0.8 and (best is None or f > best[2]):
+                best = (j, k, f)
+    return best
+
+
+def exchange(ra: Dict, rb: Dict, names: Tuple[str, str] = ("TX", "RX"), timeout: float = 0.5) -> Dict:
+    """Two directions of one link: which message answers which (owner, 2026-11-19: "a handshake, answers, reply
+    packets"), how fast, what went unanswered, retries; the handshake and where it repeats.
+
+    A reply type y (in the other direction) answers a request type x when the messages of x are mostly (>= 50 %)
+    followed by a y within `timeout`, about as many (0.5..1.5 per request), and either a byte of the request comes
+    back in the reply (a sequence number / id, >= 80 %) - then each request is paired with the reply that echoes it -
+    or x is rare (<= 10 messages, a handshake's) and always answered. Streaming types (sent on their own clock) have
+    no reply."""
+    sides = [(ra, rb, names[0], names[1]), (rb, ra, names[1], names[0])]
+    pairs: List[Dict] = []
+    for A, B, na, nb in sides:
+        # a type that answers in one direction is not a request in the other (and the reverse)
+        replies = {(p_["to"], p_["reply"]) for p_ in pairs}
+        requests = {(p_["from"], p_["request"]) for p_ in pairs}
+        ta, tb = A["messages"]["t"], B["messages"]["t"]
+        tya, tyb = A["messages"]["type"], B["messages"]["type"]
+        if A["typeOffset"] is None or B["typeOffset"] is None:
+            continue
+        used_y: set = set()
+        for x in sorted(np.unique(tya).tolist(), key=lambda v: int((tya == v).sum())):
+            if (na, x) in replies:
+                continue
+            ia = np.flatnonzero(tya == x)
+            best = None
+            for y in np.unique(tyb).tolist():
+                if y in used_y or (nb, y) in requests:
+                    continue
+                iy = np.flatnonzero(tyb == y)
+                ratio = len(iy) / len(ia)
+                if not 0.5 <= ratio <= 1.5:
+                    continue
+                k = np.searchsorted(tb[iy], ta[ia], "right")
+                has = k < len(iy)
+                lat = np.full(len(ia), np.inf)
+                lat[has] = tb[iy[k[has]]] - ta[ia][has]
+                got = lat <= timeout
+                frac = float(got.mean())
+                if frac < 0.5:
+                    continue
+                echo = _echo(A, ia[got], B, iy[k[got]])
+                rare = len(ia) <= 10 and frac == 1.0
+                if not echo and not rare:
+                    continue
+                score = (1 if echo else 0, frac, -float(np.median(lat[got])))
+                if best is None or score > best[0]:
+                    best = (score, y, echo)
+            if best:
+                used_y.add(best[1])
+                pairs.append(_pair(A, B, na, nb, int(x), int(best[1]), best[2], timeout))
+    out: Dict = {"pairs": pairs, "timeout": timeout}
+    out.update(_sessions(ra, rb, names, pairs))
+    return out
+
+
+def _pair(A: Dict, B: Dict, na: str, nb: str, x: int, y: int, echo, timeout: float) -> Dict:
+    ta, tb = A["messages"]["t"], B["messages"]["t"]
+    ia = np.flatnonzero(A["messages"]["type"] == x)
+    iy = np.flatnonzero(B["messages"]["type"] == y)
+    ida = [int(_payload(A, int(i))[echo[0]]) if echo else None for i in ia]
+    idy = [int(_payload(B, int(j))[echo[1]]) if echo else None for j in iy]
+    taken = np.zeros(len(iy), dtype=bool)
+    lat: List[float] = []
+    at: List[float] = []
+    unanswered: List[float] = []
+    retries: List[float] = []
+    waiting: Dict = {}                                   # id -> time of the last request still unanswered
+    retried: List[float] = []
+    for n, i in enumerate(ia):
+        t = float(ta[i])
+        key = ida[n] if echo else None
+        if echo and key in waiting and t - waiting[key] <= 2 * timeout:
+            retries.append(t)
+            retried.append(waiting.pop(key))
+        # the same request sent again before an answer came: the answer is the later copy's
+        again = echo and any(ida[m] == key and float(ta[ia[m]]) - t <= timeout for m in range(n + 1, min(n + 4, len(ia))))
+        k0 = int(np.searchsorted(tb[iy], t, "right"))
+        hit = None
+        for k in range(k0, len(iy)):
+            if tb[iy[k]] - t > timeout:
+                break
+            if not taken[k] and (not echo or idy[k] == key):
+                hit = k
+                break
+        if hit is not None and again:
+            nxt = min(float(ta[ia[m]]) for m in range(n + 1, min(n + 4, len(ia))) if ida[m] == key)
+            if tb[iy[hit]] > nxt:
+                hit = None
+        if hit is None:
+            unanswered.append(t)
+            if echo:
+                waiting[key] = t
+            continue
+        taken[hit] = True
+        waiting.pop(key, None)
+        lat.append(float(tb[iy[hit]]) - t)
+        at.append(t)
+    la = np.asarray(lat)
+    return {"from": na, "to": nb, "request": x, "reply": y, "requests": int(len(ia)), "replies": int(len(la)),
+            "how": ("id" if echo else "next"), "echo": None if not echo else {"request": echo[0], "reply": echo[1]},
+            "unanswered": [u for u in unanswered if u not in retried], "retried": retried, "retries": retries,
+            "orphans": [float(tb[iy[k]]) for k in range(len(iy)) if not taken[k]],
+            "latency": None if not len(la) else {"mean": float(la.mean()), "p95": float(np.percentile(la, 95)),
+                                                 "max": float(la.max()), "tmax": at[int(np.argmax(la))], "min": float(la.min())},
+            "t": at, "lat": lat}
+
+
+def _sessions(ra: Dict, rb: Dict, names: Tuple[str, str], pairs: List[Dict]) -> Dict:
+    """The handshake: the rare messages of both directions (<= 10 each, not the steady traffic) in time order,
+    grouped where they come close together; the first group opens the link, a later one is a reconnect."""
+    ev = []
+    for r, nm in ((ra, names[0]), (rb, names[1])):
+        if r["typeOffset"] is None:
+            continue
+        for x in r["types"]:
+            if x["count"] <= 10:
+                m = r["messages"]["type"] == x["type"]
+                ev += [(float(t), nm, int(x["type"])) for t in r["messages"]["t"][m]]
+    ev.sort()
+    groups: List[List] = []
+    for e in ev:
+        if groups and e[0] - groups[-1][-1][0] <= 1.0:
+            groups[-1].append(e)
+        else:
+            groups.append([e])
+    groups = [g for g in groups if len(g) >= 2]
+    return {"handshake": [{"t": g[0][0], "steps": [{"dir": d, "type": ty, "t": t} for t, d, ty in g]} for g in groups]}
 

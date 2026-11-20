@@ -111,9 +111,11 @@ def test_demo_two_signals_columns_and_mixed():
     tx = bs.decode([(d["time"], d["tx_byte"].astype(float))])
     rx = bs.decode([(d["time"], d["rx_byte"].astype(float))])
     assert (tx["header"], tx["checksum"]["scheme"], tx["count"], tx["errors"], tx["resyncs"]) == ("AA 55", "sum8", 1829, 2, 1)
-    assert (rx["header"], rx["checksum"]["scheme"], rx["count"], rx["errors"]) == ("EB 90", "crc16ccitt", 1738, 3)
-    assert {x["type"]: x["count"] for x in tx["types"]} == {0x20: 1499, 0x10: 300, 0x01: 30}
-    assert {x["type"]: round(x["period"], 6) for x in tx["types"]} == {0x20: 0.02, 0x10: 0.1, 0x01: 1.0}
+    assert (rx["header"], rx["checksum"]["scheme"], rx["count"], rx["errors"]) == ("EB 90", "crc16ccitt", 1992, 2)
+    # 1497 setpoints (one resynced), 298 commands + 1 sent again, 29 heartbeats, the handshake twice
+    assert {x["type"]: x["count"] for x in tx["types"]} == {0x20: 1497, 0x10: 299, 0x05: 29, 0x01: 2, 0x02: 2}
+    assert {x["type"]: x["count"] for x in rx["types"]} == {0xA0: 1423, 0xA1: 285, 0x90: 280, 0x81: 2, 0x82: 2}
+    assert {x["type"]: round(x["period"], 3) for x in tx["types"] if x["count"] > 10} == {0x20: 0.02, 0x10: 0.1, 0x05: 1.0}
     assert len(rx["gaps"]) == 1 and rx["gaps"][0]["from"] == pytest.approx(17.99, abs=0.01)
     c = _csv("link_columns.csv")
     cols = bs.decode([(c["time"], c["byte_%d" % i].astype(float)) for i in range(16)])
@@ -121,12 +123,12 @@ def test_demo_two_signals_columns_and_mixed():
     m = _csv("link_mixed.csv", text=True)
     d_rx = (m["dir"] == "RX").astype(float)
     both = [(m["time"], m["byte"].astype(float)), (m["time"], d_rx)]
-    assert bs.decode(both, {"dir": 1})["count"] == 1738
+    assert bs.decode(both, {"dir": 1})["count"] == 1992
     assert bs.decode(both, {"dir": 0})["count"] == 1829
     t, y = compute("messages", both, {"what": "interval", "dir": 0})
-    assert len(t) == 1829 and np.nanmax(y) == pytest.approx(1.0, abs=0.01)   # the heartbeat's period
+    assert len(t) == 1829 and np.nanmax(y) == pytest.approx(19.5, abs=0.01)  # the handshake's two HELLOs apart
     t, y = compute("messages", [(d["time"], d["rx_byte"].astype(float))], {"what": "ok"})
-    assert int((y == 0).sum()) == 3
+    assert int((y == 0).sum()) == 2
 
 
 def test_demo_writes_what_git_has(tmp_path):
@@ -149,13 +151,13 @@ def test_report_part_on_the_demo():
     p = Part(st, items, extra, "en")
     messages(p, rids, "", {})
     md = "\n".join(p.md)
-    assert "1829 messages" in md and "1738 messages" in md and "AA 55" in md and "EB 90" in md and "crc16ccitt" in md
+    assert "1829 messages" in md and "1992 messages" in md and "AA 55" in md and "EB 90" in md and "crc16ccitt" in md
     assert "0x20" in md and "No messages for" in md
-    assert len(items) == 4                                 # order, rate, interval, checksum errors - one plot per quantity
+    assert len(items) == 5                                 # latency, order, rate, interval, checksum errors - one plot each
     # the packet's structure (owner, 2026-11-19): the fixed header, the length / type byte, the payload, the checksum
-    assert "| Header | 0–1 | fixed AA 55 |" in md and "| Length | 2 |" in md and "| Message type | 3 | 3 kinds: 0x01, 0x10, 0x20 |" in md
-    assert "| Message type | 2 | 3 kinds: 0x81, 0x82, 0x83 |" in md and "crc16ccitt over the bytes from 2" in md
-    assert "**The messages in order** (the first 40" in md and "0x20 0x10 0x01 0x20" in md
+    assert "| Header | 0–1 | fixed AA 55 |" in md and "| Length | 2 |" in md and "| Message type | 3 | 5 kinds: 0x01, 0x02, 0x05, 0x10, 0x20 |" in md
+    assert "| Message type | 2 | 5 kinds: 0x81, 0x82, 0x90, 0xA0, 0xA1 |" in md and "crc16ccitt over the bytes from 2" in md
+    assert "**The messages in order** (the first 40" in md and "0x01 0x02 0x20 0x20" in md
     assert any(h["level"] == "warn" for h in p.highlights)
     assert {s_["name"] for s_ in scan(st)["streams"]} == set(names)
 
@@ -172,6 +174,25 @@ def test_defined_streams_tx_rx_both():
     defs = [{"sources": [f"{a}/rx_byte"], "carries": "rx"},
             {"sources": [f"{m}/byte"], "carries": "both", "dir": f"{m}/dir", "txValue": tx_code}]
     got = {s_["name"]: s_["r"]["count"] for s_ in find_streams(st, [a, m], defs)}
-    assert got["rx_byte RX"] == 1738 and got["byte TX"] == 1829 and got["byte RX"] == 1738
+    assert got["rx_byte RX"] == 1992 and got["byte TX"] == 1829 and got["byte RX"] == 1992
     assert got["tx_byte"] == 1829                          # not defined: found by itself
     assert "rx_byte" not in got                            # defined: not found twice
+
+
+def test_requests_replies_handshake_on_the_demo():
+    """Owner, 2026-11-19: answers, reply packets, a handshake - known answers from the demo's protocol."""
+    d = _csv("link_tx_rx.csv")
+    e = bs.exchange(bs.decode([(d["time"], d["tx_byte"])]), bs.decode([(d["time"], d["rx_byte"])]))
+    by = {(q["request"], q["reply"]): q for q in e["pairs"]}
+    assert set(by) == {(0x01, 0x81), (0x02, 0x82), (0x10, 0x90)}      # streaming (0x20, 0x05, 0xA0, 0xA1): no reply
+    c = by[(0x10, 0x90)]
+    assert c["how"] == "id" and c["echo"] == {"request": 0, "reply": 0}                # the sequence byte echoed
+    assert (c["requests"], c["replies"], len(c["unanswered"]), len(c["orphans"])) == (299, 280, 18, 0)
+    assert [round(x, 2) for x in c["retries"]] == [10.22] and [round(x, 2) for x in c["retried"]] == [10.2]
+    assert sum(1 for u in c["unanswered"] if 18.0 <= u < 19.5) == 15               # the dropout: 15 commands lost
+    assert 0.005 <= c["latency"]["min"] and c["latency"]["max"] <= 0.0081            # 3-6 ms + the bytes on the wire
+    hs = e["handshake"]
+    assert [round(h["t"], 1) for h in hs] == [0.0, 19.5]                             # opened, and a reconnect
+    assert [(x["dir"], x["type"]) for x in hs[1]["steps"]] == [("TX", 1), ("RX", 0x81), ("TX", 2), ("RX", 0x82)]
+    t, y = compute("messages", [(d["time"], d["tx_byte"]), (d["time"], d["rx_byte"])], {"what": "latency", "link": True})
+    assert len(t) == 284 and np.all(np.diff(t) >= 0)                                 # 2 + 2 + 280 answered

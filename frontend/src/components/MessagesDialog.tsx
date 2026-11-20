@@ -39,12 +39,14 @@ export default function MessagesDialog() {
         <div className="dialog-head"><h2>{t("msgDlgTitle")}</h2></div>
         <div className="dialog-body">
           <p className="hint"><bdi dir="ltr">{one ? name(def.sources[0]) : `${name(def.sources[0])} … ${name(def.sources[def.sources.length - 1])} (${def.sources.length})`}</bdi>
-            {" - "}{t(one ? "msgDlgOne" : "msgDlgCols")}</p>
+            {" - "}{t(one ? "msgDlgOne" : def.carries === "pair" ? "msgDlgTwo" : "msgDlgCols")}</p>
+          {def.carries === "pair" && <p className="hint msg-pair-order">TX: <bdi dir="ltr">{name(def.sources[0])}</bdi> · RX: <bdi dir="ltr">{name(def.sources[1])}</bdi>{" "}
+            <button className="linklike" onClick={() => set({ sources: [def.sources[1], def.sources[0]] })}>{t("msgDlgSwap")}</button></p>}
           <fieldset className="msg-carries">
             <legend>{t("msgDlgCarries")}</legend>
-            {(["tx", "rx", "both"] as const).map((c) => (
+            {(["tx", "rx", "both", ...(def.sources.length === 2 ? ["pair" as const] : [])] as const).map((c) => (
               <label key={c}><input type="radio" name="msg-carries" value={c} checked={def.carries === c} disabled={c === "both" && !one}
-                onChange={() => set({ carries: c, dir: c === "both" ? def.dir ?? dirs[0]?.id ?? null : def.dir })} /> {t(c === "tx" ? "msgDlgTx" : c === "rx" ? "msgDlgRx" : "msgDlgBoth")}</label>
+                onChange={() => set({ carries: c, dir: c === "both" ? def.dir ?? dirs[0]?.id ?? null : def.dir })} /> {t(c === "tx" ? "msgDlgTx" : c === "rx" ? "msgDlgRx" : c === "pair" ? "msgDlgPair" : "msgDlgBoth")}</label>
             ))}
           </fieldset>
           {both && (
