@@ -28,7 +28,7 @@ def test_fewer_buttons_and_clearer_words(pg):
     pg.wait_for_function("!document.querySelector('.toast')"); frames(pg)
     total, controls = pg.evaluate(COUNT, True), pg.evaluate(COUNT, False)
     print("visible buttons:", total, "controls:", controls)
-    assert controls <= 55, controls               # 26.U3: 58 -> 54 (the folded template strip, the strip's + / hide on hover); E1: + Export recording… (TopBar)
+    assert controls <= 56, controls               # 26.U3: 58 -> 54 (the folded template strip, the strip's + / hide on hover); E1: + Export recording… (TopBar); MSG3: + Messages (rail, the one home of messages - the dialog it replaced was off screen)
     assert total < 90, total                      # 107 on 1.21.0; the rest is data (see TASKS U7)
     # the count of drawn points comes with the plot's data (after the file's sample count)
     # W6 (2026-11-13): a sentence; the numbers in its tooltip

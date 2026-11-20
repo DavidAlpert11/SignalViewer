@@ -24,7 +24,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Stability on Windows with a GPU (Out of Memory, the 3D shader) | waiting for numbers | the owner runs `tools/measure_maps.py --gpu`; the e2e suite's memory |
 | Films in Hebrew + a narration script; GitHub About texts | offered / with the owner (About texts proposed 2026-11-17) | his choice; he pastes the About texts |
 | Known gap - the 2D double-click on a map object has no e2e test | open | add one when the Map is next touched |
-| Release 1.32.0 - RE2 ready reports + CLR1, MSG1, MSG2, LINK1 (owner, 2026-11-20: "prepare a release") | prepared 2026-11-20: CHANGELOG 1.32.0 – 2026-11-20 with new highlights, CITATION date, README (bytes to signals: why, tour with pictures 52 / 53, formats, Hebrew), docs (messages.md, features, limitations, install counts, reports.he.md with the ready parts), pictures 52-54 | the whole e2e, then the owner tags v1.32.0 (commands given) |
+| Release 1.32.0 - RE2 ready reports + CLR1, MSG1, MSG2, LINK1, MSG3 (owner, 2026-11-20: "prepare a release") | READY 2026-11-20 except one e2e (MSG3 in, every picture refreshed, the whole e2e 96/97 files green, quick_check, mkdocs --strict); earlier: CHANGELOG 1.32.0 – 2026-11-20 with new highlights, CITATION date, README (bytes to signals: why, tour with pictures 52 / 53, formats, Hebrew), docs (messages.md, features, limitations, install counts, reports.he.md with the ready parts), pictures 52-54 | the owner tags v1.32.0 (commands given); the old claude/* branches are already gone from GitHub |
 | Reports - open work | see `docs/dev/REPORTS.md` "Open" | the CLI making the written report; RE2.6 block editor; RE2.7 |
 | MSG1 - byte-stream messages: a dedicated plot and a report (owner, 2026-11-19) | built and checked 2026-11-20 (+ the owner's additions: TX / RX, direction column, packet make-up, order, requests / replies, handshake) | the owner looks; left: matching a command with its effect in another signal |
 | MSG2 - messages to signals: a structure (proposed or written) turns messages into a recording; NMEA (owner, 2026-11-20) | built 2026-11-20 (pushed before the e2e, owner's word) | the owner looks; next: bit fields in the form, arrays / repeated groups (GSV's satellites), a CLI |
@@ -32,6 +32,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | MSG3 - one home for messages: the Messages panel + the structure library (owner, 2026-11-20) | built 2026-11-20 (see Open specs) | the owner looks |
 | CLR1 - Clear and the report (owner, 2026-11-19: "when the recording is cleared, what happens to the report? how is it cleared?") | done (2026-11-19): the proposal below built | the owner looks |
 | README review for 1.32 (owner, 2026-11-19 / 20: "update the README") | done 2026-11-20 | - |
+| test_study_loop - a copy of the demo runs the loop: after a round, Results does not open (found 2026-11-20, fails before MSG3 too) | open | fix in Sweeps' flow (FlowNav goFlow / the together part) |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
 ## Open specs (waiting for the owner)
@@ -157,6 +158,14 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-20 · Release 1.32.0 ready (with MSG3): CHANGELOG (MSG3 bullet, highlights), README (English + Hebrew), docs (messages.md
+  with picture 55, features, limitations, reports), every README / docs picture made again (the rail's new button; 53 in the
+  panel; 55 new) and the welcome cards; the media script's fixes (two helpers named `_example`, the MAVLink selector meeting
+  the link section - also in test_features). Checks: the WHOLE e2e one file at a time - 97 files: 96 green; test_less_clutter
+  failed on its button budget (the new Messages rail button: 55 -> 56, then green); **test_study_loop::test_a_copy_of_the_demo_runs_the_loop
+  fails - also on d2edd52, before MSG3** (after the loop's round, *Results* in the step bar leaves the screen on Next runs; no
+  `[data-shot=study]`) - pre-existing, open, the owner decides whether it blocks the tag; quick_check green; mkdocs --strict green; the validation page unchanged. Push to main was refused by the session's permission
+  check - the commits wait on the local branch msg3-release.
 - 2026-11-20 · MSG3 (owner: "one central place for all the message data - MAVLink, NMEA, general messages"): the Messages
   panel (MessagesPanel.tsx, StreamEditor.tsx - the dialog removed), app/routes/messages.py (the /api/messages/* routes moved
   there from analysis.py; library list / get / save / reveal; streams), Live ▾ → Listen to a link from the library, the .svraw
