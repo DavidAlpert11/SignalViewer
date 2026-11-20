@@ -1251,7 +1251,7 @@ def test_live_mavlink(pg):
     from pymavlink.dialects.v20 import ardupilotmega as mavlink
     port = _free_port()                                   # a TCP port number is free for UDP as well, in practice
     pg.click(".live-more")
-    pg.locator(".mav-section input[list]").fill(f"udpin:127.0.0.1:{port}")
+    pg.locator(".mav-section:not(.link-section) input[list]").fill(f"udpin:127.0.0.1:{port}")
     pg.get_by_role("button", name="Connect and record").click()
     pg.wait_for_function("window.__sv.state().mavlink?.running === true")
     stop = threading.Event()

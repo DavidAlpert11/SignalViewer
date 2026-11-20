@@ -388,7 +388,7 @@ def fake_vehicle(port, stop):
 def live_mavlink(pg, app, seconds=8.0):
     port = free_port()
     pg.click(".live-more"); pg.wait_for_timeout(300)
-    pg.locator(".mav-section input[list]").fill(f"udpin:127.0.0.1:{port}")
+    pg.locator(".mav-section:not(.link-section) input[list]").fill(f"udpin:127.0.0.1:{port}")
     pg.get_by_role("button", name="Connect and record").click()
     stop = threading.Event()
     th = threading.Thread(target=fake_vehicle, args=(port, stop), daemon=True); th.start()
@@ -1004,6 +1004,9 @@ def img_examples(browser, app):
             ctx, pg = page(browser, app, dark=theme == "dark", scale=2)
             try:
                 pg.evaluate(f"window.__sv.setState({{ theme: '{theme}', geoBase: 'offline' }})")   # maps: the built-in basemap
+                pg.wait_for_selector(".ex-card")
+                if not pg.locator(f".ex-card[data-example='{ex['id']}']").count():      # a Help -> Examples one: no card
+                    continue
                 pg.locator(f".ex-card[data-example='{ex['id']}']").click()
                 if ex["id"] == "smartSweepDemo":                # the demo's picture: after two rounds, its chart drawn
                     pg.wait_for_selector(".dm-strip", timeout=60000)
@@ -1093,7 +1096,7 @@ def img_50_report_parts_hebrew(b, app):
     shot(pg, "50_report_parts_hebrew"); ctx.close()
 
 
-def _example(pg, text):
+def _help_example(pg, text):
     pg.locator(".topbar .menubar-btn", has_text="Help").click()
     pg.locator(".menu.ctx button", has_text="Examples").click()
     pg.locator(".menu.ctx.sub button", has_text=text).click()
@@ -1103,7 +1106,7 @@ def img_52_messages_recording(b, app):
     """MSG2: Help -> Examples -> messages to signals - the serial link's two directions decoded by their structures
     (MSB / LSB first, 32-bit, float, bits, scales) into recordings of their own, plotted one plot per message."""
     ctx, pg = page(b, app)
-    _example(pg, "messages to signals")
+    _help_example(pg, "messages to signals")
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.name === 'rx_byte - messages')", timeout=60000)
     pg.wait_for_timeout(1500)
     pg.evaluate("() => { for (const t of [...document.querySelectorAll('.toast button[aria-label]')]) t.click(); }")
@@ -1159,7 +1162,7 @@ def img_55_messages_panel(b, app):
 def img_54_gps_nmea(b, app):
     """MSG2: a GPS receiver's raw NMEA opened as a recording: the track on the map, the fix status as a lane."""
     ctx, pg = page(b, app)
-    _example(pg, "raw NMEA")
+    _help_example(pg, "raw NMEA")
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => (p.mode === 'geo' || p.mode === '3d') && (p.objects || []).length))", timeout=60000)
     pg.evaluate("() => { const st = window.__sv.state(); const tb = st.ws.tabs.find(t => t.plots.some(p => p.mode === 'geo' || p.mode === '3d')); window.__sv.setState({ ws: { ...st.ws, activeTab: tb.id } }); }")
     pg.wait_for_timeout(1500)

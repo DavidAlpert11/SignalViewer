@@ -25,6 +25,8 @@ and the report.
   the same packets read as a structure). Offered in the panel (*From the library…*) and in *Live ▾ → Listen to a
   link*.
 
+![The Messages panel: a serial link's two byte streams with their message types and rates, a flight log's message types, the structure library](images/55_messages_panel.png){ .sv-shot loading=lazy }
+
 Right-click a byte signal in the list (or select the byte columns) → **Decode as messages…** opens the panel on it.
 A link recording (`.svraw`) opened without its structure says so, with a button to the panel.
 
