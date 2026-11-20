@@ -2004,3 +2004,9 @@ input.fx-input { width: 100%; }
 .map-story-card b { font-size: var(--fs-m); color: var(--ink-strong); }
 .map-story-nav { display: flex; gap: var(--sp-1); align-items: center; align-self: flex-end; color: var(--muted); font-size: var(--fs-xs); }
 [dir="rtl"] .welcome-back > span { display: inline-block; transform: scaleX(-1); }
+
+/* MSG1: Decode as messages - what the signal carries, one choice per line */
+.dialog.msgdlg { width: min(560px, 96vw); }
+.msgdlg .msg-carries { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; margin: 8px 0; }
+.msgdlg .msg-framing { margin: 8px 0; }
+.msgdlg .cmpobj-grid { margin-top: 6px; }

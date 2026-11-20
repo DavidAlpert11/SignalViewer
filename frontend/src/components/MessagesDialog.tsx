@@ -35,7 +35,7 @@ export default function MessagesDialog() {
   };
   return (
     <div className="scrim" onMouseDown={close}>
-      <div className="dialog msgdlg" role="dialog" aria-modal="true" aria-label={t("msgDlgTitle")} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="dialog cmpobj msgdlg" role="dialog" aria-modal="true" aria-label={t("msgDlgTitle")} onMouseDown={(e) => e.stopPropagation()}>
         <div className="dialog-head"><h2>{t("msgDlgTitle")}</h2></div>
         <div className="dialog-body">
           <p className="hint"><bdi dir="ltr">{one ? name(def.sources[0]) : `${name(def.sources[0])} … ${name(def.sources[def.sources.length - 1])} (${def.sources.length})`}</bdi>
