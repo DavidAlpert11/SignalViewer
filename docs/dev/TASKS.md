@@ -164,8 +164,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   the link section - also in test_features). Checks: the WHOLE e2e one file at a time - 97 files: 96 green; test_less_clutter
   failed on its button budget (the new Messages rail button: 55 -> 56, then green); **test_study_loop::test_a_copy_of_the_demo_runs_the_loop
   fails - also on d2edd52, before MSG3** (after the loop's round, *Results* in the step bar leaves the screen on Next runs; no
-  `[data-shot=study]`) - pre-existing, open, the owner decides whether it blocks the tag; quick_check green; mkdocs --strict green; the validation page unchanged. Push to main was refused by the session's permission
-  check - the commits wait on the local branch msg3-release.
+  `[data-shot=study]`) - pre-existing, open, the owner decides whether it blocks the tag; quick_check green; mkdocs --strict green; the validation page unchanged. Pushed to main (owner's word, [ci] in the release
+  commit); the owner tags v1.32.0.
 - 2026-11-20 · MSG3 (owner: "one central place for all the message data - MAVLink, NMEA, general messages"): the Messages
   panel (MessagesPanel.tsx, StreamEditor.tsx - the dialog removed), app/routes/messages.py (the /api/messages/* routes moved
   there from analysis.py; library list / get / save / reveal; streams), Live ▾ → Listen to a link from the library, the .svraw
