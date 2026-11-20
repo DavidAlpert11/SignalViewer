@@ -66,6 +66,19 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
     type byte, payload, sum8 checksum; types at 50 / 10 / 1 Hz; a few corrupted bytes and a dropout; and the same as
     columns (one message per row). Help -> Examples. Docs: `docs/reports.md`, a feature line, CHANGELOG (1.32.0 is not
     tagged yet - it may go into 1.32.0 if the owner agrees, else `## Next`).
+- **MSG1 - the owner's additions (2026-11-19, via another session; built the same day):** *"Sometimes part of the
+  packet is TX / RX, or there is a column for the message's direction. Then there is a structure of a handshake,
+  answers, reply packets... and maybe matching between different columns."* Built: direction (a direction column,
+  or two signals TX / RX - the dialog's *only TX / only RX / both with a direction column / TX and RX one each*,
+  `ws.messageStreams`); request / reply (`bytestream.exchange`: a reply type in the other direction within 0.5 s,
+  0.5..1.5 per request, echoing a byte of the request >= 80 % - or a rare type (<= 10, a handshake's) always answered;
+  streaming types have none; a type that answers is not a request the other way; a request sent again before its
+  reply is a retry and the reply is the later copy's): answered / unanswered (times), retries, orphans, latency mean /
+  95 % / max and when; the handshake: the rare messages of both directions grouped (<= 1 s apart), the first group
+  the opening, later ones reconnects; the op `messages` what=latency (the tab's *Reply latency* plot). Demo: a
+  handshake at 0 s and after the dropout, COMMAND / ACK with an echoed seq, 3 lost, 1 retry. **Left (not built):**
+  matching between columns beyond the two directions (a command on the link and its effect in another signal -
+  firstchange.lag), a direction lane / unanswered marks in the tab, a timeout option.
 - **CLR1 - Clear and the report (studied 2026-11-19):** the Clear menu (`frontend/src/clearing.ts clearMenuItems`:
   this tab / other tabs / all tabs / the work / everything) never touches `ws.report` except *Clear everything* (a new
   workspace: the report gone too). So after *Clear all tabs* the report keeps `[[tab.plot]]` references to tabs that
@@ -131,7 +144,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   *Decode as messages* (components/MessagesDialog.tsx) keeps `ws.messageStreams` (sources, carries, dir, txValue, header,
   checksum; optional field, old sessions unchanged), sent with [[messages]] and the library's scan. And (owner): the
   packet's make-up as a table (fixed header, length / type byte and its kinds, payload per kind, checksum or none) and the
-  messages in order (the first 40 + a plot of the type over the first 2 s).
+  messages in order (the first 40 + a plot of the type over the first 2 s). Then the owner's addition (requests /
+  replies, handshake - spec above): built, the demo regenerated with a protocol (known answers in test_bytestream).
 - 2026-11-19 · CLR1: Clear → *The report* (text + pictures, asks when written, one Undo), the clear-tabs toasts say when the
   written report points at the cleared tabs (+ *Clear the report too*), the Report screen's ↺ menu (*Empty* / *Back to the
   report from the tabs*). e2e: test_report_doc (3), test_features -k clear (5).

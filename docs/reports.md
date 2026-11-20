@@ -116,13 +116,21 @@ over the first seconds); **the gaps** (no messages for 1.5 s from 18 s); and one
 every stream's lines: *messages per second by type* (a dropout falls to zero), *the interval between messages of
 a type*, *the checksum errors*. Checksum errors and gaps go to `[[summary]]`.
 
+**Both directions of a link** - two streams of one file (TX and RX, or one signal split by its direction column) -
+are put together: **which message answers which** (a reply is a message in the other direction within 0.5 s that
+echoes a byte of the request - a sequence number, an id - or, for rare messages like a handshake's, the next one that
+always answers; streaming messages sent on their own clock have none), how many requests were **answered**,
+**unanswered** (and when), **sent again** before an answer (a retry), replies without a request, the **reply latency**
+per pair (mean, 95 %, largest and when) and a plot of it over time; and **the handshake** - the opening exchange in
+order (*TX 0x01 → RX 0x81 → TX 0x02 → RX 0x82*) and every time it comes again (a reconnect).
+
 A link recorded **both ways in one signal**, with a column beside it that says whose byte it is (`dir` with TX /
 RX, `direction`, `port`, `channel`…), is split: each direction is its own stream. Anything can be forced:
 `[[messages | header AA55, checksum sum8]]` (`length N` / `type N`: the offset of that byte; `checksum none`).
 
 In the signal list, right-click a byte signal (or select the byte columns) → **Decode as messages…**: say what it
-carries - **only TX**, **only RX**, or **both, with a column that says the direction of each byte** (choose the
-column and which of its values is TX) - and, if you want, the header and the checksum. The definition is kept in the
+carries - **only TX**, **only RX**, **both, with a column that says the direction of each byte** (choose the
+column and which of its values is TX), or - with two signals selected - **TX and RX, one signal each** - and, if you want, the header and the checksum. The definition is kept in the
 session and used by `[[messages]]` (a signal not defined is still found by itself). A new tab shows the bytes, the
 message type, the length, the interval and the checksum good / bad - derived signals like any other, one line per
 direction.
@@ -130,7 +138,9 @@ direction.
 
 *Help → Examples → a serial link, byte by byte* opens a demo (`examples/serial_link`): TX (header AA 55, a length
 byte, sum8) and RX (header EB 90, CRC-16) as two signals, and the same link as one signal with a `dir` column -
-with a few checksum errors, a broken length byte and a 1.5 s dropout - in a *Link review* report.
+with a handshake, commands answered by an ACK that echoes their sequence number, three commands lost, one sent
+again, a few checksum errors, a broken length byte and a 1.5 s dropout followed by a reconnect - in a *Link review*
+report.
 
 ### Comparing files: the main differences and the central region of the change
 
