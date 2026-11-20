@@ -400,7 +400,8 @@ function MavlinkSection() {
 function LinkSection() {
   const t = useT();
   const link = useApp((s) => s.rawlink);
-  const kept = useApp((s) => s.ws.messageStreams ?? []);
+  const keptRaw = useApp((s) => s.ws.messageStreams);
+  const kept = keptRaw ?? [];
   const [conn, setConn] = useState(() => getPref("sv3.linkConn") || "udp:0.0.0.0:5600");
   const [baud, setBaud] = useState(115200);
   const [busy, setBusy] = useState(false);

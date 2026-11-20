@@ -125,3 +125,35 @@ def test_gps_nmea_example_and_uart_proposes_nmea(pg):
     pg.locator(".msgdlg .msg-make").click()
     pg.wait_for_function("window.__sv.state().runs.some(r => r.name === 'rx_byte - messages')", timeout=30000)
     assert S(pg, "s.runs.find(r => r.name === 'rx_byte - messages').signals.some(x => x.name === 'PDEMO.f1')")
+
+
+def test_listen_to_a_udp_link_decoded_live(pg):
+    """LINK1: Live -> Listen to a link: UDP with NMEA - the recording opens and grows live; Stop keeps the file."""
+    import socket
+    import time
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()
+    pg.click(".live-more")
+    pg.locator(".link-conn").fill(f"udp:127.0.0.1:{port}")
+    pg.locator(".link-structure").select_option("nmea")
+    pg.locator(".link-listen").click()
+    pg.wait_for_selector(".link-stop")
+    lines = open(os.path.join(os.path.dirname(__file__), "..", "..", "examples", "gps_nmea", "receiver.nmea"), "rb").read().splitlines(keepends=True)
+    tx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    def send(a, b):
+        for ln in lines[a:b]:
+            tx.sendto(ln, ("127.0.0.1", port))
+            time.sleep(0.002)
+    send(0, 100)
+    pg.wait_for_function("window.__sv.state().runs.some(r => r.name.endsWith('.svraw') && r.signals.some(x => x.name.startsWith('GGA.lat')))", timeout=30000)
+    n0 = S(pg, "s.runs.find(r => r.name.endsWith('.svraw')).signals.find(x => x.name.startsWith('GGA.lat')).n")
+    send(100, 400)                                              # more comes in: the plots' data grows (live)
+    pg.wait_for_function(f"window.__sv.state().runs.find(r => r.name.endsWith('.svraw')).signals.find(x => x.name.startsWith('GGA.lat')).n > {n0}", timeout=30000)
+    shot(pg, "link_live.png")
+    pg.locator(".link-stop").click()
+    pg.wait_for_selector(".link-listen")
+    path = S(pg, "s.runs.find(r => r.name.endsWith('.svraw')).path")
+    assert os.path.isfile(path) and os.path.isfile(path[:-6] + ".svmsg.json")    # the recording and its structure stay
