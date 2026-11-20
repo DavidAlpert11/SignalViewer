@@ -41,6 +41,9 @@ export interface DerivedQuality {
   /** 26.U6: sources read between their samples (another signal's sample times), and how */
   interpolated?: { method: string; sources: number[] };
 }
+/** LINK1: a byte link (serial / UDP / TCP) recorded to `path` (.svraw, its structure beside it), followed live. */
+export interface LinkStatus { running: boolean; conn?: string; path?: string; bytes?: number; chunks?: number; written?: number;
+  rate?: number; sinceData?: number | null; peer?: string | null; error?: string | null }
 /** Live MAVLink receiver (T12): the link is recorded to `path` (.tlog), which live mode follows. */
 export interface MavStatus {
   running: boolean; conn?: string; path?: string; frames?: number; bytes?: number; written?: number; rate?: number;
@@ -367,6 +370,10 @@ export const api = {
   streamStop: () => call<{ ok: boolean }>("/api/stream/stop", {}),
   mavlinkStart: (body: { conn: string; baud?: number; request?: boolean; rate?: number }) => call<MavStatus>("/api/mavlink/start", body),
   mavlinkStop: () => call<MavStatus>("/api/mavlink/stop", {}),
+  linkStart: (body: { conn: string; baud?: number; structure?: Structure | null }) => call<LinkStatus>("/api/link/start", body),
+  linkStop: () => call<LinkStatus>("/api/link/stop", {}),
+  linkStatus: () => call<LinkStatus>("/api/link/status"),
+  linkPorts: () => call<{ ports: { device: string; description: string }[]; presets: string[]; folder: string }>("/api/link/ports"),
   mavlinkStatus: () => call<MavStatus>("/api/mavlink/status"),
   mavlinkPorts: () => call<{ ports: { device: string; description: string }[]; presets: string[]; folder: string }>("/api/mavlink/ports"),
   /** P3: binary (no base64), cancellable (a plot that moved on aborts its older requests) */

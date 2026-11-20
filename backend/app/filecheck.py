@@ -25,7 +25,8 @@ class LoadError(Exception):
 
 SUPPORTED_EXTS = (".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5", ".parquet", ".pq",
                   ".asc", ".log",       # T40b: CAN logs (with a .dbc)
-                  ".nmea")              # MSG2: a GPS receiver's raw sentences
+                  ".nmea",              # MSG2: a GPS receiver's raw sentences
+                  ".svraw")             # LINK1: a byte link recorded (serial / UDP / TCP)
 TEXT_EXTS = (".csv", ".txt", ".tsv", ".dat", ".asc", ".log")
 _KIND_EXT = {"mat": ".mat", "ulg": ".ulg", "bin": ".bin", "hdf5": ".h5", "mcap": ".mcap", "parquet": ".parquet"}
 # the extensions a signature may have: HDF5 is also MATLAB v7.3 (T27)

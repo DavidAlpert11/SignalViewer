@@ -3,7 +3,7 @@ import { fmtNum, type Lang } from "./i18n";
 import { withUnit } from "./units";
 
 /** File types the app opens (file dialogs, "choose the original", "locate"...). */
-export const DATA_EXTS = [".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5", ".parquet", ".pq", ".asc", ".log", ".nmea"];
+export const DATA_EXTS = [".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5", ".parquet", ".pq", ".asc", ".log", ".nmea", ".svraw"];
 /** F34: the part of the run list that says "the data changed" - for the effects that fetch data.
  *  The versions come from the server: a reload or a live update of a file, a derived signal
  *  replaced under the same name, a Python operation whose code changed. */

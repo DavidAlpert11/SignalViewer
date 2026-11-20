@@ -96,6 +96,34 @@ A **`.nmea`** file opens like any recording: its sentences by the NMEA structure
 `GGA.lat`, `GGA.lon`, `GGA.alt`, `RMC.speed`, `GSA.hdop`… - and its position is a track on the map. A sentence with
 a wrong checksum is left out; one the structure does not know is counted (the load report says which).
 
+## 4. Live: listen to a serial port, UDP or TCP
+
+*Live* (the ▾ beside it) → **Listen to a link (serial / UDP / TCP)**:
+
+| Connection | Means |
+|---|---|
+| `COM5`, `/dev/ttyUSB0` + baud | a serial port (UART) - with pyserial installed |
+| `udp:0.0.0.0:5600` | listen on a UDP port (any sender) |
+| `tcp:192.168.1.10:4001` | connect to a device or a serial-to-network server |
+| `tcpin:0.0.0.0:4001` | wait for a device to connect |
+
+Choose **the messages**: NMEA 0183, a structure file (`.svmsg.json`), a structure kept in this session (from
+*Decode as messages…*), or *bytes - decode them later*. **Listen**: what comes in is recorded to a file in the
+recordings folder (`link-<date>-<time>.svraw` - each chunk with its receive time, the structure beside it as
+`.svmsg.json`), and as soon as the first bytes arrive the app opens it and follows it live: the messages' signals
+grow on the plots and the map as they come. Nothing is ever sent. **Stop** keeps the file - a recording like any
+other: open it again, compare it, export it (*Export recording*: CSV, Parquet…), put it in a report.
+
+To try it without a device, the examples' streams can be played over the network in real time:
+
+```bash
+python tools/send_link_demo.py                          # the sensor board -> udp 127.0.0.1:5600
+python tools/send_link_demo.py --what nmea              # the GPS receiver's NMEA
+python tools/send_link_demo.py --what tx --to tcp:0.0.0.0:4001   # serve TCP; the app connects to tcp:127.0.0.1:4001
+```
+
+then *Listen* on `udp:0.0.0.0:5600` with `examples/serial_link/sensor.svmsg.json` (or NMEA 0183).
+
 ## The examples (Help → Examples)
 
 | Example | What it shows |

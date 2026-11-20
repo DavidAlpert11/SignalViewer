@@ -185,6 +185,14 @@ class Store:
             except ProtocolError as e:
                 raise LoadError(f"{os.path.basename(path)}: {e}", "noSignals") from None
             report["messages"] = rep
+        elif ext == ".svraw":                           # LINK1: a byte link recorded, by its structure if any
+            from svcore.protocol import ProtocolError
+            from svcore.rawlink import RawLinkError, load_svraw
+            try:
+                run, rep = load_svraw(path, name)
+            except (RawLinkError, ProtocolError) as e:
+                raise LoadError(f"{os.path.basename(path)}: {e}", "noSignals") from None
+            report["link"] = rep
         elif ext == ".mat":
             try:
                 run, skipped = load_mat(path, name, (settings or {}).get("time_column"))

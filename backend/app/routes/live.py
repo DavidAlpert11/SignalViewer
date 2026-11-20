@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from app.common import APP_DIR, fail
 from app.store import store
-from svcore import mavlive
+from svcore import mavlive, rawlink
 
 router = APIRouter()
 
@@ -123,6 +123,64 @@ def mavlink_ports():
 def mavlink_status():
     rx = MAVLINK["rx"]
     return rx.status() if rx is not None else {"running": False}
+
+
+# ----------------------------------------------------------------------------- LINK1: a byte link
+# A serial port / UDP / TCP received and recorded to a .svraw (with its structure beside it); the UI opens that file
+# and follows it with live mode, as Live MAVLink does.
+RAWLINK: Dict[str, Optional[rawlink.Receiver]] = {"rx": None}
+
+
+class LinkStart(BaseModel):
+    conn: str                       # udp:0.0.0.0:5600, tcp:host:4001, tcpin:0.0.0.0:4001, COM5, /dev/ttyUSB0
+    baud: int = 115200              # serial only
+    structure: Optional[dict] = None   # the messages' structure (svcore/protocol.py); none: the bytes, decoded later
+    folder: Optional[str] = None
+
+
+@router.post("/api/link/start")
+def link_start(req: LinkStart):
+    conn = req.conn.strip()
+    if not conn:
+        fail(400, "Type a connection, e.g. udp:0.0.0.0:5600, tcp:192.168.1.10:4001 or COM5.")
+    old = RAWLINK["rx"]
+    if old is not None and old.running:
+        fail(409, f"Already listening to {old.conn_str}. Stop that link first.")
+    if req.structure:
+        from svcore.protocol import ProtocolError, check
+        try:
+            check(req.structure)
+        except ProtocolError as e:
+            fail(400, f"The structure: {e}")
+    folder = os.path.abspath(os.path.expanduser(req.folder)) if req.folder else RECORDINGS
+    try:
+        rx = rawlink.Receiver(conn, rawlink.recording_path(folder), baud=int(req.baud), structure=req.structure)
+    except rawlink.RawLinkError as e:
+        fail(400, str(e))
+    except OSError as e:
+        fail(400, f"Cannot write the recording in {folder}: {e}")
+    RAWLINK["rx"] = rx
+    return rx.status()
+
+
+@router.post("/api/link/stop")
+def link_stop():
+    rx = RAWLINK["rx"]
+    if rx is None:
+        return {"running": False}
+    rx.stop()
+    return rx.status()
+
+
+@router.get("/api/link/status")
+def link_status():
+    rx = RAWLINK["rx"]
+    return rx.status() if rx is not None else {"running": False}
+
+
+@router.get("/api/link/ports")
+def link_ports():
+    return {"ports": rawlink.serial_ports(), "presets": list(rawlink.PRESETS), "folder": RECORDINGS}
 
 
 # ----------------------------------------------------------------------------- F4: live instruments

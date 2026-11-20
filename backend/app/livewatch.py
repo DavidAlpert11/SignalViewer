@@ -107,6 +107,8 @@ class LiveWatcher:
                     fresh.pending_since = 0.0
                     changed.append(rid)
                     continue
+                elif fmt == "svraw":                          # LINK1: read again whole (decoded by its structure)
+                    n = -1
                 elif fmt == "bin":
                     n = append_new_messages(lr.run)
                 elif fmt == "tlog":

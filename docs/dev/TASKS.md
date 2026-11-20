@@ -28,6 +28,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Reports - open work | see `docs/dev/REPORTS.md` "Open" | the CLI making the written report; RE2.6 block editor; RE2.7 |
 | MSG1 - byte-stream messages: a dedicated plot and a report (owner, 2026-11-19) | built and checked 2026-11-20 (+ the owner's additions: TX / RX, direction column, packet make-up, order, requests / replies, handshake) | the owner looks; left: matching a command with its effect in another signal |
 | MSG2 - messages to signals: a structure (proposed or written) turns messages into a recording; NMEA (owner, 2026-11-20) | built 2026-11-20 (pushed before the e2e, owner's word) | the owner looks; next: bit fields in the form, arrays / repeated groups (GSV's satellites), a CLI |
+| LINK1 - listen to a serial port / UDP / TCP, decoded live by a structure, recorded to a file (owner, 2026-11-20) | built 2026-11-20 | the owner tries it (tools/send_link_demo.py); next: a session that re-listens, a hex view of the raw bytes |
 | CLR1 - Clear and the report (owner, 2026-11-19: "when the recording is cleared, what happens to the report? how is it cleared?") | done (2026-11-19): the proposal below built | the owner looks |
 | README review for 1.32 (owner, 2026-11-19: "update the README") | the RE2 lines are in; a full pass not done | do the full pass before the owner tags v1.32.0 |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
@@ -135,6 +136,14 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-20 · MSG2 footer (owner: "a footer"): `footer` hex - a message without length / size ends at it, a checksum before it,
+  proposed when every message ends the same; text `end`. Sturdier guesses: byte order by which byte changes less, signed when
+  just below zero, 32-bit when the top bytes hardly move. Example: serial_link/sensor_uart.csv + sensor.svmsg.json.
+- 2026-11-20 · LINK1 (owner: "listen to a UART, parse the variables; or UDP; save it to a file and show it"): as Live MAVLink -
+  svcore/rawlink.Receiver records serial (pyserial) / udp / tcp / tcpin to `.svraw` ("SVRAW1\n" + per chunk >QI receive time
+  µs, length, bytes) with the structure beside it (.svmsg.json); load_svraw decodes by it (else a `byte` signal); livewatch
+  reads an .svraw again whole on growth; /api/link/{start,stop,status,ports}; Live ▾ → Listen to a link (connection, the
+  messages: NMEA / a file / a kept structure / bytes); tools/send_link_demo.py plays the examples over UDP / TCP.
 - 2026-11-20 · MSG2 (owner: "define the message structure - the variables' types and the messages - and the app turns it into
   a recording's signals; or it finds the repeating pattern and proposes header1, header2, length, checksum; NMEA with commas,
   numbers as text; LSB / MSB"): svcore/protocol.py - binary (header, length / size / per-message size, type, checksum, fields:

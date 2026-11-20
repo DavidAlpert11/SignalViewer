@@ -10,6 +10,7 @@ import PreviewPlots from "./components/PreviewPlots";
 import StartCard from "./components/StartCard";
 import DemoGuide from "./components/DemoGuide";
 import { mavlinkResume } from "./mavlink";
+import { linkResume } from "./link";
 import Timeline from "./components/Timeline";
 const SweepsScreen = lazyPreload(() => import("./components/sweeps/SweepsArea"));
 const SweepsStatus = lazyPreload(() => import("./components/sweeps/SweepsStatus"));
@@ -72,7 +73,7 @@ const MIN_STAGE = 380;
 export default function App() {
   countRender("App");
   useEffect(() => { preloadAll(); }, []);
-  useEffect(() => { mavlinkResume(); }, []);
+  useEffect(() => { mavlinkResume(); linkResume(); }, []);
   // named conditions: looked for again when they, the open files or their data change
   const condKey = useApp((s) => JSON.stringify((s.ws.conditions ?? []).map((c) => [c.id, c.text, c.exit, c.minDur, c.mergeGap, c.combine])));
   const condRuns = useApp((s) => s.runs.map((r) => r.id).join("|"));

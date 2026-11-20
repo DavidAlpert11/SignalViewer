@@ -58,7 +58,7 @@ def _f(name, index, type_="number", unit="", **kw):
     return {"name": name, "index": index, "type": type_, "unit": unit, **kw}
 
 
-NMEA = {
+NMEA: Dict[str, Any] = {
     "kind": "text", "name": "NMEA 0183", "start": "$", "sep": ",", "checksum": "nmea",
     "messages": [
         {"id": "GGA", "name": "GGA", "fields": [
@@ -178,7 +178,7 @@ def parse_binary(t: np.ndarray, raw: np.ndarray, proto: Dict) -> Dict:
     cs = proto.get("checksum")
     ft = bytes.fromhex(re.sub(r"[^0-9a-fA-F]", "", str(proto.get("footer") or "")))
     frames: Dict[int, List[int]] = {}
-    report = {"frames": 0, "bad": 0, "unknown": {}, "outside": 0}
+    report: Dict[str, Any] = {"frames": 0, "bad": 0, "unknown": {}, "outside": 0}
     i, j = 0, 0
     n = len(data)
     while j < len(starts):
@@ -197,7 +197,7 @@ def parse_binary(t: np.ndarray, raw: np.ndarray, proto: Dict) -> Dict:
             lo = int(proto["length"]["offset"])
             L = data[p + lo] + int(proto["length"].get("add", 0)) if p + lo < n else -1
         elif (m or {}).get("size") or proto.get("size"):
-            L = int((m or {}).get("size") or proto.get("size"))
+            L = int((m or {}).get("size") or proto.get("size") or -1)
         else:                                             # no length: the message ends at its footer
             e_ = data.find(ft, p + len(h) + 1) if ft else -1
             L = e_ + len(ft) - p if e_ >= 0 else -1
@@ -495,7 +495,7 @@ def _guess_fields(raw: np.ndarray, at: np.ndarray, first: int, last: int) -> Lis
         j += BIN_TYPES[best["type"]][1]
     names: Dict[str, int] = {}
     for f in out:                                         # unique names (two counters...)
-        n = f["name"]
+        n = str(f["name"])
         names[n] = names.get(n, 0) + 1
         if names[n] > 1:
             f["name"] = "%s_%d" % (n, names[n])
@@ -515,7 +515,7 @@ def suggest(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Optional[D
             sid = line[len(start):].split("*")[0].split(",")[0].strip().upper()
             ids[sid] = ids.get(sid, 0) + 1
         known = {str(m["id"]): m for m in NMEA["messages"]}
-        msgs = []
+        msgs: List[Dict] = []
         for sid, _n in sorted(ids.items(), key=lambda x: -x[1]):
             m = known.get(sid) or known.get(sid[2:])
             if m is not None and all(x["id"] != m["id"] for x in msgs):

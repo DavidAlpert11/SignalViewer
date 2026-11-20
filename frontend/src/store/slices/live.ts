@@ -1,5 +1,5 @@
 /* Live mode (growing files, MAVLink): its settings and status. UI state, never saved. */
-import type { MavStatus } from "../../api";
+import type { MavStatus, LinkStatus } from "../../api";
 import type { NewFilesMode } from "../types";
 
 export interface LiveSlice {
@@ -11,6 +11,7 @@ export interface LiveSlice {
   liveStarting: boolean;           // live: refreshing every file before following them
   liveIdle: number;                 // live: seconds since new data last arrived (updated by each poll)
   mavlink: MavStatus | null;       // T12: the live MAVLink link (UI state, never saved)
+  rawlink: LinkStatus | null;      // LINK1: a byte link being listened to (UI state, never saved)
   liveMenuOpen: boolean;           // the Live popover (also opened from Ctrl+K)
 }
 
@@ -23,5 +24,6 @@ export const liveSlice = (): LiveSlice => ({
   liveStarting: false,
   liveIdle: 0,
   mavlink: null,
+  rawlink: null,
   liveMenuOpen: false,
 });
