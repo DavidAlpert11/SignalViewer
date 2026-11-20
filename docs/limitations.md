@@ -35,6 +35,14 @@
 * *Time axis…*: another column as the time for CSV / text, MAT and Parquet; a scale also for HDF5. Flight logs and ROS recordings keep their own clock (only the offset). Cursor, zoom and notes follow the same rows to the new axis only when one file is open and its rows were not re-sorted; with other files open they stay where they are.
 * The window needs an engine from about late 2020 or newer: Microsoft Edge WebView2 / Edge / Chrome 87+, or Firefox 78+. On an older one the app says so instead of starting.
 * CAN: candump logs, Vector ASC (classic CAN lines) and CAN tables in CSV are read; CAN FD lines in ASC files, `.blf` and MF4 are not. The same id on two buses is decoded as one message.
+* Messages in a byte stream (1.32): the framing found by itself needs a 2-byte header that recurs; one length or type
+  byte (not two-byte lengths), fields at fixed offsets (no arrays, strings or layouts that depend on a field inside a
+  payload); a proposed structure names its fields by place (`value_4`) - rename them; a payload that may hold the
+  footer's bytes needs a length byte or a size per message (escaping is not undone). Request / reply pairing looks
+  within 0.5 s. A recording made from messages has no file: the session keeps its definition and makes it again.
+* Listening to a link (1.32): one link at a time; serial ports need pyserial; nothing is sent (no handshake of our
+  own); a growing `.svraw` is read again whole on each refresh - fine for hours of a serial link, slow for a very
+  fast stream over a long time (stop and start a new recording).
 * Binary layouts (ICD): fixed fields, bit fields and value names; no checksums (a damaged packet with a good sync and length is read), no arrays or strings inside a payload, no packets whose layout depends on a field.
 * Your own readers run in a process of their own in the app (in Python and the command line they run in the calling process); a reader that never ends is stopped after `SV_READER_TIMEOUT` (600 s by default). Files read by a reader are reloaded whole in live mode, not appended.
 * A spectrum (FFT, Welch, spectrogram) of a signal with gaps bridges them with straight lines on an even time grid: the frequencies are right, but amplitudes are lower by about the share of time the gaps cover. For exact amplitudes put the two cursors on a stretch without gaps.

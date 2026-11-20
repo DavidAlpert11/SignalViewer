@@ -152,9 +152,9 @@ npm run build    # builds frontend/dist (not in git)
 Tests:
 
 ```bash
-python -m pytest backend/tests          # ~1,450 server tests (incl. damaged copies of every format)
+python -m pytest backend/tests          # ~1,500 server tests (incl. damaged copies of every format)
 pip install -r requirements-dev.txt && python -m playwright install chromium
-python -m pytest tests/e2e              # ~510 browser tests, the whole suite in one run (~30 min)
+python -m pytest tests/e2e              # ~520 browser tests, the whole suite in one run (~30 min)
 python -m pytest tests/e2e/test_features.py    # or one file: one test per catalog feature
 cd backend && mypy --config-file ../pyproject.toml app svcore signalviewer   # type check
 python tools/benchmark.py big.csv       # performance against the targets (results in docs/)

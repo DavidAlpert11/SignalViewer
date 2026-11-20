@@ -1005,7 +1005,11 @@ def messages_structure_load(req: StructurePath):
     from svcore.protocol import ProtocolError, check
     try:
         with open(os.path.expanduser(req.path), encoding="utf-8") as f:
-            return {"structure": check(json.load(f))}
+            d = json.load(f)
+        if isinstance(d, dict) and "packets" in d and "messages" not in d:      # an ICD layout (T61): the same packets
+            from svcore.protocol import from_icd
+            d = from_icd(d)
+        return {"structure": check(d)}
     except FileNotFoundError:
         fail(404, f"No such file: {req.path}")
     except json.JSONDecodeError as e:

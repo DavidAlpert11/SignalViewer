@@ -614,3 +614,32 @@ def load_nmea(path: str, name: str):
         text = fh.read().decode("latin-1")
     out = parse_text(text, NMEA)
     return to_run(name, path, out), out["report"]
+
+
+def from_icd(layout: Dict) -> Dict:
+    """An ICD layout (T61, svcore/icd.py - binary files with a time field of their own) as a structure, so the one
+    description serves a recorded stream too: the sync -> the header, the id -> the type byte, the payload length ->
+    the length byte (frame = header + payload), the packets' fields at their offset after the header; `enum` ->
+    labels, `offset_value` -> add. The ICD's own time fields are kept as ordinary fields (a stream has receive times)."""
+    h = layout.get("header") or {}
+    size = int(h.get("size", 0) or 0)
+    sync = str(h.get("sync") or "").replace("0x", "").replace("0X", "")
+    big = str(layout.get("byte_order", "little")).lower().startswith("b")
+    out: Dict[str, Any] = {"kind": "binary", "name": str(layout.get("name") or "ICD"), "header": sync,
+                           "type": {"offset": int(h["id"]["offset"])} if h.get("id") else None,
+                           "length": {"offset": int(h["length"]["offset"]), "add": size} if h.get("length") else None,
+                           "checksum": None, "messages": []}
+    for p in layout.get("packets") or []:
+        fields = []
+        for f in p.get("fields") or []:
+            g: Dict[str, Any] = {"name": f["name"], "offset": int(f.get("offset", 0)) + size, "type": f.get("type", "u8"),
+                                 "endian": ("be" if (f.get("byte_order") or ("big" if big else "little")).startswith("b") else "le")}
+            for a, b in (("scale", "scale"), ("offset_value", "add"), ("unit", "unit"), ("bits", "bits"), ("enum", "labels")):
+                if f.get(a) is not None:
+                    g[b] = f[a]
+            fields.append(g)
+        m: Dict[str, Any] = {"id": int(p.get("id", 0)), "name": str(p.get("name") or p.get("id")), "fields": fields}
+        if not h.get("length") and p.get("size"):
+            m["size"] = size + int(p["size"])
+        out["messages"].append(m)
+    return out

@@ -1093,6 +1093,51 @@ def img_50_report_parts_hebrew(b, app):
     shot(pg, "50_report_parts_hebrew"); ctx.close()
 
 
+def _example(pg, text):
+    pg.locator(".topbar .menubar-btn", has_text="Help").click()
+    pg.locator(".menu.ctx button", has_text="Examples").click()
+    pg.locator(".menu.ctx.sub button", has_text=text).click()
+
+
+def img_52_messages_recording(b, app):
+    """MSG2: Help -> Examples -> messages to signals - the serial link's two directions decoded by their structures
+    (MSB / LSB first, 32-bit, float, bits, scales) into recordings of their own, plotted one plot per message."""
+    ctx, pg = page(b, app)
+    _example(pg, "messages to signals")
+    pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.name === 'rx_byte - messages')", timeout=60000)
+    pg.wait_for_timeout(1500)
+    pg.evaluate("() => { for (const t of [...document.querySelectorAll('.toast button[aria-label]')]) t.click(); }")
+    pg.wait_for_timeout(2500)
+    shot(pg, "52_messages_recording"); ctx.close()
+
+
+def img_53_messages_structure(b, app):
+    """MSG2: Decode as messages... -> Propose a structure: the header, length, type, checksum and footer found, each
+    message's fields guessed (16-bit LSB / MSB first, signed, 32-bit) - a form to correct, or JSON."""
+    ctx, pg = page(b, app)
+    open_api(pg, app, "serial_link/sensor_uart.csv")
+    pg.locator(".sig", has_text="sensor_byte").first.click(button="right")
+    pg.locator(".menu.ctx button", has_text="Decode as messages").click()
+    pg.wait_for_selector(".msgdlg")
+    pg.locator(".msgdlg .msg-propose").click()
+    pg.wait_for_selector(".msgdlg .msg-struct .msg-msg")
+    pg.evaluate("() => document.querySelector('.msgdlg .msg-structure').scrollIntoView({ block: 'start' })")
+    pg.wait_for_timeout(1200)
+    shot(pg, "53_messages_structure"); ctx.close()
+
+
+def img_54_gps_nmea(b, app):
+    """MSG2: a GPS receiver's raw NMEA opened as a recording: the track on the map, the fix status as a lane."""
+    ctx, pg = page(b, app)
+    _example(pg, "raw NMEA")
+    pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => (p.mode === 'geo' || p.mode === '3d') && (p.objects || []).length))", timeout=60000)
+    pg.evaluate("() => { const st = window.__sv.state(); const tb = st.ws.tabs.find(t => t.plots.some(p => p.mode === 'geo' || p.mode === '3d')); window.__sv.setState({ ws: { ...st.ws, activeTab: tb.id } }); }")
+    pg.wait_for_timeout(1500)
+    pg.evaluate("() => { for (const t of [...document.querySelectorAll('.toast button[aria-label]')]) t.click(); }")
+    pg.wait_for_timeout(3500)
+    shot(pg, "54_gps_nmea"); ctx.close()
+
+
 SCENES = [(n, f) for n, f in sorted(globals().items()) if n.startswith("img_")]
 
 

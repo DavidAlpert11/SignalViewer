@@ -159,3 +159,25 @@ def test_footer_no_length_byte():
     assert P.parse(sig, st)["report"]["messages"]["IMU"] == 1999
     with pytest.raises(P.ProtocolError, match="footer"):
         P.check({**st, "footer": "0D0"})
+
+
+def test_an_icd_layout_is_a_structure_too():
+    """The ICD layout (T61) of the sensor board read as a structure: the same packets, the same values."""
+    icd = {"name": "Sensor board", "byte_order": "little",
+           "header": {"sync": "0xA55A", "size": 3, "id": {"offset": 2, "type": "u8"}},
+           "packets": [{"id": 1, "name": "IMU", "size": 12, "fields": [
+               {"name": "az", "offset": 4, "type": "i16", "scale": 0.001, "unit": "g"},
+               {"name": "mode", "offset": 0, "type": "u8", "enum": {"0": "A"}}]},
+               {"id": 3, "name": "MAG", "size": 6, "fields": [{"name": "mx", "offset": 0, "type": "i16", "byte_order": "big", "scale": 0.1}]}]}
+    st = P.check(P.from_icd(icd))
+    assert st["header"] == "A55A" and st["type"] == {"offset": 2} and st["messages"][0]["size"] == 15
+    assert st["messages"][0]["fields"][0] == {"name": "az", "offset": 7, "type": "i16", "endian": "le", "scale": 0.001, "unit": "g"}
+    d = np.genfromtxt(os.path.join(EX, "serial_link", "sensor_uart.csv"), delimiter=",", names=True)
+    a = P.parse([(d["time"], d["sensor_byte"])], st)
+    b = P.parse([(d["time"], d["sensor_byte"])], _struct("sensor.svmsg.json"))
+    ta, ya = a["signals"]["IMU.az"]
+    tb, yb = b["signals"]["IMU.az"]
+    assert len(ta) == len(tb) + 1                           # no checksum in the ICD: the frame hit by noise is kept
+    keep = np.isin(ta, tb)
+    assert np.allclose(ya[keep], yb)
+    assert np.allclose(a["signals"]["MAG.mx"][1], b["signals"]["MAG.mx"][1])
