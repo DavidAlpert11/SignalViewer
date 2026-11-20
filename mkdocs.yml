@@ -58,6 +58,7 @@ nav:
       - What works: features.md
       - Writing a report: reports.md
       - "כתיבת דוח": reports.he.md
+      - "Messages: from bytes to signals": messages.md
       - Command line, Python and formats: command-line.md
       - "API: objects, comparisons, maps": api.md
       - Offline map and 3D: maps-and-3d.md

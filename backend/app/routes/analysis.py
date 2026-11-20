@@ -937,3 +937,85 @@ def run_glance(run_id: str, req: GlanceRequest):
                     row.update(value=v["value"], t=None if v["t"] is None else v["t"] + off)
         out.append(row)
     return {"items": out}
+
+
+# =============================================================================
+# MSG2: a message structure -> a recording
+# =============================================================================
+
+class StructureRequest(BaseModel):
+    sources: List[str]
+    params: Optional[dict] = None            # dir (a direction column's value), header / checksum forced
+    structure: Optional[dict] = None
+    name: Optional[str] = None
+    id: Optional[str] = None                 # a session reopened: the recording gets the id its plots refer to
+
+
+def _stream_sources(req: StructureRequest):
+    try:
+        return [store.signal(s) for s in req.sources]
+    except KeyError as e:
+        fail(404, f"Signal not found: {e} - is its file still open?")
+
+
+@router.post("/api/messages/suggest")
+async def messages_suggest(req: StructureRequest):
+    """A structure proposed from a byte stream: NMEA-like text, or the framing found with each message's fields
+    guessed (16-bit values LSB / MSB first, floats, counters, flags, bytes) - for the user to correct."""
+    from svcore.bytestream import StreamError
+    from svcore.protocol import suggest
+    sigs = _stream_sources(req)
+    try:
+        return {"structure": await heavy(suggest, sigs, req.params or {})}
+    except StreamError as e:
+        fail(400, str(e))
+
+
+@router.post("/api/messages/parse")
+async def messages_parse(req: StructureRequest):
+    """The stream's messages by the structure, as a new recording (the same name again: replaced, its plots kept)."""
+    from svcore.bytestream import StreamError
+    from svcore.protocol import ProtocolError, parse, to_run
+    sigs = _stream_sources(req)
+    name = (req.name or "Messages").strip()[:120] or "Messages"
+    try:
+        out = await heavy(parse, sigs, req.structure or {}, req.params or {})
+        run = to_run(name, "python:messages/" + name, out)     # "python:": no file behind it (as pushed data)
+    except (StreamError, ProtocolError) as e:
+        fail(400, str(e))
+    lr, new = store.add_pushed(name, run, True)
+    if req.id and req.id != lr.id and req.id not in store.runs and new:
+        with store._lock:                            # the id the session's plots use
+            store.runs[req.id] = store.runs.pop(lr.id)
+            store.order[store.order.index(lr.id)] = req.id
+            lr.id = req.id
+    return {"run": lr.id, "new": new, "report": out["report"], "signals": [f"{lr.id}/{k}" for k in lr.run.signals],
+            "runs": store.list()}
+
+
+class StructurePath(BaseModel):
+    path: str
+
+
+@router.post("/api/messages/structure")
+def messages_structure_load(req: StructurePath):
+    """A structure file (.svmsg.json) - checked, so a mistake is said where it is."""
+    import json
+    import os
+    from svcore.protocol import ProtocolError, check
+    try:
+        with open(os.path.expanduser(req.path), encoding="utf-8") as f:
+            return {"structure": check(json.load(f))}
+    except FileNotFoundError:
+        fail(404, f"No such file: {req.path}")
+    except json.JSONDecodeError as e:
+        fail(400, f"{os.path.basename(req.path)} is not valid JSON (line {e.lineno}): {e.msg}")
+    except ProtocolError as e:
+        fail(400, f"{os.path.basename(req.path)}: {e}")
+
+
+@router.get("/api/messages/nmea")
+def messages_nmea():
+    """The built-in NMEA 0183 structure (GGA, RMC, VTG, GSA, GSV, GLL, ZDA), to start from."""
+    from svcore.protocol import NMEA
+    return {"structure": NMEA}

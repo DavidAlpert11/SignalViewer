@@ -68,6 +68,11 @@ def _serial_link(root: str) -> None:
     make_serial_link.main(os.path.join(root, "serial_link"))
 
 
+def _gps_nmea(root: str) -> None:
+    from . import make_gps_nmea
+    make_gps_nmea.main(os.path.join(root, "gps_nmea"))
+
+
 _FOLDER = [f"folder_of_flights/X8-{v}_2026-{d}.bin" for v, d in (
     ("A", "09-02"), ("A", "09-09"), ("A", "09-16"), ("A", "09-23"), ("A", "09-30"), ("A", "10-07"),
     ("B", "09-05"), ("B", "09-19"), ("B", "10-03"), ("B", "10-17"))]
@@ -83,7 +88,9 @@ GENERATORS: List[Tuple[Sequence[str], Sequence[str], Callable[[str], None]]] = [
     (["ardupilot_lanes.csv", "local_frames.csv"], [], _local_frames),
     (["three_objects.csv"], [], _three_objects),
     (["report_demo/mission_ref.csv", "report_demo/mission_gust.csv"], [], _report_demo),
-    (["serial_link/link_tx_rx.csv", "serial_link/link_mixed.csv", "serial_link/link_columns.csv"], [], _serial_link),
+    (["serial_link/link_tx_rx.csv", "serial_link/link_mixed.csv", "serial_link/link_columns.csv",
+      "serial_link/link_tx.svmsg.json", "serial_link/link_rx.svmsg.json"], [], _serial_link),
+    (["gps_nmea/receiver.nmea", "gps_nmea/receiver_uart.csv"], [], _gps_nmea),
 ]
 GENERATED: Dict[str, int] = {f: i for i, (files, _, _) in enumerate(GENERATORS) for f in files}
 

@@ -554,6 +554,10 @@ def _echo(ra: Dict, ia: np.ndarray, rb: Dict, ib: np.ndarray) -> Optional[Tuple[
     na, nb = min(len(x) for x in pa), min(len(x) for x in pb)
     best = None
     for j in range(min(na, 8)):
+        # an id / a sequence number takes many values - a byte that hardly moves (the high byte of a slow value,
+        # a constant) matches by itself
+        if len({int(x[j]) for x in pa}) < min(16, max(1, len(pa) // 2)):
+            continue
         for k in range(min(nb, 8)):
             f = float(np.mean([x[j] == y[k] for x, y in zip(pa, pb)]))
             if f >= 0.8 and (best is None or f > best[2]):
@@ -605,7 +609,7 @@ def exchange(ra: Dict, rb: Dict, names: Tuple[str, str] = ("TX", "RX"), timeout:
                 rare = len(ia) <= 10 and frac == 1.0
                 if not echo and not rare:
                     continue
-                score = (1 if echo else 0, frac, -float(np.median(lat[got])))
+                score = (round(echo[2], 2) if echo else 0, frac, -float(np.median(lat[got])))
                 if best is None or score > best[0]:
                     best = (score, y, echo)
             if best:

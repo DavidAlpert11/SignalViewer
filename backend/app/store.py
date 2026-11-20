@@ -178,6 +178,13 @@ class Store:
                 raise LoadError(f"None of the CAN ids in {os.path.basename(path)} are in the .dbc files ({', '.join(rep.get('dbc', []))})"
                                 + (f"; the log has {ids}." if ids else "."), "badCan")
             report.update(rep)
+        elif ext == ".nmea":                            # MSG2: raw NMEA sentences -> a recording
+            from svcore.protocol import ProtocolError, load_nmea
+            try:
+                run, rep = load_nmea(path, name)
+            except ProtocolError as e:
+                raise LoadError(f"{os.path.basename(path)}: {e}", "noSignals") from None
+            report["messages"] = rep
         elif ext == ".mat":
             try:
                 run, skipped = load_mat(path, name, (settings or {}).get("time_column"))

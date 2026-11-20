@@ -113,3 +113,64 @@ export async function decodeAsMessages(def: MessageStream) {
   ], tr("msgTab", { name }));
   return true;
 }
+
+/* ---- MSG2: a structure -> a recording --------------------------------------------------------- */
+
+/** The recording's name for one direction of a definition. */
+export function recordingName(def: MessageStream, label: string): string {
+  const ids = def.sources;
+  const base = ids.length === 1 ? bare(ids[0]) : `${bare(ids[0])}…${bare(ids[ids.length - 1])}`;
+  const one = streamsOf(def).length > 1 ? (def.carries === "pair" ? bare(streamsOf(def).find((s) => s.label === label)?.sources[0] ?? "") : `${base} ${label}`) : base;
+  return `${one} - messages`;
+}
+
+/** Make (or make again) the recording of one direction from its structure; keep the definition (one Undo step)
+ *  and plot each message's fields in a new tab. Returns the new recording's id, or null (a message said why). */
+export async function makeRecording(def: MessageStream, label: string, opts: { plot?: boolean; id?: string } = {}): Promise<string | null> {
+  const st = useApp.getState();
+  const tr = (k: string, v: Record<string, string | number> = {}) => translate(st.lang, k as never, v);
+  const s = streamsOf(def).find((x) => x.label === label) ?? streamsOf(def)[0];
+  const structure = def.structures?.[label];
+  if (!s || !structure) return null;
+  const name = recordingName(def, label);
+  let r: Awaited<ReturnType<typeof api.messagesParse>>;
+  try {
+    r = await api.messagesParse(s.sources, s.params, structure, name, opts.id);
+  } catch (e) {
+    st.toast({ kind: "error", text: tr("msgNone", { name, msg: String((e as Error).message) }) });
+    return null;
+  }
+  useApp.setState({ runs: r.runs, dataVersion: useApp.getState().dataVersion + 1 });
+  if (opts.id) return r.run;                       // a session reopened: its plots are there already
+  const made = [...(def.made ?? []).filter((m) => m.label !== label), { label, run: r.run, name }];
+  useApp.getState().commit((ws) => {
+    const key = def.sources.join(",");
+    ws.messageStreams = [...(ws.messageStreams ?? []).filter((m) => m.sources.join(",") !== key), { ...def, made }];
+    return ws;
+  });
+  const rep = r.report as { bad?: number; unknown?: Record<string, number>; messages?: Record<string, number> };
+  const n = Object.values(rep.messages ?? {}).reduce((a, b) => a + b, 0);
+  useApp.getState().toast({ kind: "info", text: tr("msgMade", { name, n, k: r.signals.length, bad: rep.bad ?? 0,
+    unknown: Object.values(rep.unknown ?? {}).reduce((a, b) => a + b, 0) }) });
+  if (opts.plot !== false) {
+    // a plot per message (its first fields), so the decoded values are seen at once
+    const by = new Map<string, string[]>();
+    for (const id of r.signals) {
+      const msg = bare(id).split(".")[0];
+      by.set(msg, [...(by.get(msg) ?? []), id]);
+    }
+    actions.plotsInNewTab([...by.entries()].filter(([, ids]) => ids.length).slice(0, 12).map(([msg, ids]) => ({ title: msg, ids: ids.slice(0, 6) })),
+      tr("msgRecTab", { name }));
+  }
+  return r.run;
+}
+
+/** A session reopened: its recordings made from messages are made again, with the ids its plots refer to. */
+export async function remakeRecordings(streams: MessageStream[] | undefined): Promise<string[]> {
+  const ids: string[] = [];
+  for (const def of streams ?? []) for (const m of def.made ?? []) {
+    const id = await makeRecording(def, m.label, { plot: false, id: m.run });
+    if (id) ids.push(id);
+  }
+  return ids;
+}

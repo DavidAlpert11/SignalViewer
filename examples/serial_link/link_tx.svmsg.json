@@ -1,0 +1,147 @@
+{
+ "kind": "binary",
+ "name": "Ground -> vehicle (TX)",
+ "header": "AA55",
+ "length": {
+  "offset": 2,
+  "add": 5
+ },
+ "type": {
+  "offset": 3
+ },
+ "checksum": {
+  "scheme": "sum8",
+  "from": 2
+ },
+ "messages": [
+  {
+   "id": 1,
+   "name": "HELLO",
+   "fields": [
+    {
+     "name": "version",
+     "offset": 4,
+     "type": "u8",
+     "endian": "le"
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "name": "CONFIG",
+   "fields": [
+    {
+     "name": "rate",
+     "offset": 4,
+     "type": "u8",
+     "endian": "le",
+     "unit": "Hz"
+    },
+    {
+     "name": "mode",
+     "offset": 5,
+     "type": "u8",
+     "endian": "le"
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "name": "HEARTBEAT",
+   "fields": [
+    {
+     "name": "counter",
+     "offset": 4,
+     "type": "u8",
+     "endian": "le"
+    }
+   ]
+  },
+  {
+   "id": 16,
+   "name": "COMMAND",
+   "fields": [
+    {
+     "name": "seq",
+     "offset": 4,
+     "type": "u8",
+     "endian": "le"
+    },
+    {
+     "name": "cmd",
+     "offset": 5,
+     "type": "u8",
+     "endian": "le",
+     "labels": {
+      "1": "GOTO",
+      "2": "HOLD",
+      "3": "LAND"
+     }
+    },
+    {
+     "name": "param",
+     "offset": 6,
+     "type": "f32",
+     "endian": "le"
+    }
+   ]
+  },
+  {
+   "id": 32,
+   "name": "SETPOINT",
+   "fields": [
+    {
+     "name": "roll_cmd",
+     "offset": 4,
+     "type": "i16",
+     "endian": "le",
+     "scale": 0.01,
+     "unit": "deg"
+    },
+    {
+     "name": "pitch_cmd",
+     "offset": 6,
+     "type": "i16",
+     "endian": "le",
+     "scale": 0.01,
+     "unit": "deg"
+    },
+    {
+     "name": "yaw_cmd",
+     "offset": 8,
+     "type": "u16",
+     "endian": "le",
+     "scale": 0.01,
+     "unit": "deg"
+    },
+    {
+     "name": "throttle",
+     "offset": 10,
+     "type": "u8",
+     "endian": "le",
+     "unit": "%"
+    },
+    {
+     "name": "armed",
+     "offset": 11,
+     "type": "u8",
+     "endian": "le",
+     "bits": [
+      0,
+      1
+     ]
+    },
+    {
+     "name": "auto",
+     "offset": 11,
+     "type": "u8",
+     "endian": "le",
+     "bits": [
+      1,
+      1
+     ]
+    }
+   ]
+  }
+ ]
+}

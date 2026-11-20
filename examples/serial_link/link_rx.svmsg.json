@@ -1,0 +1,165 @@
+{
+ "kind": "binary",
+ "name": "Vehicle -> ground (RX)",
+ "header": "EB90",
+ "length": {
+  "offset": 3,
+  "add": 6
+ },
+ "type": {
+  "offset": 2
+ },
+ "checksum": {
+  "scheme": "crc16ccitt",
+  "from": 2
+ },
+ "messages": [
+  {
+   "id": 129,
+   "name": "HELLO_ACK",
+   "fields": [
+    {
+     "name": "version",
+     "offset": 4,
+     "type": "u8",
+     "endian": "le"
+    }
+   ]
+  },
+  {
+   "id": 130,
+   "name": "CONFIG_ACK",
+   "fields": [
+    {
+     "name": "result",
+     "offset": 4,
+     "type": "u8",
+     "endian": "le"
+    }
+   ]
+  },
+  {
+   "id": 144,
+   "name": "ACK",
+   "fields": [
+    {
+     "name": "seq",
+     "offset": 4,
+     "type": "u8",
+     "endian": "le"
+    },
+    {
+     "name": "status",
+     "offset": 5,
+     "type": "u8",
+     "endian": "le"
+    }
+   ]
+  },
+  {
+   "id": 160,
+   "name": "ATTITUDE",
+   "fields": [
+    {
+     "name": "roll",
+     "offset": 4,
+     "type": "i16",
+     "endian": "be",
+     "scale": 0.01,
+     "unit": "deg"
+    },
+    {
+     "name": "pitch",
+     "offset": 6,
+     "type": "i16",
+     "endian": "be",
+     "scale": 0.01,
+     "unit": "deg"
+    },
+    {
+     "name": "yaw",
+     "offset": 8,
+     "type": "u16",
+     "endian": "be",
+     "scale": 0.01,
+     "unit": "deg"
+    },
+    {
+     "name": "alt",
+     "offset": 10,
+     "type": "i32",
+     "endian": "le",
+     "scale": 0.01,
+     "unit": "m"
+    },
+    {
+     "name": "climb",
+     "offset": 14,
+     "type": "i16",
+     "endian": "le",
+     "scale": 0.01,
+     "unit": "m/s"
+    }
+   ]
+  },
+  {
+   "id": 161,
+   "name": "STATUS",
+   "fields": [
+    {
+     "name": "battery",
+     "offset": 4,
+     "type": "u16",
+     "endian": "le",
+     "scale": 0.001,
+     "unit": "V"
+    },
+    {
+     "name": "current",
+     "offset": 6,
+     "type": "i16",
+     "endian": "le",
+     "scale": 0.01,
+     "unit": "A"
+    },
+    {
+     "name": "temp",
+     "offset": 8,
+     "type": "i8",
+     "endian": "le",
+     "unit": "degC"
+    },
+    {
+     "name": "sats",
+     "offset": 9,
+     "type": "u8",
+     "endian": "le"
+    },
+    {
+     "name": "mode",
+     "offset": 10,
+     "type": "u8",
+     "endian": "le",
+     "labels": {
+      "1": "MANUAL",
+      "2": "AUTO"
+     }
+    },
+    {
+     "name": "rssi",
+     "offset": 11,
+     "type": "u8",
+     "endian": "le",
+     "scale": -1,
+     "unit": "dBm"
+    },
+    {
+     "name": "errors",
+     "offset": 12,
+     "type": "u16",
+     "endian": "be"
+    }
+   ]
+  }
+ ]
+}

@@ -131,7 +131,19 @@ export interface ReportDoc { v: 1; text: string }
  *  Saved with the session; *Decode as messages…* writes it, the report's [[messages]] uses it (else it guesses). */
 /*  carries "pair": two signals, the first TX and the second RX (tx_byte / rx_byte). */
 export interface MessageStream { id: string; sources: string[]; carries: "tx" | "rx" | "both" | "pair";
-  dir?: string | null; txValue?: number | null; header?: string; checksum?: string }
+  dir?: string | null; txValue?: number | null; header?: string; checksum?: string;
+  /** MSG2: the messages' structure for each direction ("TX", "RX"; one direction: its label) */
+  structures?: Record<string, Structure>;
+  /** MSG2: the recordings made from it (re-made when the session opens): direction, recording id and name */
+  made?: { label: string; run: string; name: string }[] }
+/** MSG2: a message structure (svcore/protocol.py) - binary (header, length, type, checksum, fields by offset) or
+ *  text (NMEA-like sentences, fields by index) */
+export interface StructField { name: string; type?: string; offset?: number; index?: number; endian?: "le" | "be";
+  scale?: number; add?: number; unit?: string; bits?: [number, number]; hemi?: number; labels?: Record<string, string> }
+export interface StructMessage { id: number | string; name: string; size?: number | null; fields: StructField[] }
+export interface Structure { kind: "binary" | "text"; name?: string; header?: string; length?: { offset: number; add: number } | null;
+  type?: { offset: number } | null; size?: number | null; checksum?: { scheme: string; from: number } | string | null;
+  start?: string; sep?: string; messages: StructMessage[] }
 export interface ReportAsset { name: string; mime: string; data: string; w: number; h: number }
 /** 26.U4: pass / fail per signal and file against a baseline, as a report section */
 export interface ReportVerdict { id: string; title: string; summary: string[]; head: string[]; rows: string[][] }

@@ -14,7 +14,9 @@ and a report. Two directions, two message formats, on purpose different:
 
 Deterministic (a fixed seed, fixed number formats).    python tools/make_serial_link.py [folder]
 """
+import math
 import os
+import struct
 import sys
 from typing import List, Tuple
 
@@ -50,6 +52,39 @@ def rx_frame(typ: int, payload: bytes) -> bytes:
 #   TX 0x20 SETPOINT 50 Hz, 0x05 HEARTBEAT 1 Hz; RX 0xA0 ATTITUDE 50 Hz, 0xA1 STATUS 10 Hz   streaming, never answered
 #   faults: commands lost (no ACK) at 3 places; one command sent again (a retry, same seq) 20 ms later and answered;
 #   RX silent 18.0-19.5 s (the commands sent then unanswered), then a reconnect (the handshake again)
+# MSG2: the payloads carry real values - the structure files beside the recordings (link_tx.svmsg.json,
+# link_rx.svmsg.json) turn them into signals:
+#   TX 0x20 SETPOINT  roll_cmd i16 LSB first x0.01 deg, pitch_cmd i16 LSB x0.01, yaw_cmd u16 LSB x0.01, throttle u8 %,
+#                     flags u8 (bit 0 armed, bit 1 auto)
+#   TX 0x10 COMMAND   seq u8, cmd u8, param f32 LSB first;   TX 0x05 HEARTBEAT counter u8
+#   RX 0xA0 ATTITUDE  roll i16 MSB first x0.01 deg, pitch i16 MSB x0.01, yaw u16 MSB x0.01, alt i32 LSB x0.01 m,
+#                     climb i16 LSB x0.01 m/s
+#   RX 0xA1 STATUS    battery u16 LSB mV, current i16 LSB x0.01 A, temp i8 degC, sats u8, mode u8, rssi u8 (-dBm),
+#                     errors u16 MSB first
+#   RX 0x90 ACK       seq u8, status u8
+
+
+def roll_cmd(t: float) -> float:
+    return 20 * math.sin(2 * math.pi * t / 8)
+
+
+def setpoint(t: float) -> bytes:
+    flags = (1 if t > 1 else 0) | (2 if t > 10 else 0)
+    return struct.pack("<hhHBB", round(roll_cmd(t) * 100), round(5 * math.sin(2 * math.pi * t / 5) * 100),
+                       round(((90 + 10 * t) % 360) * 100), round(50 + 20 * math.sin(t / 3)), flags)
+
+
+def attitude(t: float, noise: float) -> bytes:
+    alt = 50 + 30 * math.sin(t / 10)
+    return struct.pack(">hhH", round((roll_cmd(t - 0.15) * 0.95 + noise) * 100), round(5 * math.sin(2 * math.pi * (t - 0.15) / 5) * 100),
+                       round(((90 + 10 * (t - 0.15)) % 360) * 100)) + struct.pack("<ih", round(alt * 100), round(3 * math.cos(t / 10) * 100))
+
+
+def status(t: float, k: int) -> bytes:
+    return struct.pack("<Hhb", round(16800 - 40 * t), round((12 + 3 * math.sin(t / 2)) * 100), round(25 + t / 6)) \
+        + bytes([12 if t < 18 else 9, 2 if t > 10 else 1, round(70 + 10 * math.sin(t / 4))]) + struct.pack(">H", k // 250)
+
+
 LOST = (77, 141, 222)                    # the commands (by number) whose ACK never comes
 RETRY = 101                              # a command not answered at first, sent again 20 ms later
 DROP = (18.0, 19.5)
@@ -77,17 +112,17 @@ def link() -> Tuple[List[Tuple[float, int]], List[Tuple[float, int]], List[Tuple
         t = k * 0.02
         if DROP[1] <= t < DROP[1] + 0.02:                # the reconnect's handshake takes this tick
             continue
-        b = bytearray(tx_frame(0x20, bytes(rng.integers(0, 256, 8).tolist())))
+        b = bytearray(tx_frame(0x20, setpoint(t)))
         if k in (233, 811):                              # a byte hit by noise: a checksum error
             b[6] ^= 0x10
         if k == 1102:                                    # the length byte hit: the decoder resyncs
             b[2] = 0x3F
         ev_tx.append((t + 0.0003, bytes(b)))
         if k % 50 == 25:
-            ev_tx.append((t + 0.0025, tx_frame(0x05, bytes([seq & 0xFF]))))
+            ev_tx.append((t + 0.0025, tx_frame(0x05, bytes([(k // 50) & 0xFF]))))
         if k % 5 == 0:
             n = seq
-            payload = bytes([n & 0xFF]) + bytes(rng.integers(0, 256, 5).tolist())
+            payload = bytes([n & 0xFF, 1 + n % 3]) + struct.pack("<f", 1.5 * (n % 20))
             ev_tx.append((t + 0.0020, tx_frame(0x10, payload)))
             late = float(rng.uniform(0.003, 0.006))
             if n == RETRY:                               # no answer: the same command again 20 ms later, answered
@@ -97,12 +132,12 @@ def link() -> Tuple[List[Tuple[float, int]], List[Tuple[float, int]], List[Tuple
                 ev_rx.append((t + 0.0020 + late + 0.002, rx_frame(0x90, bytes([n & 0xFF, 0]))))
             seq += 1
         if rx_up(t):
-            b = bytearray(rx_frame(0xA0, bytes(rng.integers(0, 256, 12).tolist())))
+            b = bytearray(rx_frame(0xA0, attitude(t, float(rng.normal(0, 0.3)))))
             if k in (402, 1333):
                 b[9] ^= 0x01
             ev_rx.append((t + 0.0101, bytes(b)))
             if k % 5 == 2:
-                ev_rx.append((t + 0.0131, rx_frame(0xA1, bytes(rng.integers(0, 256, 10).tolist()))))
+                ev_rx.append((t + 0.0131, rx_frame(0xA1, status(t, k))))
 
     def serial(ev: List[Tuple[float, bytes]]):
         out: List[Tuple[float, int]] = []
@@ -122,6 +157,49 @@ def link() -> Tuple[List[Tuple[float, int]], List[Tuple[float, int]], List[Tuple
     return tx, rx, frames
 
 
+def _fld(name, offset, type_, endian="le", scale=1, unit="", **kw):
+    f = {"name": name, "offset": offset, "type": type_, "endian": endian}
+    if scale != 1:
+        f["scale"] = scale
+    if unit:
+        f["unit"] = unit
+    f.update(kw)
+    return f
+
+
+# the messages' structure (MSG2) - offsets from the header's first byte: AA 55 | len | type | payload from 4
+TX_STRUCTURE = {
+    "kind": "binary", "name": "Ground -> vehicle (TX)", "header": "AA55",
+    "length": {"offset": 2, "add": 5}, "type": {"offset": 3}, "checksum": {"scheme": "sum8", "from": 2},
+    "messages": [
+        {"id": 0x01, "name": "HELLO", "fields": [_fld("version", 4, "u8")]},
+        {"id": 0x02, "name": "CONFIG", "fields": [_fld("rate", 4, "u8", unit="Hz"), _fld("mode", 5, "u8")]},
+        {"id": 0x05, "name": "HEARTBEAT", "fields": [_fld("counter", 4, "u8")]},
+        {"id": 0x10, "name": "COMMAND", "fields": [_fld("seq", 4, "u8"), _fld("cmd", 5, "u8", labels={"1": "GOTO", "2": "HOLD", "3": "LAND"}),
+                                                    _fld("param", 6, "f32")]},
+        {"id": 0x20, "name": "SETPOINT", "fields": [
+            _fld("roll_cmd", 4, "i16", "le", 0.01, "deg"), _fld("pitch_cmd", 6, "i16", "le", 0.01, "deg"),
+            _fld("yaw_cmd", 8, "u16", "le", 0.01, "deg"), _fld("throttle", 10, "u8", unit="%"),
+            _fld("armed", 11, "u8", bits=[0, 1]), _fld("auto", 11, "u8", bits=[1, 1])]},
+    ]}
+# EB 90 | type | len | payload from 4 - the angles MSB first (big-endian), the altitude LSB first
+RX_STRUCTURE = {
+    "kind": "binary", "name": "Vehicle -> ground (RX)", "header": "EB90",
+    "length": {"offset": 3, "add": 6}, "type": {"offset": 2}, "checksum": {"scheme": "crc16ccitt", "from": 2},
+    "messages": [
+        {"id": 0x81, "name": "HELLO_ACK", "fields": [_fld("version", 4, "u8")]},
+        {"id": 0x82, "name": "CONFIG_ACK", "fields": [_fld("result", 4, "u8")]},
+        {"id": 0x90, "name": "ACK", "fields": [_fld("seq", 4, "u8"), _fld("status", 5, "u8")]},
+        {"id": 0xA0, "name": "ATTITUDE", "fields": [
+            _fld("roll", 4, "i16", "be", 0.01, "deg"), _fld("pitch", 6, "i16", "be", 0.01, "deg"),
+            _fld("yaw", 8, "u16", "be", 0.01, "deg"), _fld("alt", 10, "i32", "le", 0.01, "m"), _fld("climb", 14, "i16", "le", 0.01, "m/s")]},
+        {"id": 0xA1, "name": "STATUS", "fields": [
+            _fld("battery", 4, "u16", "le", 0.001, "V"), _fld("current", 6, "i16", "le", 0.01, "A"), _fld("temp", 8, "i8", unit="degC"),
+            _fld("sats", 9, "u8"), _fld("mode", 10, "u8", labels={"1": "MANUAL", "2": "AUTO"}), _fld("rssi", 11, "u8", scale=-1, unit="dBm"),
+            _fld("errors", 12, "u16", "be")]},
+    ]}
+
+
 def main(folder: str):
     os.makedirs(folder, exist_ok=True)
     tx, rx, frames = link()
@@ -134,6 +212,10 @@ def main(folder: str):
         f.write("time,byte,dir\n")
         for t, b, d in both:
             f.write("%.6f,%d,%s\n" % (t, b, d))
+    import json
+    for fn, st in (("link_tx.svmsg.json", TX_STRUCTURE), ("link_rx.svmsg.json", RX_STRUCTURE)):
+        with open(os.path.join(folder, fn), "w", newline="\n", encoding="utf-8") as f:
+            f.write(json.dumps(st, indent=1) + "\n")
     # TX as columns: one message per row (a logger that writes a frame per line)
     rows = [(t, list(fr)) for t, fr in frames]
     width = 16

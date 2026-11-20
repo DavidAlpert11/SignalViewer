@@ -27,6 +27,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Release 1.32.0 - RE2 ready reports made of parts (owner, 2026-11-19) | in main; version, CHANGELOG, README, docs, pictures 48-51, the agent's cleanup and skills | the owner checks, deletes the old branches and tags v1.32.0 (the commands were given) |
 | Reports - open work | see `docs/dev/REPORTS.md` "Open" | the CLI making the written report; RE2.6 block editor; RE2.7 |
 | MSG1 - byte-stream messages: a dedicated plot and a report (owner, 2026-11-19) | built and checked 2026-11-20 (+ the owner's additions: TX / RX, direction column, packet make-up, order, requests / replies, handshake) | the owner looks; left: matching a command with its effect in another signal |
+| MSG2 - messages to signals: a structure (proposed or written) turns messages into a recording; NMEA (owner, 2026-11-20) | built 2026-11-20 (pushed before the e2e, owner's word) | the owner looks; next: bit fields in the form, arrays / repeated groups (GSV's satellites), a CLI |
 | CLR1 - Clear and the report (owner, 2026-11-19: "when the recording is cleared, what happens to the report? how is it cleared?") | done (2026-11-19): the proposal below built | the owner looks |
 | README review for 1.32 (owner, 2026-11-19: "update the README") | the RE2 lines are in; a full pass not done | do the full pass before the owner tags v1.32.0 |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
@@ -134,6 +135,19 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-20 · MSG2 (owner: "define the message structure - the variables' types and the messages - and the app turns it into
+  a recording's signals; or it finds the repeating pattern and proposes header1, header2, length, checksum; NMEA with commas,
+  numbers as text; LSB / MSB"): svcore/protocol.py - binary (header, length / size / per-message size, type, checksum, fields:
+  u8..f64, le / be, scale, add, bits, labels) and text (start, sep, *HH, fields by index: number / int / text / lat / lon /
+  hhmmss / ddmmyy; a message id matches the sentence with or without its talker); parse -> a pushed run "python:messages/<name>"
+  (session: not saved as a file, re-made from ws.messageStreams[].made with the same id); suggest - NMEA when the bytes are
+  `$…` text (unknown sentences by place), else the framing found + fields guessed by smoothness between messages (f32, i32
+  with sign-only top bytes, i16 / u16 le / be - signed when it crosses zero, two bytes when the high one hardly moves and the
+  low one never wraps, counter, flags, b<n>); the .nmea reader; the dialog's structure part (Propose / NMEA / Load / Save,
+  form or JSON, per direction, Make the recording); examples linkStructure (link_tx/rx.svmsg.json, the demo's payloads now
+  real values) and gpsNmea (receiver.nmea, receiver_uart.csv); docs/messages.md. Decisions: a recording, not derived signals
+  (many fields, each message its own times - a file's shape); fields named by place when proposed (value_4, b10) - the user
+  names them.
 - 2026-11-20 · MSG1 checked: quick_check green; e2e test_messages (2, new), test_report_parts (3), test_report_doc (3; one
   failure under load, green again alone), test_welcome_cards (10; Help → Examples now 13), test_fresh_user (6),
   test_live_report (6), test_findings_report (2), test_confluence_copy (1). The whole suite not run yet (end of round).

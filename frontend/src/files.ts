@@ -306,6 +306,7 @@ export async function openDropped(dropped: File[]) {
 
 import { pickPath } from "./store";
 import type { Workspace } from "./store";
+import type { MessageStream } from "./store/model";
 
 /** Everything needed to rebuild the workspace: layout, files (paths + import
  *  settings, not data), derived signals as formulas, and UI preferences. */
@@ -315,7 +316,8 @@ export function currentState() {
   return {
     ws: st.ws,
     derived: (drv?.signals ?? []).map((s) => ({ name: s.name, op: s.op, sources: s.sources, params: s.params })),
-    runs: st.runs.filter((r) => r.format !== "derived").map((r) => ({
+    // MSG2: a recording made from messages has no file - it is made again from ws.messageStreams
+    runs: st.runs.filter((r) => r.format !== "derived" && !r.path.startsWith("python:messages/")).map((r) => ({
       id: r.id, path: r.path, name: r.name, importSettings: r.importSettings, timeOffset: r.timeOffset, tag: r.tag, color: r.color,
     })),
     ui: { theme: st.theme, lang: st.lang, uiScale: st.uiScale, linkRuns: st.linkRuns, linkEdits: st.linkEdits,
@@ -360,6 +362,11 @@ export async function applyState(state: any, opts: { announce?: boolean } = {}) 
     if (state.transforms && Object.keys(state.transforms).length) {
       const specs = Object.fromEntries(Object.entries(state.transforms).filter(([id]) => keep.has(id.split("/")[0])));
       if (Object.keys(specs).length) await api.setTransformSpecs(specs as never).catch(() => {});
+    }
+    // MSG2: the recordings made from messages (their streams' files are open now), before the derived signals
+    if (state.ws.messageStreams?.some((m: MessageStream) => m.made?.length)) {
+      const { remakeRecordings } = await import("./messages");
+      for (const id of await remakeRecordings(state.ws.messageStreams)) keep.add(id);
     }
     let derivedFailed = 0;
     if (state.derived?.length) {

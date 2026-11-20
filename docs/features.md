@@ -188,6 +188,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Smart search: substrings, letters in order (“spd” → Speed), one typo (“sepeed” → Speed); exact matches win
 - Right-click: add, new plot, use as X, Create signal ▸ (derivative, integral, other operations… – Create signals opens with the signal chosen)
 - **Messages in a byte stream** (MSG1): right-click a signal of bytes (or select byte columns, one message per row) ▸ *Decode as messages…* - the header, length, type and checksum found by themselves, broken messages resynced; a tab with the message type, length, interval and checksum good / bad; a stream recorded both ways is split by its direction column (TX / RX); the report part `[[messages]]` ([Reports](reports.md#messages-in-a-byte-stream))
+- **Messages to signals** (MSG2): a structure - proposed by the app (header, length, type, checksum; fields LSB / MSB first, signed, 32-bit, float, counters, flags) or written by you (a form or JSON, saved as `.svmsg.json`), binary or text (NMEA built in) - turns the messages into a recording of their own; a raw `.nmea` file opens as a recording at once ([Messages: from bytes to signals](messages.md))
 
 ### Legend names
 

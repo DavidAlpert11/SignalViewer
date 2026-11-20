@@ -558,7 +558,7 @@ def test_fs_list_and_complete(tmp_path):
 def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
     from app.routes import fs as m
     r = client.get("/api/examples").json()
-    assert [x["id"] for x in r] == ["flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "reportDemo", "serialLink", "investigate",
+    assert [x["id"] for x in r] == ["flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "reportDemo", "serialLink", "linkStructure", "gpsNmea", "investigate",
                                     "folderOfFlights", "sweepTable", "commonGains", "smartSweepDemo"] and len(r[2]["paths"]) == 3
     assert [x.get("open") for x in r[-3:]] == ["sweep", "study", "study"] and r[-1]["paths"][-1].endswith("demo.svstudy.json")
     assert all(os.path.isfile(p) for x in r for p in x["paths"])
@@ -568,7 +568,7 @@ def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
     r = client.get("/api/examples").json()
     # owner, 2026-11-18: a recording the app can write counts as there (svcore/example_data); a set with a file
     # that is neither shipped nor written by code (the sweeps' tables, a folder's measures.json) is left out
-    assert [x["id"] for x in r] == ["flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "reportDemo", "serialLink", "investigate"]
+    assert [x["id"] for x in r] == ["flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "reportDemo", "serialLink", "linkStructure", "gpsNmea", "investigate"]
     assert r[0]["paths"] == [str(tmp_path / "uav_flight.csv")]                      # all shipped: as they are
     assert r[1]["paths"][1] == str(tmp_path / "made" / "uav_flight_windy.csv")      # else where they will be written
 
