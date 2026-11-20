@@ -81,6 +81,26 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   handshake at 0 s and after the dropout, COMMAND / ACK with an echoed seq, 3 lost, 1 retry. **Left (not built):**
   matching between columns beyond the two directions (a command on the link and its effect in another signal -
   firstchange.lag), a direction lane / unanswered marks in the tab, a timeout option.
+- **MSG3 - where messages and links live in the app (owner, 2026-11-20: "after the implementation, rethink the right
+  place of this in the app's design and how it fits the whole app") - proposal, waiting for the owner:**
+  Today the entry points are scattered: a signal's right-click *Decode as messages…* (a dialog that grew: the
+  definition, the structure editor, Make the recording), *Live ▾ → Listen to a link*, opening `.nmea` / `.svraw`
+  files, the report part `[[messages]]`, and the older ICD layouts in the readers folder (T61) - two ways to describe
+  a packet. Proposed:
+  1. **One home: a side panel "Messages"** (a rail button beside Investigate / Report - a tool that needs room, per
+     CLAUDE.md). It lists the byte streams of the open files (found by themselves, with their count, header and
+     checksum at a glance), each with its definition (TX / RX / both with a direction column / TX and RX), its
+     structure, and three actions: *Plot the messages* (the tab of today), *Make the recording*, *Add to the report*.
+     The structure editor moves into the panel (room for the fields table). The right-click item stays as a second
+     entry point that opens the panel on that signal (shortcuts and menus are the allowed second entries).
+  2. **One structure library**: a folder (`~/.signalviewer/structures`, as the readers folder) holding `.svmsg.json`
+     and the ICD layouts, plus NMEA built in - offered in the panel, in *Listen to a link* and when a raw file is
+     opened. The ICD format becomes a structure with an optional time field (one way to describe a packet; old
+     `.icd.json` files keep working - they load as structures already).
+  3. **Live stays in Live ▾** (one place for live sources: MAVLink and links), choosing its structure from the library;
+     a running link shows in the panel too (bytes / s, messages / s, errors).
+  4. Later: a raw binary dump without times (a `.bin` from a logger) opened with a structure (times from a field, or
+     the baud rate), and a hex view of the bytes around a broken message.
 - **CLR1 - Clear and the report (studied 2026-11-19):** the Clear menu (`frontend/src/clearing.ts clearMenuItems`:
   this tab / other tabs / all tabs / the work / everything) never touches `ws.report` except *Clear everything* (a new
   workspace: the report gone too). So after *Clear all tabs* the report keeps `[[tab.plot]]` references to tabs that
