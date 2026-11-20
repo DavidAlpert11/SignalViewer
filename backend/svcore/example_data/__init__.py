@@ -89,7 +89,8 @@ GENERATORS: List[Tuple[Sequence[str], Sequence[str], Callable[[str], None]]] = [
     (["three_objects.csv"], [], _three_objects),
     (["report_demo/mission_ref.csv", "report_demo/mission_gust.csv"], [], _report_demo),
     (["serial_link/link_tx_rx.csv", "serial_link/link_mixed.csv", "serial_link/link_columns.csv",
-      "serial_link/link_tx.svmsg.json", "serial_link/link_rx.svmsg.json"], [], _serial_link),
+      "serial_link/link_tx.svmsg.json", "serial_link/link_rx.svmsg.json", "serial_link/sensor_uart.csv",
+      "serial_link/sensor.svmsg.json"], [], _serial_link),
     (["gps_nmea/receiver.nmea", "gps_nmea/receiver_uart.csv"], [], _gps_nmea),
 ]
 GENERATED: Dict[str, int] = {f: i for i, (files, _, _) in enumerate(GENERATORS) for f in files}

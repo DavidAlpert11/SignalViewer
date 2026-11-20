@@ -65,10 +65,13 @@ export default function StructureEditor({ value, onChange }: { value: Structure;
               <label>{t("msgCs")} <select className="msg-cs2" value={cs?.scheme ?? ""}
                 onChange={(e) => set({ checksum: e.target.value ? { scheme: e.target.value, from: cs?.from ?? 2 } : null })}>
                 <option value="">{t("msgNone2")}</option>{SCHEMES.map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
+              <label>{t("msgFooter")} <input className="msg-footer" size={6} placeholder="—" value={value.footer ?? ""}
+                onChange={(e) => set({ footer: e.target.value || null })} /></label>
               {cs && <label>{t("msgCsFrom")} <input type="number" min={0} value={cs.from} onChange={(e) => set({ checksum: { scheme: cs.scheme, from: num(e.target.value) } })} /></label>}
             </> : <>
               <label>{t("msgStart")} <input size={2} value={value.start ?? "$"} onChange={(e) => set({ start: e.target.value })} /></label>
               <label>{t("msgSep")} <input size={2} value={value.sep ?? ","} onChange={(e) => set({ sep: e.target.value })} /></label>
+              <label>{t("msgEnd")} <input size={3} placeholder={t("msgEndLine")} value={value.end ?? ""} onChange={(e) => set({ end: e.target.value || null })} /></label>
               <label>{t("msgCs")} <select value={value.checksum === "nmea" ? "nmea" : ""} onChange={(e) => set({ checksum: e.target.value || null })}>
                 <option value="">{t("msgNone2")}</option><option value="nmea">{t("msgCsNmea")}</option></select></label>
             </>}

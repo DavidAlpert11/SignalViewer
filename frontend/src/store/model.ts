@@ -143,7 +143,9 @@ export interface StructField { name: string; type?: string; offset?: number; ind
 export interface StructMessage { id: number | string; name: string; size?: number | null; fields: StructField[] }
 export interface Structure { kind: "binary" | "text"; name?: string; header?: string; length?: { offset: number; add: number } | null;
   type?: { offset: number } | null; size?: number | null; checksum?: { scheme: string; from: number } | string | null;
-  start?: string; sep?: string; messages: StructMessage[] }
+  start?: string; sep?: string; messages: StructMessage[];
+  /** binary: fixed end bytes in hex ("0D0A") - without a length / size a message ends at it; text: a sentence's end */
+  footer?: string | null; end?: string | null }
 export interface ReportAsset { name: string; mime: string; data: string; w: number; h: number }
 /** 26.U4: pass / fail per signal and file against a baseline, as a report section */
 export interface ReportVerdict { id: string; title: string; summary: string[]; head: string[]; rows: string[][] }

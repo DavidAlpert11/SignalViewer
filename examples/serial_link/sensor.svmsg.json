@@ -1,0 +1,120 @@
+{
+ "kind": "binary",
+ "name": "Sensor board",
+ "header": "A55A",
+ "type": {
+  "offset": 2
+ },
+ "checksum": {
+  "scheme": "xor8",
+  "from": 2
+ },
+ "footer": "0D0A",
+ "messages": [
+  {
+   "id": 1,
+   "name": "IMU",
+   "fields": [
+    {
+     "name": "ax",
+     "offset": 3,
+     "type": "i16",
+     "endian": "le",
+     "scale": 0.001,
+     "unit": "g"
+    },
+    {
+     "name": "ay",
+     "offset": 5,
+     "type": "i16",
+     "endian": "le",
+     "scale": 0.001,
+     "unit": "g"
+    },
+    {
+     "name": "az",
+     "offset": 7,
+     "type": "i16",
+     "endian": "le",
+     "scale": 0.001,
+     "unit": "g"
+    },
+    {
+     "name": "gx",
+     "offset": 9,
+     "type": "i16",
+     "endian": "le",
+     "scale": 0.01,
+     "unit": "deg/s"
+    },
+    {
+     "name": "gy",
+     "offset": 11,
+     "type": "i16",
+     "endian": "le",
+     "scale": 0.01,
+     "unit": "deg/s"
+    },
+    {
+     "name": "gz",
+     "offset": 13,
+     "type": "i16",
+     "endian": "le",
+     "scale": 0.01,
+     "unit": "deg/s"
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "name": "BARO",
+   "fields": [
+    {
+     "name": "pressure",
+     "offset": 3,
+     "type": "u32",
+     "endian": "le",
+     "unit": "Pa"
+    },
+    {
+     "name": "temp",
+     "offset": 7,
+     "type": "i16",
+     "endian": "le",
+     "scale": 0.01,
+     "unit": "degC"
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "name": "MAG",
+   "fields": [
+    {
+     "name": "mx",
+     "offset": 3,
+     "type": "i16",
+     "endian": "be",
+     "scale": 0.1,
+     "unit": "uT"
+    },
+    {
+     "name": "my",
+     "offset": 5,
+     "type": "i16",
+     "endian": "be",
+     "scale": 0.1,
+     "unit": "uT"
+    },
+    {
+     "name": "mz",
+     "offset": 7,
+     "type": "i16",
+     "endian": "be",
+     "scale": 0.1,
+     "unit": "uT"
+    }
+   ]
+  }
+ ]
+}

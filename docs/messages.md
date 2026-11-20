@@ -55,7 +55,11 @@ Below that, **The messages' structure → a recording**:
 ```
 
 - Offsets count from **0 at the header's first byte**.
-- `length`: the frame's length = that byte + `add` (no length byte: `"size"` for all, or a `"size"` per message).
+- `length`: the frame's length = that byte + `add` (no length byte: `"size"` for all, a `"size"` per message, or a
+  footer it ends with).
+- `footer`: fixed bytes every message ends with, in hex (`"0D0A"`, `"03"`). A message whose end is not its footer is
+  broken (left out, counted); without a length byte or a size, a message ends at its footer. A checksum sits just
+  before the footer. The app proposes a footer when every message ends with the same bytes.
 - `type`: the byte that tells the messages apart (`id` is its value).
 - `checksum`: in the last 1 or 2 bytes, over the bytes from `from` up to it - `sum8`, `xor8`, `negsum8`, `notsum8`,
   `crc16ccitt` (MSB first), `crc16modbus` (LSB first), `fletcher16` (as UBX). A message whose checksum fails is left
@@ -76,7 +80,8 @@ Below that, **The messages' structure → a recording**:
     {"name": "alt",  "index": 9, "type": "number", "unit": "m"}]}]}
 ```
 
-- A sentence starts with `start` and its values are separated by `sep`; `index` is a value's place (the sentence's
+- A sentence starts with `start`, ends at the end of its line (or at `end` when given, e.g. `"#"`), and its values are
+  separated by `sep`; `index` is a value's place (the sentence's
   name is 0); `"checksum": "nmea"` checks `*HH` (a sentence that fails is left out and counted).
 - A message's `id` matches the sentence's name whole or without its two-letter talker: `GGA` reads `$GPGGA` and
   `$GNGGA`.
@@ -97,4 +102,5 @@ a wrong checksum is left out; one the structure does not know is counted (the lo
 |---|---|
 | **a serial link, byte by byte** | the messages found by themselves (TX: header AA 55, a length byte, sum8; RX: EB 90, CRC-16), a handshake, commands and their ACKs, lost ones, a retry, a dropout and a reconnect - in a *Link review* report |
 | **messages to signals** | the same link with its two structure files (`link_tx.svmsg.json`, `link_rx.svmsg.json`): angles MSB first and LSB first, a 32-bit altitude, a float, flag bits, scales and units - two recordings, plotted |
+| (in the same folder) `sensor_uart.csv` + `sensor.svmsg.json` | a sensor board with a **footer** and no length byte: `A5 5A`, type, payload, xor8, `0D 0A` - IMU (i16 LSB first), barometer (a 32-bit pressure), magnetometer (MSB first); *Propose a structure* finds the header, the footer, the xor8 before it and every field's type and byte order |
 | **a GPS receiver's raw NMEA** | `receiver.nmea` opens as a recording at once (a loop on the map, the fix lost for 5 s, one bad checksum, a maker's own `$PDEMO` sentence); `receiver_uart.csv` is the same receiver byte by byte - *Decode as messages…* → *Propose a structure* proposes NMEA |

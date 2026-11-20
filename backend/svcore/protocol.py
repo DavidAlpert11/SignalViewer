@@ -10,12 +10,16 @@ A structure (a dict, saved as JSON - `.svmsg.json` - and in the session):
             "length": {"offset": 2, "add": 5} | null,        # frame length = that byte + add (null: by type / fixed)
             "type": {"offset": 3} | null,                    # the byte that tells the message (null: one message)
             "size": 13 | null,                               # every frame this long (no length byte, one length)
-            "checksum": {"scheme": "sum8", "from": 2} | null,  # in the last 1 / 2 bytes, over bytes from..before it
+            "checksum": {"scheme": "sum8", "from": 2} | null,  # in the last 1 / 2 bytes (before the footer), over
+                                                             # the bytes from `from` up to it
+            "footer": "0D0A" | null,                         # fixed end bytes; without a length / size a message
+                                                             # ends at its footer
             "messages": [{"id": 32, "name": "SETPOINT", "size": 13 | null, "fields": [
                 {"name": "roll_cmd", "offset": 4, "type": "i16", "endian": "le", "scale": 0.01, "add": 0, "unit": "deg"},
                 {"name": "armed", "offset": 11, "type": "u8", "bits": [0, 1]},       # bit 0, one bit long
                 ...]}]}
   text     {"kind": "text", "name": "NMEA 0183", "start": "$", "sep": ",", "checksum": "nmea" | null,
+            "end": "#" | null,                              # a sentence's end (default: the end of its line)
             "messages": [{"id": "GGA", "name": "GGA", "fields": [
                 {"name": "time", "index": 1, "type": "hhmmss"},       # seconds of the day
                 {"name": "lat", "index": 2, "type": "lat", "hemi": 3}, # ddmm.mmmm + N/S -> degrees
@@ -116,8 +120,12 @@ def check(proto: Dict) -> Dict:
         h = re.sub(r"[^0-9a-fA-F]", "", str(proto.get("header") or ""))
         if len(h) < 2 or len(h) % 2:
             raise ProtocolError("The header is one or more bytes in hex, e.g. AA55.")
-        if not proto.get("length") and not proto.get("size") and not all(m.get("size") for m in msgs):
-            raise ProtocolError("Say how long a message is: a length byte, one size for all, or a size for each message.")
+        if proto.get("footer") not in (None, ""):
+            f_ = re.sub(r"[^0-9a-fA-F]", "", str(proto["footer"]))
+            if not f_ or len(f_) % 2:
+                raise ProtocolError("The footer is one or more bytes in hex, e.g. 0D0A.")
+        if not proto.get("length") and not proto.get("size") and not proto.get("footer") and not all(m.get("size") for m in msgs):
+            raise ProtocolError("Say how long a message is: a length byte, one size for all, a size for each message, or a footer it ends with.")
         if len(msgs) > 1 and not proto.get("type"):
             raise ProtocolError("Several messages need the byte that tells them apart (\"type\").")
         cs = proto.get("checksum")
@@ -168,7 +176,7 @@ def parse_binary(t: np.ndarray, raw: np.ndarray, proto: Dict) -> Dict:
     data = raw.tobytes()
     starts = [m.start() for m in re.finditer(re.escape(h), data)] if len(h) else []
     cs = proto.get("checksum")
-    k = 0 if not cs else (1 if cs["scheme"] in bs.SCHEMES_1 else 2)
+    ft = bytes.fromhex(re.sub(r"[^0-9a-fA-F]", "", str(proto.get("footer") or "")))
     frames: Dict[int, List[int]] = {}
     report = {"frames": 0, "bad": 0, "unknown": {}, "outside": 0}
     i, j = 0, 0
@@ -188,11 +196,17 @@ def parse_binary(t: np.ndarray, raw: np.ndarray, proto: Dict) -> Dict:
         if proto.get("length"):
             lo = int(proto["length"]["offset"])
             L = data[p + lo] + int(proto["length"].get("add", 0)) if p + lo < n else -1
-        else:
-            L = int((m or {}).get("size") or proto.get("size") or -1)
+        elif (m or {}).get("size") or proto.get("size"):
+            L = int((m or {}).get("size") or proto.get("size"))
+        else:                                             # no length: the message ends at its footer
+            e_ = data.find(ft, p + len(h) + 1) if ft else -1
+            L = e_ + len(ft) - p if e_ >= 0 else -1
         end = p + L
         good = L >= len(h) + 1 and end <= n
-        if good and cs and not bs.checksum_ok(data[p:end], cs["scheme"], int(cs.get("from", 0))):
+        if good and ft and data[end - len(ft):end] != ft:  # its end is not the footer: a broken frame
+            report["bad"] += 1
+            good = False
+        if good and cs and not bs.checksum_ok(data[p:end - len(ft)], cs["scheme"], int(cs.get("from", 0))):
             nxt_ok = end == n or data[end:end + len(h)] == h
             report["bad"] += 1
             if nxt_ok:                                    # a frame whose end is right: its bytes were hit - skip it
@@ -225,7 +239,6 @@ def parse_binary(t: np.ndarray, raw: np.ndarray, proto: Dict) -> Dict:
             if f.get("labels"):
                 labels[f"{name}.{f['name']}"] = {int(a): str(b) for a, b in f["labels"].items()}
     report["messages"] = counts
-    del k
     return {"signals": signals, "labels": labels, "report": report, "units": _units(msgs)}
 
 
@@ -268,9 +281,14 @@ def _num(s: str, ty: str, hemi: str = "") -> float:
         return math.nan
 
 
-def sentences(text: str, start: str = "$") -> List[Tuple[int, str]]:
-    """(position, sentence) of each sentence: from a start character to the end of its line (or the next start)."""
+def sentences(text: str, start: str = "$", end: Optional[str] = None) -> List[Tuple[int, str]]:
+    """(position, sentence) of each sentence: from a start character to the end of its line (or the next start), or
+    to `end` when the structure gives one (the end itself left out)."""
     out = []
+    if end:
+        for m in re.finditer(re.escape(start) + r"(.*?)" + re.escape(end), text, re.S):
+            out.append((m.start(), (start + m.group(1)).strip()))
+        return out
     for m in re.finditer(re.escape(start) + r"[^\r\n" + re.escape(start) + r"]*", text):
         out.append((m.start(), m.group(0).strip()))
     return out
@@ -289,7 +307,7 @@ def parse_text(text: str, proto: Dict, times: Optional[np.ndarray] = None) -> Di
     last_t: Optional[float] = None
     day0: Optional[float] = None
     day = 0.0
-    for pos, line in sentences(text, start):
+    for pos, line in sentences(text, start, proto.get("end") or None):
         report["sentences"] += 1
         if proto.get("checksum") == "nmea" and nmea_ok(line) is False:
             report["bad"] += 1
@@ -432,10 +450,12 @@ def _guess_fields(raw: np.ndarray, at: np.ndarray, first: int, last: int) -> Lis
             if best is None:
                 for en, lo, hi in (("le", j, j + 3), ("be", j + 3, j)):
                     tops = [u8(j + 2), u8(j + 3)] if en == "le" else [u8(j), u8(j + 1)]
-                    sign_only = all(len(np.unique(x)) == 1 and int(x[0]) in (0, 255) for x in tops)
+                    # the top two bytes hardly move (a sign, or a large value that changes slowly)
+                    still = all(len(np.unique(x)) <= 2 for x in tops) and not all(len(np.unique(x)) == 1 and int(x[0]) not in (0, 255) for x in tops)
                     v = val({"type": "i32", "offset": j, "endian": en})
-                    if sign_only and moves(lo) and _rough(v) < 0.05:
-                        best = {"type": "i32", "offset": j, "endian": en}
+                    if still and moves(lo) and _rough(v) < 0.05:
+                        neg = bool((tops[0 if en == "be" else 1] >= 0x80).any())
+                        best = {"type": "i32" if neg or bool((tops[1 if en == "le" else 0] == 255).any()) else "u32", "offset": j, "endian": en}
                         break
         if best is None and j + 1 <= last:
             cands = []
@@ -443,11 +463,15 @@ def _guess_fields(raw: np.ndarray, at: np.ndarray, first: int, last: int) -> Lis
                 lo, hi = (j, j + 1) if en == "le" else (j + 1, j)
                 f = {"type": "u16", "offset": j, "endian": en}
                 u = val(f)
-                signed = bool((u >= 0xC000).any() and (u < 0x4000).any())
+                # crosses zero (both ends), or sits just below it
+                signed = bool(((u >= 0xC000).any() and (u < 0x4000).any()) or (u >= 0xC000).all())
                 if signed:
                     f["type"] = "i16"
                 cands.append((_rough(val(f)), f, lo, hi))
-            r, f, lo, hi = min(cands, key=lambda x: x[0])
+            # the byte order: the high byte changes less often than the low one (then the smoother reading)
+            changes = lambda b: int(np.count_nonzero(np.diff(u8(b))))
+            right = [c for c in cands if changes(c[3]) < changes(c[2])] or cands
+            r, f, lo, hi = min(right, key=lambda x: x[0])
             # a real 16-bit value: its low byte moves a lot and alone it is not smooth (it wraps); a byte next to a
             # nearly constant one (flags, a status) is two bytes
             wraps = bool(np.any(np.abs(np.diff(u8(lo))) > 128))
@@ -521,10 +545,34 @@ def suggest(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Optional[D
                                                                 "from": 2 if r["checksum"]["over"].startswith("without") else 0},
                    "messages": []}
     k = r["ckLen"]
-    used = [o for o in (rule.get("off") if rule["how"] == "length" else None, toff) if o is not None]
-    first = max([1] + used) + 1
     m = r["messages"]
     ok = m["ok"]
+    # a footer: the same last 1 or 2 bytes in (nearly) every message - then a checksum may sit just before it
+    data = r["raw"].tobytes()
+    ends = [data[int(p_) + int(L_) - 2: int(p_) + int(L_)] for p_, L_ in zip(m["start"], m["len"])]
+    foot = b""
+    if not r["checksum"] and len(ends) >= 4:
+        for size in (2, 1):
+            tails = [e[-size:] for e in ends]
+            v, c = max(((x, tails.count(x)) for x in set(tails)), key=lambda z: z[1])
+            if c >= 0.95 * len(tails):
+                foot = v
+                break
+    if foot:
+        proto["footer"] = foot.hex().upper()
+        frames_ = [data[int(p_): int(p_) + int(L_) - len(foot)] for p_, L_ in zip(m["start"], m["len"])][:400]
+        best = None
+        for scheme in bs.SCHEMES:
+            for skip in (2, 0):
+                f = float(np.mean([bs.checksum_ok(fr, scheme, skip) for fr in frames_]))
+                if f >= 0.8 and (best is None or f > best[2]):
+                    best = (scheme, skip, f)
+        if best:
+            proto["checksum"] = {"scheme": best[0], "from": best[1]}
+            k = 1 if best[0] in bs.SCHEMES_1 else 2
+        k += len(foot)
+    used = [o for o in (rule.get("off") if rule["how"] == "length" else None, toff) if o is not None]
+    first = max([1] + used) + 1
     for x in sorted(r["types"], key=lambda x: x["type"]):
         sel = ((m["type"] == x["type"]) if toff is not None else np.ones(len(m["t"]), dtype=bool)) & ok
         L = x["lengths"][0]

@@ -51,8 +51,9 @@ def test_suggested_binary_structure_reads_like_the_real_one():
     assert (s["header"], s["length"], s["type"], s["checksum"]) == ("EB90", {"offset": 3, "add": 6}, {"offset": 2},
                                                                      {"scheme": "crc16ccitt", "from": 2})
     att = next(m for m in s["messages"] if m["id"] == 0xA0)
-    assert [(f["offset"], f["type"], f["endian"]) for f in att["fields"]] == [
-        (4, "i16", "be"), (6, "i16", "be"), (8, "u16", "be"), (10, "i32", "le"), (14, "i16", "le")]
+    got = [(f["offset"], f["type"], f["endian"]) for f in att["fields"]]
+    assert got[3][0] == 10 and got[3][1] in ("i32", "u32") and got[3][2] == "le"       # a positive altitude: either reads
+    assert got[:3] + got[4:] == [(4, "i16", "be"), (6, "i16", "be"), (8, "u16", "be"), (14, "i16", "le")]
     tx = P.suggest(_link("tx_byte"))
     sp = next(m for m in tx["messages"] if m["id"] == 0x20)
     assert [(f["offset"], f["type"]) for f in sp["fields"][:3]] == [(4, "i16"), (6, "i16"), (8, "u16")]
@@ -133,3 +134,28 @@ def test_parse_route_makes_a_recording_with_the_given_id():
     assert c.get("/api/messages/nmea").json()["structure"]["name"] == "NMEA 0183"
     n = store.open_file(os.path.join(EX, "gps_nmea", "receiver.nmea"))
     assert "GGA.lat [deg]" in n.run.signals
+
+
+def test_footer_no_length_byte():
+    """Owner, 2026-11-20: "a footer" - the sensor board: A5 5A | type | payload | xor8 | 0D 0A, no length byte."""
+    d = np.genfromtxt(os.path.join(EX, "serial_link", "sensor_uart.csv"), delimiter=",", names=True)
+    sig = [(d["time"], d["sensor_byte"])]
+    out = P.parse(sig, _struct("sensor.svmsg.json"))
+    assert out["report"]["messages"] == {"IMU": 1999, "BARO": 400, "MAG": 200} and out["report"]["bad"] == 1
+    _t, az = out["signals"]["IMU.az"]
+    assert -1.031 <= az.min() and az.max() <= -0.969                                # i16 LSB first, x0.001 g
+    _t, p_ = out["signals"]["BARO.pressure"]
+    assert p_[0] == 101325 and p_[-1] == pytest.approx(101325 - 12 * 19.95 * 10, abs=1)     # u32
+    # the footer alone tells where a message ends: the same without the sizes
+    s = P.suggest(sig)
+    assert (s["header"], s["footer"], s["checksum"], s["length"]) == ("A55A", "0D0A", {"scheme": "xor8", "from": 2}, None)
+    assert [(f["offset"], f["type"], f["endian"]) for f in s["messages"][0]["fields"][:5]] == [(3, "i16", "le")] * 1 + [
+        (5, "i16", "le"), (7, "i16", "le"), (9, "i16", "le"), (11, "i16", "le")]
+    baro = next(m for m in s["messages"] if m["id"] == 2)
+    assert [(f["offset"], f["type"]) for f in baro["fields"]] == [(3, "u32"), (7, "i16")] or baro["fields"][0]["type"] in ("u32", "i32")
+    st = _struct("sensor.svmsg.json")
+    for m in st["messages"]:
+        m.pop("size", None)
+    assert P.parse(sig, st)["report"]["messages"]["IMU"] == 1999
+    with pytest.raises(P.ProtocolError, match="footer"):
+        P.check({**st, "footer": "0D0"})

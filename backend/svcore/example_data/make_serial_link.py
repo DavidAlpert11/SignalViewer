@@ -200,6 +200,61 @@ RX_STRUCTURE = {
     ]}
 
 
+# a third device (owner, 2026-11-20: "a footer"): a sensor board - A5 5A | type | payload | xor8 | 0D 0A - no length
+# byte: a message ends at its footer (the payload never holds 0D 0A, as the board escapes it)
+SENSOR_STRUCTURE = {
+    "kind": "binary", "name": "Sensor board", "header": "A55A", "type": {"offset": 2},
+    "checksum": {"scheme": "xor8", "from": 2}, "footer": "0D0A",
+    "messages": [
+        {"id": 1, "name": "IMU", "fields": [
+            _fld("ax", 3, "i16", "le", 0.001, "g"), _fld("ay", 5, "i16", "le", 0.001, "g"), _fld("az", 7, "i16", "le", 0.001, "g"),
+            _fld("gx", 9, "i16", "le", 0.01, "deg/s"), _fld("gy", 11, "i16", "le", 0.01, "deg/s"), _fld("gz", 13, "i16", "le", 0.01, "deg/s")]},
+        {"id": 2, "name": "BARO", "fields": [_fld("pressure", 3, "u32", "le", 1, "Pa"), _fld("temp", 7, "i16", "le", 0.01, "degC")]},
+        {"id": 3, "name": "MAG", "fields": [_fld("mx", 3, "i16", "be", 0.1, "uT"), _fld("my", 5, "i16", "be", 0.1, "uT"), _fld("mz", 7, "i16", "be", 0.1, "uT")]},
+    ]}
+
+
+def sensor_frame(typ: int, payload: bytes) -> bytes:
+    x = typ
+    for b in payload:
+        x ^= b
+    return bytes([0xA5, 0x5A, typ]) + payload + bytes([x, 0x0D, 0x0A])
+
+
+def _no_crlf(pack, *vals):
+    """The payload of the values - nudged by one count where it would hold 0D 0A (the board escapes it)."""
+    vals = list(vals)
+    for _ in range(8):
+        b = pack(*vals)
+        if b"\r\n" not in b:
+            return b
+        vals = [v + 1 for v in vals]
+    return b
+
+
+def sensor() -> List[Tuple[float, int]]:
+    out: List[Tuple[float, int]] = []
+    free = 0.0
+    for k in range(2000):                                 # 20 s at 100 Hz
+        t = k * 0.01
+        fs = [sensor_frame(1, _no_crlf(lambda *v: struct.pack("<6h", *v), round(0.2 * math.sin(t) * 1000), round(0.1 * math.cos(2 * t) * 1000),
+                                       round(-1000 + 30 * math.sin(5 * t)), round(20 * math.cos(t) * 100), round(5 * math.sin(3 * t) * 100), round(10 * 100)))]
+        if k % 5 == 0:
+            fs.append(sensor_frame(2, _no_crlf(lambda p, q: struct.pack("<Ih", p, q), round(101325 - 12 * t * 10), round((24 + t / 10) * 100))))
+        if k % 10 == 0:
+            fs.append(sensor_frame(3, _no_crlf(lambda *v: struct.pack(">3h", *v), round(250 * math.cos(t / 4)), round(250 * math.sin(t / 4)), -400)))
+        for f in fs:
+            b = bytearray(f)
+            if k == 700 and f[2] == 1:                    # a byte hit: the xor fails
+                b[5] ^= 0x04
+            at = max(t + 0.0002, free)
+            for x in b:
+                out.append((round(at, 6), x))
+                at += BYTE_S
+            free = at + 0.0001
+    return out
+
+
 def main(folder: str):
     os.makedirs(folder, exist_ok=True)
     tx, rx, frames = link()
@@ -213,7 +268,11 @@ def main(folder: str):
         for t, b, d in both:
             f.write("%.6f,%d,%s\n" % (t, b, d))
     import json
-    for fn, st in (("link_tx.svmsg.json", TX_STRUCTURE), ("link_rx.svmsg.json", RX_STRUCTURE)):
+    with open(os.path.join(folder, "sensor_uart.csv"), "w", newline="\n", encoding="utf-8") as f:
+        f.write("time,sensor_byte\n")
+        for t, b in sensor():
+            f.write("%.6f,%d\n" % (t, b))
+    for fn, st in (("link_tx.svmsg.json", TX_STRUCTURE), ("link_rx.svmsg.json", RX_STRUCTURE), ("sensor.svmsg.json", SENSOR_STRUCTURE)):
         with open(os.path.join(folder, fn), "w", newline="\n", encoding="utf-8") as f:
             f.write(json.dumps(st, indent=1) + "\n")
     # TX as columns: one message per row (a logger that writes a frame per line)
