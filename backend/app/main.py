@@ -29,6 +29,7 @@ from app.routes import (
     jobs,
     live,
     maps,
+    messages,
     objects,
     push,
     pyops,
@@ -163,6 +164,7 @@ app.include_router(sweeps_report.router)
 app.include_router(live.router)
 app.include_router(data.router)
 app.include_router(analysis.router)
+app.include_router(messages.router)      # MSG3
 app.include_router(compare.router)
 app.include_router(export.router)
 app.include_router(maps.router)

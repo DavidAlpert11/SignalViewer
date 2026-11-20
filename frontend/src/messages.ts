@@ -2,8 +2,10 @@ import { api, type SignalInfo } from "./api";
 import { findDerived } from "./peers";
 import { translate } from "./i18n";
 import { actions, useApp } from "./store";
-import type { MessageStream } from "./store/model";
+import type { MessageStream, Structure } from "./store/model";
 import { freeGroup } from "./frames";
+import { appendToDoc } from "./reportDoc";
+import { confirmAsk, prompt } from "./components/Overlays";
 
 /* MSG1: *Decode as messages…* - a signal of bytes (or byte columns, one message per row) defined as a stream of
    messages (owner, 2026-11-19): it carries only TX, only RX, or both - with a direction column beside it that says
@@ -173,4 +175,63 @@ export async function remakeRecordings(streams: MessageStream[] | undefined): Pr
     if (id) ids.push(id);
   }
   return ids;
+}
+
+/* ---- MSG3: the Messages panel's other actions --------------------------------------------------- */
+
+/** "Add to the report": the definition kept (one Undo step with it) and a [[messages <this stream>]] at the end. */
+export function addStreamToReport(def: MessageStream) {
+  const st = useApp.getState();
+  const ids = def.sources;
+  const name = def.carries === "pair" ? ids.slice(0, 2).map(bare).join(", ") : ids.length === 1 ? bare(ids[0]) : `${bare(ids[0])}…${bare(ids[ids.length - 1])}`;
+  const ref = `[[messages ${name}]]`;
+  st.commit((ws) => {
+    const key = ids.join(",");
+    const old = (ws.messageStreams ?? []).find((m) => m.sources.join(",") === key);
+    ws.messageStreams = [...(ws.messageStreams ?? []).filter((m) => m.sources.join(",") !== key), { ...def, made: def.made ?? old?.made }];
+    return appendToDoc(ws, st.lang, ref);
+  });
+  st.toast({ kind: "info", text: translate(st.lang, "rdAdded", { ref }), action: { label: translate(st.lang, "report"), run: () => useApp.setState({ panel: "report" }) } });
+}
+
+/** A structure into the library's folder (asks before replacing one of the same name). */
+export async function saveToLibrary(structure: Structure): Promise<boolean> {
+  const st = useApp.getState();
+  const name = (await prompt(translate(st.lang, "msgpSaveLib"), translate(st.lang, "msgpSaveAsk"), structure.name || "messages"))?.trim();
+  if (!name) return false;
+  try {
+    let r;
+    structure = { ...structure, name };
+    try { r = await api.messagesLibrarySave(structure, name); } catch (e) {
+      if (!/already in the library/.test(String((e as Error).message))) throw e;
+      if (!await confirmAsk(translate(st.lang, "msgpSaveLib"), translate(st.lang, "msgpReplace", { name }))) return false;
+      r = await api.messagesLibrarySave(structure, name, true);
+    }
+    st.toast({ kind: "info", text: translate(st.lang, "msgpSaved", { path: r.path }), ms: 10000 });
+    return true;
+  } catch (e) {
+    st.toast({ kind: "error", text: String((e as Error).message) });
+    return false;
+  }
+}
+
+/** The message types of a log / recording (MAVLink .tlog, DataFlash .bin, .ulg, a link's or a stream's recording):
+ *  its signals grouped by the name before the first dot - each type's fields, count and rate. */
+export const LOG_FORMATS = new Set(["tlog", "bin", "ulg", "mcap"]);
+export function isMessageLog(r: { format?: string; path?: string; importSettings?: Record<string, unknown> }) {
+  return LOG_FORMATS.has(r.format ?? "") || r.importSettings?.format === "svraw" || (r.path ?? "").startsWith("python:messages/");
+}
+export function messageTypes(signals: SignalInfo[]): { type: string; ids: string[]; count: number; rate: number | null }[] {
+  const by = new Map<string, { type: string; ids: string[]; count: number; rate: number | null }>();
+  for (const s of signals) {
+    const dot = s.name.indexOf(".");
+    if (dot <= 0) continue;
+    const type = s.name.slice(0, dot);
+    const g = by.get(type) ?? { type, ids: [], count: 0, rate: null };
+    g.ids.push(s.id);
+    g.count = Math.max(g.count, s.n ?? 0);
+    if (s.rate !== undefined) g.rate = Math.max(g.rate ?? 0, s.rate);
+    by.set(type, g);
+  }
+  return [...by.values()].sort((a, b) => b.count - a.count || a.type.localeCompare(b.type));
 }

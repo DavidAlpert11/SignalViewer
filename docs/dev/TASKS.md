@@ -29,6 +29,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | MSG1 - byte-stream messages: a dedicated plot and a report (owner, 2026-11-19) | built and checked 2026-11-20 (+ the owner's additions: TX / RX, direction column, packet make-up, order, requests / replies, handshake) | the owner looks; left: matching a command with its effect in another signal |
 | MSG2 - messages to signals: a structure (proposed or written) turns messages into a recording; NMEA (owner, 2026-11-20) | built 2026-11-20 (pushed before the e2e, owner's word) | the owner looks; next: bit fields in the form, arrays / repeated groups (GSV's satellites), a CLI |
 | LINK1 - listen to a serial port / UDP / TCP, decoded live by a structure, recorded to a file (owner, 2026-11-20) | built 2026-11-20 | the owner tries it (tools/send_link_demo.py); next: a session that re-listens, a hex view of the raw bytes |
+| MSG3 - one home for messages: the Messages panel + the structure library (owner, 2026-11-20) | built 2026-11-20 (see Open specs) | the owner looks |
 | CLR1 - Clear and the report (owner, 2026-11-19: "when the recording is cleared, what happens to the report? how is it cleared?") | done (2026-11-19): the proposal below built | the owner looks |
 | README review for 1.32 (owner, 2026-11-19 / 20: "update the README") | done 2026-11-20 | - |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
@@ -81,26 +82,26 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   handshake at 0 s and after the dropout, COMMAND / ACK with an echoed seq, 3 lost, 1 retry. **Left (not built):**
   matching between columns beyond the two directions (a command on the link and its effect in another signal -
   firstchange.lag), a direction lane / unanswered marks in the tab, a timeout option.
-- **MSG3 - where messages and links live in the app (owner, 2026-11-20: "after the implementation, rethink the right
-  place of this in the app's design and how it fits the whole app") - proposal, waiting for the owner:**
-  Today the entry points are scattered: a signal's right-click *Decode as messages…* (a dialog that grew: the
-  definition, the structure editor, Make the recording), *Live ▾ → Listen to a link*, opening `.nmea` / `.svraw`
-  files, the report part `[[messages]]`, and the older ICD layouts in the readers folder (T61) - two ways to describe
-  a packet. Proposed:
-  1. **One home: a side panel "Messages"** (a rail button beside Investigate / Report - a tool that needs room, per
-     CLAUDE.md). It lists the byte streams of the open files (found by themselves, with their count, header and
-     checksum at a glance), each with its definition (TX / RX / both with a direction column / TX and RX), its
-     structure, and three actions: *Plot the messages* (the tab of today), *Make the recording*, *Add to the report*.
-     The structure editor moves into the panel (room for the fields table). The right-click item stays as a second
-     entry point that opens the panel on that signal (shortcuts and menus are the allowed second entries).
-  2. **One structure library**: a folder (`~/.signalviewer/structures`, as the readers folder) holding `.svmsg.json`
-     and the ICD layouts, plus NMEA built in - offered in the panel, in *Listen to a link* and when a raw file is
-     opened. The ICD format becomes a structure with an optional time field (one way to describe a packet; old
-     `.icd.json` files keep working - they load as structures already).
-  3. **Live stays in Live ▾** (one place for live sources: MAVLink and links), choosing its structure from the library;
-     a running link shows in the panel too (bytes / s, messages / s, errors).
-  4. Later: a raw binary dump without times (a `.bin` from a logger) opened with a structure (times from a field, or
-     the baud rate), and a hex view of the bytes around a broken message.
+- **MSG3 - one home for messages and links (owner, 2026-11-20: "organise all the message data - MAVLink, NMEA, general
+  messages - in one central place... a good design for everything") - BUILT 2026-11-20.** What was decided and why:
+  1. **One side panel "Messages"** on the rail between Investigate and Report (a tool that needs room - CLAUDE.md §3).
+     Sections: *Running now* (a link / MAVLink with their numbers - read-only: starting and stopping a live source stays
+     in Live ▾, the one place for live sources), *Byte streams* (the open files' streams found by themselves or defined,
+     each with count / header / checksum / types and rates; a click opens the stream editor in place: what it carries,
+     the framing, the structure, *Plot the messages* / *Make the recording* / *Add to the report*), *Logs with messages*
+     (MAVLink .tlog, .bin, .ulg, .mcap, link recordings and recordings made from messages: each message type's fields,
+     count and rate - MAVLink in the same picture; a click plots a type) and *Structure library*.
+  2. **The dialog is gone**: its contents (StreamEditor.tsx) live in the panel. The signal's right-click *Decode as
+     messages…* stays as the second entry point and opens the panel on that signal (ui `msgFocus`); Ctrl+K → Messages.
+  3. **One structure library** (app/routes/messages.py): NMEA built in + `~/.signalviewer/structures/*.svmsg.json`
+     (Settings key `structuresDir` may move it) + the readers folder's ICD layouts read as structures. Offered in the
+     stream editor (*From the library…*, *A structure file…*, *Save to the library* under a name) and in Live ▾ → Listen
+     to a link. The old Load… / Save… / NMEA buttons became those two (one way to fetch, one way to keep).
+  4. **A raw file**: a `.svraw` opened without its structure says so in a toast with a button to the panel on its bytes.
+  5. Saved fields unchanged (`ws.messageStreams` as before); the report's `[[messages a, b]]` takes several names
+     (*Add to the report* of a TX / RX pair). The panel scans only files that are not logs (a log's messages are decoded).
+  Later (not built): a raw binary dump without times opened with a structure; a hex view around a broken message; a
+  link pill in the top bar like MAVLink's.
 - **CLR1 - Clear and the report (studied 2026-11-19):** the Clear menu (`frontend/src/clearing.ts clearMenuItems`:
   this tab / other tabs / all tabs / the work / everything) never touches `ws.report` except *Clear everything* (a new
   workspace: the report gone too). So after *Clear all tabs* the report keeps `[[tab.plot]]` references to tabs that
@@ -156,6 +157,11 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-20 · MSG3 (owner: "one central place for all the message data - MAVLink, NMEA, general messages"): the Messages
+  panel (MessagesPanel.tsx, StreamEditor.tsx - the dialog removed), app/routes/messages.py (the /api/messages/* routes moved
+  there from analysis.py; library list / get / save / reveal; streams), Live ▾ → Listen to a link from the library, the .svraw
+  toast, `[[messages a, b]]`. Tests: backend test_messages_library (2); e2e test_messages (7: the panel replaces the dialog,
+  a new one for the panel, the running link in it). quick_check green.
 - 2026-11-20 · MSG2 footer (owner: "a footer"): `footer` hex - a message without length / size ends at it, a checksum before it,
   proposed when every message ends the same; text `end`. Sturdier guesses: byte order by which byte changes less, signed when
   just below zero, 32-bit when the top bytes hardly move. Example: serial_link/sensor_uart.csv + sensor.svmsg.json.

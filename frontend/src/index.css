@@ -2005,18 +2005,46 @@ input.fx-input { width: 100%; }
 .map-story-nav { display: flex; gap: var(--sp-1); align-items: center; align-self: flex-end; color: var(--muted); font-size: var(--fs-xs); }
 [dir="rtl"] .welcome-back > span { display: inline-block; transform: scaleX(-1); }
 
-/* MSG1: Decode as messages - what the signal carries, one choice per line */
-.dialog.msgdlg { width: min(560px, 96vw); }
-.msgdlg .msg-carries { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--line); border-radius: var(--r-m); padding: 6px 10px; margin: 8px 0; }
-.msgdlg .msg-framing { margin: 8px 0; }
-.msgdlg .cmpobj-grid { margin-top: 6px; }
-
+/* MSG1 / MSG3: a byte stream's definition, in the Messages panel - what it carries, one choice per line */
+.msgp-edit .msg-carries { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--line); border-radius: var(--r-m); padding: 6px 10px; margin: 8px 0; }
+.msgp-edit .msg-framing { margin: 8px 0; }
+.msgp-edit .cmpobj-grid { margin-top: 6px; }
 /* MSG2: the messages' structure -> a recording */
-.dialog.msgdlg:has(.msg-struct) { width: min(980px, 96vw); }
-.msgdlg .msg-structure { border-top: 1px solid var(--line); margin-top: var(--sp-3); padding-top: var(--sp-2); }
-.msgdlg .msg-structure h3 { margin: 0 0 4px; font-size: var(--fs-m); }
-.msgdlg .msg-struct-tools { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin: var(--sp-2) 0; }
-.msgdlg .msg-sides { margin: var(--sp-1) 0; }
+.msgp-edit .msg-structure { border-top: 1px solid var(--line); margin-top: var(--sp-2); padding-top: var(--sp-2); }
+.msgp-edit .msg-structure h3 { margin: 0 0 4px; font-size: var(--fs-m); }
+.msgp-edit .msg-struct-tools { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin: var(--sp-2) 0; align-items: center; }
+.msgp-edit .msg-sides { margin: var(--sp-1) 0; }
+.msgp-edit .msg-struct { overflow-x: auto; }
+/* MSG3: the Messages panel */
+.messages .msgp-body { padding: 8px 12px 16px; overflow: auto; display: flex; flex-direction: column; gap: var(--sp-2); }
+.messages .msgp-sec > .alist-head { margin-top: 8px; }
+.messages .msgp-sec:first-child > .alist-head, .messages .msgp-running + .msgp-sec > .alist-head { border-top: 0; padding-top: 0; }
+.messages .hint { margin: 2px 0 6px; }
+.msgp-stream { border: 1px solid var(--line); border-radius: var(--r-card); margin: 0 0 var(--sp-2); background: var(--panel); }
+.msgp-stream.open { border-color: var(--line-strong); box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+.msgp-stream-head { display: flex; width: 100%; align-items: baseline; gap: var(--sp-2); padding: 6px 10px; background: none; border: 0; color: var(--ink); cursor: pointer; text-align: start; font: inherit; }
+.msgp-stream-head:hover { background: var(--panel-2); }
+.msgp-name { font-weight: 600; color: var(--ink-strong); display: inline-flex; gap: 6px; align-items: baseline; min-width: 0; overflow-wrap: anywhere; }
+.msgp-file { color: var(--muted); font-size: var(--fs-s); margin-inline-start: auto; }
+.msgp-dir { padding: 0 10px 6px; font-size: var(--fs-s); color: var(--ink); }
+.msgp-types { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.msgp-types .chip-s { font-family: var(--mono); font-size: var(--fs-xs); padding: 1px 6px; border-radius: var(--r-round); background: var(--panel-2); color: var(--muted); }
+.msgp-bad { color: var(--danger); }
+.msgp-edit { border-top: 1px solid var(--line); padding: 6px 10px 10px; }
+.msgp-actions { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin: var(--sp-2) 0 var(--sp-1); }
+.messages .tag { font-size: var(--fs-xs); font-weight: 500; padding: 0 6px; border-radius: var(--r-round); border: 1px solid var(--line); color: var(--muted); }
+.msgp-running .card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.msgp-log { border: 1px solid var(--line); border-radius: var(--r-card); padding: 4px 10px; margin: 0 0 var(--sp-2); }
+.msgp-log summary { cursor: pointer; display: flex; gap: var(--sp-2); align-items: baseline; }
+.msgp-table { border-collapse: collapse; width: 100%; font-size: var(--fs-s); margin: 4px 0; }
+.msgp-table th { text-align: start; color: var(--muted); font-weight: 500; padding: 2px 4px; }
+.msgp-table td { padding: 2px 4px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.msgp-table tbody tr { cursor: pointer; }
+.msgp-table tbody tr:hover, .msgp-table tbody tr:focus { background: var(--panel-2); outline: none; }
+.msgp-lib-list { list-style: none; margin: 0; padding: 0; }
+.msgp-lib-list li { display: flex; gap: var(--sp-2); align-items: baseline; padding: 3px 0; border-top: 1px solid var(--line); font-size: var(--fs-s); }
+.msgp-lib-list li:first-child { border-top: 0; }
+.msgp-folder { overflow-wrap: anywhere; }
 .msg-struct .seg { margin-bottom: var(--sp-2); }
 .msg-struct .msg-frame { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); align-items: center; margin-bottom: var(--sp-2); }
 .msg-struct .msg-frame input[type=number] { width: 4.5em; }
@@ -2026,4 +2054,4 @@ input.fx-input { width: 100%; }
 .msg-struct .msg-fields th { text-align: start; font-weight: 500; color: var(--muted); padding: 2px 4px; }
 .msg-struct .msg-fields td { padding: 1px 4px; }
 .msg-struct .msg-fields input[type=number] { width: 4em; }
-.msg-struct .msg-json { width: 100%; font-family: var(--mono, monospace); font-size: var(--fs-s); }
+.msg-struct .msg-json { width: 100%; font-family: var(--mono); font-size: var(--fs-s); }

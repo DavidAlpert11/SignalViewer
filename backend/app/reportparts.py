@@ -1109,9 +1109,9 @@ def messages(p: Part, rids: List[str], arg: str, o: Dict, defs: Optional[Sequenc
             except bs.StreamError as e:
                 raise PartError("%s: %s" % (s_["name"], e))
         streams = again
-    flt = arg.strip().lower()
-    if flt:
-        streams = [s_ for s_ in streams if flt in s_["name"].lower()]
+    flts = [x.strip() for x in arg.lower().split(",") if x.strip()]     # MSG3: "tx_byte, rx_byte" - either
+    if flts:
+        streams = [s_ for s_ in streams if any(f in s_["name"].lower() for f in flts)]
     if not streams:
         p.say("*%s*" % S_["none_msg"])
         return

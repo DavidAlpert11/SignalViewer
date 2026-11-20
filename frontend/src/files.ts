@@ -194,6 +194,11 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
       if (rep.sorted) parts.push(translate(lang, "sortedRows"));
       if (rep.skipped?.length) parts.push(translate(lang, "skippedCols", { n: rep.skipped.length }));
       if (parts.length) notes.set(parts.join(" · "), [...(notes.get(parts.join(" · ")) ?? []), o.name]);
+      // MSG3: a link recording without its structure is bytes - the Messages panel describes them (the library there)
+      if (o.id && /\.svraw$/i.test(o.path ?? "") && !rep.structure && rep.bytes) useApp.getState().toast({
+        kind: "info", text: translate(lang, "msgpRaw", { name: o.name }), ms: 12000,
+        action: { label: translate(lang, "msgPanel"), run: () => useApp.setState({ panel: "messages", msgFocus: { ids: [`${o.id}/byte`] } }) },
+      });
       if (rep.rememberedSettings) useApp.getState().toast({
         kind: "info", text: translate(lang, "usedRemembered", { name: o.name }),
         action: { label: translate(lang, "forget"), run: () => { api.forgetImport(o.path).catch(() => {}); } },

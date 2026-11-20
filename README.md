@@ -117,12 +117,13 @@ A folder of recordings becomes one table too: the same numbers measured in each,
 **Bytes to signals.** A link recorded byte by byte – or heard live on a serial port, UDP or TCP – is decoded by
 itself: the messages, their types and order, the checksum errors, which message answers which and how fast. Let the
 app propose the messages' structure, correct it in a form, and every value becomes a signal of a recording of its
-own; a raw NMEA file opens as a track on the map at once.
+own; a raw NMEA file opens as a track on the map at once. One *Messages* panel holds it all: the byte streams,
+the message types of the logs (MAVLink included), the links running now and a library of structures.
 [Messages: from bytes to signals](https://davidalpert11.github.io/SignalViewer/messages/)
 
 <table>
 <tr>
-<td width="50%" valign="top"><a href="docs/images/53_messages_structure.png"><img src="docs/images/53_messages_structure.png" alt="Decode as messages: the structure proposed - header A5 5A, the type byte, xor8, the footer 0D 0A, and each message's fields with their type and byte order"></a></td>
+<td width="50%" valign="top"><a href="docs/images/53_messages_structure.png"><img src="docs/images/53_messages_structure.png" alt="The Messages panel: the structure proposed - header A5 5A, the type byte, xor8, the footer 0D 0A, and each message's fields with their type and byte order"></a></td>
 <td width="50%" valign="top"><a href="docs/images/52_messages_recording.png"><img src="docs/images/52_messages_recording.png" alt="Both directions of a serial link decoded into recordings of their own: attitude, status with its mode as a band, acknowledgements - one plot per message"></a></td>
 </tr>
 </table>
@@ -201,7 +202,7 @@ Exit codes and JUnit XML for CI; also export, a Sweeps table from a folder of re
 - **שופטים ריצה:** מגבלות, טולרנסים מול ריצת ייחוס ואיכות נתונים – פסיקה אחת לכל קובץ, ואותן בדיקות גם ב־CI.
 - **בוחרים פרמטרים (Sweeps):** אילו סטים עומדים בכל תרחיש, סט אחד לכמה מערכות, ולולאה שמריצה את הקוד שלכם עד התכנסות.
 - **אף נקודה לא נעלמת:** המספרים תמיד על כל הנתונים, והגרף מוקטן רק כך שכל קפיצה עדיין מצוירת.
-- **מבתים לסיגנלים:** קו תקשורת שהוקלט בית אחר בית, או NMEA גולמי של מקלט: ההודעות נמצאות לבד (כותרת, אורך, סוג, checksum, סיומת), האפליקציה מציעה מבנה – 16 ביט LSB או MSB קודם, עם סימן, 32 ביט, float – או שמגדירים אותו, והערכים הופכים להקלטה. אפשר גם להאזין חי לפורט טורי, UDP או TCP.
+- **מבתים לסיגנלים:** קו תקשורת שהוקלט בית אחר בית, או NMEA גולמי של מקלט: ההודעות נמצאות לבד (כותרת, אורך, סוג, checksum, סיומת), האפליקציה מציעה מבנה – 16 ביט LSB או MSB קודם, עם סימן, 32 ביט, float – או שמגדירים אותו, והערכים הופכים להקלטה. אפשר גם להאזין חי לפורט טורי, UDP או TCP. חלונית *הודעות* אחת מרכזת הכול: זרמי הבתים, סוגי ההודעות של הלוגים (גם MAVLink), הקווים הפעילים וספריית מבנים.
 - **מפה ותלת־ממד:** תצלומי לוויין או מפה לא מקוונת, מעל פני השטח האמיתיים – הרגע של הסמן על המסלול ובכל הגרפים יחד.
 - **שולחים את התשובה:** לחיצה אחת כותבת דוח מוכן מחלקים (פקודה מול ביצוע, שגיאות ניווט בין אובייקטים, התרחיש והרגעים המיוחדים, וההבדלים העיקריים בין קבצים עם האזור המרכזי של השינוי), או כותבים את הדוח כמו Markdown, עם גרפים וערכים מהנתונים ותצוגה חיה; דוח HTML אחד שנפתח ב"התהליך בקצרה", וגם PDF ו־Word, או גרף ולשונית חיים בתוך דף Confluence. תיקייה של הקלטות – טבלה אחת, שורה לכל הקלטה.
 

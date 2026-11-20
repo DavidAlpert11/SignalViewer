@@ -213,7 +213,7 @@ export default function DataPanel() {
         { label: t("tfEditMany", { n: originals.length }), run: () => useApp.setState({ transformTargets: originals }), disabled: !originals.length },
         createSignalItem(sel),
         // MSG1: byte columns, one message per row (byte_0..byte_N)
-        { label: t("sigDecodeMessages"), run: () => { useApp.setState({ messagesDialog: { ids: originals } }); used(); }, disabled: originals.length < 2 },
+        { label: t("sigDecodeMessages"), run: () => { useApp.setState({ panel: "messages", msgFocus: { ids: originals } }); used(); }, disabled: originals.length < 2 },
         { label: "", run: () => {}, sep: true },
         ...groupItems(sel, inGroup),
         ...madeItems(sel),
@@ -239,7 +239,7 @@ export default function DataPanel() {
     ...(sig.id.startsWith("derived/") ? [] : [{ label: t("tfEdit"), run: () => useApp.setState({ transformTargets: [sig.id] }) }]),
     createSignalItem(sig.id),
     // MSG1: a byte stream (whole numbers 0..255): its messages found and plotted
-    ...(sig.labels || sig.discrete || sig.id.startsWith("derived/") ? [] : [{ label: t("sigDecodeMessages"), run: () => useApp.setState({ messagesDialog: { ids: [sig.id] } }) }]),
+    ...(sig.labels || sig.discrete || sig.id.startsWith("derived/") ? [] : [{ label: t("sigDecodeMessages"), run: () => useApp.setState({ panel: "messages", msgFocus: { ids: [sig.id] } }) }]),
     // a state (texts, or a few values): a lane on the tab or on every tab without adding it to a plot first
     ...(sig.labels || sig.discrete ? [{ label: "", run: () => {}, sep: true }, ...laneMenuForSignal(sig.id)] : []),
     // 26.A5: held or interpolated between samples - what was detected, and the user's correction

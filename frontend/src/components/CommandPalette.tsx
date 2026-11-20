@@ -77,6 +77,7 @@ export default function CommandPalette() {
       { id: "tplCollection", label: t("tplMenuCollection"), group: t("templates"), icon: <Icon.Layout />, run: newCollection },
       { id: "clearall", label: t("clearEverything"), group: t("files"), icon: <Icon.Trash />, run: clearEverything },
       { id: "compare", label: t("compare"), group: t("compare"), icon: <Icon.Compare />, run: () => useApp.setState({ panel: "compare" }) },
+      { id: "messages", label: t("msgPanel"), group: t("msgPanel"), icon: <Icon.Messages />, run: () => useApp.setState({ panel: "messages" }) },
       { id: "report", label: t("report"), group: t("report"), icon: <Icon.Report />, run: () => useApp.setState({ panel: "report" }) },
       { id: "replay", label: t("replayCmd"), group: t("report"), icon: <Icon.Send />, run: () => { makeReplay(); } },
       { id: "analysis", label: t("analysis"), group: t("analysis"), icon: <Icon.Analysis />, run: () => useApp.setState({ panel: "analysis" }) },

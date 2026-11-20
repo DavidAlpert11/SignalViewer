@@ -4,7 +4,7 @@ import { toggleLive } from "../live";
 import { mavlinkConnect, mavlinkDisconnect } from "../mavlink";
 import { linkListen, linkStop } from "../link";
 import type { Structure } from "../store/model";
-import { api } from "../api";
+import { api, type LibraryItem } from "../api";
 import { fmtNum } from "../i18n";
 import { actions, pickPath, setInspectorByUser, useApp } from "../store";
 import { PLOT_ID_MIME } from "../store/actions/layout";
@@ -407,9 +407,11 @@ function LinkSection() {
   const [busy, setBusy] = useState(false);
   const [ports, setPorts] = useState<{ device: string; description: string }[]>([]);
   const [presets, setPresets] = useState<string[]>([]);
-  const [how, setHow] = useState<string>("none");          // none | nmea | file | kept:<i>:<label>
+  const [how, setHow] = useState<string>("none");          // none | lib:<key> | file | kept:<i>:<label>
   const [file, setFile] = useState<{ path: string; structure: Structure } | null>(null);
+  const [lib, setLib] = useState<LibraryItem[]>([]);         // MSG3: the structure library (NMEA built in among them)
   useEffect(() => { api.linkPorts().then((r) => { setPorts(r.ports); setPresets(r.presets); }).catch(() => {}); }, []);
+  useEffect(() => { api.messagesLibrary().then((r) => setLib(r.items.filter((i) => !i.error))).catch(() => {}); }, []);
   const serial = !/^(udp|udpin|tcp|tcpin):/i.test(conn.trim());
   const keptOpts = kept.flatMap((m, i) => Object.entries(m.structures ?? {}).map(([lab, s]) => ({ key: `kept:${i}:${lab}`, label: `${s.name || lab} (${lab})`, s })));
   const choose = async (v: string) => {
@@ -425,8 +427,15 @@ function LinkSection() {
   const listen = async () => {
     setBusy(true);
     setPref("sv3.linkConn", conn.trim());
-    const structure = how === "nmea" ? (await api.messagesNmea()).structure : how === "file" ? file?.structure
-      : keptOpts.find((o) => o.key === how)?.s ?? null;
+    let structure: Structure | null | undefined = null;
+    try {
+      structure = how.startsWith("lib:") ? (await api.messagesLibraryGet(how.slice(4))).structure : how === "file" ? file?.structure
+        : keptOpts.find((o) => o.key === how)?.s ?? null;
+    } catch (e) {
+      useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
+      setBusy(false);
+      return;
+    }
     await linkListen(conn.trim(), { baud, structure });
     setBusy(false);
   };
@@ -449,7 +458,7 @@ function LinkSection() {
         <label>{t("linkStructure")}
           <select className="link-structure" value={how} onChange={(e) => void choose(e.target.value)}>
             <option value="none">{t("linkNone")}</option>
-            <option value="nmea">NMEA 0183</option>
+            {lib.map((i) => <option key={i.key} value={`lib:${i.key}`}>{i.name}</option>)}
             <option value="file">{file ? file.path.split(/[\\/]/).pop() : t("linkFile")}</option>
             {keptOpts.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
           </select></label>

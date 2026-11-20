@@ -42,6 +42,13 @@ export interface DerivedQuality {
   interpolated?: { method: string; sources: number[] };
 }
 /** LINK1: a byte link (serial / UDP / TCP) recorded to `path` (.svraw, its structure beside it), followed live. */
+/** MSG3: a structure in the library - NMEA built in, a file of the structures folder, an ICD layout of the readers folder. */
+export interface LibraryItem { key: string; name: string; kind?: "binary" | "text"; source: "builtin" | "folder" | "readers";
+  path?: string; file?: string; messages?: number; error?: string }
+/** MSG3: a byte stream of an open file (one direction), its messages at a glance. `key`: its definition's sources. */
+export interface StreamRow { key: string; name: string; rid: string; file: string; ids: string[]; params: Record<string, unknown>;
+  error?: string; count?: number; bytes?: number; header?: string; framing?: string; checksum?: string | null; errors?: number;
+  duration?: number; typed?: boolean; types?: { type: number; count: number; rate: number | null }[] }
 export interface LinkStatus { running: boolean; conn?: string; path?: string; bytes?: number; chunks?: number; written?: number;
   rate?: number; sinceData?: number | null; peer?: string | null; error?: string | null }
 /** Live MAVLink receiver (T12): the link is recorded to `path` (.tlog), which live mode follows. */
@@ -354,6 +361,13 @@ export const api = {
     call<{ run: string; new: boolean; signals: string[]; runs: RunInfo[]; report: Record<string, unknown> }>("/api/messages/parse", { sources, params, structure, name, id: id ?? null }),
   messagesStructure: (path: string) => call<{ structure: Structure }>("/api/messages/structure", { path }),
   messagesNmea: () => call<{ structure: Structure }>("/api/messages/nmea"),
+  // MSG3: the structure library and the open files' byte streams (the Messages panel)
+  messagesLibrary: () => call<{ folder: string; items: LibraryItem[] }>("/api/messages/library"),
+  messagesLibraryGet: (key: string) => call<{ structure: Structure }>("/api/messages/library/get", { key }),
+  messagesLibrarySave: (structure: Structure, name?: string, overwrite = false) =>
+    call<{ path: string; key: string }>("/api/messages/library/save", { structure, name, overwrite }),
+  messagesLibraryReveal: () => call<{ folder: string }>("/api/messages/library/reveal", {}),
+  messagesStreams: (streams: unknown[], runs?: string[]) => call<{ streams: StreamRow[] }>("/api/messages/streams", { streams, runs: runs ?? null }),
   reportParts: (runs?: string[], streams?: unknown[]) => call<ReportScan>("/api/report/parts", { runs: runs ?? null, streams: streams ?? null }),
   reportPreview: (body: Record<string, unknown>) => call<{ html: string }>("/api/report/preview", body),
   reload: (id: string) => call<RunInfo>(`/api/runs/${id}/reload`, {}),

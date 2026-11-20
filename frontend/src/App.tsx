@@ -19,7 +19,6 @@ const ObjectDialog = lazyPreload(() => import("./components/ObjectDialog"));
 const CompareObjectsDialog = lazyPreload(() => import("./components/CompareObjectsDialog"));
 const PlaceDialog = lazyPreload(() => import("./components/PlaceDialog"));
 const CompareSimilarDialog = lazyPreload(() => import("./components/CompareSimilarDialog"));
-const MessagesDialog = lazyPreload(() => import("./components/MessagesDialog"));
 const PlaceOnMapDialog = lazyPreload(() => import("./components/PlaceOnMapDialog"));
 const TransformDialog = lazyPreload(() => import("./components/TransformDialog"));
 const RetargetDialog = lazyPreload(() => import("./components/RetargetDialog"));
@@ -43,6 +42,7 @@ import StageBar from "./components/StageBar";
 import DataPanel from "./components/DataPanel";
 const AnalysisPanel = lazyPreload(() => import("./components/AnalysisPanel"));
 const InvestigatePanel = lazyPreload(() => import("./components/InvestigatePanel"));
+const MessagesPanel = lazyPreload(() => import("./components/MessagesPanel"));
 const ComparePanel = lazyPreload(() => import("./components/ComparePanel"));
 const ReportScreen = lazyPreload(() => import("./components/ReportScreen"));   // RE1: the report, in place of the plots
 const LogPanel = lazyPreload(() => import("./components/LogPanel"));
@@ -93,7 +93,6 @@ export default function App() {
   const compareDialog = useApp((s) => s.compareDialog);
   const placeEdit = useApp((s) => s.placeEdit);
   const similarDialog = useApp((s) => s.similarDialog);
-  const messagesDialog = useApp((s) => s.messagesDialog);
   const placeDialog = useApp((s) => s.placeDialog);
   const transformOpen = useApp((s) => !!s.transformTargets);
   const retargetOpen = useApp((s) => !!s.retarget);
@@ -332,7 +331,8 @@ export default function App() {
     };
   }, []);
 
-  const sideW = panel === "investigate" ? invW : sideW0, setSideW = panel === "investigate" ? setInvW : setSideW0;
+  const wide = panel === "investigate" || panel === "messages";      // MSG3: the structure's fields table needs room too
+  const sideW = wide ? invW : sideW0, setSideW = wide ? setInvW : setSideW0;
   const side = !!panel && panel !== "report";                // RE1: the report takes the stage, not a side panel
   const cols = [RAIL_W, side ? sideW : 0, "1fr", inspectorOpen ? inspW : 0].map((c) => (typeof c === "number" ? `${c}px` : c)).join(" ");
 
@@ -345,7 +345,7 @@ export default function App() {
       <RecordingsBar />
       <div className="main" style={{ gridTemplateColumns: cols }}>
         {side && <PanelResizer label={t("resizePanel")} style={{ insetInlineStart: RAIL_W + sideW - 3 }} width={sideW} setWidth={setSideW}
-          grow={+1} def={panel === "investigate" ? 380 : 280} max={() => window.innerWidth - RAIL_W - (inspectorOpen ? inspW : 0) - MIN_STAGE} />}
+          grow={+1} def={wide ? 380 : 280} max={() => window.innerWidth - RAIL_W - (inspectorOpen ? inspW : 0) - MIN_STAGE} />}
         {inspectorOpen && <PanelResizer label={t("resizePanel")} style={{ insetInlineEnd: inspW - 3 }} width={inspW} setWidth={setInspW}
           grow={-1} def={320} max={() => window.innerWidth - RAIL_W - (side ? sideW : 0) - MIN_STAGE} />}
         <nav className="rail" aria-label="Panels">
@@ -367,7 +367,7 @@ export default function App() {
         <Suspense fallback={<aside className="side" />}>
           {panel === "data" ? <DataPanel /> : panel === "analysis" ? <AnalysisPanel /> : panel === "compare" ? <ComparePanel />
             : panel === "log" && hasFiles ? <LogPanel />
-            : panel === "investigate" ? <InvestigatePanel /> : <div />}
+            : panel === "investigate" ? <InvestigatePanel /> : panel === "messages" ? <MessagesPanel /> : <div />}
         </Suspense>
         {panel === "report" ? (
           <main className="stage">
@@ -409,7 +409,6 @@ export default function App() {
         {compareDialog && <CompareObjectsDialog key={compareDialog.plotId} />}
         {placeEdit && <PlaceDialog key={placeEdit.id ?? "new"} />}
         {similarDialog && <CompareSimilarDialog key={`${similarDialog.runId}/${similarDialog.ids.join(",")}`} />}
-        {messagesDialog && <MessagesDialog key={messagesDialog.ids.join(",")} />}
         {placeDialog && <PlaceOnMapDialog key={placeDialog} />}
         {syncFor && <SyncDialog />}
         {transformOpen && <TransformDialog />}

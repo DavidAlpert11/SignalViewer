@@ -10,6 +10,8 @@ export const Icon = {
   Analysis: mk(<><path d="M4 19h16" /><path d="M5 15l4-6 4 4 6-8" /></>),
   Compare: mk(<><path d="M3 16c3-8 6-8 9 0s6 8 9 0" /><path d="M3 12c3-6 6-6 9 0s6 6 9 0" opacity=".5" /></>),
   Report: mk(<><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5" /><path d="M10 13h6M10 17h6" /></>),
+  // MSG3: a framed packet - its header, then the payload
+  Messages: mk(<><rect x="3" y="7" width="18" height="10" rx="1.5" /><path d="M8 7v10M11 11h7M11 14h4" /></>),
   Log: mk(<><path d="M5 4v16" /><path d="M5 5h11l-2 3 2 3H5" /><path d="M9 15h10M9 19h7" /></>),
   Folder: mk(<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />),
   File: mk(<><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5" /></>),

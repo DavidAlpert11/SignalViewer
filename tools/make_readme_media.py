@@ -1111,19 +1111,49 @@ def img_52_messages_recording(b, app):
     shot(pg, "52_messages_recording"); ctx.close()
 
 
+def _wide_panel(pg, w=640):
+    """The side panel dragged wider by its edge (the structure's fields table wants room)."""
+    r = pg.locator(".main > .resizer").first.bounding_box()
+    pg.mouse.move(r["x"] + r["width"] / 2, r["y"] + 200)
+    pg.mouse.down()
+    pg.mouse.move(64 + w, r["y"] + 200, steps=8)
+    pg.mouse.up()
+    pg.wait_for_timeout(300)
+
+
 def img_53_messages_structure(b, app):
-    """MSG2: Decode as messages... -> Propose a structure: the header, length, type, checksum and footer found, each
-    message's fields guessed (16-bit LSB / MSB first, signed, 32-bit) - a form to correct, or JSON."""
+    """MSG2 / MSG3: the Messages panel on a sensor board's bytes -> Propose a structure: the header, length, type,
+    checksum and footer found, each message's fields guessed (16-bit LSB / MSB first, signed, 32-bit) - a form to
+    correct, or JSON."""
     ctx, pg = page(b, app)
     open_api(pg, app, "serial_link/sensor_uart.csv")
     pg.locator(".sig", has_text="sensor_byte").first.click(button="right")
     pg.locator(".menu.ctx button", has_text="Decode as messages").click()
-    pg.wait_for_selector(".msgdlg")
-    pg.locator(".msgdlg .msg-propose").click()
-    pg.wait_for_selector(".msgdlg .msg-struct .msg-msg")
-    pg.evaluate("() => document.querySelector('.msgdlg .msg-structure').scrollIntoView({ block: 'start' })")
+    pg.wait_for_selector(".msgp-stream.open .msgp-edit")
+    _wide_panel(pg)
+    pg.locator(".msgp-stream.open .msg-propose").click()
+    pg.wait_for_selector(".msgp-stream.open .msg-struct .msg-msg")
+    pg.evaluate("() => document.querySelector('.msgp-stream.open .msg-structure').scrollIntoView({ block: 'start' })")
     pg.wait_for_timeout(1200)
     shot(pg, "53_messages_structure"); ctx.close()
+
+
+def img_55_messages_panel(b, app):
+    """MSG3: the Messages panel - the byte streams of a serial link with their types and rates, a flight log's
+    message types (fields, count, rate), the structure library."""
+    ctx, pg = page(b, app)
+    open_api(pg, app, "serial_link/link_tx_rx.csv", "copter_flight.bin")
+    pg.locator(".rail button[aria-label='Messages']").click()
+    pg.wait_for_selector(".msgp-stream .msgp-types .chip-s", timeout=60000)
+    _wide_panel(pg, 520)
+    pg.wait_for_selector(".msgp-log")
+    if not pg.locator(".msgp-log[open]").count():
+        pg.locator(".msgp-log summary").first.click()
+    pg.locator(".msgp-log tbody tr", has=pg.locator("td", has_text="ATT")).first.click()
+    pg.wait_for_timeout(2500)
+    pg.evaluate("() => { for (const t of [...document.querySelectorAll('.toast button[aria-label]')]) t.click(); }")
+    pg.wait_for_timeout(800)
+    shot(pg, "55_messages_panel"); ctx.close()
 
 
 def img_54_gps_nmea(b, app):

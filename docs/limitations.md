@@ -40,6 +40,10 @@
   payload); a proposed structure names its fields by place (`value_4`) - rename them; a payload that may hold the
   footer's bytes needs a length byte or a size per message (escaping is not undone). Request / reply pairing looks
   within 0.5 s. A recording made from messages has no file: the session keeps its definition and makes it again.
+* The Messages panel (1.32): it looks for byte streams in the open files that are not logs (a `.tlog`, `.bin`, `.ulg`
+  or `.mcap` is listed by its message types instead); a log's message types are its signals grouped by the name before
+  the first dot, the count and rate those of its fields. An ICD layout used as a structure keeps its own time field as
+  an ordinary field (a stream has its receive times).
 * Listening to a link (1.32): one link at a time; serial ports need pyserial; nothing is sent (no handshake of our
   own); a growing `.svraw` is read again whole on each refresh - fine for hours of a serial link, slow for a very
   fast stream over a long time (stop and start a new recording).

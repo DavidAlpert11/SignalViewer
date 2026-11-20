@@ -10,7 +10,7 @@ export interface Toast { id: string; kind: "info" | "error"; text: string; actio
   undoesWs?: boolean;
   /** a message that replaces the previous one of the same key (Q123: refresh after refresh) */
   key?: string }
-export type PanelId = "data" | "analysis" | "compare" | "report" | "log" | "investigate";
+export type PanelId = "data" | "analysis" | "compare" | "report" | "log" | "investigate" | "messages";
 /** One condition in one file: its stretches [start, end] as shown, or why it could not be looked for. */
 export interface CondResult { intervals?: [number, number][]; count?: number; total?: number; missing?: string[];
   error?: string; ranges?: Record<string, [number, number]>; cut?: boolean }
