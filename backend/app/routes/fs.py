@@ -79,7 +79,7 @@ EXAMPLE_SETS = [
     {"id": "linkStructure", "open": "structure", "files": ["serial_link/link_tx_rx.csv", "serial_link/link_tx.svmsg.json",
                                                             "serial_link/link_rx.svmsg.json"]},
     # MSG2: a GPS receiver's raw NMEA - opened as a recording at once; and its serial port byte by byte
-    {"id": "gpsNmea", "files": ["gps_nmea/receiver.nmea", "gps_nmea/receiver_uart.csv"]},
+    {"id": "gpsNmea", "open": "map", "files": ["gps_nmea/receiver.nmea", "gps_nmea/receiver_uart.csv"]},
     {"id": "investigate", "files": ["investigate/heavy_payload.csv",                  # the Investigate tools,
                                     "investigate/light_payload.csv"]},                # with a known answer
     # FL1: "open": "summary" = the folder of the first file summed up with its measures.json, one row per recording in Sweeps

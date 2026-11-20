@@ -2,7 +2,7 @@
    out of App.tsx with the examples' labels). */
 import { useEffect, useState } from "react";
 import { api, type ExampleId } from "../api";
-import { useApp } from "../store";
+import { actions, useApp } from "../store";
 import { useT, type TKey } from "../i18n";
 import { Icon } from "../icons";
 import { addDataExts } from "../values";
@@ -27,7 +27,7 @@ const EXAMPLE_GROUPS = [
   { area: "sweeps", label: "areaSweeps", hint: "exampleGroupSweeps" },
 ] as const;
 
-type Example = { id: ExampleId; paths: string[]; open?: "study" | "sweep" | "summary" | "report" | "messages" | "structure" };
+type Example = { id: ExampleId; paths: string[]; open?: "study" | "sweep" | "summary" | "report" | "messages" | "structure" | "map" };
 
 /** An example opened as a new user would: recordings with their suggested view, a study in Sweeps. */
 export function openExample(example: Example): void {
@@ -45,6 +45,18 @@ function openPrepared(ex: Example): void {
   // RE2: the two runs, then the Report screen with the automatic report made of the parts that fit them
   else if (ex.open === "report") void openPaths(ex.paths).then(() => openAutoReport());
   else if (ex.open === "messages") void openPaths(ex.paths).then(() => openAutoReport("messages"));
+  // MSG2: a GPS receiver's NMEA: its track on a map at once (the objects found by name), speed and satellites beside it
+  else if (ex.open === "map") void openPaths(ex.paths, undefined, { noStart: true }).then(async (ids) => {
+    const run = useApp.getState().runs.find((r) => r.id === ids?.[0]);
+    if (!run) return;
+    const { detectObjects } = await import("../objectDetect");
+    const { candidateObject, objectColors } = await import("../objectAdd");
+    const c = detectObjects(run).candidates.find((x) => /GGA/.test(x.name)) ?? detectObjects(run).candidates[0];
+    if (c) actions.addObjectsToMaps([await candidateObject(c, objectColors(undefined)())]);
+    const by = (n: string) => run.signals.find((s) => s.name.startsWith(n))?.id;
+    const side = [by("RMC.speed"), by("GGA.sats"), by("GGA.alt")].filter((x): x is string => !!x);
+    if (side.length) actions.plotsInNewTab(side.map((id) => ({ title: id.slice(id.indexOf("/") + 1), ids: [id] })), run.name);
+  });
   // MSG2: the recording, then its two structure files: TX and RX messages -> two recordings of their own, plotted
   else if (ex.open === "structure") void openPaths(ex.paths.slice(0, 1)).then(async (ids) => {
     const rid = ids?.[0] ?? useApp.getState().runs.find((r) => r.path === ex.paths[0])?.id;
