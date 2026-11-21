@@ -42,16 +42,16 @@ simulation engineers, and it runs entirely on your machine: no account, no cloud
 - **Any time-series data** – CSV, Parquet, HDF5, MATLAB `.mat`, CAN + `.dbc`, ROS 2 `.mcap`, flight logs, or your
   own format through a short Python reader ([formats](#supported-formats)).
 - **Bytes to signals** – a serial link, a radio or a bus recorded byte by byte, or a receiver's raw NMEA: the
-  messages found by themselves (header, length, type, checksum, footer), a structure proposed – 16-bit LSB or MSB
-  first, signed, 32-bit, floats – or written by you, and the values become a recording; or listen live to a serial
-  port, UDP or TCP.
+  messages found by themselves (the byte patterns that repeat: header, footer; length, type, checksum), the template
+  proposed – 16-bit LSB or MSB first, signed, 32-bit, floats – or defined by clicking the bytes in four guided steps,
+  and the values become a recording you can save as CSV; or listen live to a serial port, UDP or TCP.
 - **Runs side by side** – different clocks and rates aligned; every shared signal ranked by how much it differs.
 - **What changed?** – the signals that left their usual range, in time order, and which one led which.
 - **Pass / fail you can defend** – limits, a golden run with tolerances, data quality; the same checks headless in CI.
 - **Sweeps** – the parameter sets that hold in every scenario, and a loop that runs your simulation until the best
   stops changing.
 - **No point left out** – numbers always use all the data; plots are reduced only so that every spike is still drawn.
-- **One file to send** – one click writes a ready report made of parts (commanded vs actual, navigation errors between objects, the scenario and its special moments, and the main differences between files with the central region of the change), or write it like Markdown, with `[[tab.plot]]` for a plot and `{{ max(Roll) }}` for a value of every sample, a live preview beside it; an offline HTML page that opens with how the conclusion was reached, PDF and Word from the same text; a plot or a tab live in a Confluence page (every sample, through its HTML macro).
+- **One file to send** – one click writes a ready report made of parts (commanded vs actual, navigation errors between objects, the scenario and its special moments, and the main differences between files with the central region of the change), or write it like Markdown, with `[[tab.plot]]` for a plot and `{{ max(Roll) }}` for a value of every sample, a live preview beside it; an offline HTML page that opens with how the conclusion was reached, PDF and Word from the same text - or **in LaTeX, as in Overleaf, offline** (a PDF preview from your own TeX, a project for Overleaf); a plot or a tab live in a Confluence page (every sample, through its HTML macro).
 - **English and Hebrew** (right to left), light and dark themes.
 
 ## Quick start
@@ -111,13 +111,19 @@ default. [Map and 3D](https://davidalpert11.github.io/SignalViewer/maps-and-3d/)
 shows, the conclusion – then the plots, map and 3D on one time bar. Any browser, no install. Or a plot or a tab
 straight into a Confluence page, still live: zoom to every sample, the cursor, the statistics and the notes.
 *Automatic report* looks at what the files have and writes a report of ready-made parts you then edit - with
-several files, the signals that differ most and the central region of the change, zoomed.
+several files, the signals that differ most and the central region of the change, zoomed. Write it in Markdown or
+in **LaTeX** – your preamble, `align`, `tabular`, with the app's plots, parts and values still in it – previewed as the
+PDF your own TeX makes, offline, or sent as a project to Overleaf.
+[Writing a report](https://davidalpert11.github.io/SignalViewer/reports/)
+
+<p align="center"><a href="docs/images/57_report_latex.png"><img src="docs/images/57_report_latex.png" alt="The automatic report written in LaTeX: the source with the ready-made parts as references, beside the PDF the computer's own XeLaTeX made" width="80%"></a></p>
 A folder of recordings becomes one table too: the same numbers measured in each, one row per recording.
 
 **Bytes to signals.** A link recorded byte by byte – or heard live on a serial port, UDP or TCP – is decoded by
-itself: the messages, their types and order, the checksum errors, which message answers which and how fast. Let the
-app propose the messages' structure, correct it in a form, and every value becomes a signal of a recording of its
-own; a raw NMEA file opens as a track on the map at once. One *Messages* panel holds it all: the byte streams,
+itself: the messages, their types and order, the checksum errors, which message answers which and how fast. Four
+steps take you from the raw signal to its variables: what it carries (TX, RX, both with a direction signal), the
+byte patterns that repeat and the first messages byte by byte – click a byte to say what it is – each message's
+values as you define them, and a recording of its own, saved as CSV like any input; a raw NMEA file opens as a track on the map at once. One *Messages* panel holds it all: the byte streams,
 the message types of the logs (MAVLink included), the links running now and a library of structures.
 [Messages: from bytes to signals](https://davidalpert11.github.io/SignalViewer/messages/)
 
@@ -127,6 +133,8 @@ the message types of the logs (MAVLink included), the links running now and a li
 <td width="50%" valign="top"><a href="docs/images/52_messages_recording.png"><img src="docs/images/52_messages_recording.png" alt="Both directions of a serial link decoded into recordings of their own: attitude, status with its mode as a band, acknowledgements - one plot per message"></a></td>
 </tr>
 </table>
+
+<p align="center"><a href="docs/images/56_messages_steps.png"><img src="docs/images/56_messages_steps.png" alt="The Messages panel's steps: the byte patterns that repeat with the header first, the first messages byte by byte coloured by role - header, length, type, values, checksum" width="80%"></a></p>
 
 <p align="center"><a href="docs/images/55_messages_panel.png"><img src="docs/images/55_messages_panel.png" alt="The Messages panel: a serial link's byte streams with their message types and rates, a flight log's message types with fields, count and rate - and a message's fields plotted" width="80%"></a></p>
 
@@ -204,9 +212,9 @@ Exit codes and JUnit XML for CI; also export, a Sweeps table from a folder of re
 - **שופטים ריצה:** מגבלות, טולרנסים מול ריצת ייחוס ואיכות נתונים – פסיקה אחת לכל קובץ, ואותן בדיקות גם ב־CI.
 - **בוחרים פרמטרים (Sweeps):** אילו סטים עומדים בכל תרחיש, סט אחד לכמה מערכות, ולולאה שמריצה את הקוד שלכם עד התכנסות.
 - **אף נקודה לא נעלמת:** המספרים תמיד על כל הנתונים, והגרף מוקטן רק כך שכל קפיצה עדיין מצוירת.
-- **מבתים לסיגנלים:** קו תקשורת שהוקלט בית אחר בית, או NMEA גולמי של מקלט: ההודעות נמצאות לבד (כותרת, אורך, סוג, checksum, סיומת), האפליקציה מציעה מבנה – 16 ביט LSB או MSB קודם, עם סימן, 32 ביט, float – או שמגדירים אותו, והערכים הופכים להקלטה. אפשר גם להאזין חי לפורט טורי, UDP או TCP. חלונית *הודעות* אחת מרכזת הכול: זרמי הבתים, סוגי ההודעות של הלוגים (גם MAVLink), הקווים הפעילים וספריית מבנים.
+- **מבתים לסיגנלים:** קו תקשורת שהוקלט בית אחר בית, או NMEA גולמי של מקלט: ההודעות נמצאות לבד (כותרת, אורך, סוג, checksum, סיומת), האפליקציה מציעה מבנה – 16 ביט LSB או MSB קודם, עם סימן, 32 ביט, float – או שמגדירים אותו בארבעה שלבים מודרכים – לחיצה על בית אומרת מה הוא (כותרת, אורך, סוג, ערך) – והערכים הופכים להקלטה שנשמרת גם ל־CSV. אפשר גם להאזין חי לפורט טורי, UDP או TCP. חלונית *הודעות* אחת מרכזת הכול: זרמי הבתים, סוגי ההודעות של הלוגים (גם MAVLink), הקווים הפעילים וספריית מבנים.
 - **מפה ותלת־ממד:** תצלומי לוויין או מפה לא מקוונת, מעל פני השטח האמיתיים – הרגע של הסמן על המסלול ובכל הגרפים יחד.
-- **שולחים את התשובה:** לחיצה אחת כותבת דוח מוכן מחלקים (פקודה מול ביצוע, שגיאות ניווט בין אובייקטים, התרחיש והרגעים המיוחדים, וההבדלים העיקריים בין קבצים עם האזור המרכזי של השינוי), או כותבים את הדוח כמו Markdown, עם גרפים וערכים מהנתונים ותצוגה חיה; דוח HTML אחד שנפתח ב"התהליך בקצרה", וגם PDF ו־Word, או גרף ולשונית חיים בתוך דף Confluence. תיקייה של הקלטות – טבלה אחת, שורה לכל הקלטה.
+- **שולחים את התשובה:** לחיצה אחת כותבת דוח מוכן מחלקים (פקודה מול ביצוע, שגיאות ניווט בין אובייקטים, התרחיש והרגעים המיוחדים, וההבדלים העיקריים בין קבצים עם האזור המרכזי של השינוי), או כותבים את הדוח כמו Markdown, או ב־LaTeX כמו ב־Overleaf – בלי אינטרנט, עם TeX של המחשב – עם גרפים וערכים מהנתונים ותצוגה חיה; דוח HTML אחד שנפתח ב"התהליך בקצרה", וגם PDF ו־Word, או גרף ולשונית חיים בתוך דף Confluence. תיקייה של הקלטות – טבלה אחת, שורה לכל הקלטה.
 
 **התקנה:** מ־[השחרור האחרון](https://github.com/DavidAlpert11/SignalViewer/releases/latest) (Windows, Linux, macOS), או <code dir="ltr">pip install signalviewer</code>. **מדריך:** [docs/GUIDE.he.md](docs/GUIDE.he.md).
 

@@ -16,7 +16,8 @@ python tools/make_readme_media.py --only examples     # the welcome cards' pictu
   It starts with `ctx, pg = page(b, app)` (a clean app, dark theme), opens files with `open_api(pg, app, "<file
   under examples/>")`, waits for the END state (`pg.wait_for_function(...)` on `window.__sv.state()`), then
   `shot(pg, "<NN>_<name>")` -> `docs/images/<NN>_<name>.png`. Reports: `_report_parts`, `_preview_to(pg, text)`.
-- Map / satellite scenes (05 28 31 44 46) need the internet; films need ffmpeg; `06_3d_terrain.png` is not made here.
+- `57_report_latex` needs a LaTeX installed and a Chromium with its PDF view (`SV_CHROMIUM=/opt/pw-browsers/chromium`;
+  the default headless shell draws no PDF). Map / satellite scenes (05 28 31 44 46) need the internet; films need ffmpeg; `06_3d_terrain.png` is not made here.
 - Long films: `tools/make_demo_video.py`, `tools/make_training_video.py`; after scene 31: `tools/make_social_preview.py`.
 - The training film is **narrated** (`tools/narration.py`): `pip install piper-tts`; the voice (en_US-lessac-medium) is
   fetched once into `~/.cache/signalviewer/voices` (or `SV_VOICE=<.onnx>`); `--silent` for none. A chapter's words are

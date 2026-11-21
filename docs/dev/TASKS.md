@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| Release 1.33.0 - MSG4 guided messages, RE3 LaTeX, the agent skills (owner, 2026-11-21: "a patch ready for a version") | READY 2026-11-21: version in the five files, CHANGELOG 1.33.0 with highlights, README (English + Hebrew) and docs (features, limitations, reports + reports.he LaTeX, messages, GUIDE.he messages), validation page, pictures 42 48-51 55-57, the whole e2e one file at a time (97 files, 526 passed, 1 failed: test_study_loop - fixed, then 18 / 18 green), quick_check, mkdocs --strict | the owner applies the patch, pushes, tags v1.33.0 |
 | RE3 - LaTeX in the report, as in Overleaf, offline (owner, 2026-11-21) | built 2026-11-21 (tested with TeX Live 2023: XeLaTeX / pdfLaTeX; Hebrew in LaTeX not tested here - this container has no bidi.sty) | the owner tries a Hebrew report in LaTeX with his MiKTeX / TeX Live; next: SyncTeX, syntax colours, the CLI |
 | MSG4 - from raw bytes to variables in four guided steps (owner, 2026-11-21) | built 2026-11-21 | the owner tries it on his own stream (Messages → open a stream); next: a field's bits from the byte menu, a checksum chosen by a click |
 | M34 FR9 - quick_check + the short e2e list in CI on every push | owner: not now | - |
@@ -34,7 +35,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | MSG3 - one home for messages: the Messages panel + the structure library (owner, 2026-11-20) | built 2026-11-20 (see Open specs) | the owner looks |
 | CLR1 - Clear and the report (owner, 2026-11-19: "when the recording is cleared, what happens to the report? how is it cleared?") | done (2026-11-19): the proposal below built | the owner looks |
 | README review for 1.32 (owner, 2026-11-19 / 20: "update the README") | done 2026-11-20 | - |
-| test_study_loop - a copy of the demo runs the loop: after a round, Results does not open (found 2026-11-20, fails before MSG3 too) | open | fix in Sweeps' flow (FlowNav goFlow / the together part) |
+| test_study_loop - a copy of the demo runs the loop: after a round, Results did not open (found 2026-11-20) | fixed 2026-11-21 (studyStore firstResultsIn put the screen back over the user's click; flowAsked) | - |
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
 ## Open specs (waiting for the owner)
@@ -160,6 +161,13 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-21 · Release 1.33.0 prepared (owner: "I only apply the patch, ready for a version"): version 1.33.0 (build.bat, version.py,
+  CITATION 2026-11-21, installer .iss / version_info, install.md), CHANGELOG with highlights, README + Hebrew, features, limitations,
+  reports(.he) LaTeX, GUIDE.he messages steps, validation page, pictures 42 48 49 50 51 55 56 and the new 57 (LaTeX; media scene
+  img_57 needs TeX and SV_CHROMIUM). The WHOLE e2e one file at a time: 97 files, 526 passed, 1 failed - test_study_loop (the known
+  one): a step clicked while a round's first results were read was put back by firstResultsIn (sweeps/studyStore.ts) - it now keeps
+  where the click went (goFlow counts the clicks: flowAsked); 18 / 18 runs green after, test_study_* and test_sweeps_flow green.
+  quick_check green, mkdocs --strict green. Hebrew in LaTeX not compiled here (no bidi.sty in this container).
 - 2026-11-21 · RE3 (owner: "the app should support full LaTeX like Overleaf, but everything must work offline"): the computer's own
   TeX (svcore/latex.py), the LaTeX project and the LaTeX document (app/reportlatex.py), ```latex blocks and formulas mathtext
   cannot read drawn by TeX in the page / PDF / Word, *Written in: Markdown / LaTeX*, *PDF (LaTeX)*, *LaTeX (.zip)*; a value's `{{`

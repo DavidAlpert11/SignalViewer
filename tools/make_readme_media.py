@@ -1088,6 +1088,21 @@ def img_51_report_map(b, app):
     shot(pg, "51_report_map"); ctx.close()
 
 
+def img_57_report_latex(b, app):
+    """RE3: the automatic report turned into a LaTeX document (Written in -> LaTeX): the source beside the PDF this
+    computer's TeX made - the plots as figures, the parts as sections and tables. Needs a LaTeX installed."""
+    ctx, pg = page(b, app)
+    _report_parts(pg, app)
+    pg.locator(".rd-format").select_option("tex")
+    pg.wait_for_function("(window.__sv.state().ws.report?.doc?.text || '').includes('\\\\documentclass')", timeout=30000)
+    pg.wait_for_selector(".rd-pdf-frame", timeout=180000)
+    # the text from \\begin{document} (the parts as references), beside the PDF (a Chromium with its PDF view: SV_CHROMIUM)
+    pg.evaluate("() => { const e = document.querySelector('.rd-text'); const i = e.value.indexOf('\\\\begin{document}'); e.scrollTop = e.scrollHeight * i / e.value.length - 20; }")
+    pg.evaluate("() => { for (const t of [...document.querySelectorAll('.toast button[aria-label]')]) t.click(); }")
+    pg.wait_for_timeout(4000)
+    shot(pg, "57_report_latex"); ctx.close()
+
+
 def img_50_report_parts_hebrew(b, app):
     """RE2: the same automatic report in Hebrew (the report's language follows the app's)."""
     ctx, pg = page(b, app)

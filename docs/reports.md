@@ -225,6 +225,8 @@ the installers put it; another folder: `SV_TEX=<folder>` or `"texDir"` in `~/.si
 - **LaTeX (.zip)** - the report as a LaTeX project: `main.tex`, `figures/` (the plots as vector PDF, the pictures),
   `latexmkrc`. In Overleaf: *New project → Upload project* (it compiles with XeLaTeX by itself).
 
+![The automatic report written in LaTeX: the source with its parts as references beside the 20-page PDF the computer's XeLaTeX made](images/57_report_latex.png){ .sv-shot loading=lazy }
+
 A Hebrew report in LaTeX uses `polyglossia` (with `bidi`) and the first Hebrew font the computer has (David CLM, Frank
 Ruehl CLM, Noto Serif Hebrew, Noto Sans Hebrew, Times New Roman, Arial…); English words in a Hebrew sentence are marked
 `\textenglish{…}` by themselves.
