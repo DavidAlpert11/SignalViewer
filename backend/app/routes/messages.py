@@ -75,6 +75,23 @@ async def messages_parse(req: StructureRequest):
             "runs": store.list()}
 
 
+class InspectRequest(StructureRequest):
+    n: int = 10                                   # how many of the first messages to show
+
+
+@router.post("/api/messages/inspect")
+async def messages_inspect(req: InspectRequest):
+    """MSG4: the guided view of a byte stream - the recurring patterns (header / footer candidates), the structure
+    (the user's, else proposed), the first messages byte by byte with each byte's role and each field's value, and
+    the whole stream's counts by that structure."""
+    from svcore.msginspect import inspect
+    sigs = _stream_sources(req)
+    try:
+        return await heavy(inspect, sigs, req.params or {}, req.structure, max(1, min(int(req.n), 40)))
+    except Exception as e:                       # a stream it cannot read at all (not bytes): said in the step
+        fail(400, str(e))
+
+
 class StructurePath(BaseModel):
     path: str
 

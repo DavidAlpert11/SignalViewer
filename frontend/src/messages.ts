@@ -1,8 +1,9 @@
-import { api, type SignalInfo } from "./api";
+import { api, type InspectFrame, type MessagesInspect, type SignalInfo } from "./api";
 import { findDerived } from "./peers";
 import { translate } from "./i18n";
 import { actions, useApp } from "./store";
-import type { MessageStream, Structure } from "./store/model";
+import type { MessageStream, StructMessage, Structure } from "./store/model";
+import type { ByteRole } from "./components/ByteView";
 import { freeGroup } from "./frames";
 import { appendToDoc } from "./reportDoc";
 import { confirmAsk, prompt } from "./components/Overlays";
@@ -234,4 +235,76 @@ export function messageTypes(signals: SignalInfo[]): { type: string; ids: string
     by.set(type, g);
   }
   return [...by.values()].sort((a, b) => b.count - a.count || a.type.localeCompare(b.type));
+}
+
+/* ---- MSG4: a click on a byte says what it is ------------------------------------------------------ */
+
+const hx = (v: number) => v.toString(16).toUpperCase().padStart(2, "0");
+const SIZE: Record<string, number> = { u8: 1, i8: 1, u16: 2, i16: 2, u24: 3, i24: 3, u32: 4, i32: 4, u64: 8, i64: 8, f32: 4, f64: 8 };
+
+/** The structure after the user said what a byte (or a text part) of one shown message is: the header ends here, the
+ *  length / type byte, the footer starts here, a field of a type starts here, or not a field. Pure - the panel's
+ *  step 2 and the tests. A frame of a type the structure has no message for gets one. */
+export function applyRole(s: Structure, frame: InspectFrame, role: ByteRole): Structure {
+  const st: Structure = JSON.parse(JSON.stringify(s));
+  const b = frame.bytes ?? [];
+  const msgOf = (): StructMessage => {
+    const byName = st.messages.find((m) => frame.message && m.name === frame.message);
+    if (byName) return byName;
+    const id = st.kind === "text" ? String(frame.id ?? "MSG") : st.type ? Number(frame.id ?? 0) : 0;
+    const same = st.messages.find((m) => String(m.id) === String(id));
+    if (same) return same;
+    const m: StructMessage = { id, name: st.kind === "text" ? String(id) : `MSG_${hx(Number(id))}`, fields: [] };
+    st.messages.push(m);
+    return m;
+  };
+  switch (role.kind) {
+    case "header": st.header = b.slice(0, role.upto + 1).map(hx).join(""); break;
+    case "length": st.length = { offset: role.at, add: (frame.len ?? b.length) - b[role.at] }; st.size = null; break;
+    case "footer": st.footer = b.slice(role.from).map(hx).join(""); break;
+    case "type": {
+      const id = b[role.at];
+      const had = !!st.type;
+      st.type = { offset: role.at };
+      if (!had && st.messages.length === 1) st.messages[0].id = id;          // one message until now: it is this type
+      else if (!st.messages.some((m) => Number(m.id) === id)) st.messages.push({ id, name: `MSG_${hx(id)}`, fields: [] });
+      if (!had && st.messages.length === 1 && st.size) { st.messages[0].size = st.size; }
+      break;
+    }
+    case "field": {
+      const m = msgOf();
+      const n = SIZE[role.type] ?? 1;
+      m.fields = m.fields.filter((f) => { const a = f.offset ?? 0, z = a + (SIZE[f.type ?? "u8"] ?? 1); return z <= role.at || a >= role.at + n; });
+      m.fields.push({ name: `value_${role.at}`, offset: role.at, type: role.type, ...(n > 1 ? { endian: role.endian } : {}) });
+      m.fields.sort((x, y) => (x.offset ?? 0) - (y.offset ?? 0));
+      break;
+    }
+    case "nofield": {
+      const m = msgOf();
+      m.fields = m.fields.filter((f) => { const a = f.offset ?? 0, z = a + (SIZE[f.type ?? "u8"] ?? 1); return !(role.at >= a && role.at < z); });
+      break;
+    }
+    case "text": {
+      const m = msgOf();
+      const old = m.fields.find((f) => f.index === role.index);
+      m.fields = m.fields.filter((f) => f.index !== role.index);
+      m.fields.push({ name: old?.name ?? `f${role.index}`, index: role.index, type: role.type });
+      m.fields.sort((x, y) => (x.index ?? 0) - (y.index ?? 0));
+      break;
+    }
+    case "start": break;                                                   // the editor re-proposes with this header
+  }
+  return st;
+}
+
+/** The shown frames with their message's field names (and, for text, which field each part is). */
+export function withFieldNames(info: MessagesInspect): MessagesInspect {
+  const st = info.structure;
+  if (!st) return info;
+  return { ...info, frames: info.frames.map((f) => {
+    const m = st.messages.find((x) => x.name === f.message);
+    const names = (m?.fields ?? []).map((x) => x.name);
+    const at = f.parts ? f.parts.map((_p, i) => { const k = (m?.fields ?? []).findIndex((x) => x.index === i); return k < 0 ? null : k; }) : undefined;
+    return { ...f, fieldNames: names, ...(at ? { fieldAt: at } : {}) };
+  }) };
 }

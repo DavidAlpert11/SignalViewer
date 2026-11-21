@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| MSG4 - from raw bytes to variables in four guided steps (owner, 2026-11-21) | built 2026-11-21 | the owner tries it on his own stream (Messages → open a stream); next: a field's bits from the byte menu, a checksum chosen by a click |
 | M34 FR9 - quick_check + the short e2e list in CI on every push | owner: not now | - |
 | SW2 (b) - Run again with recording | spec agreed in parts | the owner's final yes on "Open specs" below - do not implement before |
 | BR1 - the app as one process (README, docs home, welcome groups) | proposed | the owner's yes on the wording below |
@@ -158,6 +159,14 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-21 · MSG4 (owner: "identical patterns that can be the header or the footer, propose the template, the user defines it and
+  it is clear how; then the variables into the recordings, saved to CSV like any input; an automatic report"): the stream editor
+  as four numbered steps; svcore/msginspect.py (patterns, frames with roles and values, the whole stream counted) and
+  /api/messages/inspect; protocol.frames_binary (parse_binary uses it); ByteView.tsx - a click on a byte says what it is
+  (messages.ts applyRole); the template proposed when a stream is opened (*Propose again* replaces *Propose a structure*);
+  step 4 *Save as a file*; FileBrowser: a recording with no file behind it ("python:…") is not a start folder (it opened
+  "Folder not found"). docs/messages.md rewritten as the four steps, picture 56 (media scene img_56). Checks: backend
+  test_msginspect test_protocol test_bytestream, Vitest messagesRole, e2e test_messages (8 green).
 - 2026-11-20 · The training film narrated (owner: "a training film with a narrating voice that explains the capabilities and how
   to use them"): tools/narration.py (Piper, en_US-lessac-medium, offline once fetched; clips laid at the film's moments, the cut
   waits taken out), make_training_video.py - every chapter spoken, a new chapter 6 Messages (the panel, propose, make the

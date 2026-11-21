@@ -1159,6 +1159,24 @@ def img_55_messages_panel(b, app):
     shot(pg, "55_messages_panel"); ctx.close()
 
 
+def img_56_messages_steps(b, app):
+    """MSG4: the Messages panel's steps on a raw byte signal - the repeating patterns (the header first), the first
+    messages byte by byte coloured by role, the values of each message in step 3."""
+    ctx, pg = page(b, app)
+    open_api(pg, app, "serial_link/link_tx_rx.csv")
+    pg.locator(".rail button[aria-label='Messages']").click()
+    pg.wait_for_selector(".msgp-stream[data-key$='/rx_byte'] .msgp-stream-head", timeout=60000)
+    _wide_panel(pg, 720)
+    pg.locator(".msgp-stream[data-key$='/rx_byte'] .msgp-stream-head").click()
+    pg.wait_for_selector(".msgp-stream.open .bv-frame .bv-b.role-header", timeout=60000)
+    pg.wait_for_selector(".msgp-stream.open .msg-values-t", timeout=60000)
+    pg.evaluate("() => { for (const t of [...document.querySelectorAll('.toast button[aria-label]')]) t.click(); }")
+    pg.locator(".msgp-stream.open .msg-step-2").scroll_into_view_if_needed()
+    pg.evaluate("() => document.querySelector('.msgp-stream.open .msg-step-2').scrollIntoView({block: 'start'})")
+    pg.wait_for_timeout(800)
+    shot(pg, "56_messages_steps"); ctx.close()
+
+
 def img_54_gps_nmea(b, app):
     """MSG2: a GPS receiver's raw NMEA opened as a recording: the track on the map, the fix status as a lane."""
     ctx, pg = page(b, app)

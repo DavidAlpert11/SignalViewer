@@ -30,38 +30,69 @@ and the report.
 Right-click a byte signal in the list (or select the byte columns) → **Decode as messages…** opens the panel on it.
 A link recording (`.svraw`) opened without its structure says so, with a button to the panel.
 
-## 1. What the stream is
+## From the raw signal to the variables - four steps
 
-Open the stream in the panel and say what it carries:
+Open the stream in the panel (click it, or right-click the byte signal → **Decode as messages…**). It opens on four
+numbered steps; each says what to do, and steps 2 and 3 follow every change at once.
+
+### Step 1 - what the signal carries
 
 | Choice | When | Example |
 |---|---|---|
 | Only TX / only RX | one direction in one signal | `tx_byte` |
-| Both - a column says the direction of each byte | one signal with both ways, and a column beside it (`dir` = TX / RX); choose which value is TX | `byte` + `dir` in `link_mixed.csv` |
+| Both - a column says the direction of each byte | one signal with both ways, and a signal beside it (`dir` = TX / RX); choose it and which of its values is TX | `byte` + `dir` in `link_mixed.csv` |
 | TX and RX - one signal each | two signals selected | `tx_byte` and `rx_byte` in `link_tx_rx.csv` |
 
-**Plot the messages** finds the framing by itself - the header (the 2-byte pair that recurs), the length byte, the
-type byte, the checksum - and makes a tab: the bytes, the message type, the length, the interval, checksum good /
-bad, and with both directions the reply latency. The report part `[[messages]]` describes it all (see
-[Writing a report](reports.md#messages-in-a-byte-stream)).
+With two directions, steps 2-4 are done for each (the TX / RX switch at the top of step 2).
 
-## 2. The messages' structure
+### Step 2 - find the messages in the bytes
 
-Below that, in the same place, **The messages' structure → a recording**:
+The app looks for **byte patterns that repeat** and proposes the message's template by itself - nothing to press:
 
-- **Propose a structure** - the app writes one from what it found: the header, the length and type bytes, the
-  checksum, and for each message its payload as fields guessed from how they move from one message to the next -
-  a 16-bit value **LSB first or MSB first** (whichever reads smooth), **signed** when it crosses zero, a 32-bit
-  integer, a 32-bit float, a counter, flags, else a byte. It names them by place (`value_4`, `b10`): rename them,
-  give the scale and the unit. When the bytes are text sentences (`$…,…*HH`) it proposes **NMEA** - the sentences it
-  knows with their fields, and any other sentence's fields by place, numbers where they read as numbers.
-- **From the library…** - a structure of the library: NMEA 0183 (built in: GGA, RMC, VTG, GSA, GSV, GLL, ZDA), yours,
-  an ICD layout - or *A structure file…* anywhere on the disk.
-- **Save to the library** - under a name, as a `.svmsg.json` file in the library's folder, to use again on the next
-  recording or a live link.
-- Edit it as a **form** or as its **JSON** (the same thing written out).
-- **Make the recording**: the values become a recording of their own (*tx_byte - messages*), plotted one plot per
-  message. The definition is kept in the session: opening the session makes the recording again.
+- **Repeating patterns** - the sequences of 2-4 bytes that recur, with how often: the header (`EB 90 · header`), a
+  message's start (the header and the type / length bytes that always follow it), the footer (`0D 0A · footer`) and
+  any other. Click one: **Use as the header** or **Use as the footer** - the template is proposed again around it.
+- **The template in one line** - `Each message: header EB90 · length byte at 3 (message = it + 6) · type byte at 2 ·
+  checksum crc16ccitt · footer -`.
+- **The first messages byte by byte**, each byte coloured by what it is: header, length, type, a value (field),
+  checksum, footer - grey: not described yet. **Click a byte to say what it is**: *The header is these bytes*, *The
+  length byte*, *The type byte*, *The footer: from here to the end*, *A value starts here* (8 / 16 / 32-bit, signed or
+  not, LSB first or MSB first, float) or *Not a value*. A text stream (`$GPGGA,…`) shows each sentence's parts
+  between the commas; click a part to make it a field (number, text, latitude, longitude, time of day).
+- When no message is found yet, the stream's first bytes are shown: click the byte where a message starts.
+- Below: **the whole stream by this template** - how many messages, how many with a bad checksum, of types not
+  described, broken frames (every message counts).
+
+![The Messages panel's steps: the repeating patterns with the header first, the first messages byte by byte coloured by role](images/56_messages_steps.png){ .sv-shot loading=lazy }
+
+### Step 3 - the variables in each message
+
+Each message's values in the first messages, read with the template - a wrong byte order, offset or scale shows at
+once - and the template itself as a **form** or as its **JSON**: name the values, fix a type, the byte order
+(LSB / MSB first), a scale, an add, a unit. The proposal guesses each value from how it moves from one message to the
+next - a 16-bit value **LSB first or MSB first** (whichever reads smooth), **signed** when it crosses zero, a 32-bit
+integer, a 32-bit float, a counter, flags, else a byte - and names it by place (`value_4`, `b10`). Text sentences
+(`$…,…*HH`) are proposed as **NMEA** - the sentences it knows with their fields, any other sentence's fields by place.
+
+- **Propose again** - forget the edits and propose from the stream.
+- **From the library…** - NMEA 0183 (built in: GGA, RMC, VTG, GSA, GSV, GLL, ZDA), yours, an ICD layout - or
+  *A structure file…* anywhere on the disk.
+- **Save to the library** - under a name, as a `.svmsg.json` file, for the next recording or a live link.
+
+### Step 4 - make the recording
+
+- **Make the recording** - the values become a recording of their own (*rx_byte - messages*), plotted one plot per
+  message, in the file list like any opened file: plots, Compare, the map, the report. The definition is kept in the
+  session: opening the session makes the recording again.
+- **Save as a file (CSV, Parquet, MAT, HDF5)…** - the recording's values written as a file the app (or anything else)
+  opens like any input.
+- **Plot the messages** - a tab of the stream itself: the bytes, the message type, the length, the interval,
+  checksum good / bad, and with both directions the reply latency.
+- **Add to the report** - `[[messages <its name>]]` at the end of the report: the framing, a table per message type,
+  the order, rates, gaps, requests and replies, the handshake (see
+  [Writing a report](reports.md#messages-in-a-byte-stream)). *Report → Ready reports → Link review* writes it all.
+
+## The structure file
 
 ### A binary structure
 
@@ -115,13 +146,13 @@ Below that, in the same place, **The messages' structure → a recording**:
 - The time of a sentence is the time of its first byte in a recorded stream; in a `.nmea` file, its own time field
   (a sentence without one takes the last seen).
 
-## 3. A raw NMEA file
+## A raw NMEA file
 
 A **`.nmea`** file opens like any recording: its sentences by the NMEA structure, the time from their own clock -
 `GGA.lat`, `GGA.lon`, `GGA.alt`, `RMC.speed`, `GSA.hdop`… - and its position is a track on the map. A sentence with
 a wrong checksum is left out; one the structure does not know is counted (the load report says which).
 
-## 4. Live: listen to a serial port, UDP or TCP
+## Live: listen to a serial port, UDP or TCP
 
 *Live* (the ▾ beside it) → **Listen to a link (serial / UDP / TCP)**:
 
@@ -155,5 +186,5 @@ then *Listen* on `udp:0.0.0.0:5600` with `examples/serial_link/sensor.svmsg.json
 |---|---|
 | **a serial link, byte by byte** | the messages found by themselves (TX: header AA 55, a length byte, sum8; RX: EB 90, CRC-16), a handshake, commands and their ACKs, lost ones, a retry, a dropout and a reconnect - in a *Link review* report |
 | **messages to signals** | the same link with its two structure files (`link_tx.svmsg.json`, `link_rx.svmsg.json`): angles MSB first and LSB first, a 32-bit altitude, a float, flag bits, scales and units - two recordings, plotted |
-| (in the same folder) `sensor_uart.csv` + `sensor.svmsg.json` | a sensor board with a **footer** and no length byte: `A5 5A`, type, payload, xor8, `0D 0A` - IMU (i16 LSB first), barometer (a 32-bit pressure), magnetometer (MSB first); *Propose a structure* finds the header, the footer, the xor8 before it and every field's type and byte order |
-| **a GPS receiver's raw NMEA** | `receiver.nmea` opens as a recording at once (a loop on the map, the fix lost for 5 s, one bad checksum, a maker's own `$PDEMO` sentence); `receiver_uart.csv` is the same receiver byte by byte - open it in *Messages* → *Propose a structure* proposes NMEA |
+| (in the same folder) `sensor_uart.csv` + `sensor.svmsg.json` | a sensor board with a **footer** and no length byte: `A5 5A`, type, payload, xor8, `0D 0A` - IMU (i16 LSB first), barometer (a 32-bit pressure), magnetometer (MSB first); opened in *Messages*, step 2 finds the header, the footer, the xor8 before it and every field's type and byte order |
+| **a GPS receiver's raw NMEA** | `receiver.nmea` opens as a recording at once (a loop on the map, the fix lost for 5 s, one bad checksum, a maker's own `$PDEMO` sentence); `receiver_uart.csv` is the same receiver byte by byte - open it in *Messages*: step 2 proposes NMEA |

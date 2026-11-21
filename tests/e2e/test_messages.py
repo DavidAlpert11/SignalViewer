@@ -9,7 +9,7 @@ import shutil
 import pytest
 
 pw = pytest.importorskip("playwright.sync_api")
-from test_features import S, env, open_files, pg, sig  # noqa: E402,F401
+from test_features import S, env, open_files, pg, save_as, sig  # noqa: E402,F401
 from test_report_doc import preview_has  # noqa: E402
 
 DEMO = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "serial_link")
@@ -200,3 +200,42 @@ def test_messages_panel_is_the_one_home(pg):
     pg.wait_for_function("[...document.querySelectorAll('.link-structure option')].some(o => o.textContent === 'NMEA 0183')", timeout=15000)
     opts = pg.locator(".link-structure option").evaluate_all("els => els.map(e => e.textContent)")
     assert "NMEA 0183" in opts and len(opts) >= 4
+
+
+def test_guided_steps_from_raw_bytes_to_a_csv(pg):
+    """MSG4: the four steps - the patterns found (the header first), the first messages byte by byte coloured by role,
+    a click on a byte makes it a value (its first values shown at once), the recording made and saved as CSV."""
+    shutil.copy(os.path.join(DEMO, "link_tx_rx.csv"), os.path.join(pg.env["data"], "link_tx_rx.csv"))
+    open_files(pg, "link_tx_rx.csv")
+    sig(pg, "rx_byte").click(button="right")
+    pg.locator(".menu.ctx button", has_text="Decode as messages").click()
+    ed = pg.locator(".msgp-stream.open")
+    for n in (1, 2, 3, 4):
+        ed.locator(".msg-step-%d h4" % n).wait_for()
+    # step 2: proposed by itself - the header is the first pattern, the messages byte by byte
+    ed.locator(".msg-step-2 .msg-pat.role-header", has_text="EB 90").first.wait_for(timeout=30000)
+    ed.locator(".bv-frame .bv-b.role-header").first.wait_for()
+    att = ed.locator(".bv-frame", has=pg.locator(".bv-meta b", has_text="MSG_A0")).first
+    assert att.locator(".bv-b").nth(2).get_attribute("class").count("role-type") == 1
+    assert att.locator(".bv-b").nth(3).get_attribute("class").count("role-length") == 1
+    shot(pg, "msg4_steps.png")
+    # step 2 -> 3: byte 12 is not a value any more, then a 16-bit signed MSB-first value starts there
+    att.locator(".bv-b").nth(12).click()
+    pg.locator(".menu.ctx button", has_text="Not a value").click()
+    att.locator(".bv-b").nth(12).click()
+    pg.locator(".menu.ctx button", has_text="A value starts here").click()
+    pg.locator(".menu.ctx.sub button", has_text="16-bit signed, MSB first").click()
+    table = ed.locator(".msg-values-t", has=pg.locator("caption", has_text="MSG_A0"))
+    table.locator("th", has_text="value_12").wait_for(timeout=15000)
+    assert table.locator("tbody tr").count() >= 1
+    assert "×" in table.locator("caption").inner_text()                     # counted on the whole stream
+    # step 4: the recording, then a CSV of it
+    ed.locator(".msg-make").click()
+    pg.wait_for_function("window.__sv.state().runs.some(r => r.name === 'rx_byte - messages' && r.signals.some(x => x.name === 'MSG_A0.value_12'))", timeout=30000)
+    ed.locator(".msg-made").wait_for()
+    ed.locator(".msg-savefile").click()
+    save_as(pg, "rx_values.csv")
+    path = os.path.join(pg.env["out"], "rx_values.csv")
+    pg.wait_for_function("document.body.innerText.includes('rx_values.csv')", timeout=30000)
+    head = open(path, encoding="utf-8").readline()
+    assert "MSG_A0.value_12" in head

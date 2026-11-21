@@ -23,7 +23,8 @@ function startFolder(picker: { mode: string; exts?: string[] } | null): string |
   const own = getPref(lastDirKey(picker));
   if (own) return own;
   const st = useApp.getState();
-  const lastRun = [...st.runs].reverse().find((r) => r.format !== "derived" && r.path && !r.copy);
+  // a recording with no file behind it (pushed data, one made from messages: "python:...") has no folder to start in
+  const lastRun = [...st.runs].reverse().find((r) => r.format !== "derived" && r.path && !r.copy && !r.path.startsWith("python:"));
   if (lastRun) return dirOfPath(lastRun.path);
   return getPref(LAST_DIR) ?? st.recent.find((x) => x.exists)?.folder ?? null;
 }

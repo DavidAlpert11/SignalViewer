@@ -166,18 +166,18 @@ def _value(raw: np.ndarray, at: np.ndarray, f: Dict) -> np.ndarray:
     return v
 
 
-def parse_binary(t: np.ndarray, raw: np.ndarray, proto: Dict) -> Dict:
-    """The frames by the structure (its header, length / size, type, checksum) -> the fields as signals."""
-    proto = check(proto)
+def frames_binary(data: bytes, proto: Dict, limit: Optional[int] = None) -> Tuple[List[Tuple[int, int, int, str]], Dict[str, Any]]:
+    """The frames by a (checked) binary structure: [(start, length, message id, status)] - status "ok", "bad" (its
+    checksum or footer does not match: left out of the recording and counted) or "unknown" (a type the structure has
+    no message for) - and the counts. `limit`: stop after that many frames (the guided view's first frames)."""
     h = bytes.fromhex(re.sub(r"[^0-9a-fA-F]", "", str(proto["header"])))
     msgs = proto["messages"]
     toff = (proto.get("type") or {}).get("offset")
     by_id = {int(m["id"]) if toff is not None else 0: m for m in msgs}
-    data = raw.tobytes()
     starts = [m.start() for m in re.finditer(re.escape(h), data)] if len(h) else []
     cs = proto.get("checksum")
     ft = bytes.fromhex(re.sub(r"[^0-9a-fA-F]", "", str(proto.get("footer") or "")))
-    frames: Dict[int, List[int]] = {}
+    out: List[Tuple[int, int, int, str]] = []
     report: Dict[str, Any] = {"frames": 0, "bad": 0, "unknown": {}, "outside": 0}
     i, j = 0, 0
     n = len(data)
@@ -210,6 +210,7 @@ def parse_binary(t: np.ndarray, raw: np.ndarray, proto: Dict) -> Dict:
             nxt_ok = end == n or data[end:end + len(h)] == h
             report["bad"] += 1
             if nxt_ok:                                    # a frame whose end is right: its bytes were hit - skip it
+                out.append((p, L, mid, "bad"))
                 i = end
                 j += 1
                 continue
@@ -221,10 +222,25 @@ def parse_binary(t: np.ndarray, raw: np.ndarray, proto: Dict) -> Dict:
         report["frames"] += 1
         if m is None:
             report["unknown"][hex(mid)] = report["unknown"].get(hex(mid), 0) + 1
-        else:
-            frames.setdefault(mid, []).append(p)
+        out.append((p, L, mid, "ok" if m is not None else "unknown"))
         i = end
         j += 1
+        if limit is not None and len(out) >= limit:
+            break
+    return out, report
+
+
+def parse_binary(t: np.ndarray, raw: np.ndarray, proto: Dict) -> Dict:
+    """The frames by the structure (its header, length / size, type, checksum) -> the fields as signals."""
+    proto = check(proto)
+    msgs = proto["messages"]
+    toff = (proto.get("type") or {}).get("offset")
+    by_id = {int(m["id"]) if toff is not None else 0: m for m in msgs}
+    found, report = frames_binary(raw.tobytes(), proto)
+    frames: Dict[int, List[int]] = {}
+    for p, _L, mid, status in found:
+        if status == "ok":
+            frames.setdefault(mid, []).append(p)
     signals: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
     labels: Dict[str, Dict[int, str]] = {}
     counts = {}

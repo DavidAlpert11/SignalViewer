@@ -49,6 +49,16 @@ export interface LibraryItem { key: string; name: string; kind?: "binary" | "tex
 export interface StreamRow { key: string; name: string; rid: string; file: string; ids: string[]; params: Record<string, unknown>;
   error?: string; count?: number; bytes?: number; header?: string; framing?: string; checksum?: string | null; errors?: number;
   duration?: number; typed?: boolean; types?: { type: number; count: number; rate: number | null }[] }
+/** MSG4: the guided view of a byte stream (svcore/msginspect.py) - the patterns that recur, the structure (given or
+ *  proposed), the first messages byte by byte (binary) or part by part (text) with their fields' values, the counts. */
+export interface InspectFrame { t: number; at: number; len?: number; id?: number | string; message: string; status: "ok" | "bad" | "unknown";
+  bytes?: number[]; roles?: string[]; fields?: (number | null)[]; values: (number | string | null)[]; text?: string; parts?: string[];
+  /** filled in the page: the frame's message's field names, and (text) which field each part is */
+  fieldNames?: string[]; fieldAt?: (number | null)[] }
+export interface InspectPattern { hex: string; bytes: number; count: number; every: number; regular: number; first: number; role?: string }
+export interface MessagesInspect { bytes: number; head: number[]; text: boolean; patterns: InspectPattern[]; frames: InspectFrame[];
+  structure?: Structure; suggested?: boolean; error?: string;
+  summary: { messages: number; bad: number; outside: number; unknown: Record<string, number>; byMessage: Record<string, number>; bytes: number } | null }
 export interface LinkStatus { running: boolean; conn?: string; path?: string; bytes?: number; chunks?: number; written?: number;
   rate?: number; sinceData?: number | null; peer?: string | null; error?: string | null }
 /** Live MAVLink receiver (T12): the link is recorded to `path` (.tlog), which live mode follows. */
@@ -359,6 +369,8 @@ export const api = {
     call<{ structure: Structure }>("/api/messages/suggest", { sources, params }),
   messagesParse: (sources: string[], params: Record<string, unknown>, structure: Structure, name: string, id?: string) =>
     call<{ run: string; new: boolean; signals: string[]; runs: RunInfo[]; report: Record<string, unknown> }>("/api/messages/parse", { sources, params, structure, name, id: id ?? null }),
+  messagesInspect: (sources: string[], params: Record<string, unknown>, structure: Structure | null, n = 12) =>
+    call<MessagesInspect>("/api/messages/inspect", { sources, params, structure, n }),
   messagesStructure: (path: string) => call<{ structure: Structure }>("/api/messages/structure", { path }),
   messagesNmea: () => call<{ structure: Structure }>("/api/messages/nmea"),
   // MSG3: the structure library and the open files' byte streams (the Messages panel)
