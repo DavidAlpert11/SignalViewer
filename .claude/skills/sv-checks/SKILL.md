@@ -24,6 +24,9 @@ It runs long: start it in the background and read its log; mypy must say `Succes
 
 ## 3. The e2e files that touch the change
 
+While working, only these (owner, 2026-11-21: push first, then check, fix forward - skill `sv-flow`); the whole
+suite once at the end of the round (§4).
+
 Build the UI first (`cd frontend && npm run build`) and **do not edit `frontend/src` while e2e runs** - `run.py`
 rebuilds on a changed source and the fixture times out (*Connection refused*). One file per process:
 
@@ -34,6 +37,8 @@ for f in test_report_parts test_report_doc; do python -m pytest -q tests/e2e/$f.
 | Changed | Run (tests/e2e/) |
 |---|---|
 | Report screen, parts, reportdoc.py, report.py | test_report_parts, test_report_doc, test_live_report, test_findings_report, test_confluence_copy |
+| LaTeX (reportlatex.py, svcore/latex.py) | backend test_report_latex; e2e test_report_doc -k latex |
+| Messages panel, structures, byte streams, links | backend test_bytestream test_protocol test_msginspect test_messages_library test_rawlink; e2e test_messages |
 | Templates, profiles | test_template_tabs, test_object_templates, test_templates_recent_badfiles |
 | Examples, welcome, Help menu | test_welcome_cards, test_fresh_user |
 | Sweeps | test_sweeps_*.py, test_needle, test_settings |

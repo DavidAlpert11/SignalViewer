@@ -91,7 +91,10 @@ when you stop in the middle of a task.
 - Setup: `pip install -r requirements.txt -r requirements-dev.txt`, `cd frontend && npm ci`. Run: `python run.py`
   (builds the UI by itself when its sources changed).
 - Publishing (owner, 2026-11-17): only main remains. Show the owner the result first (on a branch if he wants to
-  look), or push straight to main when he says so; no pull request unless he asks. A remote branch cannot be deleted
+  look), or push straight to main when he says so; no pull request unless he asks. **Owner, 2026-11-21: a session
+  with push access pushes each finished task to main at once, then runs the checks that touch it and fixes forward
+  (a new small commit, never a rewrite of main); the whole e2e suite once at the end of the round** (skill `sv-flow`).
+  Commits are authored as the owner: `David Alpert <davidalpert11@gmail.com>`. A remote branch cannot be deleted
   from a cloud session - ask him. Without push access, patches (owner, 2026-10-19): ONE file with ALL commits since
   GitHub's main (`git fetch origin`, `git rebase origin/main`, `git format-patch --stdout origin/main..HEAD`),
   checked with `git am` on a fresh clone - never depending on an earlier patch.
@@ -115,8 +118,11 @@ when you stop in the middle of a task.
   `tools/make_demo_video.py`, `tools/make_training_video.py`; `tools/make_social_preview.py` after scene 31.
 
 ## Skills (`.claude/skills/`, loaded in a Claude Code session in this repository)
-`sv-checks` (the checks and which e2e files to run), `sv-release` (preparing a version, the owner's commands),
-`sv-report-part` (the report's ready-made parts), `sv-media` (pictures and films), `sv-example` (a new example).
+`sv-flow` (one task from the owner's words to main: plan, fast checks, push, verify, fix forward), `sv-patch` (one
+patch for the owner when the session cannot push), `sv-checks` (the checks and which e2e files to run), `sv-ui` (a
+control or a string: where it goes, Undo, en + he, RTL, themes, test hooks), `sv-messages` (byte streams, structures,
+the guided Messages panel, links), `sv-release` (preparing a version, the owner's commands), `sv-report-part` (the
+report's ready-made parts; LaTeX in `docs/dev/REPORTS.md`), `sv-media` (pictures and films), `sv-example` (a new example).
 They are the practical steps; this file stays the rules. Keep them current when a procedure changes.
 
 ## Releasing (the owner tags; an agent prepares)
