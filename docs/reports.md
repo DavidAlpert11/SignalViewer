@@ -197,8 +197,37 @@ picture can still be linked from a file: `![name](C:/pictures/rig.png)`.
 `> quote`, callouts `> [!NOTE]` `> [!TIP]` `> [!WARNING]` `> [!IMPORTANT]` `> [!FINDING]`, `[a link](https://…)`,
 a picture `![alt](C:/pictures/rig.png)` (put into the page; or pasted - see above), `---` a line, `\newpage` a page break (PDF, Word), and
 math: `$x^2$` in a line, `$$ … $$` on its own (fractions, roots, sums, integrals, Greek letters - matplotlib's
-mathtext, the same in the page, the PDF and Word; no matrices). Each paragraph reads right-to-left when it starts
-in Hebrew, left-to-right in English.
+mathtext, the same in the page, the PDF and Word). A formula mathtext cannot read - matrices, `aligned`, `cases`,
+`\text{…}`, `\begin{align}` - is drawn by **this computer's LaTeX** when it has one (see below). Each paragraph reads
+right-to-left when it starts in Hebrew, left-to-right in English.
+
+## LaTeX - as in Overleaf, offline
+
+The report can be written in **LaTeX**, and LaTeX can go into a Markdown report. Everything runs on this computer:
+the app uses the TeX installed on it - **TeX Live**, **MiKTeX** or **MacTeX**, installed once, then offline (MiKTeX:
+install its full set, or the packages you use, beforehand - its "install on the fly" needs the internet). Without one,
+the LaTeX project still comes out as a `.zip` for Overleaf or another computer. The app finds TeX on the PATH and where
+the installers put it; another folder: `SV_TEX=<folder>` or `"texDir"` in `~/.signalviewer/settings.json`.
+
+- **A LaTeX block in Markdown**: ` ```latex ` … ` ``` ` - anything LaTeX writes (`align`, matrices, a `tabular`, TikZ
+  when installed) is drawn by TeX in the preview, the PDF and Word, and goes as it is into the LaTeX export. The
+  toolbar's **TeX** button puts one in.
+- **Written in → LaTeX** (the Report screen's head): the report becomes a LaTeX document (`\documentclass…`) - your
+  preamble, your packages, `\section`, `tabular`, `align`, `\includegraphics`. The app's references still work in it:
+  `[[Attitude.Roll]]` is a figure (the plot as a vector PDF, every point counted), `[[Attitude]]` the whole tab, a
+  ready-made part (`[[tracking]]`, `[[messages]]`, `[[summary]]`…) its sections and tables, `[[toc]]`
+  `\tableofcontents`, `{{ max(Roll) }}` the number. The **preview is the PDF** LaTeX makes (a moment after you stop
+  typing); an error says its **line** in your text - click it to go there. The app loads `graphicx`, `booktabs`,
+  `longtable`, `xcolor`, `amsmath` and `hyperref` when your preamble has not. *Written in → Markdown* goes back to the
+  report made from the tabs (the LaTeX text stays in Undo).
+- **PDF (LaTeX)** - the report typeset by this computer's LaTeX (XeLaTeX first: Hebrew, any system font; then
+  LuaLaTeX, then pdfLaTeX - English only).
+- **LaTeX (.zip)** - the report as a LaTeX project: `main.tex`, `figures/` (the plots as vector PDF, the pictures),
+  `latexmkrc`. In Overleaf: *New project → Upload project* (it compiles with XeLaTeX by itself).
+
+A Hebrew report in LaTeX uses `polyglossia` (with `bidi`) and the first Hebrew font the computer has (David CLM, Frank
+Ruehl CLM, Noto Serif Hebrew, Noto Sans Hebrew, Times New Roman, Arial…); English words in a Hebrew sentence are marked
+`\textenglish{…}` by themselves.
 
 ## When something cannot be filled
 

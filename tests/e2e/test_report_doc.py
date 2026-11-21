@@ -155,3 +155,52 @@ def test_clear_and_the_report(pg):
     pg.locator(".menu.ctx button", has_text="Back to the report").click()
     pg.click(".dialog-foot .btn.primary")
     pg.wait_for_function("document.querySelector('.rd-text').value.includes('[[Drive]]')")
+
+
+def test_latex_report_written_in_latex_typeset_offline(pg):
+    """RE3: Written in -> LaTeX converts the report (its [[plots]] and {{values}} kept); the preview is the PDF this
+    computer's LaTeX made; an error points to the line of the text; the LaTeX project (.zip) and the PDF (LaTeX)."""
+    open_files(pg, "run_a.csv")
+    sig(pg, "Speed").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
+    pg.evaluate("() => window.__sv.state().commit(ws => { ws.tabs[0].name = 'Drive'; ws.tabs[0].plots[0].title = 'Speed'; return ws; })")
+    pg.locator(".rail button[aria-label='Report']").click()
+    pg.wait_for_selector(".rd .rd-text")
+    write(pg, "# Drive test\n\nTop speed **{{ max(Speed) }}**.\n\n[[Drive.Speed]]\n\n```latex\n\\begin{align} v &= d/t \\end{align}\n```\n")
+    preview_has(pg, 'class="math tex')                                     # a ```latex block drawn by TeX in the page
+    pg.locator(".rd-format").select_option("tex")
+    pg.wait_for_function("(window.__sv.state().ws.report?.doc?.text || '').startsWith('% Made by Signal Viewer')", timeout=15000)
+    text = S(pg, "s.ws.report.doc.text")
+    assert "\\begin{document}" in text and "{{ max(Speed) }}" in text and "[[Drive.Speed]]" in text and "\\begin{align}" in text
+    try:
+        pg.wait_for_selector(".rd-pdf-frame", timeout=60000)
+    except Exception:
+        print("DBG", pg.locator(".rd-preview").inner_text()[:800])
+        raise
+    assert "/api/report/tex/pdf/" in pg.locator(".rd-pdf-frame").get_attribute("src")
+    if SHOT:
+        pg.screenshot(path=os.path.join(SHOT, "report_latex.png"))
+    # an error: said at its line, a click selects it in the text
+    write(pg, text.replace("\\end{document}", "\\textbf{oops\n\\end{document}"))
+    pg.wait_for_selector(".rd-tex-err", timeout=60000)
+    assert "Line" in pg.locator(".rd-tex-err").inner_text()
+    pg.locator(".rd-tex-err .linklike").click()
+    assert "oops" in pg.evaluate("() => { const e = document.querySelector('.rd-text'); return e.value.slice(e.selectionStart, e.selectionEnd); }")
+    write(pg, text)
+    pg.wait_for_function("!document.querySelector('.rd-tex-err')", timeout=60000)
+    # the project for Overleaf, and the PDF typeset here
+    pg.locator(".rd-texzip").click()
+    save_as(pg, "drive.zip")
+    pg.locator(".rd-texpdf").click()
+    save_as(pg, "drive.pdf")
+    import zipfile
+    for name in ("drive.zip", "drive.pdf"):
+        path = os.path.join(pg.env["out"], name)
+        for _ in range(300):
+            if os.path.exists(path) and os.path.getsize(path) > 0:
+                break
+            pg.wait_for_timeout(200)
+    with zipfile.ZipFile(os.path.join(pg.env["out"], "drive.zip")) as z:
+        assert "main.tex" in z.namelist() and any(n.startswith("figures/plot-") for n in z.namelist())
+        assert "\\includegraphics" in z.read("main.tex").decode("utf-8")
+    assert open(os.path.join(pg.env["out"], "drive.pdf"), "rb").read(5) == b"%PDF-"

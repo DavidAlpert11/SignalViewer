@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| RE3 - LaTeX in the report, as in Overleaf, offline (owner, 2026-11-21) | built 2026-11-21 (tested with TeX Live 2023: XeLaTeX / pdfLaTeX; Hebrew in LaTeX not tested here - this container has no bidi.sty) | the owner tries a Hebrew report in LaTeX with his MiKTeX / TeX Live; next: SyncTeX, syntax colours, the CLI |
 | MSG4 - from raw bytes to variables in four guided steps (owner, 2026-11-21) | built 2026-11-21 | the owner tries it on his own stream (Messages → open a stream); next: a field's bits from the byte menu, a checksum chosen by a click |
 | M34 FR9 - quick_check + the short e2e list in CI on every push | owner: not now | - |
 | SW2 (b) - Run again with recording | spec agreed in parts | the owner's final yes on "Open specs" below - do not implement before |
@@ -159,6 +160,12 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-21 · RE3 (owner: "the app should support full LaTeX like Overleaf, but everything must work offline"): the computer's own
+  TeX (svcore/latex.py), the LaTeX project and the LaTeX document (app/reportlatex.py), ```latex blocks and formulas mathtext
+  cannot read drawn by TeX in the page / PDF / Word, *Written in: Markdown / LaTeX*, *PDF (LaTeX)*, *LaTeX (.zip)*; a value's `{{`
+  is the last pair of a brace run (prepareDoc), so `\textbf{{{ max(Speed) }}}` works. Checks: quick_check green; backend
+  test_report_latex (5); e2e test_report_doc (4), test_report_parts, test_messages, test_live_report, test_findings_report,
+  test_confluence_copy, test_less_clutter, test_fresh_user - green. Decisions: docs/dev/REPORTS.md RE3.
 - 2026-11-21 · MSG4 (owner: "identical patterns that can be the header or the footer, propose the template, the user defines it and
   it is clear how; then the variables into the recordings, saved to CSV like any input; an automatic report"): the stream editor
   as four numbered steps; svcore/msginspect.py (patterns, frames with roles and values, the whole stream counted) and

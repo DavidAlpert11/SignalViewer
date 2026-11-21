@@ -43,7 +43,7 @@ def start_job(req: JobRequest):
             return {"opened": opened, "errors": errors}
     elif req.kind == "report":
         rr = ReportRequest(**b)
-        ext = {"html": ".html", "pdf": ".pdf", "docx": ".docx"}.get(rr.format)
+        ext = {"html": ".html", "pdf": ".pdf", "docx": ".docx", "tex": ".zip", "texpdf": ".pdf"}.get(rr.format)
         if not ext:
             fail(400, "Unknown report format.")
         path = _check_target(rr.path, ext)

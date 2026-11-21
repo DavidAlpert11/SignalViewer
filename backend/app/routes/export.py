@@ -103,7 +103,8 @@ async def export_recording(req: ExportRecordingRequest):
 
 class ReportRequest(BaseModel):
     path: str
-    format: str = "html"             # html | pdf | docx
+    format: str = "html"             # html | pdf | docx | tex (a LaTeX project, .zip) | texpdf (typeset by LaTeX)
+    engine: str = ""                 # RE3: xelatex | lualatex | pdflatex (default: the best on this computer)
     title: str = ""
     intro: str = ""
     summary: str = ""
@@ -123,13 +124,25 @@ class ReportRequest(BaseModel):
 
 
 
+REPORT_EXT = {"html": ".html", "pdf": ".pdf", "docx": ".docx", "tex": ".zip", "texpdf": ".pdf"}
+
+
 @router.post("/api/report")
 async def make_report(req: ReportRequest):
-    ext = {"html": ".html", "pdf": ".pdf", "docx": ".docx"}.get(req.format)
+    ext = REPORT_EXT.get(req.format)
     if not ext:
         fail(400, "Unknown report format.")
     path = _check_target(req.path, ext)
     body = req.model_dump()
+    if req.format in ("tex", "texpdf") and req.text is not None:
+        from app.reportdoc import build_doc
+        from svcore.latex import LatexError
+        try:
+            with atomic_path(path) as tmp:
+                await heavy(build_doc, store, body, req.format, tmp)
+        except LatexError as e:
+            fail(400, str(e))
+        return {"path": path, "size": os.path.getsize(path)}
 
     def work():
         # O3: built into a temporary file that replaces the old report only when complete (the HTML was
@@ -183,6 +196,10 @@ async def report_parts(req: PartsRequest):
 @router.post("/api/report/preview")
 async def report_preview(req: ReportRequest):
     body = req.model_dump()
+    from app.reportlatex import is_latex_doc
+    if req.text is not None and is_latex_doc(req.text):     # RE3: a LaTeX document - the PDF this computer's TeX makes
+        from app.reportlatex import preview
+        return await heavy(preview, store, body)
     if req.text is not None:                  # RE1: the written report, exactly as its .html file will be
         from app.reportdoc import build_doc_html
         html_text = await heavy(build_doc_html, store, body)
@@ -456,3 +473,52 @@ async def story(req: StoryRequest):
                       "geo": {"places": req.places, "units": req.units}}]}
     replay = reports._replay({"events": req.events}) or {"events": []}
     return {"moments": await asyncio.to_thread(reports.story_of, store, tab, replay, "he" if req.lang == "he" else "en")}
+
+
+# ----------------------------------------------------------------------------- RE3: LaTeX
+
+@router.get("/api/report/tex")
+def report_tex_status():
+    """What LaTeX this computer has (engines, latexmk, the converters a formula needs) - nothing is fetched."""
+    from svcore import latex as TX
+    from app import prefs
+    chosen = prefs._read("settings.json", {}).get("texDir")
+    TX.set_dir(chosen if isinstance(chosen, str) and chosen.strip() else None)
+    return TX.status()
+
+
+@router.get("/api/report/tex/pdf/{token}")
+def report_tex_pdf(token: str):
+    """A LaTeX document's preview PDF (served to the Report screen, inline)."""
+    from fastapi.responses import FileResponse
+    from app.reportlatex import preview_pdf
+    p = preview_pdf(token)
+    if not p:
+        fail(404, "This preview is gone - it is made again when the text changes.")
+    return FileResponse(p, media_type="application/pdf", headers={"Content-Disposition": "inline; filename=preview.pdf", "Cache-Control": "no-store"})
+
+
+@router.post("/api/report/tex/open")
+def report_tex_open(req: OpenRequest):
+    """The preview PDF in the computer's own PDF viewer (a window with no built-in PDF view)."""
+    import webbrowser
+    from pathlib import Path
+    from app.reportlatex import preview_pdf
+    p = preview_pdf(req.path)
+    if not p:
+        fail(404, "This preview is gone - it is made again when the text changes.")
+    return {"opened": bool(webbrowser.open(Path(p).as_uri(), new=2))}
+
+
+class ToLatexRequest(BaseModel):
+    text: str
+    lang: str = "en"
+    title: str = ""
+    words: Dict[str, str] = {}
+
+
+@router.post("/api/report/tolatex")
+def report_to_latex(req: ToLatexRequest):
+    """A Markdown report as a LaTeX document to edit (the page keeps its references: ⟦n⟧ markers, put back)."""
+    from app.reportlatex import to_latex
+    return {"text": to_latex(req.text, req.lang, req.words, req.title)}

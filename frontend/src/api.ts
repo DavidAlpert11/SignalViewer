@@ -59,6 +59,9 @@ export interface InspectPattern { hex: string; bytes: number; count: number; eve
 export interface MessagesInspect { bytes: number; head: number[]; text: boolean; patterns: InspectPattern[]; frames: InspectFrame[];
   structure?: Structure; suggested?: boolean; error?: string;
   summary: { messages: number; bad: number; outside: number; unknown: Record<string, number>; byMessage: Record<string, number>; bytes: number } | null }
+/** RE3: the LaTeX on this computer (svcore/latex.py) - nothing is fetched */
+export interface TexStatus { engines: Record<string, string | null>; tools: Record<string, string | null>; best: string | null;
+  snippets: boolean; folder: string | null; hint: string | null }
 export interface LinkStatus { running: boolean; conn?: string; path?: string; bytes?: number; chunks?: number; written?: number;
   rate?: number; sinceData?: number | null; peer?: string | null; error?: string | null }
 /** Live MAVLink receiver (T12): the link is recorded to `path` (.tlog), which live mode follows. */
@@ -381,7 +384,13 @@ export const api = {
   messagesLibraryReveal: () => call<{ folder: string }>("/api/messages/library/reveal", {}),
   messagesStreams: (streams: unknown[], runs?: string[]) => call<{ streams: StreamRow[] }>("/api/messages/streams", { streams, runs: runs ?? null }),
   reportParts: (runs?: string[], streams?: unknown[]) => call<ReportScan>("/api/report/parts", { runs: runs ?? null, streams: streams ?? null }),
-  reportPreview: (body: Record<string, unknown>) => call<{ html: string }>("/api/report/preview", body),
+  /** the page (Markdown) - or, for a report written in LaTeX (RE3), the PDF this computer's TeX made (a token) / its error */
+  reportPreview: (body: Record<string, unknown>) =>
+    call<{ html?: string; tex?: boolean; pdf?: string | null; error?: string | null; line?: number | null }>("/api/report/preview", body),
+  reportTexStatus: () => call<TexStatus>("/api/report/tex"),
+  reportToLatex: (text: string, lang: string, words: Record<string, string>, title: string) =>
+    call<{ text: string }>("/api/report/tolatex", { text, lang, words, title }),
+  reportTexOpen: (token: string) => call<{ opened: boolean }>("/api/report/tex/open", { path: token }),
   reload: (id: string) => call<RunInfo>(`/api/runs/${id}/reload`, {}),
   /** Q123: open files saved again since they were read -> when (epoch s). A stat each, nothing read. */
   newerOnDisk: () => call<Record<string, number>>("/api/runs/newer-on-disk"),

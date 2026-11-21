@@ -65,7 +65,23 @@ titled with its lines' names, the right one in its colour (viewer.js, `report.dr
 navigation errors one plot per axis, every object of every file a line, the noisiest underneath; `[[overview]]` - a
 review of any recording (signals, rate, quality, statistics, plots), first in the automatic report.
 
+## RE3 decisions (2026-11-21, owner: "full LaTeX like Overleaf, everything offline")
+
+| # | Question | Decided | Why |
+|---|---|---|---|
+| 1 | Where TeX comes from | The computer's own (TeX Live / MiKTeX / MacTeX), found on the PATH, the installers' folders, `SV_TEX`, `texDir` (svcore/latex.py) | a TeX in the app would be hundreds of MB; tectonic fetches packages from the internet |
+| 2 | Source of truth | Still `ws.report.doc.text`; LaTeX when its first line (not a comment) is `\documentclass` | nothing new saved; old sessions open; one Undo |
+| 3 | The app's references in LaTeX | The same `[[…]]` / `{{…}}` (prepareDoc), written by the server as LaTeX (`reportlatex._latex_doc`): values as text, plots as figures (vector PDF), parts' Markdown parsed and written as LaTeX | one resolver for both; parts written once |
+| 4 | `{{` in LaTeX | A value's `{{` is the last pair of a brace run (`\textbf{{{ max(Roll) }}}`) | LaTeX's own `{{` stay LaTeX |
+| 5 | Preview | Markdown: the page (a formula mathtext cannot read, a ```latex block: TeX's picture - dvisvgm SVG, else pdftoppm / Ghostscript PNG). LaTeX: the PDF (latexmk, else the engine twice), served by a token; errors at the user's line (a line map; *File ended* found by the runaway's words) | Overleaf's way |
+| 6 | Engine | XeLaTeX > LuaLaTeX > pdfLaTeX (English only); Hebrew by polyglossia + the first Hebrew font found; `latexmkrc` in the project | Unicode and system fonts; Overleaf honours latexmkrc |
+| 7 | Packages | Only what basic TeX Live / MiKTeX carry; the app's needs loaded when the user's preamble has not (`NEEDS`, on the `\begin{document}` line so the lines stay) | offline: nothing to fetch |
+| 8 | Exports | *PDF (LaTeX)* (typeset here) and *LaTeX (.zip)* (Overleaf) beside HTML / PDF / Word; a LaTeX report keeps only those two | a LaTeX report is a PDF document |
+
 ## Open
+
+- RE3: a LaTeX editor with syntax colours (no dependency so far); SyncTeX (click in the PDF -> the line); the CLI making
+  the LaTeX report.
 
 - The command line makes the written report (`cli.py report --template`): the `{ }` / `[[tab.plot]]` resolver is
   in the browser only - port it to Python (as L12 ported objectDetect, with shared cases).

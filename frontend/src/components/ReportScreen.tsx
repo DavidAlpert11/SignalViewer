@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { activeTab, pickPath, rangeKey, useApp, type ReportMeta } from "../store";
 import { translate, useT } from "../i18n";
-import { api } from "../api";
+import { api, type TexStatus } from "../api";
 import { runJob } from "../files";
 import { replayFileName } from "../replay";
 import { Icon } from "../icons";
@@ -13,12 +13,28 @@ import { confirmAsk, openMenu } from "./Overlays";
 import { clearReport } from "../clearing";
 import { refFor, wordAt } from "../formulaRefs";
 import { fuzzySort } from "../fuzzy";
-import { DOC_STATS, PARTS, SPECIALS, defaultDocText, docBody, docText, metaOf, plotRef, tabRef } from "../reportDoc";
+import { DOC_STATS, PARTS, SPECIALS, defaultDocText, docBody, docText, isLatexDoc, metaOf, plotRef, tabRef } from "../reportDoc";
 import ReportParts from "./ReportParts";
 import { MAX_ALL, MAX_ONE, assetBytes, assetId, htmlToMarkdown, pictureAsset, tsvToMarkdown } from "../reportPaste";
 import { readyInsert } from "../reportReady";
 
 type View = "write" | "both" | "show";
+type Format = "html" | "pdf" | "docx" | "tex" | "texpdf";
+
+/** RE3: the callouts' words in the report's language (the LaTeX conversion writes them as the page does) */
+const calloutWords = (lang: "en" | "he") => ({ calloutNOTE: translate(lang, "rdNote"), calloutTIP: translate(lang, "rdTip"),
+  calloutWARNING: translate(lang, "rdWarning"), calloutIMPORTANT: translate(lang, "rdImportant"), calloutFINDING: translate(lang, "rdFinding") });
+
+/** RE3: a Markdown report (or a piece of one) as LaTeX - its [[...]] / {{...}} kept as written (masked while the
+ *  server converts it: app/reportlatex.py to_latex). `body`: only what goes between \begin{document} and \end. */
+export async function markdownToLatex(md: string, lang: "en" | "he", title: string, body = false): Promise<string> {
+  const refs: string[] = [];
+  const masked = md.replace(/\[\[[^\]\n]+\]\]|\{\{[\s\S]+?\}\}/g, (w) => { refs.push(w); return `\u27e6${refs.length - 1}\u27e7`; });
+  const r = await api.reportToLatex(masked, lang, calloutWords(lang), title);
+  let out = r.text.replace(/\u27e6(\d+)\u27e7/g, (_w, k: string) => refs[+k] ?? "");
+  if (body) out = out.slice(out.indexOf("\\begin{document}") + "\\begin{document}".length, out.lastIndexOf("\\end{document}")).trim();
+  return out;
+}
 const FUNCS = [...DOC_STATS, "stretches", "holds"];
 
 /** Commit the text (one undo step per pause in typing, or when the editor is left). */
@@ -65,6 +81,9 @@ export default function ReportScreen() {
   const [view, setView] = useState<View>(() => { try { return (localStorage.getItem("sv.rdView") as View) || "both"; } catch { return "both"; } });
   const [dir, setDir] = useState<"rtl" | "ltr">(meta.lang === "he" ? "rtl" : "ltr");
   const [html, setHtml] = useState<string | null>(null);
+  const [pdf, setPdf] = useState<string | null>(null);           // RE3: a LaTeX report's preview PDF (its token)
+  const [texErr, setTexErr] = useState<{ msg: string; line: number | null } | null>(null);
+  const [tex, setTex] = useState<TexStatus | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
   const [updating, setUpdating] = useState(false);
@@ -74,6 +93,8 @@ export default function ReportScreen() {
   const frame = useRef<HTMLIFrameElement>(null);
   const scrollY = useRef(0);
   const typing = useRef(false);
+  const latex = isLatexDoc(text);
+  useEffect(() => { api.reportTexStatus().then(setTex).catch(() => {}); }, []);
 
   // the stored text changed from outside (undo, Add to report, a session opened): follow it
   useEffect(() => { if (!typing.current) setText(stored); }, [stored]);
@@ -97,12 +118,18 @@ export default function ReportScreen() {
         const r = await api.reportPreview(body);
         if (gone) return;
         setProblems(prepared.problems);
-        setHtml(r.html);
-        useApp.setState({ reportPreviewHtml: r.html });
+        if (r.tex) {                                // RE3: typeset by this computer's LaTeX - the last good PDF stays
+          if (r.pdf) setPdf(r.pdf);
+          setTexErr(r.error ? { msg: r.error, line: r.line ?? null } : null);
+        } else {
+          setPdf(null); setTexErr(null);
+          setHtml(r.html ?? "");
+          useApp.setState({ reportPreviewHtml: r.html ?? "" });
+        }
       } catch (e) {
         if (!gone) setProblems([String((e as Error).message)]);
       } finally { if (!gone) setUpdating(false); }
-    }, 500);
+    }, isLatexDoc(text) ? 1500 : 500);
     return () => { gone = true; clearTimeout(id); };
   }, [text, view, meta.lang, meta.theme, version, ws.tabs, ws.notes, ws.conditions]);
   useEffect(() => {
@@ -124,6 +151,10 @@ export default function ReportScreen() {
 
   // RE2: a ready report replaces a report nobody wrote yet, else goes in at the caret (without its title)
   const ready = (doc: string) => {
+    if (latex) {                                     // RE3: a ready report into a LaTeX report - as LaTeX
+      void markdownToLatex(doc, meta.lang, "", true).then((x) => block(x)).catch((e) => useApp.getState().toast({ kind: "error", text: String((e as Error).message) }));
+      return;
+    }
     const untouched = !ws.report?.doc || text.trim() === defaultDocText({ ...ws, report: { ...meta, doc: undefined } }, lang).trim() || !text.trim();
     const r = readyInsert(doc, untouched);
     if (r.replace) { typing.current = false; setText(r.text); commitText(r.text); }
@@ -142,7 +173,7 @@ export default function ReportScreen() {
         const id = await assetId(a.data);
         commitText(ed.current?.value ?? text);
         useApp.getState().commit((w) => { const m = metaOf(w, lang); w.report = { ...m, assets: { ...(m.assets ?? {}), [id]: a } }; return w; });
-        block(`![${a.name.replace(/[[\]()]/g, " ")}](asset:${id})`);
+        block(isLatexDoc(ed.current?.value ?? text) ? `\\includegraphics[width=\\linewidth]{asset:${id}}` : `![${a.name.replace(/[[\]()]/g, " ")}](asset:${id})`);
       } catch (e) {
         st.toast({ kind: "error", text: t("rpPictureBad", { name: f.name, msg: String((e as Error).message) }) });
       }
@@ -165,15 +196,15 @@ export default function ReportScreen() {
   };
   const pictureInput = useRef<HTMLInputElement>(null);
 
-  const make = async (format: "html" | "pdf" | "docx") => {
+  const make = async (format: Format) => {
     commitText(text);
-    const ext = { html: ".html", pdf: ".pdf", docx: ".docx" }[format];
+    const ext = { html: ".html", pdf: ".pdf", docx: ".docx", tex: ".zip", texpdf: ".pdf" }[format];
     const st = useApp.getState();
     const first = st.runs.find((r) => r.format !== "derived");
     // the file is named after the report's title; an untouched default report keeps the replay page's name (RV8)
-    const title = st.ws.report?.doc ? /^#\s+(.+)$/m.exec(text)?.[1]?.trim() || meta.title : meta.title;
+    const title = st.ws.report?.doc ? (latex ? /\\title\{([^}]*)\}/.exec(text)?.[1]?.trim() : /^#\s+(.+)$/m.exec(text)?.[1]?.trim()) || meta.title : meta.title;
     const base = title.replace(/[\\/:*?"<>|]+/g, "_").slice(0, 60);
-    const name = base ? base + ext : format === "html" ? replayFileName(activeTab(st.ws).name, first?.name) : "report" + ext;
+    const name = base ? base + ext : format === "html" ? replayFileName(activeTab(st.ws).name, first?.name) : (format === "tex" ? "report-latex" : "report") + ext;
     const { body, prepared } = await docBody(format, "");
     if (prepared.problems.length && !await confirmAsk(t("rdProblems", { n: prepared.problems.length }),
       translate(lang, "rdProblemsAsk", { n: prepared.problems.length, list: prepared.problems.slice(0, 8).join("\n") }), t("rdMakeAnyway"))) return;
@@ -194,6 +225,29 @@ export default function ReportScreen() {
     typing.current = false;
     setText(fresh);
     commitText(fresh);
+  };
+
+  // RE3: written in Markdown or in LaTeX - the text says which (its first line \documentclass); switching converts
+  const setFormat = async (f: "md" | "tex") => {
+    if ((f === "tex") === latex) return;
+    if (f === "tex") {
+      try {
+        const out = await markdownToLatex(text, meta.lang, /^#\s+(.+)$/m.exec(text)?.[1]?.trim() || meta.title);
+        typing.current = false; setText(out); commitText(out);
+        useApp.getState().toast({ kind: "info", text: t("rdToTexDone"), ms: 9000 });
+      } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
+      return;
+    }
+    if (!await confirmAsk(t("rdToMd"), t("rdToMdAsk"), t("rdToMdOk"), true)) return;
+    const fresh = defaultDocText({ ...ws, report: { ...meta, doc: undefined } }, lang);
+    typing.current = false; setText(fresh); commitText(fresh);
+  };
+  const goLine = (n: number) => {
+    const el = ed.current; if (!el) return;
+    const lines = el.value.split("\n");
+    const a = lines.slice(0, n - 1).join("\n").length + (n > 1 ? 1 : 0);
+    el.focus(); el.setSelectionRange(a, a + (lines[n - 1]?.length ?? 0));
+    el.scrollTop = Math.max(0, (n - 5) * 18);
   };
 
   // suggestions at the caret: inside [[ ]] the tabs and plots, inside {{ }} the statistics, signals and variables
@@ -226,7 +280,7 @@ export default function ReportScreen() {
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "v") plainPaste.current = true;
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === "b" || e.key === "i")) {
-      e.preventDefault(); put("", e.key === "b" ? ["**", "**"] : ["*", "*"]);
+      e.preventDefault(); put("", latex ? (e.key === "b" ? ["\\textbf{", "}"] : ["\\emph{", "}"]) : e.key === "b" ? ["**", "**"] : ["*", "*"]);
     } else if (e.key === "Tab" && suggestions?.list.length && !e.shiftKey) {
       e.preventDefault(); accept(suggestions.list[0]);
     }
@@ -264,6 +318,9 @@ export default function ReportScreen() {
         <label className="rd-sel"><span>{t("reportLang")}</span>
           <select value={meta.lang} onChange={(e) => setMeta({ lang: e.target.value as "en" | "he" })}>
             <option value="he">עברית</option><option value="en">English</option></select></label>
+        <label className="rd-sel"><span>{t("rdFormat")}</span>
+          <select className="rd-format" value={latex ? "tex" : "md"} onChange={(e) => void setFormat(e.target.value as "md" | "tex")}>
+            <option value="md">Markdown</option><option value="tex">LaTeX</option></select></label>
         <label className="rd-sel"><span>{t("theme")}</span>
           <select value={meta.theme} onChange={(e) => setMeta({ theme: e.target.value as "light" | "dark" })}>
             <option value="light">{t("light")}</option><option value="dark">{t("dark")}</option></select></label>
@@ -271,9 +328,14 @@ export default function ReportScreen() {
         <span className="rd-status" role="status">
           {updating ? t("rdUpdating") : problems.length ? <span className="rd-problems" title={problems.join("\n")}>⚠ {t("rdProblems", { n: problems.length })}</span> : null}
         </span>
-        <button className="btn primary replay-make" disabled={!!busy} onClick={() => make("html")}>{busy === "html" ? t("loading") : "HTML"}</button>
-        <button className="btn outline rd-pdf" disabled={!!busy} onClick={() => make("pdf")}>{busy === "pdf" ? t("loading") : "PDF"}</button>
-        <button className="btn outline rd-docx" disabled={!!busy} onClick={() => make("docx")}>{busy === "docx" ? t("loading") : "Word"}</button>
+        {!latex && <>
+          <button className="btn primary replay-make" disabled={!!busy} onClick={() => make("html")}>{busy === "html" ? t("loading") : "HTML"}</button>
+          <button className="btn outline rd-pdf" disabled={!!busy} onClick={() => make("pdf")}>{busy === "pdf" ? t("loading") : "PDF"}</button>
+          <button className="btn outline rd-docx" disabled={!!busy} onClick={() => make("docx")}>{busy === "docx" ? t("loading") : "Word"}</button>
+        </>}
+        <button className={`btn ${latex ? "primary" : "outline"} rd-texpdf`} disabled={!!busy || !tex?.best} title={tex?.best ? t("rdTexPdfHint", { e: tex.best }) : tex?.hint ?? ""}
+          onClick={() => make("texpdf")}>{busy === "texpdf" ? t("loading") : t("rdTexPdf")}</button>
+        <button className="btn outline rd-texzip" disabled={!!busy} title={t("rdTexZipHint")} onClick={() => make("tex")}>{busy === "tex" ? t("loading") : t("rdTexZip")}</button>
         <button className="iconbtn rd-reset" title={t("rdResetMenu")} aria-label={t("rdResetMenu")} aria-haspopup="menu"
           onClick={(e) => openMenu(e, [
             { label: t("rdEmpty"), run: () => { commitText(text); typing.current = false; void clearReport(); } },
@@ -306,16 +368,30 @@ export default function ReportScreen() {
         {view !== "show" && (
           <section className="rd-editor">
             <div className="rd-toolbar" role="toolbar" aria-label={t("rdLibrary")}>
-              {tool("H", t("rdHeading"), () => linePrefix("## "))}
-              {tool("B", t("rdBold"), () => put("", ["**", "**"]), "rd-b")}
-              {tool("I", t("rdItalic"), () => put("", ["*", "*"]), "rd-i")}
-              {tool("•", t("rdBullets"), () => linePrefix("- "))}
-              {tool("1.", t("rdNumbers"), () => linePrefix("1. "))}
-              {tool("▦", t("rdTable"), () => block("| | |\n|---|---|\n| | |"))}
-              {tool("∑", t("rdMath"), () => put("x", ["$", "$"]))}
-              {tool("!", t("rdCallout"), () => block("> [!NOTE]\n> "))}
-              {tool("↧", t("rdPageBreak"), () => block("\\newpage"))}
-              {tool("🔗", t("rdLink"), () => put("text", ["[", "](https://)"]))}
+              {latex ? <>
+                {tool("H", t("rdHeading"), () => put(t("rdHeading"), ["\\section{", "}"]))}
+                {tool("B", t("rdBold"), () => put("", ["\\textbf{", "}"]), "rd-b")}
+                {tool("I", t("rdItalic"), () => put("", ["\\emph{", "}"]), "rd-i")}
+                {tool("•", t("rdBullets"), () => block("\\begin{itemize}\n  \\item \n\\end{itemize}"))}
+                {tool("1.", t("rdNumbers"), () => block("\\begin{enumerate}\n  \\item \n\\end{enumerate}"))}
+                {tool("▦", t("rdTable"), () => block("\\begin{tabular}{ll}\n\\toprule\n a & b \\\\\n\\midrule\n 1 & 2 \\\\\n\\bottomrule\n\\end{tabular}"))}
+                {tool("∑", t("rdMath"), () => put("x", ["$", "$"]))}
+                {tool("≡", t("rdEquation"), () => block("\\begin{align}\n  y &= x\n\\end{align}"))}
+                {tool("↧", t("rdPageBreak"), () => block("\\newpage"))}
+                {tool("🔗", t("rdLink"), () => put("text", ["\\href{https://}{", "}"]))}
+              </> : <>
+                {tool("H", t("rdHeading"), () => linePrefix("## "))}
+                {tool("B", t("rdBold"), () => put("", ["**", "**"]), "rd-b")}
+                {tool("I", t("rdItalic"), () => put("", ["*", "*"]), "rd-i")}
+                {tool("•", t("rdBullets"), () => linePrefix("- "))}
+                {tool("1.", t("rdNumbers"), () => linePrefix("1. "))}
+                {tool("▦", t("rdTable"), () => block("| | |\n|---|---|\n| | |"))}
+                {tool("∑", t("rdMath"), () => put("x", ["$", "$"]))}
+                {tool("TeX", t("rdTexBlock"), () => block("```latex\n\\begin{align}\n  y &= x\n\\end{align}\n```"), "rd-texblock")}
+                {tool("!", t("rdCallout"), () => block("> [!NOTE]\n> "))}
+                {tool("↧", t("rdPageBreak"), () => block("\\newpage"))}
+                {tool("🔗", t("rdLink"), () => put("text", ["[", "](https://)"]))}
+              </>}
               {tool("🖼", t("rpPicture"), () => pictureInput.current?.click(), "rd-picture")}
               <input ref={pictureInput} type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden
                 onChange={(e) => { void addPictures(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
@@ -323,7 +399,7 @@ export default function ReportScreen() {
               {tool(dir === "rtl" ? "⇤" : "⇥", t("rdDirection"), () => setDir(dir === "rtl" ? "ltr" : "rtl"))}
               {tool("?", t("rdHelp"), () => setHelp(!help), help ? "on" : "")}
             </div>
-            {help && <pre className="rd-help" dir="auto">{t("rdHelpText")}</pre>}
+            {help && <pre className="rd-help" dir="auto">{t(latex ? "rdHelpTextTex" : "rdHelpText")}</pre>}
             {suggestions && suggestions.list.length > 0 && (
               <div className="rd-suggest" role="listbox">
                 {suggestions.list.map((s, i) => (
@@ -340,7 +416,17 @@ export default function ReportScreen() {
               onBlur={() => { typing.current = false; commitText(text); }} />
           </section>
         )}
-        {view !== "write" && (
+        {view !== "write" && latex && (
+          <section className="rd-preview rd-preview-tex">
+            {!tex?.best && tex && <p className="rd-tex-none hint">{tex.hint}</p>}
+            {texErr && <p className="rd-tex-err" role="alert">⚠ {texErr.line ? <button className="linklike" onClick={() => goLine(texErr.line!)}>{texErr.msg}</button> : texErr.msg}</p>}
+            {pdf ? <>
+              <iframe key={pdf} title={t("reportPreview")} className="rd-frame rd-pdf-frame" src={`/api/report/tex/pdf/${pdf}#navpanes=0&view=FitH`} />
+              <button className="linklike rd-tex-open" onClick={() => { api.reportTexOpen(pdf).catch(() => {}); }}>{t("rdTexOpen")}</button>
+            </> : tex?.best && !texErr ? <p className="empty-state">{t("rdTexWorking")}</p> : null}
+          </section>
+        )}
+        {view !== "write" && !latex && (
           <section className="rd-preview">
             {html ? <iframe ref={frame} title={t("reportPreview")} sandbox="allow-scripts" className="rd-frame"
               srcDoc={html.replace("</body>", SCROLL_JS + "</body>")}

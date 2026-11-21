@@ -142,6 +142,7 @@ export const assetBytes = (a: { data: string }) => Math.floor(a.data.length * 3 
 /** The assets a text uses (only these are sent and kept). */
 export function usedAssets(text: string, all: Record<string, Asset> | undefined): Record<string, Asset> {
   const out: Record<string, Asset> = {};
-  for (const m of text.matchAll(/\(asset:([\w-]+)\)/g)) if (all?.[m[1]]) out[m[1]] = all[m[1]];
+  // ![name](asset:id) in Markdown, \includegraphics{asset:id} in a LaTeX report (RE3)
+  for (const m of text.matchAll(/[({]asset:([\w-]+)[)}]/g)) if (all?.[m[1]]) out[m[1]] = all[m[1]];
   return out;
 }

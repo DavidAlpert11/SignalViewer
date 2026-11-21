@@ -219,10 +219,15 @@ export function resolveValue(ws: Workspace, raw: string, vars: string[], lang: L
   return { kind: "value", expr: back(res.expr), sources: res.sources, conds, names, fmt, src: raw, ...(assign ? { assign } : {}) };
 }
 
-/** Code (``` blocks and `spans`) is shown as written: no references in it. */
+/** RE3: a report written in LaTeX - its first line that is not a comment is \documentclass (app/reportlatex.py). */
+export const isLatexDoc = (text: string) => /^\s*(%[^\n]*\n\s*)*\\documentclass/.test(text);
+
+/** Code (``` blocks and `spans`) is shown as written: no references in it. In LaTeX: verbatim, \verb and comments. */
 function codeRanges(text: string): [number, number][] {
   const out: [number, number][] = [];
-  const re = /^(```|~~~)[^\n]*\n[\s\S]*?(^\1[^\n]*$|$(?![\s\S]))|`[^`\n]+`/gm;
+  const re = isLatexDoc(text)
+    ? /\\begin\{(verbatim|lstlisting|minted)\*?\}[\s\S]*?\\end\{\1\*?\}|\\verb(.)[^\n]*?\2|(?<!\\)%[^\n]*/g
+    : /^(```|~~~)[^\n]*\n[\s\S]*?(^\1[^\n]*$|$(?![\s\S]))|`[^`\n]+`/gm;
   for (let m = re.exec(text); m; m = re.exec(text)) out.push([m.index, m.index + m[0].length]);
   return out;
 }
@@ -237,7 +242,8 @@ export async function prepareDoc(ws: Workspace, text: string, lang: Lang): Promi
   const inCode = (i: number) => code.some(([a, b]) => i >= a && i < b);
   const specials: { k: number; name: string; opts: string[] }[] = [];
   const st = useApp.getState();
-  const out = text.replace(/\[\[([^\]\n]+)\]\]|\{\{([\s\S]+?)\}\}/g, (whole, ref: string | undefined, value: string | undefined, at: number) => {
+  // {{ the value }}: its opening pair is the last of a run of braces - in LaTeX \textbf{{{ max(Roll) }}} is bold
+  const out = text.replace(/\[\[([^\]\n]+)\]\]|\{\{(?!\{)([\s\S]+?)\}\}/g, (whole, ref: string | undefined, value: string | undefined, at: number) => {
     if (inCode(at)) return whole;
     const k = items.length;
     if (ref !== undefined) {
@@ -275,7 +281,7 @@ export async function prepareDoc(ws: Workspace, text: string, lang: Lang): Promi
 }
 
 /** The body the server takes (preview, the job of a file). */
-export async function docBody(format: "html" | "pdf" | "docx", path: string, typed?: string) {
+export async function docBody(format: "html" | "pdf" | "docx" | "tex" | "texpdf", path: string, typed?: string) {
   const st = useApp.getState();
   const meta = metaOf(st.ws, st.lang);
   const text = typed ?? docText(st.ws, st.lang);     // the preview: the text being typed, before it is committed

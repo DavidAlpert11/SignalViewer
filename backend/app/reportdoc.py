@@ -127,11 +127,12 @@ def parse(text: str) -> List[dict]:
         s = ln.strip()
         if s.startswith("```") or s.startswith("~~~"):
             end_para()
-            fence, body = s[:3], []
+            fence, body, lang = s[:3], [], s[3:].strip().lower()
             i += 1
             while i < len(lines) and not lines[i].strip().startswith(fence):
                 body.append(lines[i]); i += 1
-            blocks.append({"t": "code", "text": "\n".join(body)})
+            # RE3: ```latex - LaTeX written as it is (drawn by the computer's TeX, kept as is in the LaTeX export)
+            blocks.append({"t": "code", "text": "\n".join(body), "lang": lang})
             i += 1
             continue
         if s.startswith("$$"):
@@ -289,9 +290,38 @@ def math_svg(tex: str, size: int = 14) -> str:
             svg = re.sub(r'style="fill: ?#ffffff"', 'style="fill:none"', svg)      # the figure's white ground: the page's own shows
             svg = svg.replace("<svg ", '<svg class="math" fill="currentColor" role="img" aria-label="%s" ' % html.escape(tex, quote=True), 1)
             _math_cache[key] = svg
-        except Exception as e:                 # a formula mathtext cannot read: said where it is
-            _math_cache[key] = '<span class="field-err" title="%s">$%s$</span>' % (html.escape(str(e).split("\n")[0], quote=True), html.escape(tex))
+        except Exception as e:                 # a formula mathtext cannot read: the computer's LaTeX (RE3), else said
+            _math_cache[key] = tex_svg(tex, "math" if size >= 16 else "inline", tex) or \
+                '<span class="field-err" title="%s">$%s$</span>' % (html.escape(str(e).split("\n")[0], quote=True), html.escape(tex))
     return _math_cache[key]
+
+
+def tex_svg(tex: str, kind: str, label: str = "") -> Optional[str]:
+    """RE3: a formula or a ```latex block drawn by this computer's TeX as inline SVG (None: no TeX here). Vector SVG
+    (dvisvgm) takes the text's colour; a picture of the ink (pdftoppm / Ghostscript) is inverted in a dark page."""
+    from svcore import latex as TX
+    try:
+        svg = TX.snippet(tex, kind, "svg")
+    except TX.LatexError as e:
+        return '<span class="field-err" title="%s">LaTeX: %s</span>' % (html.escape(tex, quote=True), html.escape(str(e)))
+    if not svg:
+        return None
+    svg = svg[svg.find("<svg"):]
+    cls = "math tex tex-ink" if "<image" in svg else "math tex"
+    return svg.replace("<svg ", '<svg class="%s" fill="currentColor" role="img" aria-label="%s" ' % (cls, html.escape(label or tex, quote=True)), 1)
+
+
+def tex_png(tex: str, kind: str) -> Optional[Tuple[bytes, float]]:
+    """RE3: the same as a PNG (black ink on transparent, 300 dpi) and its height in points - for PDF and Word."""
+    from svcore import latex as TX
+    try:
+        png = TX.snippet(tex, kind, "png")
+    except TX.LatexError:
+        return None
+    if not png:
+        return None
+    import struct
+    return png, struct.unpack(">I", png[20:24])[0] * 72.0 / 300.0
 
 
 def math_png(tex: str, size: int = 13, dpi: int = 200) -> Optional[bytes]:
@@ -333,6 +363,10 @@ DOC_CSS = """
 .doc .mathblock{text-align:center;margin:10px 0 14px;direction:ltr}
 .doc .mathblock .math{transform-origin:center}
 .doc .pagebreak{break-after:page}
+.doc .texblock{margin:10px 0 14px;direction:ltr;text-align:center;overflow-x:auto}
+.doc .texblock .math{max-width:100%}
+[data-theme=dark] .doc .tex-ink{filter:invert(1)}
+.doc .tex-src{opacity:.85}
 .doc .plot h2{margin:0 0 6px;font-size:16px}
 @media print{.doc .pagebreak{border:0}}
 """
@@ -457,6 +491,10 @@ def blocks_html(blocks: List[dict], items: List[dict], S: Dict, theme: str, plot
                            % (b["kind"], _esc(title), inner))
             else:
                 out.append('<blockquote dir="auto">%s</blockquote>' % inner)
+        elif t == "code" and b.get("lang") in ("latex", "tex"):
+            svg = tex_svg(b["text"], "block", "LaTeX")
+            out.append('<div class="texblock">%s</div>' % svg if svg else
+                       '<pre class="tex-src"><code>%s</code></pre>' % _esc(b["text"]))     # no TeX here: its source
         elif t == "code":
             out.append("<pre><code>%s</code></pre>" % _esc(b["text"]))
         elif t == "math":
@@ -635,6 +673,23 @@ def build_doc_pdf(store, req: Dict, path: str, progress=None):
         st.y -= h + 6 * PT
         return True
 
+    def texpic(got: Optional[Tuple[bytes, float]]) -> bool:
+        """RE3: LaTeX's own picture of a formula / block, centred at its natural size (at most the page's width)."""
+        if not got:
+            return False
+        import numpy as np
+        from PIL import Image
+        im = Image.open(io.BytesIO(got[0])).convert("RGBA")
+        ground = Image.new("RGBA", im.size, (255, 255, 255, 255))
+        arr = np.asarray(Image.alpha_composite(ground, im).convert("RGB"))
+        h = min(TOP - BOTTOM, got[1] * PT)
+        w = min(0.8, h * (arr.shape[1] / max(arr.shape[0], 1)) * 11.69 / 8.27)
+        h = w * arr.shape[0] / max(arr.shape[1], 1) * 8.27 / 11.69
+        need(h + 0.01)
+        ax = st.fig.add_axes((0.5 - w / 2, st.y - h, w, h)); ax.imshow(arr); ax.set_axis_off()
+        st.y -= h + 8 * PT
+        return True
+
     def table_page(head: List[str], rows: List[List[str]], size: float = 8.5):
         h = (len(rows) + 1) * size * 2.0 * PT
         need(min(h, TOP - BOTTOM))
@@ -720,10 +775,13 @@ def build_doc_pdf(store, req: Dict, path: str, progress=None):
                 if b.get("kind"):
                     text((req.get("words") or {}).get("callout" + b["kind"], b["kind"].title()), 10.5, "bold", indent=indent + 0.03, gap=0.1)
                 walk(b["blocks"], indent + 0.03, muted)
+            elif t == "code" and b.get("lang") in ("latex", "tex") and texpic(tex_png(b["text"], "block")):
+                pass
             elif t == "code":
                 text(b["text"], 9, family="monospace", indent=indent + 0.02)
             elif t == "math":
-                text("$%s$" % b["tex"], 14)
+                if math_png(b["tex"], 14) is not None or not texpic(tex_png(b["tex"], "math")):
+                    text("$%s$" % b["tex"], 14)
             elif t == "hr":
                 need(12 * PT)
                 st.fig.add_artist(plt.Line2D([0.1, 0.9], [st.y - 4 * PT] * 2, color="#d5dce4", lw=0.8))
@@ -895,13 +953,21 @@ def build_doc_docx(store, req: Dict, path: str, progress=None):
                     rtlize(p, r.text)
                 walk(b["blocks"], True)
             elif t == "code":
+                got = tex_png(b["text"], "block") if b.get("lang") in ("latex", "tex") else None
                 p = doc.add_paragraph()
-                r = p.add_run(b["text"]); r.font.name = "Consolas"; r.font.size = Pt(9)
+                if got:                                  # RE3: a LaTeX block as LaTeX draws it
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p.add_run().add_picture(io.BytesIO(got[0]), height=Pt(min(got[1], 600)))
+                else:
+                    r = p.add_run(b["text"]); r.font.name = "Consolas"; r.font.size = Pt(9)
             elif t == "math":
                 eq = math_png(b["tex"], 15)
+                got = None if eq else tex_png(b["tex"], "math")
                 p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 if eq:
                     p.add_run().add_picture(io.BytesIO(eq), height=Pt(22))
+                elif got:
+                    p.add_run().add_picture(io.BytesIO(got[0]), height=Pt(min(got[1], 600)))
                 else:
                     p.add_run("$$%s$$" % b["tex"])
             elif t == "hr":
@@ -923,4 +989,10 @@ def build_doc(store, req: Dict, fmt: str, path: str, progress=None) -> Optional[
         build_doc_pdf(store, req, path, progress)
     elif fmt == "docx":
         build_doc_docx(store, req, path, progress)
+    elif fmt == "tex":                           # RE3: the LaTeX project (.zip) - Overleaf, another computer
+        from app.reportlatex import build_zip
+        build_zip(store, req, path, progress)
+    elif fmt == "texpdf":                        # RE3: typeset by this computer's LaTeX
+        from app.reportlatex import build_pdf
+        build_pdf(store, req, path, progress)
     return None
