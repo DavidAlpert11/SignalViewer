@@ -10,6 +10,7 @@ import { areaRoles, goalToStudy, studyToGoal } from "./studyRoles";
 import { upgradeQuestion } from "./model";
 import { newSetupStudy, setupFromResults } from "./setup";
 import { notify, notifyError } from "./notify";
+import { flowAsked } from "./goFlow";
 import { useApp } from "../store";
 import { translate } from "../i18n";
 import type { DemoProgress, LauncherSubmitResult, NextRunsResult, Study, StudyReq, StudyTable } from "./studyTypes";
@@ -118,9 +119,13 @@ async function firstResultsIn(): Promise<void> {
     const f = rd.files.find((x) => x.rows);
     if (!f) continue;
     const part = useSweeps.getState().part;
+    const was = flowAsked().n;
     markSeen(rd.files.map((x) => x.mtime));                          // shown: not "new" in the navigator
     await showStudyFile(f.path, ft.id);
-    if (part !== "setup") useSweeps.setState({ part });            // elsewhere: listed in Data, not shown over it
+    const now = flowAsked();
+    // a step clicked while it was read: where that click went stays (not put back to where the round started)
+    const back = now.n !== was ? now.part ?? part : part;
+    if (back !== "setup") useSweeps.setState({ part: back });      // elsewhere: listed in Data, not shown over it
     notify(translate(useApp.getState().lang, "suResultsIn", { n: ft.name || ft.id }));
     return;
   }
