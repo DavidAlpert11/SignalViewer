@@ -44,7 +44,14 @@ class Fake:
         body = re.sub(r'<ac:structured-macro ac:name="signalviewer".*?</ac:structured-macro>', user, body, flags=re.S)
         return ('<!doctype html><html><head><meta charset="utf-8"><meta name="ajs-page-id" content="%s">'
                 '<meta name="ajs-context-path" content="/confluence"><title>%s - Confluence (stand-in)</title>'
-                '<style>body{font:14px sans-serif;max-width:1100px;margin:24px auto;padding:0 16px}</style></head><body>'
+                '<style>body{font:14px sans-serif;max-width:1100px;margin:24px auto;padding:0 16px}'
+                '#drop{display:none;position:fixed;inset:12px;border:3px dashed #3d8bfd;background:#f4f8ffee;padding:40px;font-size:16px;z-index:9}</style></head><body>'
+                '<div id="drop"><b>This is the Confluence stand-in: a page to look at, not an editor - a drop does nothing here.</b>'
+                '<p>A web page cannot take a file from a drag out of another window - on a real Confluence page a drop from Signal '
+                'Viewer gives only its picture (in the editor).</p><p>To put the plot here, live: in the app, the plot\'s ⋯ menu -> '
+                '<b>Send to Confluence…</b>, this page\'s link, OK - then reload this page.</p><p>(Click to close.)</p></div>'
+                '<script>var d=document.getElementById("drop");addEventListener("dragover",function(e){e.preventDefault()});'
+                'addEventListener("drop",function(e){e.preventDefault();d.style.display="block"});d.onclick=function(){d.style.display="none"}</script>'
                 '<p style="color:#888">Confluence stand-in (Signal Viewer tools) · version %d · attachments: %s</p><h1>%s</h1>%s</body></html>'
                 % (self.page["id"], H.escape(self.page["title"]), self.page["version"],
                    H.escape(", ".join(self.attachments) or "none"), H.escape(self.page["title"]), body))
