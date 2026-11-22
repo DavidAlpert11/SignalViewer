@@ -197,3 +197,43 @@ def test_send_to_confluence_from_the_app(pg):
         view.close()
     finally:
         conf.close()
+
+
+def test_drag_a_plot_or_a_tab_out_of_the_window(pg):
+    """CP5 (owner, 2026-11-22: "hold the plot or the tab by its grip and drag it - HTML by default, else ask how"): the
+    drag carries the interactive page as a file (DownloadURL - a folder or the desktop), its picture (text/html - Word,
+    an e-mail, an editor) and its title; dropped outside the app, a toast offers Send to Confluence and Copy for
+    Confluence. (A real drop onto the desktop is the system's: here the drag's data and the link are checked.)"""
+    open_files(pg, "run_a.csv")
+    sig(pg, "Speed").click()
+    pg.wait_for_selector(".plot canvas")
+    got = pg.evaluate("""async () => {
+        const grip = document.querySelector('.plot-grip');
+        const dt = new DataTransfer();
+        grip.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true }));
+        const url = dt.getData('DownloadURL'), html = dt.getData('text/html'), text = dt.getData('text/plain');
+        await new Promise(r => setTimeout(r, 300));
+        const href = url.split(':').slice(2).join(':');
+        const page = await (await fetch(href)).text();
+        Object.defineProperty(dt, 'dropEffect', { value: 'copy' });   // a synthetic drag's dropEffect stays 'none' otherwise
+        grip.dispatchEvent(new DragEvent('dragend', { dataTransfer: dt, bubbles: true }));
+        return { url, html: html.slice(0, 200), hasImg: html.includes('data:image/png;base64,'), text, page: page.slice(0, 4000), full: page.includes('id="sv-data"') };
+    }""")
+    assert got["url"].startswith("text/html:Plot 1.html:http://127.0.0.1:") and "/api/export/drag/" in got["url"]
+    assert got["hasImg"] and "<h3>Plot 1</h3>" in got["html"] and got["text"] == "Plot 1"
+    assert got["full"] and "<title>Plot 1</title>" in got["page"]
+    pg.locator(".toast", has_text="Dragged out").wait_for(timeout=10000)
+    assert pg.locator(".toast", has_text="Dragged out").locator("button", has_text="Send to Confluence").count() == 1
+    # a tab: its plots, the same way
+    tabs = pg.evaluate("""() => { const t = document.querySelector('.tabs [role=tab]'); const dt = new DataTransfer();
+        t.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true }));
+        return [dt.getData('application/x-sv-tab') !== '', dt.getData('DownloadURL')]; }""")
+    assert tabs[0] and tabs[1].startswith("text/html:Tab 1.html:")
+    # a drag that stays in the app (onto another tab) is a move, no toast
+    n = pg.locator(".toast", has_text="Dragged out").count()
+    pg.evaluate("""() => { const grip = document.querySelector('.plot-grip'); const dt = new DataTransfer();
+        grip.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true }));
+        window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true }));
+        Object.defineProperty(dt, 'dropEffect', { value: 'move' }); grip.dispatchEvent(new DragEvent('dragend', { dataTransfer: dt, bubbles: true })); }""")
+    pg.wait_for_timeout(300)
+    assert pg.locator(".toast", has_text="Dragged out").count() == n

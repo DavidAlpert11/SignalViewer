@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| CP5 - drag a plot or a tab out of the window (owner, 2026-11-22) | built 2026-11-22 (the drag's data and the link tested in Chromium; a real drop on the Windows desktop not tested here) | the owner drags a plot's ⠿ onto his desktop, into Word, into Outlook |
 | Release 1.34.0 - CP4 Send to Confluence, CP3 the user macro, HL1 linked zoom, RE4 the built-in LaTeX, MSG5-MSG9 messages (owner, 2026-11-22: "yes - then release") | READY 2026-11-22: version in the five files + install.md, CHANGELOG 1.34.0 with highlights, README (English + Hebrew), limitations, validation page, pictures 52 53 55 56, the whole e2e one file at a time (99 files, 539 passed, none failed), quick_check parts (backend 1516, Vitest 301, mypy), mkdocs --strict | the owner tags v1.34.0 |
 | CP4 - Send to Confluence straight from the app (owner, 2026-11-22: "the most important now") | built 2026-11-22 (against a stand-in of Confluence's REST API; not yet against the owner's Confluence 10.2) | the owner: Settings -> Confluence (address + personal access token), Save and test, then a plot's ⋯ -> Send to Confluence…; if his Data Center keeps the HTML macro off, the Signal Viewer macro (CP3) |
 | MSG8 - hex / numbers / ASCII, double, text fields, a conversion formula (owner, 2026-11-22) | built 2026-11-22 | the owner looks |
@@ -170,6 +171,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · CP5 (owner: "drag the plot or the tab out - HTML by default"): DownloadURL + picture + title; the toast after a drop
+  outside. e2e test_confluence_copy (4), test_move_plots, test_move_plots_tabs, test_features (126) green.
 - 2026-11-22 · CP4 (owner: "how do I test the Confluence export without Confluence?"): tools/try_confluence.py - the tests'
   stand-in as a tool, now showing the page (its macros drawn) and its attachments; e2e test_confluence_copy opens it and sees the plot.
   Fixed: Confluence Cloud has neither the HTML macro nor user macros - the page gets a link (test_confluence 5).

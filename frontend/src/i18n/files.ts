@@ -337,6 +337,7 @@ export const en = {
   copyImage: "Copy image",
   // CP1: a plot / a tab for a Confluence page
   // CP4: Send to Confluence
+  dragOutDone: "Dragged out: on a folder or the desktop it is an interactive page (HTML), in Word, an e-mail or an editor its picture. Into a Confluence page live:",
   cfSendPlot: "Send to Confluence…", cfSendTab: "Send tab to Confluence…", cfThis: "this plot",
   cfSendTitle: "Send \"{what}\" to Confluence", cfPageLabel: "The page's link (open the page in the browser and copy its address)",
   cfNotSet: "Confluence is not set up yet: its address and a personal access token in Settings -> Confluence, once.", cfOpenSettings: "Open Settings",
@@ -728,6 +729,7 @@ export const he: typeof en = {
   saveImageHires: "שמירת תמונה לדוח (PNG, רזולוציה גבוהה)",
   saveImageHtml: "שמירה כעמוד אינטראקטיבי (HTML)",
   copyImage: "העתקת תמונה",
+  dragOutDone: "נגרר החוצה: על תיקייה או על שולחן העבודה זה דף אינטראקטיבי (HTML), ב-Word, במייל או בעורך - תמונה שלו. לדף Confluence, חי:",
   cfSendPlot: "שליחה ל-Confluence…", cfSendTab: "שליחת הטאב ל-Confluence…", cfThis: "הגרף הזה",
   cfSendTitle: "שליחת \"{what}\" ל-Confluence", cfPageLabel: "הקישור לדף (פתחו את הדף בדפדפן והעתיקו את הכתובת שלו)",
   cfNotSet: "Confluence עוד לא מוגדר: הכתובת שלו ו-personal access token ב-Settings -> Confluence, פעם אחת.", cfOpenSettings: "פתיחת Settings",

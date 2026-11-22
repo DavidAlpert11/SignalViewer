@@ -42,7 +42,7 @@ import { compareObjects, errorSignals, pairOf } from "../relation";
 import { laneMenuItems } from "../lanes";
 import { lineLook, setpointsIn } from "../desired";
 import OccChart from "./OccChart";
-import { copyForConfluence, sendToConfluence } from "../clip";
+import { copyForConfluence, dragOutEnd, dragOutStart, sendToConfluence } from "../clip";
 import { addToReport } from "../reportDoc";
 
 interface Props { tab: Tab; plot: Plot; index: number; active: boolean }
@@ -558,8 +558,9 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       <header className="plot-head" ref={headRef}>
         {/* L10: also with one plot in the tab - it can go to another tab */}
         <span className="plot-grip" draggable role="button" tabIndex={-1} aria-label={t("plotMoveGrip")} title={`${t("plotMoveGrip")} · ${t("plotMoveHint")}`}
-          onDragStart={(e) => { e.dataTransfer.setData(PLOT_MIME, String(index)); e.dataTransfer.setData(PLOT_ID_MIME, plot.id); e.dataTransfer.effectAllowed = "copyMove"; useApp.setState({ plotDrag: plot.id }); }}
-          onDragEnd={() => useApp.setState({ plotDrag: null })}>⠿</span>
+          onDragStart={(e) => { e.dataTransfer.setData(PLOT_MIME, String(index)); e.dataTransfer.setData(PLOT_ID_MIME, plot.id); e.dataTransfer.effectAllowed = "copyMove"; useApp.setState({ plotDrag: plot.id });
+            if (plotHasContent(plot)) dragOutStart(e, tab, plot); }}                 // CP5: out of the window too
+          onDragEnd={(e) => { useApp.setState({ plotDrag: null }); if (plotHasContent(plot)) dragOutEnd(e, tab, plot); }}>⠿</span>
         {editingTitle ? (
           <input className="plot-title" autoFocus defaultValue={plot.title} placeholder={title}
             onBlur={(e) => { actions.renamePlot(plot.id, e.target.value.trim()); setEditingTitle(false); }}

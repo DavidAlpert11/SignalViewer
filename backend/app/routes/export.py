@@ -3,6 +3,8 @@
 import asyncio
 import base64
 import os
+import re
+import urllib.parse
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -320,6 +322,57 @@ def confluence_open():
         return {"opened": bool(webbrowser.open(url, new=2)), "url": url}
     except Exception:
         return {"opened": False, "url": url}
+
+
+# CP5 (owner, 2026-11-22: "hold the plot or the tab by its grip and drag it out - to Confluence or any file; HTML by
+# default"): a plot or a tab dragged out of the window. The page says at the drag's start what it is (POST) and gives
+# the system a link (DownloadURL) it fetches when the drag ends on a folder or the desktop: the report's page of it,
+# every sample. A link is known to the page that made it only (a random token) and is forgotten after 15 minutes.
+_drags: Dict[str, Dict] = {}
+
+
+class DragRegister(BaseModel):
+    token: str
+    title: str = ""
+    lang: str = "en"
+    theme: str = "light"
+    tabs: List[dict] = []
+    notes: List[dict] = []
+    macro: str = "html"
+
+
+@router.post("/api/export/drag")
+def export_drag(req: DragRegister):
+    import time
+    if not re.fullmatch(r"[A-Za-z0-9-]{16,64}", req.token):
+        fail(400, "A drag's token is 16-64 letters, digits or dashes.")
+    now = time.time()
+    for k in [k for k, v in _drags.items() if now - v["at"] > 900]:
+        _drags.pop(k, None)
+    while len(_drags) >= 32:
+        _drags.pop(next(iter(_drags)))
+    _drags[req.token] = {"at": now, "body": req.model_dump()}
+    return {"ok": True}
+
+
+@router.get("/api/export/drag/{token}/{name}")
+async def export_drag_file(token: str, name: str):
+    """The dragged plot or tab as its interactive page - fetched by the system when the drag ends on a folder."""
+    import time
+    from fastapi.responses import Response
+    end = time.time() + 5                       # the page's POST may still be on its way when the drop is quick
+    while token not in _drags and time.time() < end:
+        await asyncio.sleep(0.05)
+    d = _drags.get(token)
+    if not d:
+        fail(404, "That drag is over - drag the plot again.")
+    try:
+        page = await asyncio.to_thread(reports.build_html, store, d["body"])
+    except KeyError:
+        fail(404, "One of the plot's signals is no longer open.")
+    safe = re.sub(r'[\\/:*?"<>|]+', "_", name) or "signalviewer.html"
+    return Response(page, media_type="text/html; charset=utf-8",
+                    headers={"Content-Disposition": "attachment; filename*=UTF-8''" + urllib.parse.quote(safe)})
 
 
 @router.get("/api/export/clip/user-macro")

@@ -96,3 +96,55 @@ export async function sendToConfluence(tab: Tab, only?: Plot) {
   }
 }
 
+/* CP5 (owner, 2026-11-22: "hold the plot or the tab by its grip and drag it out - to Confluence or any file; HTML by
+   default, else ask how"): a drag that leaves the window carries the plot (or the tab) three ways at once, and the
+   place it is dropped takes the one it can -
+   - a folder or the desktop: the interactive page as a file (DownloadURL: the system fetches it from the app at the
+     drop - Chromium: Edge, Chrome, the desktop window's WebView2),
+   - Word, an e-mail, an editor (Confluence's too): its picture with the title (text/html),
+   - anything that takes text: its title.
+   A web page cannot be given a file by a drag from another window, so a Confluence page gets the picture: after a drop
+   outside the app a toast offers the other ways - Send to Confluence (live in the page), Copy for Confluence. */
+let dropInside = 0;
+if (typeof window !== "undefined") window.addEventListener("drop", () => { dropInside = Date.now(); }, true);
+
+function pictureOf(ids: string[], title: string): string {
+  const parts = [`<h3>${title.replace(/[<&]/g, (c) => (c === "<" ? "&lt;" : "&amp;"))}</h3>`];
+  for (const id of ids) {
+    const cvs = [...document.querySelectorAll<HTMLCanvasElement>(`[data-plot="${id}"] canvas`)].sort((a, b) => b.width * b.height - a.width * a.height)[0];
+    if (!cvs) continue;
+    try {
+      parts.push(`<p><img alt="${title.replace(/"/g, "&quot;")}" width="${Math.min(900, cvs.clientWidth || cvs.width)}" src="${cvs.toDataURL("image/png")}"></p>`);
+    } catch { /* a canvas that cannot be read: the title alone */ }
+  }
+  return parts.join("");
+}
+
+/** At the drag's start (the plot's grip, a tab): the three ways, set at once (a drag cannot wait for the server). */
+export function dragOutStart(e: React.DragEvent, tab: Tab, only?: Plot, shown?: string) {
+  const st = useApp.getState();
+  const kept = pagePlots(tab).filter(({ p, include }) => include && (!only || p.id === only.id));
+  if (!kept.length) return;
+  const plotLabel = translate(st.lang, "plotTitle", { n: "{n}" });
+  const title = only ? only.title || plotLabel.replace("{n}", String(tab.plots.indexOf(only) + 1)) : tab.name || shown || "Signal Viewer";
+  const token = (crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`);
+  const name = `${title.replace(/[\\/:*?"<>|]+/g, "_").slice(0, 60) || "signalviewer"}.html`;
+  const range = only ? st.ranges[rangeKey(tab, only)] ?? null : null;
+  const notes = (st.ws.notes ?? []).filter((n) => n.status !== "rejected" && (!range || ((n.t2 ?? n.t) >= range[0] && n.t <= range[1])))
+    .map((n) => ({ t: n.t, ...(n.t2 !== undefined ? { t2: n.t2 } : {}), text: n.text }));
+  void api.dragRegister({ token, title, lang: st.lang, theme: "light", notes,
+    tabs: [{ name: tab.name || "", plots: kept.map(({ p, pi }) => plotSpec(tab, p, pi, plotLabel)) }] }).catch(() => {});
+  e.dataTransfer.setData("DownloadURL", `text/html:${name}:${location.origin}/api/export/drag/${token}/${encodeURIComponent(name)}`);
+  e.dataTransfer.setData("text/html", pictureOf(kept.map(({ p }) => p.id), title));
+  e.dataTransfer.setData("text/plain", title);
+}
+
+/** At the drag's end: dropped outside the app - the other ways offered (the app cannot know where it went). */
+export function dragOutEnd(e: React.DragEvent, tab: Tab, only?: Plot) {
+  if (e.dataTransfer.dropEffect === "none" || Date.now() - dropInside < 1500) return;
+  const st = useApp.getState(), tr = (k: string) => translate(st.lang, k as never);
+  st.toast({ kind: "info", text: tr("dragOutDone"),
+    action: { label: tr("cfSendPlot"), run: () => { void sendToConfluence(tab, only); } },
+    action2: { label: tr("clipPlot"), run: () => { void copyForConfluence(tab, only); } }, ms: 12000 });
+}
+

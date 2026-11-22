@@ -556,6 +556,8 @@ export const api = {
   confluenceSet: (body: { url?: string; user?: string; token?: string }) => call<ConfluenceInfo>("/api/confluence", body),
   confluenceTest: () => call<{ user: string }>("/api/confluence/test", {}),
   confluenceSend: (body: Record<string, unknown>) => call<{ page: string; url: string; added: boolean; updated: boolean; name: string; size: number; link?: boolean }>("/api/export/confluence", body),
+  /** CP5: a plot or tab dragged out of the window - what it is, for the link the system fetches at the drop */
+  dragRegister: (body: Record<string, unknown>) => call<{ ok: boolean }>("/api/export/drag", body),
   confluenceOpen: () => call<{ opened: boolean; url: string }>("/api/confluence/open", {}),
   /** CP3: the Signal Viewer user macro for Confluence (installed once by an administrator) */
   clipUserMacro: () => call<{ name: string; template: string }>("/api/export/clip/user-macro"),

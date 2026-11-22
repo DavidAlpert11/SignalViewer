@@ -102,3 +102,24 @@ def test_user_macro_template_is_velocity_safe_and_the_copy_is_its_markup(tmp_pat
         assert bad.status_code == 400 and "|" in bad.json()["detail"]
     finally:
         client.delete(f"/api/runs/{run['id']}")
+
+
+def test_a_plot_dragged_out_is_its_page(tmp_path):
+    """CP5 (owner, 2026-11-22: "drag the plot or the tab out - HTML by default"): the page says what it drags (a random
+    token), the system fetches the link at the drop - the report's page of it, every sample, as a file."""
+    path = tmp_path / "s.csv"
+    path.write_text("time,a\n" + "".join("%g,%g\n" % (i * 0.1, i % 5) for i in range(100)), encoding="utf-8")
+    run = client.post("/api/files/open", json={"paths": [str(path)]}).json()["opened"][0]
+    try:
+        plot = {"mode": "time", "title": "A", "signals": [{"id": f"{run['id']}/a", "label": "a", "color": "#e33", "width": 1.5,
+                                                         "scale": 1, "offset": 0, "state": False, "tOffset": 0}]}
+        tok = "0b9e2c34-5d1f-4c8e-9a77-1f2e3d4c5b6a"
+        assert client.post("/api/export/drag", json={"token": "x", "tabs": []}).status_code == 400
+        assert client.post("/api/export/drag", json={"token": tok, "title": "Speed A", "tabs": [{"name": "", "plots": [plot]}]}).json()["ok"]
+        r = client.get(f"/api/export/drag/{tok}/Speed%20A.html")
+        assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
+        assert "attachment" in r.headers["content-disposition"] and "Speed%20A.html" in r.headers["content-disposition"]
+        assert 'id="sv-data"' in r.text and "<title>Speed A</title>" in r.text
+        assert client.get("/api/export/drag/0b9e2c34-0000-0000-0000-000000000000/x.html").status_code == 404
+    finally:
+        client.delete(f"/api/runs/{run['id']}")

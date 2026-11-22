@@ -15,7 +15,7 @@ import { openSession, saveSession } from "../files";
 import { copyErrorDetails, reportProblem } from "../errorReport";
 import type { MenuItem, MoreTabs } from "../store";
 import { openMenu } from "./Overlays";
-import { copyForConfluence, sendToConfluence } from "../clip";
+import { copyForConfluence, dragOutEnd, dragOutStart, sendToConfluence } from "../clip";
 import { addToReport } from "../reportDoc";
 import { EXAMPLE_LABEL, openExample } from "./Welcome";
 import { startTour } from "./Tour";
@@ -247,7 +247,8 @@ export function PlotTabs() {
           const name = tab.name || `${t("tab")} ${i + 1}`;
           return (
             <div key={tab.id} role="tab" aria-selected={tab.id === ws.activeTab} tabIndex={0} draggable
-              onDragStart={(e) => e.dataTransfer.setData("application/x-sv-tab", tab.id)}
+              onDragStart={(e) => { e.dataTransfer.setData("application/x-sv-tab", tab.id); e.dataTransfer.effectAllowed = "copyMove"; dragOutStart(e, tab, undefined, name); }}
+              onDragEnd={(e) => dragOutEnd(e, tab)}
               onDragOver={(e) => {
                 if (e.dataTransfer.types.includes("application/x-sv-tab")) e.preventDefault();
                 // L10: a plot dragged by its handle moves to this tab (Ctrl: a copy)
