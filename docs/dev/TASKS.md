@@ -18,7 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
-| Release 1.34.0 - CP4 Send to Confluence, CP3 the user macro, HL1 linked zoom, RE4 the built-in LaTeX, MSG5-MSG9 messages (owner, 2026-11-22: "yes - then release") | PREPARING 2026-11-22: version in the five files + install.md, CHANGELOG 1.34.0 with highlights, README (English + Hebrew), limitations, validation page; the whole e2e running | the owner tags v1.34.0 |
+| Release 1.34.0 - CP4 Send to Confluence, CP3 the user macro, HL1 linked zoom, RE4 the built-in LaTeX, MSG5-MSG9 messages (owner, 2026-11-22: "yes - then release") | READY 2026-11-22: version in the five files + install.md, CHANGELOG 1.34.0 with highlights, README (English + Hebrew), limitations, validation page, pictures 52 53 55 56, the whole e2e one file at a time (99 files, 539 passed, none failed), quick_check parts (backend 1516, Vitest 301, mypy), mkdocs --strict | the owner tags v1.34.0 |
 | CP4 - Send to Confluence straight from the app (owner, 2026-11-22: "the most important now") | built 2026-11-22 (against a stand-in of Confluence's REST API; not yet against the owner's Confluence 10.2) | the owner: Settings -> Confluence (address + personal access token), Save and test, then a plot's ⋯ -> Send to Confluence…; if his Data Center keeps the HTML macro off, the Signal Viewer macro (CP3) |
 | MSG8 - hex / numbers / ASCII, double, text fields, a conversion formula (owner, 2026-11-22) | built 2026-11-22 | the owner looks |
 | MSG9 - the proposal (16-bit counter, double, text; no slow type byte, no 00 footer), *Not the type byte*, a wider panel (owner, 2026-11-22) | built 2026-11-22 | the owner looks |
@@ -170,6 +170,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · Release 1.34.0 prepared (owner: "yes - then release"): the whole e2e one file at a time - 99 files, 539 passed, none
+  failed; pictures 52 53 55 56 (the bytes view, the step 4 list, the `message` lane); backend 1516, Vitest 301, mypy, mkdocs --strict.
 - 2026-11-22 · MSG9: the proposal reads the MSG8 test stream right by itself; Not the type byte; Messages 520 px. backend all,
   e2e test_messages (13) green.
 - 2026-11-22 · CP4 (owner: "the easiest way to throw an interactive plot straight to Confluence"): app/confluence.py, routes, Settings,
