@@ -382,6 +382,8 @@ export const api = {
   messagesLibrarySave: (structure: Structure, name?: string, overwrite = false) =>
     call<{ path: string; key: string }>("/api/messages/library/save", { structure, name, overwrite }),
   messagesLibraryReveal: () => call<{ folder: string }>("/api/messages/library/reveal", {}),
+  /** MSG5: a direction column's values (2..most), each with its count and its text */
+  directionValues: (id: string) => call<{ values: { v: number; n: number; label: string | null }[]; distinct: number; most: number }>("/api/messages/direction-values", { id }),
   messagesStreams: (streams: unknown[], runs?: string[]) => call<{ streams: StreamRow[] }>("/api/messages/streams", { streams, runs: runs ?? null }),
   reportParts: (runs?: string[], streams?: unknown[]) => call<ReportScan>("/api/report/parts", { runs: runs ?? null, streams: streams ?? null }),
   /** the page (Markdown) - or, for a report written in LaTeX (RE3), the PDF this computer's TeX made (a token) / its error */

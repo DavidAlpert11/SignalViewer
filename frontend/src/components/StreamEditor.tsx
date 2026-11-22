@@ -3,7 +3,7 @@ import { pickPath, useApp } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { api, type LibraryItem, type MessagesInspect } from "../api";
 import type { MessageStream, Structure } from "../store/model";
-import { addStreamToReport, applyRole, decodeAsMessages, directionCandidates, makeRecording, saveToLibrary, streamFor, streamsOf, withFieldNames } from "../messages";
+import { addStreamToReport, applyRole, decodeAsMessages, directionCandidates, guessDirections, makeRecording, saveToLibrary, streamFor, streamsOf, withFieldNames } from "../messages";
 import StructureEditor from "./StructureEditor";
 import ByteView, { type ByteRole } from "./ByteView";
 import { openMenu } from "./Overlays";
@@ -37,6 +37,30 @@ export default function StreamEditor({ ids, library, onLibrary }: { ids: string[
   const labels = dirSig?.labels ?? {};
   const set = (p: Partial<MessageStream>) => setDef((d) => ({ ...d, ...p }));
   const both = def.carries === "both";
+  // MSG5: the direction column's values (any column: 2..32 of them), asked for when it is chosen; TX and RX guessed
+  // when not said yet (older sessions with a text column keep "every other value is RX")
+  const [dirVals, setDirVals] = useState<{ values: { v: number; n: number; label: string | null }[]; distinct: number; most: number } | null>(null);
+  useEffect(() => {
+    if (!both || !def.dir) { setDirVals(null); return; }
+    let live = true;
+    api.directionValues(def.dir).then((r) => {
+      if (!live) return;
+      setDirVals(r);
+      setDef((d) => {
+        if (d.dir !== def.dir || !r.values.length) return d;
+        const has = (v: number | null | undefined) => v != null && r.values.some((x) => x.v === v);
+        const g = guessDirections(r.values);
+        const tx = has(d.txValue) ? d.txValue! : g.tx;
+        const legacy = d.rxValue === undefined && Object.keys(labels).length > 0 && has(d.txValue);
+        const rx = legacy ? undefined : has(d.rxValue) && d.rxValue !== tx ? d.rxValue! : r.values.find((x) => x.v !== tx)?.v ?? null;
+        return tx === d.txValue && rx === d.rxValue ? d : { ...d, txValue: tx, rxValue: rx };
+      });
+    }, () => live && setDirVals(null));
+    return () => { live = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [both, def.dir]);
+  const valName = (x: { v: number; label: string | null }) => x.label ? `${x.label} (${fmtNum(x.v, lang)})` : fmtNum(x.v, lang);
+  const leftOut = dirVals && def.rxValue != null ? dirVals.values.filter((x) => x.v !== def.txValue && x.v !== def.rxValue).reduce((a, x) => a + x.n, 0) : 0;
   const can = !both || !!def.dir;
   const eff = { ...def, dir: both ? def.dir : null, header: def.header?.trim() || undefined, checksum: def.checksum || undefined };
   const sides = streamsOf(eff).map((x) => x.label);
@@ -136,15 +160,25 @@ export default function StreamEditor({ ids, library, onLibrary }: { ids: string[
             <div className="cmpobj-grid">
               <label className="cmpobj-label" htmlFor="msg-dir">{t("msgDlgDir")}</label>
               {dirs.length ? (
-                <select id="msg-dir" className="msg-dir" value={def.dir ?? ""} onChange={(e) => set({ dir: e.target.value, txValue: null })}>
+                <select id="msg-dir" className="msg-dir" value={def.dir ?? ""} onChange={(e) => set({ dir: e.target.value, txValue: null, rxValue: null })}>
                   {dirs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               ) : <span className="hint msg-nodir">{t("msgDlgNoDir")}</span>}
-              {dirSig && <>
+              {dirSig && dirVals && !dirVals.values.length && (
+                <span className="hint msg-dirbad" style={{ gridColumn: "1 / -1" }}>{t("msgDlgDirBad", { n: dirVals.distinct, most: dirVals.most })}</span>)}
+              {dirSig && dirVals && dirVals.values.length > 0 && <>
                 <label className="cmpobj-label" htmlFor="msg-txv">{t("msgDlgTxIs")}</label>
-                <select id="msg-txv" className="msg-txv" value={String(def.txValue ?? Object.keys(labels)[0] ?? "")} onChange={(e) => set({ txValue: Number(e.target.value) })}>
-                  {Object.entries(labels).map(([code, text]) => <option key={code} value={code}>{text}</option>)}
+                <select id="msg-txv" className="msg-txv" value={String(def.txValue ?? "")}
+                  onChange={(e) => { const tx = Number(e.target.value); set({ txValue: tx, ...(def.rxValue === tx ? { rxValue: dirVals.values.find((x) => x.v !== tx)?.v ?? null } : {}) }); }}>
+                  {dirVals.values.map((x) => <option key={x.v} value={String(x.v)}>{valName(x)} · {fmtNum(x.n, lang)}</option>)}
                 </select>
+                <label className="cmpobj-label" htmlFor="msg-rxv">{t("msgDlgRxIs")}</label>
+                <select id="msg-rxv" className="msg-rxv" value={def.rxValue == null ? "" : String(def.rxValue)}
+                  onChange={(e) => set({ rxValue: e.target.value === "" ? undefined : Number(e.target.value) })}>
+                  {Object.keys(labels).length > 0 && def.rxValue == null && <option value="">{t("msgDlgRxOthers")}</option>}
+                  {dirVals.values.filter((x) => x.v !== def.txValue).map((x) => <option key={x.v} value={String(x.v)}>{valName(x)} · {fmtNum(x.n, lang)}</option>)}
+                </select>
+                {leftOut > 0 && <span className="hint msg-dirleft" style={{ gridColumn: "1 / -1" }}>{t("msgDlgDirLeft", { n: fmtNum(leftOut, lang), k: dirVals.values.length - 2 })}</span>}
               </>}
             </div>
           )}

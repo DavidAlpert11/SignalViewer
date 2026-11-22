@@ -196,3 +196,45 @@ def test_requests_replies_handshake_on_the_demo():
     assert [(x["dir"], x["type"]) for x in hs[1]["steps"]] == [("TX", 1), ("RX", 0x81), ("TX", 2), ("RX", 0x82)]
     t, y = compute("messages", [(d["time"], d["tx_byte"]), (d["time"], d["rx_byte"])], {"what": "latency", "link": True})
     assert len(t) == 284 and np.all(np.diff(t) >= 0)                                 # 2 + 2 + 280 answered
+
+
+def _node_csv(path):
+    """link_mixed.csv with a numeric direction column of three values: 5 (TX), 9 (RX) and 12 - another node's 60
+    bytes after the end (MSG5)."""
+    lines = open(os.path.join(EX, "link_mixed.csv"), encoding="utf-8").read().splitlines()
+    out = ["time,byte,node"] + [ln.rsplit(",", 1)[0] + "," + ("5" if ln.endswith("TX") else "9") for ln in lines[1:]]
+    t_end = float(lines[-1].split(",")[0])
+    out += ["%.6f,%d,12" % (t_end + 0.001 * (i + 1), (i * 37) % 256) for i in range(60)]
+    path.write_text("\n".join(out) + "\n", encoding="utf-8")
+    return str(path)
+
+
+def test_any_column_is_a_direction_the_user_says_tx_and_rx(tmp_path):
+    """MSG5 (owner, 2026-11-22): "any column with several values, the user says which value is TX and which RX" - a
+    numeric node column 5 / 9 / 12: its values counted, TX 5 and RX 9 decoded as before, node 12's bytes in neither."""
+    from app.store import Store
+    from app.reportparts import find_streams
+    st = Store()
+    m = st.open_file(_node_csv(tmp_path / "nodes.csv")).id
+    vals, counts, distinct = bs.direction_values(st.signal(f"{m}/node")[1])
+    assert vals == [5.0, 9.0, 12.0] and counts[2] == 60 and distinct == 3
+    assert bs.direction_values(np.arange(100.0))[0] == []                      # 100 values: not a direction column
+    defs = [{"sources": [f"{m}/byte"], "carries": "both", "dir": f"{m}/node", "txValue": 5, "rxValue": 9}]
+    got = {s_["name"]: s_["r"]["count"] for s_ in find_streams(st, [m], defs)}
+    assert got == {"byte TX": 1829, "byte RX": 1992}
+
+
+def test_direction_values_route(tmp_path):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    run = c.post("/api/files/open", json={"paths": [_node_csv(tmp_path / "nodes.csv")]}).json()["opened"][0]
+    try:
+        r = c.post("/api/messages/direction-values", json={"id": f"{run['id']}/node"}).json()
+        assert [x["v"] for x in r["values"]] == [5, 9, 12] and r["values"][2]["n"] == 60 and r["most"] == 32
+        r = c.post("/api/messages/direction-values", json={"id": f"{run['id']}/time"})
+        assert r.status_code in (200, 404)
+        t = c.post("/api/messages/direction-values", json={"id": f"{run['id']}/byte"}).json()
+        assert t["values"] == [] and t["distinct"] > 32                         # the bytes themselves: too many values
+    finally:
+        c.delete(f"/api/runs/{run['id']}")

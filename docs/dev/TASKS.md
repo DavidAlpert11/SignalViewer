@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| MSG5 - any column with several values is the direction; the user picks TX and RX (owner, 2026-11-22) | built 2026-11-22 | the owner tries it on his own stream |
 | CP3 - Copy for Confluence through the Signal Viewer user macro (owner, 2026-11-22: Confluence 10.2) | built 2026-11-22 (tested against a stand-in page; not against a real Confluence 10.2) | the owner's Confluence administrator installs the macro (Settings → Save the macro…); the owner tries a copy |
 | HL1 - one zoom and one cursor for the HTML page's time plots (owner, 2026-11-22) | built 2026-11-22 | the owner looks (any report / tab saved as HTML, the 🔗 button) |
 | Release 1.33.0 - MSG4 guided messages, RE3 LaTeX, the agent skills (owner, 2026-11-21: "a patch ready for a version") | READY 2026-11-21: version in the five files, CHANGELOG 1.33.0 with highlights, README (English + Hebrew) and docs (features, limitations, reports + reports.he LaTeX, messages, GUIDE.he messages), validation page, pictures 42 48-51 55-57, the whole e2e one file at a time (97 files, 526 passed, 1 failed: test_study_loop - fixed, then 18 / 18 green), quick_check, mkdocs --strict | the owner applies the patch, pushes, tags v1.33.0 |
@@ -163,6 +164,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · MSG5 (owner: "any column with several values, the user says which is TX and which RX"): direction_values + route,
+  rxValue, StreamEditor pickers. backend test_bytestream (14), e2e test_messages (9) green.
 - 2026-11-22 · build run 45055081958: the AppData fix worked (Tectonic found its folders); next on Windows: "texbundle.zip doesn't
   specify a valid bundle" - Tectonic reads -b as a URL first and D:\... is the scheme "d". svcore/latex.bundle_arg: a drive path
   as file:///D:/... (make_tex_bundle.py too); test_report_latex::test_tectonic_bundle_argument_on_windows_is_a_file_url.

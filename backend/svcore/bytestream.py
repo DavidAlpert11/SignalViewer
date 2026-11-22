@@ -346,6 +346,20 @@ def one_direction(signals: Sequence[Tuple[np.ndarray, np.ndarray]], value) -> Li
     return out
 
 
+DIRECTION_MOST = 32          # MSG5: a direction column has 2..32 values (a node address, a port, a code per side)
+
+
+def direction_values(yd: np.ndarray) -> Tuple[List[float], List[int], int]:
+    """MSG5 (owner, 2026-11-22: "any column with several values, the user says which is TX and which RX"): the
+    column's values with how many samples each has - empty when it has fewer than 2 or more than DIRECTION_MOST;
+    and how many different values it has."""
+    y = np.asarray(yd, dtype=np.float64)
+    v, n = np.unique(y[np.isfinite(y)], return_counts=True)
+    if not 2 <= len(v) <= DIRECTION_MOST:
+        return [], [], int(len(v))
+    return [float(x) for x in v], [int(c) for c in n], int(len(v))
+
+
 def directions(yd: np.ndarray) -> List[float]:
     """The values of a direction column worth splitting on (2..4 of them)."""
     v = np.unique(np.asarray(yd, dtype=np.float64)[np.isfinite(yd)])

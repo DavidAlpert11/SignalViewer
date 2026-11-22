@@ -40,7 +40,7 @@ numbered steps; each says what to do, and steps 2 and 3 follow every change at o
 | Choice | When | Example |
 |---|---|---|
 | Only TX / only RX | one direction in one signal | `tx_byte` |
-| Both - a column says the direction of each byte | one signal with both ways, and a signal beside it (`dir` = TX / RX); choose it and which of its values is TX | `byte` + `dir` in `link_mixed.csv` |
+| Both - a column says the direction of each byte | one signal with both ways, and **any column beside it with 2 to 32 values** (`dir` = TX / RX, a node address 5 / 9 / 12, a port...); choose it, then which of its values is TX and which is RX (each value shown with how many samples have it). Bytes with the column's other values are in neither direction - the panel says how many | `byte` + `dir` in `link_mixed.csv` |
 | TX and RX - one signal each | two signals selected | `tx_byte` and `rx_byte` in `link_tx_rx.csv` |
 
 With two directions, steps 2-4 are done for each (the TX / RX switch at the top of step 2).

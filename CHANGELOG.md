@@ -2,6 +2,8 @@
 
 ## Next – unreleased
 
+- New: **any column can say a byte's direction** - not only a TX / RX text column: a node address, a port, any column with 2 to 32 values. In *Messages* step 1, choose the column, then its value for TX and its value for RX (each shown with how many samples have it); bytes with its other values are in neither direction, and the panel says how many.
+
 - New: **Copy for Confluence without the HTML macro** - Confluence Data Center keeps that macro off by default. *Settings → Copy for Confluence → Signal Viewer macro*: an administrator installs the Signal Viewer user macro once (the button beside it saves its template, with the steps), and the copy becomes `{signalviewer:file=…}`, pasted with *Insert → Markup* - the plot or tab as live as before.
 
 - New: in the HTML page (a report, a tab, a Confluence copy) the **time plots of a tab zoom together and share the cursor** - a drag, the wheel or a double click on one moves them all, a click places the cursor (and its values) in every plot. The 🔗 button at the top makes each plot zoom on its own again.

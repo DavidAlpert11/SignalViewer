@@ -1019,6 +1019,9 @@ def defined_streams(store, rids: Sequence[str], defs: Sequence[Dict]) -> List[Tu
             tx = d.get("txValue")
             tx = float(tx) if tx is not None else (vals[0] if vals else 0.0)
             out.append((rid, "%s TX" % name, src + [dir_], {**prm, "dir": tx}))
+            if d.get("rxValue") is not None:            # MSG5: the user's value for RX (the column's other values left out)
+                out.append((rid, "%s RX" % name, src + [dir_], {**prm, "dir": float(d["rxValue"])}))
+                continue
             for v in vals:
                 if abs(v - tx) > 1e-9:
                     out.append((rid, "%s RX" % name if len(vals) == 2 else "%s RX %g" % (name, v), src + [dir_], {**prm, "dir": v}))

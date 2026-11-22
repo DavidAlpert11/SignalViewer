@@ -40,6 +40,25 @@ def _stream_sources(req: StructureRequest):
         fail(404, f"Signal not found: {e} - is its file still open?")
 
 
+class DirectionValuesRequest(BaseModel):
+    id: str                                  # the direction column
+
+
+@router.post("/api/messages/direction-values")
+def messages_direction_values(req: DirectionValuesRequest):
+    """MSG5: a direction column's values (2..32), each with its count and its text when it has one - the user says
+    which value is TX and which RX."""
+    from svcore.bytestream import DIRECTION_MOST, direction_values
+    try:
+        _t, y = store.signal(req.id)
+    except KeyError:
+        fail(404, f"Signal not found: {req.id} - is its file still open?")
+    vals, counts, distinct = direction_values(y)
+    lab = store.labels(req.id) or {}
+    return {"values": [{"v": v, "n": n, "label": lab.get(int(v)) if float(v).is_integer() else None} for v, n in zip(vals, counts)],
+            "distinct": distinct, "most": DIRECTION_MOST}
+
+
 @router.post("/api/messages/suggest")
 async def messages_suggest(req: StructureRequest):
     """A structure proposed from a byte stream: NMEA-like text, or the framing found with each message's fields

@@ -21,13 +21,24 @@ const bare = (id: string) => id.slice(id.indexOf("/") + 1);
 const safe = (s: string) => s.replace(/[^\w-]+/g, "_").replace(/^_+|_+$/g, "") || "bytes";
 const uid = () => `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
-/** A direction column beside a byte signal: text values (2..4), named like one first. */
+/** A direction column beside a byte signal - MSG5: any other column of the file (its values are asked for when it is
+ *  chosen: 2..32 of them); named like one first, then text values (2..4), then the rest. */
 export function directionCandidates(sigId: string): SignalInfo[] {
   const rid = sigId.slice(0, sigId.indexOf("/"));
   const run = useApp.getState().runs.find((r) => r.id === rid);
   const few = (s: SignalInfo) => !!s.labels && Object.keys(s.labels).length >= 2 && Object.keys(s.labels).length <= 4;
-  const list = (run?.signals ?? []).filter((s) => s.id !== sigId && few(s));
-  return [...list.filter((s) => DIR_NAME.test(s.name)), ...list.filter((s) => !DIR_NAME.test(s.name))];
+  const list = (run?.signals ?? []).filter((s) => s.id !== sigId);
+  const named = list.filter((s) => DIR_NAME.test(s.name)), texts = list.filter((s) => !DIR_NAME.test(s.name) && few(s));
+  return [...named, ...texts, ...list.filter((s) => !named.includes(s) && !texts.includes(s))];
+}
+
+/** MSG5: TX and RX picked from a direction column's values - a text like TX / RX (out / in...) first, else its first
+ *  two values. */
+export function guessDirections(values: { v: number; label: string | null }[]): { tx: number | null; rx: number | null } {
+  if (values.length < 2) return { tx: null, rx: null };
+  const tx = values.find((x) => x.label && /tx|out|send|up/i.test(x.label)) ?? values[0];
+  const rx = values.find((x) => x !== tx && x.label && /rx|in|recv|receive|down/i.test(x.label)) ?? values.find((x) => x !== tx)!;
+  return { tx: tx.v, rx: rx.v };
 }
 
 /** The definition to start from: the one kept for these signals, else a guess (a direction column -> both; a name
@@ -35,7 +46,7 @@ export function directionCandidates(sigId: string): SignalInfo[] {
 export function streamFor(ids: string[]): MessageStream {
   const kept = (useApp.getState().ws.messageStreams ?? []).find((m) => m.sources.join(",") === ids.join(","));
   if (kept) return kept;
-  const dir = ids.length === 1 ? directionCandidates(ids[0]).find((s) => DIR_NAME.test(s.name)) : undefined;
+  const dir = ids.length === 1 ? directionCandidates(ids[0]).find((s) => DIR_NAME.test(s.name) && !!s.labels && Object.keys(s.labels).length >= 2 && Object.keys(s.labels).length <= 4) : undefined;
   const tx = dir?.labels ? Object.entries(dir.labels).find(([, v]) => /tx|out|send|up/i.test(v))?.[0] ?? Object.keys(dir.labels)[0] : null;
   const rxName = (id: string) => /(^|[^a-z])rx|recv|receive|down/i.test(bare(id));
   // two signals, one named like TX and one like RX: the two directions of one link (TX first)
@@ -52,6 +63,9 @@ export function streamsOf(def: MessageStream): { label: string; sources: string[
   if (def.checksum) prm.checksum = def.checksum;
   if (def.carries === "pair") return def.sources.slice(0, 2).map((s, i) => ({ label: i ? "RX" : "TX", sources: [s], params: prm }));
   if (def.carries !== "both" || !def.dir) return [{ label: def.carries.toUpperCase(), sources: def.sources, params: prm }];
+  // MSG5: the user's two values - TX and RX (the column's other values left out)
+  if (def.txValue != null && def.rxValue != null)
+    return [["TX", def.txValue], ["RX", def.rxValue]].map(([label, c]) => ({ label: label as string, sources: [def.sources[0], def.dir!], params: { ...prm, dir: c } }));
   const run = useApp.getState().runs.find((r) => r.id === def.dir!.slice(0, def.dir!.indexOf("/")));
   const labels = run?.signals.find((s) => s.id === def.dir)?.labels ?? {};
   const codes = Object.keys(labels).map(Number).sort((a, b) => a - b);

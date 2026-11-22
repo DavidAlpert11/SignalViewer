@@ -47,7 +47,7 @@ def test_decode_as_messages_both_ways_with_a_direction_column(pg):
     # a direction column is there: "both" is guessed, with dir and TX
     assert pg.locator(".msgp-stream.open input[value=both]").is_checked()
     assert pg.locator(".msgp-stream.open .msg-dir").input_value().endswith("/dir")
-    assert pg.locator(".msgp-stream.open .msg-txv option:checked").inner_text() == "TX"
+    assert pg.locator(".msgp-stream.open .msg-txv option:checked").inner_text().startswith("TX")
     pg.locator(".msgp-stream.open .msg-go").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.name.startsWith('Messages: byte'))", timeout=30000)
     pg.wait_for_timeout(1500)
@@ -59,6 +59,36 @@ def test_decode_as_messages_both_ways_with_a_direction_column(pg):
     assert S(pg, "s.runs.find(r => r.format === 'derived').signals.some(x => x.params?.what === 'latency' && x.samples === 284)")
     ms = S(pg, "s.ws.messageStreams")
     assert len(ms) == 1 and ms[0]["carries"] == "both"               # the definition kept in the session
+
+
+def test_any_column_says_the_direction_the_user_picks_tx_and_rx(pg, tmp_path):
+    """MSG5 (owner, 2026-11-22): a numeric column with several values (a node address: 5, 9, 12) as the direction -
+    the user picks TX and RX from its values (each with its count); the third node's bytes are in neither."""
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend", "tests"))
+    from test_bytestream import _node_csv
+    import pathlib
+    _node_csv(pathlib.Path(pg.env["data"]) / "nodes.csv")
+    open_files(pg, "nodes.csv")
+    sig(pg, "byte").click(button="right")
+    pg.locator(".menu.ctx button", has_text="Decode as messages").click()
+    pg.wait_for_selector(".messages .msgp-stream.open .msgp-edit")
+    box = pg.locator(".msgp-stream.open")
+    box.locator("input[value=both]").check()
+    node = S(pg, "s.runs.find(r => r.name.startsWith('nodes')).signals.find(x => x.name === 'node').id")
+    box.locator(".msg-dir").select_option(node)
+    pg.wait_for_function("document.querySelectorAll('.msgp-stream.open .msg-txv option').length === 3")
+    assert [o.strip() for o in box.locator(".msg-txv option").all_inner_texts()][2].startswith("12")
+    box.locator(".msg-txv").select_option("5")
+    box.locator(".msg-rxv").select_option("9")
+    box.locator(".msg-dirleft").wait_for()
+    assert "60" in box.locator(".msg-dirleft").inner_text()
+    shot(pg, "msg_direction_values.png")
+    box.locator(".msg-go").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.name.startsWith('Messages: byte'))", timeout=30000)
+    ms = S(pg, "s.ws.messageStreams")
+    assert ms[0]["dir"] == node and ms[0]["txValue"] == 5 and ms[0]["rxValue"] == 9
+    assert S(pg, "s.ws.tabs.find(t => t.name.startsWith('Messages: byte')).plots[1].signals.length") == 2
 
 
 def example(pg, text):
