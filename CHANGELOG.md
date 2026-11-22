@@ -2,6 +2,8 @@
 
 ## Next – unreleased
 
+- Fixed: *Messages* took a message's **footer for its header** when the recording started inside a message (from the bytes alone, a footer frames the stream as well as the header). When the stream pauses between messages, the app now goes by the time: a header comes right after a pause, a footer right before one. Step 2 says so, and each repeating pattern's tooltip shows how often it comes right after or right before a pause.
+
 - New: **any column can say a byte's direction** - not only a TX / RX text column: a node address, a port, any column with 2 to 32 values. In *Messages* step 1, choose the column, then its value for TX and its value for RX (each shown with how many samples have it); bytes with its other values are in neither direction, and the panel says how many.
 
 - New: **Copy for Confluence without the HTML macro** - Confluence Data Center keeps that macro off by default. *Settings → Copy for Confluence → Signal Viewer macro*: an administrator installs the Signal Viewer user macro once (the button beside it saves its template, with the steps), and the copy becomes `{signalviewer:file=…}`, pasted with *Insert → Markup* - the plot or tab as live as before.

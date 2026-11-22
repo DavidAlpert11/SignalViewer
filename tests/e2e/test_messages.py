@@ -91,6 +91,30 @@ def test_any_column_says_the_direction_the_user_picks_tx_and_rx(pg, tmp_path):
     assert S(pg, "s.ws.tabs.find(t => t.name.startsWith('Messages: byte')).plots[1].signals.length") == 2
 
 
+def test_the_time_tells_the_header_from_the_footer_on_screen(pg):
+    """MSG6 (owner, 2026-11-22): a recording that starts inside a message, with pauses between messages - step 2 shows
+    A5 5A as the header (it comes right after the pauses) and 0D 0A as what ends a message, and says why."""
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend", "tests"))
+    from test_msginspect import _burst_stream
+    t, b = _burst_stream(0.01, 5)
+    with open(os.path.join(pg.env["data"], "bursts.csv"), "w", encoding="utf-8") as f:
+        f.write("time,byte\n" + "".join("%.6f,%d\n" % (x, y) for x, y in zip(t, b)))
+    open_files(pg, "bursts.csv")
+    sig(pg, "byte").click(button="right")
+    pg.locator(".menu.ctx button", has_text="Decode as messages").click()
+    box = pg.locator(".messages .msgp-stream.open")
+    box.locator(".msg-bytime").wait_for(timeout=20000)
+    box.locator(".msg-framing-line").wait_for()
+    assert "header A55A" in box.locator(".msg-framing-line").inner_text()
+    assert "footer 0D0A" in box.locator(".msg-framing-line").inner_text()
+    chips = box.locator(".msg-pat").all_inner_texts()
+    assert any(c.startswith("A5 5A") and "header" in c for c in chips), chips
+    assert any(c.startswith("0D 0A") and "footer" in c for c in chips), chips
+    assert "right after a pause" in box.locator(".msg-pat", has_text="A5 5A").first.get_attribute("title")
+    shot(pg, "msg_by_time.png")
+
+
 def example(pg, text):
     pg.locator(".topbar .menubar-btn", has_text="Help").click()
     pg.locator(".menu.ctx button", has_text="Examples").click()

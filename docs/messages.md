@@ -52,6 +52,12 @@ The app looks for **byte patterns that repeat** and proposes the message's templ
 - **Repeating patterns** - the sequences of 2-4 bytes that recur, with how often: the header (`EB 90 · header`), a
   message's start (the header and the type / length bytes that always follow it), the footer (`0D 0A · footer`) and
   any other. Click one: **Use as the header** or **Use as the footer** - the template is proposed again around it.
+- **By the time** - when the stream pauses between messages (the line quiet longer than between a message's own
+  bytes, or bytes stamped one time per packet), a header comes right after a pause and a footer right before one. The
+  app uses that to tell them apart - from the bytes alone a recording that starts inside a message frames as well from
+  its footer as from its header. Each pattern's tooltip says how often it comes right after / right before a pause,
+  and a pattern that is not the header or the footer yet is marked *starts a message* / *ends a message (by the
+  time)*. A stream sent back to back with no pauses: the time says nothing, and nothing is read from it.
 - **The template in one line** - `Each message: header EB90 · length byte at 3 (message = it + 6) · type byte at 2 ·
   checksum crc16ccitt · footer -`.
 - **The first messages byte by byte**, each byte coloured by what it is: header, length, type, a value (field),

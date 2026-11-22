@@ -188,6 +188,36 @@ def _starts(b: np.ndarray, h: Tuple[int, int]) -> np.ndarray:
     return p
 
 
+def pauses(t: np.ndarray) -> Optional[np.ndarray]:
+    """MSG6 (owner, 2026-11-22: "the footer was found as the header too - maybe by the time: a footer ends a
+    message"): which bytes come right after a pause - the line quiet for longer than between a message's own bytes
+    (4 x the usual step; bytes stamped in packets: any step at all). A header opens a burst, a footer closes one: the
+    bytes alone cannot tell them apart in a recording that starts inside a message. None: the stream has no pauses
+    to go by (sent back to back, or stamped at a steady rate)."""
+    t = np.asarray(t, dtype=np.float64)
+    if len(t) < 16:
+        return None
+    dt = np.diff(t)
+    med = float(np.median(dt))
+    if not np.isfinite(med) or med < 0:
+        return None
+    g = np.zeros(len(t), dtype=bool)
+    g[0] = True
+    g[1:] = dt > (4 * med if med > 0 else 0)
+    k = int(g[1:].sum())
+    return g if 4 <= k <= len(t) // 3 else None       # a pause every 3 bytes or fewer: no bursts to speak of
+
+
+def by_time(g: Optional[np.ndarray], at: np.ndarray, k: int) -> Optional[Tuple[float, float]]:
+    """How often a pattern of k bytes at `at` comes right after a pause (a start) and right before one (an end)."""
+    if g is None or not len(at):
+        return None
+    after = float(np.mean(g[at]))
+    nxt = at + k
+    before = float(np.mean(g[nxt[nxt < len(g)]])) if np.any(nxt < len(g)) else 0.0
+    return after, before
+
+
 def _mode(a: np.ndarray) -> Tuple[int, float]:
     if not len(a):
         return 0, 0.0
@@ -388,6 +418,7 @@ def decode(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Optional[Di
         top = np.argsort(cnt)[::-1][:20]
         cands = [(int(c) >> 8, int(c) & 0xFF) for c in top if cnt[c] >= 4]
     best = None
+    g = pauses(t) if "header" not in force else None
     for h in cands:
         P = _starts(b, h)
         rule = _frame_rule(b, P, force)
@@ -402,6 +433,10 @@ def decode(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Optional[Di
         if sc >= 0.3:
             cs = _find_checksum(raw, [(p, L) for p, L, _ok in frames], rule)
             sc *= 1 + (cs[2] if cs else 0)
+            # MSG6: the time - a header comes right after a pause, a footer right before one
+            bt = by_time(g, P, 2)
+            if bt:
+                sc *= max(0.2, 1 + bt[0] - bt[1])
         if best is None or sc > best[0] + 1e-9:
             best = (sc, h, P, rule, maxlen)
     if best is None or best[0] < 0.3:
@@ -428,7 +463,9 @@ def decode(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Optional[Di
     ok = np.array([True if v is None else v for _p, _L, v in frames], dtype=bool)
     ty = b[st + toff].astype(np.int64) if toff is not None else np.zeros(len(st), dtype=np.int64)
     tm = t[st]
+    bt = by_time(g, P, 2)
     out = {"bytes": n, "header": "%02X %02X" % h, "framing": _rule_text(rule), "rule": rule,
+           "byTime": None if not bt else {"after": round(bt[0], 3), "before": round(bt[1], 3)},
            "typeOffset": toff, "checksum": None if not check else {"scheme": check[0], "over": "without the header" if check[1] else "with the header"},
            "messages": {"t": tm, "type": ty, "len": ln, "ok": ok, "start": st},
            "count": int(len(st)), "errors": int((~ok).sum()) if check else 0, "resyncs": int(resyncs), "outside": int(outside),

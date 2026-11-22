@@ -67,3 +67,48 @@ def test_a_stream_it_cannot_frame_says_why():
     bad = M.inspect([(np.arange(len(b)) * 1e-3, b)], None, {"kind": "binary", "header": "AA55", "size": 8,
                                                          "messages": [{"id": 0, "name": "M", "fields": []}]})
     assert bad["frames"] == [] and "header" in bad["error"]
+
+
+def _burst_stream(pause, cut, hdr=(0xA5, 0x5A), ftr=(0x0D, 0x0A), n=300, seed=3):
+    """Messages header + 8 bytes + footer, 0.1 ms per byte and `pause` s between messages; the recording starts
+    `cut` bytes into the first message (as one that was already running)."""
+    rng = np.random.default_rng(seed)
+    t, b, now = [], [], 0.0
+    for _ in range(n):
+        for x in list(hdr) + list(rng.integers(0, 256, 8)) + list(ftr):
+            b.append(float(x))
+            t.append(now)
+            now += 0.0001
+        now += pause
+    return np.array(t)[cut:], np.array(b)[cut:]
+
+
+def test_the_time_tells_the_header_from_the_footer():
+    """MSG6 (owner, 2026-11-22: "the automatic detection took the footer for the header too - maybe by time: the
+    footer ends a message"). Started inside a message, the bytes alone frame from the footer as well as from the
+    header; the pauses between messages say which opens one: the header comes right after a pause."""
+    from svcore import bytestream as bs
+    for cut in range(1, 11):
+        for hdr, ftr in (((0xA5, 0x5A), (0x0D, 0x0A)), ((0x0D, 0x0A), (0xA5, 0x5A))):
+            bs._CACHE.clear()
+            r = bs.decode([_burst_stream(0.01, cut, hdr, ftr)])
+            assert r["header"] == "%02X %02X" % hdr, (cut, hdr, r["header"])
+            assert r["byTime"] == {"after": 1.0, "before": 0.0}
+    # steps 2 and 3: the footer is a pattern of its own that ends a message, the header one that starts it
+    out = M.inspect([_burst_stream(0.01, 5)])
+    assert out["pauses"] and out["structure"]["header"] == "A55A" and out["structure"]["footer"] == "0D0A"
+    pats = {p["hex"]: p for p in out["patterns"]}
+    assert pats["A5 5A"]["time"] == "start" and pats["0D 0A"]["time"] == "end"
+    assert "0D 0A A5 5A" not in pats                       # across a pause: two messages' bytes, not one pattern
+
+
+def test_no_pauses_no_time():
+    """Sent back to back at a steady rate: the time says nothing, nothing is read from it."""
+    from svcore import bytestream as bs
+    t, b = _burst_stream(0.0, 0)
+    assert bs.pauses(t) is None
+    out = M.inspect([(t, b)])
+    assert not out["pauses"] and all("time" not in p for p in out["patterns"])
+    # bytes stamped in packets (one time per message): the packets are the bursts
+    tp = np.repeat(np.arange(300) * 0.01, 12)
+    assert bs.pauses(tp) is not None and bs.pauses(tp).sum() == 300

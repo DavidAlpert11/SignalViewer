@@ -27,7 +27,7 @@ from svcore import protocol as P
 ROLE_ORDER = ("header", "length", "type", "field", "checksum", "footer", "payload")
 
 
-def patterns(raw: np.ndarray, top: int = 6) -> List[Dict[str, Any]]:
+def patterns(raw: np.ndarray, top: int = 6, gaps: Optional[np.ndarray] = None) -> List[Dict[str, Any]]:
     """Byte sequences of 2..4 bytes that recur, best first: score = count x regularity (a header comes every message,
     at the same distance when the messages are one length). A longer sequence that is (nearly) always there with a
     shorter one at its start replaces it - "AA 55 10" rather than "AA 55" when the 10 always follows (a footer is
@@ -36,6 +36,7 @@ def patterns(raw: np.ndarray, top: int = 6) -> List[Dict[str, Any]]:
     n = len(b)
     if n < 16:
         return []
+    pause = gaps if gaps is not None and len(gaps) == n else None
     found: Dict[bytes, Dict[str, Any]] = {}
     for k in (2, 3, 4):
         if n < k + 4:
@@ -60,6 +61,18 @@ def patterns(raw: np.ndarray, top: int = 6) -> List[Dict[str, Any]]:
             g, share = bs._mode(gaps)
             found[seq] = {"hex": seq.hex(" ").upper(), "bytes": k, "count": int(len(gaps) + 1), "every": int(g),
                           "regular": round(float(share), 3), "first": int(at[0])}
+            # MSG6: right after a pause (a message's start) or right before one (its end) - when the stream has pauses
+            bt = bs.by_time(pause, at, k)
+            if pause is not None:                    # a pause inside it: the end of one message and the start of the next
+                inside = np.zeros(len(at), dtype=bool)
+                for j in range(1, k):
+                    inside |= pause[np.minimum(at + j, n - 1)]
+                found[seq]["across"] = float(np.mean(inside))
+            if bt:
+                found[seq].update(afterPause=round(bt[0], 3), beforePause=round(bt[1], 3),
+                                  time="start" if bt[0] >= 0.6 and bt[0] > bt[1] + 0.3 else "end" if bt[1] >= 0.6 and bt[1] > bt[0] + 0.3 else None)
+    # MSG6: a sequence across a pause is two messages' bytes, not a pattern of one
+    found = {s: v for s, v in found.items() if v.pop("across", 0.0) < 0.5}
     # a sequence that its longer extension (almost) always continues: keep the longer one
     for seq in sorted(found, key=len):
         for longer in [s for s in found if len(s) > len(seq) and s.startswith(seq)]:
@@ -181,7 +194,9 @@ def inspect(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Optional[D
     out: Dict[str, Any] = {"bytes": int(len(raw)), "head": [int(x) for x in raw[:64]],
                            "text": bool(P.looks_text(raw)), "patterns": [], "frames": [], "summary": None}
     if not out["text"]:
-        out["patterns"] = patterns(raw)
+        g = bs.pauses(t)
+        out["patterns"] = patterns(raw, gaps=g)
+        out["pauses"] = g is not None              # MSG6: the stream's pauses tell a message's start from its end
     suggested = False
     if not structure:
         try:

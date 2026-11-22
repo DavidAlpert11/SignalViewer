@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| MSG6 - the pauses in the stream tell a header from a footer (owner, 2026-11-22) | built 2026-11-22 (automatic when the stream has pauses; no switch) | the owner tries his stream that showed it; if his recording has no pauses (bytes back to back), say so - then only a checksum or his click tells them apart |
 | MSG5 - any column with several values is the direction; the user picks TX and RX (owner, 2026-11-22) | built 2026-11-22 | the owner tries it on his own stream |
 | CP3 - Copy for Confluence through the Signal Viewer user macro (owner, 2026-11-22: Confluence 10.2) | built 2026-11-22 (tested against a stand-in page; not against a real Confluence 10.2) | the owner's Confluence administrator installs the macro (Settings → Save the macro…); the owner tries a copy |
 | HL1 - one zoom and one cursor for the HTML page's time plots (owner, 2026-11-22) | built 2026-11-22 | the owner looks (any report / tab saved as HTML, the 🔗 button) |
@@ -164,6 +165,9 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · MSG6 (owner: "the footer was detected as the header too - maybe by time"): reproduced - a recording that starts inside a
+  message framed from the footer in 22 of 24 cases; with the pauses 0 of 24. backend all (1511 passed), e2e test_messages (10),
+  test_report_parts green.
 - 2026-11-22 · MSG5 (owner: "any column with several values, the user says which is TX and which RX"): direction_values + route,
   rxValue, StreamEditor pickers. backend test_bytestream (14), e2e test_messages (9) green.
 - 2026-11-22 · build run 45055081958: the AppData fix worked (Tectonic found its folders); next on Windows: "texbundle.zip doesn't

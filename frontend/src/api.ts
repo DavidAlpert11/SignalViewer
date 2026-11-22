@@ -55,8 +55,12 @@ export interface InspectFrame { t: number; at: number; len?: number; id?: number
   bytes?: number[]; roles?: string[]; fields?: (number | null)[]; values: (number | string | null)[]; text?: string; parts?: string[];
   /** filled in the page: the frame's message's field names, and (text) which field each part is */
   fieldNames?: string[]; fieldAt?: (number | null)[] }
-export interface InspectPattern { hex: string; bytes: number; count: number; every: number; regular: number; first: number; role?: string }
+export interface InspectPattern { hex: string; bytes: number; count: number; every: number; regular: number; first: number; role?: string;
+  /** MSG6: with pauses in the stream - how often right after one / right before one, and what that makes it */
+  afterPause?: number; beforePause?: number; time?: "start" | "end" | null }
 export interface MessagesInspect { bytes: number; head: number[]; text: boolean; patterns: InspectPattern[]; frames: InspectFrame[];
+  /** MSG6: the stream has pauses between messages - they tell a message's start from its end */
+  pauses?: boolean;
   structure?: Structure; suggested?: boolean; error?: string;
   summary: { messages: number; bad: number; outside: number; unknown: Record<string, number>; byMessage: Record<string, number>; bytes: number } | null }
 /** RE3: the LaTeX on this computer (svcore/latex.py) - nothing is fetched */

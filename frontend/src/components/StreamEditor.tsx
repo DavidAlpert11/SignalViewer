@@ -198,12 +198,16 @@ export default function StreamEditor({ ids, library, onLibrary }: { ids: string[
                 <span className="hint">{t("msgPatterns")}</span>
                 {info.patterns.map((p) => (
                   <button key={p.hex} className={`chip-s msg-pat${p.role ? ` role-${p.role === "start" ? "header" : p.role}` : ""}`} dir="ltr"
-                    title={t("msgPatternTitle", { n: p.count, every: p.every, pc: Math.round(p.regular * 100) })} onClick={(e) => usePattern(e, p.hex, p.bytes)}>
-                    {p.hex}{p.role ? ` · ${t(p.role === "header" ? "msgRole_header" : p.role === "footer" ? "msgRole_footer" : "msgPatStart")}` : ""} <span className="msg-pat-n">×{fmtNum(p.count, lang, 6)}</span>
+                    title={t("msgPatternTitle", { n: p.count, every: p.every, pc: Math.round(p.regular * 100) })
+                      + (p.afterPause != null ? "\n" + t("msgPatPauses", { a: Math.round(p.afterPause * 100), b: Math.round((p.beforePause ?? 0) * 100) }) : "")}
+                    onClick={(e) => usePattern(e, p.hex, p.bytes)}>
+                    {p.hex}{p.role ? ` · ${t(p.role === "header" ? "msgRole_header" : p.role === "footer" ? "msgRole_footer" : "msgPatStart")}`
+                      : p.time ? ` · ${t(p.time === "start" ? "msgPatTimeStart" : "msgPatTimeEnd")}` : ""} <span className="msg-pat-n">×{fmtNum(p.count, lang, 6)}</span>
                   </button>
                 ))}
               </div>
             ) : null}
+            {info?.pauses && <p className="hint msg-bytime">{t("msgByTime")}</p>}
             {structure && structure.kind === "binary" && (
               <p className="hint msg-framing-line" dir="auto">{t("msgFramingLine", {
                 h: structure.header ?? "—",
