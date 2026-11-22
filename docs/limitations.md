@@ -41,14 +41,17 @@
 * The window needs an engine from about late 2020 or newer: Microsoft Edge WebView2 / Edge / Chrome 87+, or Firefox 78+. On an older one the app says so instead of starting.
 * CAN: candump logs, Vector ASC (classic CAN lines) and CAN tables in CSV are read; CAN FD lines in ASC files, `.blf` and MF4 are not. The same id on two buses is decoded as one message.
 * Messages in a byte stream (1.32): the framing found by itself needs a 2-byte header that recurs; one length or type
-  byte (not two-byte lengths), fields at fixed offsets (no arrays, strings or layouts that depend on a field inside a
-  payload); a proposed structure names its fields by place (`value_4`) - rename them; a payload that may hold the
+  byte (not two-byte lengths), fields at fixed offsets (no arrays, variable-length strings or layouts that depend on a
+  field inside a payload - a fixed-length ASCII text is fine); a proposed structure names its fields by place
+  (`value_4`) - rename them; telling a header from a footer by the time needs pauses between messages (a stream sent
+  back to back says nothing by its time); a direction column has 2 to 32 values; a payload that may hold the
   footer's bytes needs a length byte or a size per message (escaping is not undone). Request / reply pairing looks
   within 0.5 s. A recording made from messages has no file: the session keeps its definition and makes it again.
 * The Messages panel (1.32): it looks for byte streams in the open files that are not logs (a `.tlog`, `.bin`, `.ulg`
   or `.mcap` is listed by its message types instead); a log's message types are its signals grouped by the name before
   the first dot, the count and rate those of its fields. An ICD layout used as a structure keeps its own time field as
   an ordinary field (a stream has its receive times).
+* Send to Confluence (1.34): Confluence Data Center / Server 7.9 or newer (personal access tokens) or Confluence Cloud; the page is edited at its end (the macro is not placed elsewhere); the HTML macro must be on, else the Signal Viewer user macro an administrator installs once; an attachment is limited by the server's size limit (a very long recording: send a shorter range). Tested against Confluence's REST API as documented, not against every version.
 * Listening to a link (1.32): one link at a time; serial ports need pyserial; nothing is sent (no handshake of our
   own); a growing `.svraw` is read again whole on each refresh - fine for hours of a serial link, slow for a very
   fast stream over a long time (stop and start a new recording).

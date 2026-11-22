@@ -2,27 +2,31 @@
 
 ## Next – unreleased
 
-- Better: *Messages* proposes a message's variables more often right - a **16-bit counter** (LSB or MSB first) is one value, not a byte and a type; **a double** (8 bytes) and **text** (ASCII) are recognised; a message's trailing 00 / FF is no longer taken for a footer; a byte that changes slowly is not proposed as the type byte. A type byte proposed by mistake: its menu says **Not the type byte**. The Messages panel opens wider (520 px; drag its edge as before).
+## 1.34.0 – 2026-11-22
+
+**Highlights:** **An interactive plot straight onto a Confluence page, and messages from bytes to variables made plain.** *Send to Confluence…*: paste the page's link - the plot or tab is on the page, live with every sample (set up once: the address and a token); Confluence Data Center without the HTML macro gets the Signal Viewer macro. *Messages*: every message counted and in its order, one message's variables plotted alone; the bytes as hex, numbers or ASCII, doubles and text, a conversion formula; any column as the direction; a header told from a footer by the pauses. LaTeX built in - nothing to install. In the HTML page, the time plots zoom together.
 
 - New: **Send to Confluence** - the easiest way to put an interactive plot or tab on a Confluence page: the plot's ⋯ menu (or a tab's menu, or Ctrl+K) → *Send to Confluence…*, paste the page's link, OK. The app attaches it and adds the macro that shows it - live, every sample - nothing to save, drag or paste. Set up once in *Settings → Confluence*: the address and a personal access token (*Save and test* says who you are). Sent again, the page shows the new version.
 
-- New: *Messages* - **the bytes as hex, numbers or ASCII** (or hex with the character under it), and pointing at a byte shows what the bytes from it read as: 16 / 32-bit LSB and MSB first, float, **double**, text. A byte's menu offers a **double** (8 bytes) and **text (ASCII)** to the end of the values, each choice showing the value it reads there. A value can take a **conversion formula** on its raw value `x` (`x*0.01 - 40`), as any formula in the app; text in a binary message becomes a text signal of the recording.
-
-- New: *Messages* step 4 lists **every message in the stream with its count and share** - a histogram of the messages, the types not described yet too. Untick one to leave its values out of the recording (still counted); **Plot** beside a message shows that message's variables alone, a plot per variable. The recording has a new signal, **`message`**: which message passed when, by name - a lane under its plots shows the messages in order.
-
-- Fixed: *Messages* took a message's **footer for its header** when the recording started inside a message (from the bytes alone, a footer frames the stream as well as the header). When the stream pauses between messages, the app now goes by the time: a header comes right after a pause, a footer right before one. Step 2 says so, and each repeating pattern's tooltip shows how often it comes right after or right before a pause.
-
-- New: **any column can say a byte's direction** - not only a TX / RX text column: a node address, a port, any column with 2 to 32 values. In *Messages* step 1, choose the column, then its value for TX and its value for RX (each shown with how many samples have it); bytes with its other values are in neither direction, and the panel says how many.
-
-- New: **Copy for Confluence without the HTML macro** - Confluence Data Center keeps that macro off by default. *Settings → Copy for Confluence → Signal Viewer macro*: an administrator installs the Signal Viewer user macro once (the button beside it saves its template, with the steps), and the copy becomes `{signalviewer:file=…}`, pasted with *Insert → Markup* - the plot or tab as live as before.
+- New: **Copy for Confluence without the HTML macro** - Confluence Data Center keeps that macro off by default. *Settings → Confluence → The macro that shows it → Signal Viewer macro*: an administrator installs the Signal Viewer user macro once (the button beside it saves its template, with the steps), and the copy becomes `{signalviewer:file=…}`, pasted with *Insert → Markup* - the plot or tab as live as before.
 
 - New: in the HTML page (a report, a tab, a Confluence copy) the **time plots of a tab zoom together and share the cursor** - a drag, the wheel or a double click on one moves them all, a click places the cursor (and its values) in every plot. The 🔗 button at the top makes each plot zoom on its own again.
 
-- Fixed: a formula in the report (e.g. `$v = \frac{d}{t}$`) sometimes showed as an error or in another style - two previews drew it at the same moment and matplotlib's formula drawing is not thread-safe (145 of 160 drawings failed in a test that does that); they are drawn one at a time now.
-
-- New: **LaTeX built into the app - nothing to install.** *PDF (LaTeX)* and reports written in LaTeX now work on any computer, offline: the app carries the Tectonic engine (XeLaTeX) and a small bundle of TeX Live files (~9 MB) - what the reports need, Hebrew included, and the usual Overleaf packages (amsmath, mathtools, booktabs, tabularx, siunitx, TikZ, hyperref, geometry, fancyhdr, listings…). A TeX Live / MiKTeX on the computer is still used first, for every package; a package the built-in LaTeX lacks is named in the error. A formula matplotlib cannot read and no TeX can draw (matrices, aligned equations) now shows in the page as MathML instead of an error.
-
 - Fixed: in the HTML page (a report, an interactive plot, a Confluence copy), an **XY plot zooms both axes** - a box zooms x and y together, the wheel zooms both around the pointer (Shift: x only, Alt: y only), a double click shows everything again. Before, the y axis jumped back to fit and the wheel did nothing.
+
+- New: *Messages* step 4 lists **every message in the stream with its count and share** - a histogram of the messages, the types not described yet too. Untick one to leave its values out of the recording (still counted); **Plot** beside a message shows that message's variables alone, a plot per variable. The recording has a new signal, **`message`**: which message passed when, by name - a lane under its plots shows the messages in order.
+
+- New: *Messages* - **the bytes as hex, numbers or ASCII** (or hex with the character under it), and pointing at a byte shows what the bytes from it read as: 16 / 32-bit LSB and MSB first, float, **double**, text. A byte's menu offers a **double** (8 bytes) and **text (ASCII)** to the end of the values, each choice showing the value it reads there. A value can take a **conversion formula** on its raw value `x` (`x*0.01 - 40`), as any formula in the app; text in a binary message becomes a text signal of the recording.
+
+- Better: *Messages* proposes a message's variables more often right - a **16-bit counter** (LSB or MSB first) is one value, not a byte and a type; **a double** (8 bytes) and **text** (ASCII) are recognised; a message's trailing 00 / FF is no longer taken for a footer; a byte that changes slowly is not proposed as the type byte. A type byte proposed by mistake: its menu says **Not the type byte**. The Messages panel opens wider (520 px; drag its edge as before).
+
+- New: **any column can say a byte's direction** - not only a TX / RX text column: a node address, a port, any column with 2 to 32 values. In *Messages* step 1, choose the column, then its value for TX and its value for RX (each shown with how many samples have it); bytes with its other values are in neither direction, and the panel says how many.
+
+- Fixed: *Messages* took a message's **footer for its header** when the recording started inside a message (from the bytes alone, a footer frames the stream as well as the header). When the stream pauses between messages, the app now goes by the time: a header comes right after a pause, a footer right before one. Step 2 says so, and each repeating pattern's tooltip shows how often it comes right after or right before a pause.
+
+- New: **LaTeX built into the app - nothing to install.** *PDF (LaTeX)* and reports written in LaTeX now work on any computer, offline: the app carries the Tectonic engine (XeLaTeX) and a small bundle of TeX Live files (~13 MB) - what the reports need, Hebrew included, and the usual Overleaf packages (amsmath, mathtools, booktabs, tabularx, siunitx, TikZ, hyperref, geometry, fancyhdr, listings…). A TeX Live / MiKTeX on the computer is still used first, for every package; a package the built-in LaTeX lacks is named in the error. A formula matplotlib cannot read and no TeX can draw (matrices, aligned equations) now shows in the page as MathML instead of an error.
+
+- Fixed: a formula in the report (e.g. `$v = \frac{d}{t}$`) sometimes showed as an error or in another style - two previews drew it at the same moment and matplotlib's formula drawing is not thread-safe (145 of 160 drawings failed in a test that does that); they are drawn one at a time now.
 
 ## 1.33.0 – 2026-11-21
 
