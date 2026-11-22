@@ -2,6 +2,8 @@
 
 ## Next – unreleased
 
+- New: *Messages* step 4 lists **every message in the stream with its count and share** - a histogram of the messages, the types not described yet too. Untick one to leave its values out of the recording (still counted); **Plot** beside a message shows that message's variables alone, a plot per variable. The recording has a new signal, **`message`**: which message passed when, by name - a lane under its plots shows the messages in order.
+
 - Fixed: *Messages* took a message's **footer for its header** when the recording started inside a message (from the bytes alone, a footer frames the stream as well as the header). When the stream pauses between messages, the app now goes by the time: a header comes right after a pause, a footer right before one. Step 2 says so, and each repeating pattern's tooltip shows how often it comes right after or right before a pause.
 
 - New: **any column can say a byte's direction** - not only a TX / RX text column: a node address, a port, any column with 2 to 32 values. In *Messages* step 1, choose the column, then its value for TX and its value for RX (each shown with how many samples have it); bytes with its other values are in neither direction, and the panel says how many.

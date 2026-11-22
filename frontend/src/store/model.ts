@@ -135,6 +135,8 @@ export interface MessageStream { id: string; sources: string[]; carries: "tx" | 
   /** MSG5 (owner, 2026-11-22): the direction column's value for RX - any column with several values; the bytes with
    *  its other values are left out. Absent (older sessions): every value but TX's is RX. */
   rxValue?: number | null;
+  /** MSG7: per direction, the messages left out of the recording (their values not made; still in its `message`) */
+  skip?: Record<string, string[]>;
   /** MSG2: the messages' structure for each direction ("TX", "RX"; one direction: its label) */
   structures?: Record<string, Structure>;
   /** MSG2: the recordings made from it (re-made when the session opens): direction, recording id and name */

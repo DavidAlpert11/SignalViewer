@@ -87,6 +87,14 @@ integer, a 32-bit float, a counter, flags, else a byte - and names it by place (
 
 ### Step 4 - make the recording
 
+- **The messages in the stream** - every message with how many times it came and its share of the stream, the most
+  first (a histogram of the messages), the types the structure does not describe yet too (*type 0x20 - not described,
+  step 3*). Untick a message to leave its values out of the recording - it is still counted and still in the order.
+  **Plot** beside a message puts its variables in a tab of their own, a plot per variable (the recording is made first
+  when it is not yet).
+- **Which message passed when** - the recording has a signal `message`: at each message's time, its name (a state, like
+  a flight mode). Its tab shows it as a lane under every plot - the messages in order; zoom in to read each name. Like
+  any signal it can be plotted, compared, exported or used in a condition (`message == "MSG_A0"`).
 - **Make the recording** - the values become a recording of their own (*rx_byte - messages*), plotted one plot per
   message, in the file list like any opened file: plots, Compare, the map, the report. The definition is kept in the
   session: opening the session makes the recording again.

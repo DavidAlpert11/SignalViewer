@@ -152,7 +152,8 @@ export async function makeRecording(def: MessageStream, label: string, opts: { p
   const name = recordingName(def, label);
   let r: Awaited<ReturnType<typeof api.messagesParse>>;
   try {
-    r = await api.messagesParse(s.sources, s.params, structure, name, opts.id);
+    const skip = def.skip?.[label]?.filter((n) => structure.messages.some((m) => m.name === n));
+    r = await api.messagesParse(s.sources, skip?.length ? { ...s.params, skip } : s.params, structure, name, opts.id);
   } catch (e) {
     st.toast({ kind: "error", text: tr("msgNone", { name, msg: String((e as Error).message) }) });
     return null;
@@ -172,14 +173,38 @@ export async function makeRecording(def: MessageStream, label: string, opts: { p
   if (opts.plot !== false) {
     // a plot per message (its first fields), so the decoded values are seen at once
     const by = new Map<string, string[]>();
+    let seq: string | undefined;
     for (const id of r.signals) {
+      if (bare(id) === "message") { seq = id; continue; }
       const msg = bare(id).split(".")[0];
       by.set(msg, [...(by.get(msg) ?? []), id]);
     }
-    actions.plotsInNewTab([...by.entries()].filter(([, ids]) => ids.length).slice(0, 12).map(([msg, ids]) => ({ title: msg, ids: ids.slice(0, 6) })),
-      tr("msgRecTab", { name }));
+    // MSG7: the messages in order as a lane on every plot (which message passed when)
+    actions.plotTabs([{ name: tr("msgRecTab", { name }), lanes: seq ? [seq] : undefined,
+      plots: [...by.entries()].filter(([, ids]) => ids.length).slice(0, 12).map(([msg, ids]) => ({ title: msg, ids: ids.slice(0, 6) })) }]);
   }
   return r.run;
+}
+
+/** MSG7: one message's values in a tab of their own - a plot per field (the recording made first when it is not yet),
+ *  with the lane of every message in order under them. */
+export async function plotMessage(def: MessageStream, label: string, msg: string): Promise<boolean> {
+  const st = useApp.getState();
+  const tr = (k: string, v: Record<string, string | number> = {}) => translate(st.lang, k as never, v);
+  const made = def.made?.find((m) => m.label === label);
+  let runId = made && st.runs.some((r) => r.id === made.run) ? made.run : null;
+  if (!runId) runId = await makeRecording(def, label, { plot: false });
+  if (!runId) return false;
+  const run = useApp.getState().runs.find((r) => r.id === runId);
+  const ids = (run?.signals ?? []).filter((s) => s.name.startsWith(msg + ".")).map((s) => s.id);
+  const seq = run?.signals.find((s) => s.name === "message")?.id;
+  if (!ids.length) {
+    useApp.getState().toast({ kind: "info", text: tr("msgPlotNone", { msg }) });
+    return false;
+  }
+  actions.plotTabs([{ name: `${msg} · ${recordingName(def, label)}`, lanes: seq ? [seq] : undefined, cols: ids.length > 3 ? 2 : 1,
+    plots: ids.slice(0, 12).map((id) => ({ title: bare(id).slice(msg.length + 1), ids: [id] })) }]);
+  return true;
 }
 
 /** A session reopened: its recordings made from messages are made again, with the ids its plots refer to. */

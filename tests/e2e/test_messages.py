@@ -293,3 +293,36 @@ def test_guided_steps_from_raw_bytes_to_a_csv(pg):
     pg.wait_for_function("document.body.innerText.includes('rx_values.csv')", timeout=30000)
     head = open(path, encoding="utf-8").readline()
     assert "MSG_A0.value_12" in head
+
+
+def test_messages_in_order_counted_picked_and_one_plotted(pg):
+    """MSG7 (owner, 2026-11-22: "plot which messages passed in order, a histogram of them; choose one kind of message
+    and get its variables"): step 4 lists every message with its count and share, the types not described too; one
+    left out of the recording is still counted; Plot puts one message's variables in a tab, with the lane of the
+    messages in order; the recording carries `message` (which message passed when, by name)."""
+    shutil.copy(os.path.join(DEMO, "link_tx_rx.csv"), os.path.join(pg.env["data"], "link_tx_rx.csv"))
+    open_files(pg, "link_tx_rx.csv")
+    sig(pg, "rx_byte").click(button="right")
+    pg.locator(".menu.ctx button", has_text="Decode as messages").click()
+    ed = pg.locator(".msgp-stream.open")
+    ed.locator(".msg-list-row").first.wait_for(timeout=30000)
+    rows = ed.locator(".msg-list-row th").all_inner_texts()
+    assert rows[0] == "MSG_A0" and len(rows) == 5, rows                   # the most first
+    assert "%" in ed.locator(".msg-list-row .msg-list-n").first.inner_text()
+    # MSG_81 left out of the recording
+    ed.locator(".msg-list-row", has=pg.locator("th", has_text="MSG_81")).locator(".msg-list-in").uncheck()
+    assert ed.locator(".msg-list-row", has=pg.locator("th", has_text="MSG_81")).locator(".msg-list-plot").is_disabled()
+    ed.locator(".msg-list-row", has=pg.locator("th", has_text="MSG_A0")).locator(".msg-list-plot").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.name.startsWith('MSG_A0 · '))", timeout=30000)
+    tab = S(pg, "s.ws.tabs.find(t => t.name.startsWith('MSG_A0 · '))")
+    run = S(pg, "s.runs.find(r => r.name === 'rx_byte - messages')")
+    names = {x["id"]: x["name"] for x in run["signals"]}
+    assert all(names[p["signals"][0]["sig"]].startswith("MSG_A0.") for p in tab["plots"])
+    assert names[tab["sharedStates"][0]] == "message"
+    assert not any(n.startswith("MSG_81.") for n in names.values())        # left out: no values
+    seq = next(x for x in run["signals"] if x["name"] == "message")
+    assert set(seq["labels"].values()) == {"MSG_81", "MSG_82", "MSG_90", "MSG_A0", "MSG_A1"}   # but in the order
+    pg.wait_for_timeout(1200)
+    shot(pg, "msg7_one_message.png")
+    ed.locator(".msg-list").scroll_into_view_if_needed()
+    shot(pg, "msg7_list.png")

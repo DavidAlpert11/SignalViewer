@@ -2094,6 +2094,17 @@ input.fx-input { width: 100%; }
 .msg-values-t th, .msg-values-t td { border: 1px solid var(--line); padding: 1px 6px; text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .msg-values-t th { background: var(--panel-2); font-weight: 600; }
 .msg-made { color: var(--ink); }
+/* MSG7: the messages in the stream - count, share, in the recording, Plot */
+.msg-list { margin: 4px 0 8px; }
+.msg-list-t { width: 100%; border-collapse: collapse; font-size: var(--fs-m); }
+.msg-list-t td, .msg-list-t th { padding: 2px 4px; white-space: nowrap; }
+.msg-list-t th { text-align: start; font-weight: 600; color: var(--ink-strong); }
+.msg-list-bar { width: 40%; }
+.msg-list-bar span { display: block; height: 8px; border-radius: var(--r-xs); background: var(--msg-header); }
+.msg-list-n { text-align: end; font-variant-numeric: tabular-nums; color: var(--muted); }
+.msg-list-row.off th, .msg-list-row.off .msg-list-bar span { opacity: .45; }
+.msg-list-row.unknown th { color: var(--muted); font-weight: 400; }
+.msg-list-row.unknown .msg-list-bar span { background: var(--msg-payload); }
 
 /* RE3: a LaTeX report's preview - the PDF this computer's TeX made, its error at the line of the text */
 .rd-preview-tex { display: flex; flex-direction: column; gap: 4px; }

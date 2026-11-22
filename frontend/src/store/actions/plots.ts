@@ -591,6 +591,8 @@ export const plotActions = {
    *  `cols`) goes on in "name (2)"...; a plot with more than PLOT_SIGNALS signals keeps the first ones and the
    *  toast says what was left out - nothing is dropped silently. Returns the number of tabs made. */
   plotTabs(tabs: { name: string; plots: { title: string; ids: string[] }[]; cols?: number;
+    /** state signals drawn as a lane on every time plot of the tab (MSG7: which message passed when) */
+    lanes?: string[];
     /** how a signal is drawn in these tabs (by its id): a comparison names each line by its object and
      *  gives it the object's colour in every plot - absent: the signal's own name, colours in order */
     look?: Record<string, Pick<PlotSignal, "label" | "color" | "lineStyle">> }[]): number {
@@ -611,7 +613,8 @@ export const plotActions = {
             x.ids.slice(0, PLOT_SIGNALS).forEach((id, i) => p.signals.push({ ...newPlotSignal(id, ws), color: TRACE_COLORS[i % TRACE_COLORS.length], ...tb.look?.[id] }));
             return p;
           });
-          const tab: Tab = { id: uid("t"), name: k ? `${tb.name} (${k + 1})` : tb.name, rows: Math.ceil(ps.length / cols), cols, plots: ps, active: 0, linkX: true };
+          const tab: Tab = { id: uid("t"), name: k ? `${tb.name} (${k + 1})` : tb.name, rows: Math.ceil(ps.length / cols), cols, plots: ps, active: 0, linkX: true,
+            ...(tb.lanes?.length ? { sharedStates: tb.lanes } : {}) };
           ws.tabs.push(tab);
           first ??= tab.id;
           made++;

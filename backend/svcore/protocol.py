@@ -255,7 +255,24 @@ def parse_binary(t: np.ndarray, raw: np.ndarray, proto: Dict) -> Dict:
             if f.get("labels"):
                 labels[f"{name}.{f['name']}"] = {int(a): str(b) for a, b in f["labels"].items()}
     report["messages"] = counts
-    return {"signals": signals, "labels": labels, "report": report, "units": _units(msgs)}
+    seq = [(float(t[p]), str(by_id[mid].get("name") or by_id[mid].get("id")) if status == "ok" else "? 0x%02X" % mid)
+           for p, _L, mid, status in found if status != "bad"]
+    return {"signals": signals, "labels": labels, "report": report, "units": _units(msgs),
+            "sequence": _sequence(seq, [str(m.get("name") or m.get("id")) for m in msgs])}
+
+
+def _sequence(seq: List[Tuple[float, str]], names: List[str]) -> Tuple[np.ndarray, np.ndarray, Dict[int, str]]:
+    """MSG7 (owner, 2026-11-22: "plot which messages passed, in order"): each message's time and which message it was -
+    a code per name (the structure's messages first, in its order; types it does not describe after, "? 0x20"), the
+    recording's `message` signal. Bad frames (checksum / footer) are not in it."""
+    code: Dict[str, int] = {n: i for i, n in enumerate(dict.fromkeys(names))}
+    for _t, n in seq:
+        code.setdefault(n, len(code))
+    order = np.argsort(np.array([x[0] for x in seq], dtype=np.float64), kind="stable") if seq else np.zeros(0, dtype=np.int64)
+    tm = np.array([seq[i][0] for i in order], dtype=np.float64)
+    y = np.array([code[seq[i][1]] for i in order], dtype=np.float64)
+    seen = set(int(v) for v in y)
+    return tm, y, {i: n for n, i in code.items() if i in seen}
 
 
 def _units(msgs) -> Dict[str, str]:
@@ -320,6 +337,7 @@ def parse_text(text: str, proto: Dict, times: Optional[np.ndarray] = None) -> Di
     by_id = {str(m["id"]).upper(): m for m in msgs}
     report: Dict[str, Any] = {"sentences": 0, "bad": 0, "unknown": {}, "noTime": 0}
     rows: Dict[str, List[Tuple[float, List[str]]]] = {}
+    seq: List[Tuple[float, str]] = []
     last_t: Optional[float] = None
     day0: Optional[float] = None
     day = 0.0
@@ -334,6 +352,10 @@ def parse_text(text: str, proto: Dict, times: Optional[np.ndarray] = None) -> Di
         m = by_id.get(sid) or by_id.get(sid[2:])
         if m is None:
             report["unknown"][sid] = report["unknown"].get(sid, 0) + 1
+            if times is not None:
+                seq.append((float(times[min(pos, len(times) - 1)]), "? " + sid))
+            elif last_t is not None:
+                seq.append((last_t, "? " + sid))
             continue
         if times is not None:
             tt = float(times[min(pos, len(times) - 1)])
@@ -353,6 +375,7 @@ def parse_text(text: str, proto: Dict, times: Optional[np.ndarray] = None) -> Di
                 report["noTime"] += 1
                 continue
         rows.setdefault(str(m.get("name") or m["id"]), []).append((tt, parts))
+        seq.append((tt, str(m.get("name") or m["id"])))
     signals: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
     labels: Dict[str, Dict[int, str]] = {}
     counts = {}
@@ -379,7 +402,8 @@ def parse_text(text: str, proto: Dict, times: Optional[np.ndarray] = None) -> Di
             y = y * float(f.get("scale", 1) or 1) + float(f.get("add", 0) or 0)
             signals[key] = (tm, y)
     report["messages"] = counts
-    return {"signals": signals, "labels": labels, "report": report, "units": _units(msgs)}
+    return {"signals": signals, "labels": labels, "report": report, "units": _units(msgs),
+            "sequence": _sequence(seq, [str(m.get("name") or m["id"]) for m in msgs])}
 
 
 def looks_text(raw: np.ndarray) -> Optional[str]:
@@ -410,9 +434,13 @@ def stream_of(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Optional
 def parse(signals: Sequence[Tuple[np.ndarray, np.ndarray]], proto: Dict, params: Optional[Dict] = None) -> Dict:
     """A byte stream (one signal, columns, or one direction of a signal with a direction column) by a structure."""
     t, raw = stream_of(signals, params)
-    if proto.get("kind") == "text":
-        return parse_text(raw.tobytes().decode("latin-1"), proto, t)
-    return parse_binary(t, raw, proto)
+    out = parse_text(raw.tobytes().decode("latin-1"), proto, t) if proto.get("kind") == "text" else parse_binary(t, raw, proto)
+    # MSG7: the messages the user left out of the recording - their values not made, counted (still in `message`)
+    skip = {str(x) for x in (params or {}).get("skip") or []}
+    if skip:
+        out["signals"] = {k: v for k, v in out["signals"].items() if k.split(".", 1)[0] not in skip}
+        out["report"]["skipped"] = {k: v for k, v in (out["report"].get("messages") or {}).items() if k in skip}
+    return out
 
 
 # ------------------------------------------------------------------------------------------------ suggesting
@@ -612,8 +640,11 @@ def to_run(name: str, file_path: str, out: Dict):
         rep = out.get("report") or {}
         raise ProtocolError("No message matched the structure (%s)." % ", ".join(
             "%s: %s" % (k, v) for k, v in rep.items() if k in ("frames", "sentences", "bad", "unknown") and v) or "nothing found")
-    alls = np.unique(np.concatenate([t for t, _y in sig.values()]))
+    seq = out.get("sequence")
+    alls = np.unique(np.concatenate([t for t, _y in sig.values()] + ([seq[0]] if seq is not None and len(seq[0]) else [])))
     run = Run(file_path=file_path, csv_display_name=name, time=alls)
+    if seq is not None and len(seq[0]):                 # MSG7: which message passed when (its name: a state)
+        run.signals["message"] = Signal(name="message", data=seq[1], time=seq[0], labels=seq[2])
     for k_, (t, y) in sig.items():
         unit = out.get("units", {}).get(k_)
         nm = f"{k_} [{unit}]" if unit else k_

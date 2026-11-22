@@ -3,7 +3,7 @@ import { pickPath, useApp } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { api, type LibraryItem, type MessagesInspect } from "../api";
 import type { MessageStream, Structure } from "../store/model";
-import { addStreamToReport, applyRole, decodeAsMessages, directionCandidates, guessDirections, makeRecording, saveToLibrary, streamFor, streamsOf, withFieldNames } from "../messages";
+import { addStreamToReport, applyRole, decodeAsMessages, directionCandidates, guessDirections, makeRecording, plotMessage, saveToLibrary, streamFor, streamsOf, withFieldNames } from "../messages";
 import StructureEditor from "./StructureEditor";
 import ByteView, { type ByteRole } from "./ByteView";
 import { openMenu } from "./Overlays";
@@ -268,6 +268,43 @@ export default function StreamEditor({ ids, library, onLibrary }: { ids: string[
         <li className="msg-step msg-step-4">
           <h4><span className="msg-n">4</span>{t("msgStep4")}</h4>
           <p className="hint">{t("msgStep4Hint")}</p>
+          {/* MSG7 (owner, 2026-11-22): what passed and how often - each message with its count and share; ticked ones go
+              into the recording, Plot shows one message's values; types the structure does not describe, said */}
+          {sum && sum.messages > 0 && structure && (
+            <div className="msg-list">
+              <span className="hint">{t("msgListTitle", { n: fmtNum(sum.messages + unknownN, lang, 6) })}</span>
+              <table className="msg-list-t">
+                <tbody>
+                  {[...structure.messages.map((m) => ({ name: m.name, n: sum.byMessage[m.name] ?? 0, known: true })),
+                    ...Object.entries(sum.unknown).map(([k, n]) => ({ name: k, n, known: false }))]
+                    .filter((x) => x.n > 0).sort((a, b) => b.n - a.n).map((x) => {
+                      const skipped = !!def.skip?.[cur]?.includes(x.name);
+                      const pc = (100 * x.n) / Math.max(1, sum.messages + unknownN);
+                      return (
+                        <tr key={x.name} className={`msg-list-row${x.known ? "" : " unknown"}${skipped ? " off" : ""}`}>
+                          <td>{x.known
+                            ? <input type="checkbox" className="msg-list-in" checked={!skipped} aria-label={t("msgListIn", { msg: x.name })} title={t("msgListIn", { msg: x.name })}
+                                onChange={(e) => setDef((d) => {
+                                  const cur0 = new Set(d.skip?.[cur] ?? []);
+                                  if (e.target.checked) cur0.delete(x.name); else cur0.add(x.name);
+                                  return { ...d, skip: { ...(d.skip ?? {}), [cur]: [...cur0] } };
+                                })} />
+                            : null}</td>
+                          <th scope="row" dir="ltr">{x.known ? x.name : t("msgListUnknown", { id: x.name })}</th>
+                          <td className="msg-list-bar"><span style={{ width: `${Math.max(1, pc)}%` }} /></td>
+                          <td className="msg-list-n">{fmtNum(x.n, lang, 6)} · {pc < 1 ? pc.toFixed(1) : Math.round(pc)}%</td>
+                          <td>{x.known
+                            ? <button className="btn outline sm msg-list-plot" disabled={busy || skipped || !can}
+                                title={skipped ? t("msgListPlotOff") : t("msgListPlotHint", { msg: x.name })}
+                                onClick={() => run(() => plotMessage(eff, cur, x.name))}>{t("msgListPlot")}</button>
+                            : <span className="hint">{t("msgListDescribe")}</span>}</td>
+                        </tr>);
+                    })}
+                </tbody>
+              </table>
+              <p className="hint">{t("msgListHint")}</p>
+            </div>
+          )}
           <div className="msgp-actions">
             <button className="btn primary sm msg-make" disabled={busy || !can || !structure} onClick={() => run(() => makeRecording(eff, cur))}>{made ? t("msgMakeAgain") : t("msgMake")}</button>
             <button className="btn outline sm msg-savefile" disabled={busy || !madeRun} title={madeRun ? "" : t("msgSaveFileFirst")} onClick={saveFile}>{t("msgSaveFile")}</button>
