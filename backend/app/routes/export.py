@@ -241,6 +241,87 @@ async def export_clip(req: ClipRequest):
             "static": static}
 
 
+class ConfluenceSend(BaseModel):
+    page: str                       # the Confluence page's link (or its id)
+    title: str = ""
+    lang: str = "en"
+    theme: str = "light"
+    tabs: List[dict] = []
+    notes: List[dict] = []
+    macro: str = "html"             # the macro the page gets: "html" or "user" (the Signal Viewer user macro)
+    name: str = ""                  # the attachment's name (default: from the title)
+
+
+class ConfluenceSettings(BaseModel):
+    url: Optional[str] = None
+    user: Optional[str] = None
+    token: Optional[str] = None
+
+
+_last_page: Dict[str, str] = {}     # the page last sent to - the only address /api/confluence/open opens
+
+
+@router.get("/api/confluence")
+def confluence_get():
+    """CP4: the Confluence settings the page may see (never the token)."""
+    from app import confluence
+    return confluence.public()
+
+
+@router.post("/api/confluence")
+def confluence_set(req: ConfluenceSettings):
+    from app import confluence
+    try:
+        return confluence.save(req.url, req.user, req.token)
+    except confluence.ConfluenceError as e:
+        fail(400, str(e))
+
+
+@router.post("/api/confluence/test")
+async def confluence_test():
+    from app import confluence
+    try:
+        return await asyncio.to_thread(confluence.test)
+    except confluence.ConfluenceError as e:
+        fail(400, str(e))
+
+
+@router.post("/api/export/confluence")
+async def export_confluence(req: ConfluenceSend):
+    """CP4: Send to Confluence - the plot or tab's page (every sample) attached to the page and its macro added."""
+    from app import confluence
+    body = req.model_dump()
+    if not any(t.get("plots") for t in body["tabs"]):
+        fail(400, "Nothing to send: the plot or tab has no lines.")
+    name = req.name.strip() or confluence.safe_name(req.title)
+    if not name.lower().endswith(".html"):
+        name += ".html"
+    try:
+        page = await asyncio.to_thread(reports.build_clip_page, store, body)
+    except KeyError:
+        fail(404, "One of the plot's signals is no longer open.")
+    try:
+        out = await asyncio.to_thread(confluence.send, req.page, page, name, req.macro,
+                                      reports._clip_height(body), reports.build_clip_macro(body, name))
+    except confluence.ConfluenceError as e:
+        fail(400, str(e))
+    _last_page["url"] = out["url"]
+    return out
+
+
+@router.post("/api/confluence/open")
+def confluence_open():
+    """The page last sent to, in the user's browser (the address Confluence gave - never one from the page)."""
+    import webbrowser
+    url = _last_page.get("url")
+    if not url:
+        fail(400, "Nothing was sent to Confluence yet.")
+    try:
+        return {"opened": bool(webbrowser.open(url, new=2)), "url": url}
+    except Exception:
+        return {"opened": False, "url": url}
+
+
 @router.get("/api/export/clip/user-macro")
 def clip_user_macro():
     """CP3: the Signal Viewer user macro's template - a Confluence administrator installs it once."""

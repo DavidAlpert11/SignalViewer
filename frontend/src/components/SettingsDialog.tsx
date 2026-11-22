@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { saveConfluenceMacro } from "../clip";
-import { api, type StorageInfo, type StorageKind } from "../api";
+import { api, type ConfluenceInfo, type StorageInfo, type StorageKind } from "../api";
 import { actions, LINE_STYLES, useApp, type LineStyle } from "../store";
 import { useT, type TKey } from "../i18n";
 import { Icon } from "../icons";
@@ -152,12 +152,6 @@ export default function SettingsDialog() {
             {seg(tplTabChoice, [["ask", t("setTabChoiceAsk")], ["defaults", t("setTabChoiceDefaults")]], (v) => useApp.setState({ tplTabChoice: v }), t("setTabChoice"))}</div>
                     <div className="set-row"><span>{t("setAskClose")}<small>{t("setAskCloseHint")}</small></span>
             {seg(askBeforeClose ? "on" : "off", [["on", t("setAskCloseOn")], ["off", t("setAskCloseOff")]], (v) => useApp.setState({ askBeforeClose: v === "on" }), t("setAskClose"))}</div>
-          {/* CP3: how Copy for Confluence shows the page - the HTML macro, or the user macro an administrator installs once */}
-          <div className="set-row set-confluence"><span>{t("setConfluence")}<small>{t(confluenceMacro === "user" ? "setConfluenceUserHint" : "setConfluenceHint")}</small></span>
-            <span className="set-lines-ctl">
-              {seg(confluenceMacro, [["html", t("setConfluenceHtml")], ["user", t("setConfluenceUser")]], (v) => useApp.setState({ confluenceMacro: v }), t("setConfluence"))}
-              <button className="btn sm outline set-confluence-save" onClick={() => { void saveConfluenceMacro(); }}>{t("setConfluenceSaveBtn")}</button>
-            </span></div>
           {/* 1.29: one cap for the Sweeps plots (the Data step, All runs, a table's HTML page) - counts and actions are of
               the whole table whatever it is */}
           <div className="set-row set-sweep-lines"><span>{t("setSweepLines")}<small>{t(sweepLines === 0 || sweepLines > 1_000_000 ? "setSweepLinesWarn" : "setSweepLinesHint")}</small></span>
@@ -165,6 +159,14 @@ export default function SettingsDialog() {
               (v) => useApp.setState({ sweepLines: v }), t("setSweepLines"))}</div>
           <div className="set-row set-sweep-over"><span>{t("setSweepOver")}<small>{t(sweepOver === "density" ? "setSweepOverDensityHint" : "setSweepOverSampleHint")}</small></span>
             {seg(sweepOver, [["density", t("setSweepOverDensity")], ["sample", t("setSweepOverSample")]], (v) => useApp.setState({ sweepOver: v }), t("setSweepOver"))}</div>
+          <h3 className="set-group-title">{t("cfGroup")}</h3>
+          <ConfluenceSection />
+          {/* CP3: how Copy for Confluence shows the page - the HTML macro, or the user macro an administrator installs once */}
+          <div className="set-row set-confluence"><span>{t("setConfluence")}<small>{t(confluenceMacro === "user" ? "setConfluenceUserHint" : "setConfluenceHint")}</small></span>
+            <span className="set-lines-ctl">
+              {seg(confluenceMacro, [["html", t("setConfluenceHtml")], ["user", t("setConfluenceUser")]], (v) => useApp.setState({ confluenceMacro: v }), t("setConfluence"))}
+              <button className="btn sm outline set-confluence-save" onClick={() => { void saveConfluenceMacro(); }}>{t("setConfluenceSaveBtn")}</button>
+            </span></div>
           <h3 className="set-group-title">{t("setGrpNet")}</h3>
           <div className="set-row"><span>{t("setOffline")}<small>{t(offlineForced ? "setOfflineForced" : "setOfflineHint")}</small></span>
             {offlineForced
@@ -181,3 +183,37 @@ export default function SettingsDialog() {
     </div>
   );
 }
+
+/** CP4: where Send to Confluence sends - the address, (Cloud) the e-mail, the token; Save and test says who Confluence
+ *  says you are, or what is wrong. The token is never shown back: kept, or replaced by typing a new one. */
+function ConfluenceSection() {
+  const t = useT();
+  const [info, setInfo] = useState<ConfluenceInfo | null>(null);
+  const [url, setUrl] = useState(""), [user, setUser] = useState(""), [token, setToken] = useState("");
+  const [state, setState] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { void api.confluence().then((c) => { setInfo(c); setUrl(c.url); setUser(c.user); }).catch(() => {}); }, []);
+  const saveTest = async () => {
+    setBusy(true); setState(null);
+    try {
+      const c = await api.confluenceSet({ url, user, ...(token ? { token } : {}) });
+      setInfo(c); setUrl(c.url); setToken("");
+      const me = await api.confluenceTest();
+      setState({ ok: true, text: t("cfConnected", { user: me.user }) });
+    } catch (e) {
+      setState({ ok: false, text: (e as Error).message });
+    } finally { setBusy(false); }
+  };
+  return (
+    <div className="set-row set-confluence-conn"><span>{t("cfConn")}<small>{t("cfConnHint")}</small></span>
+      <span className="set-cf-ctl">
+        <input className="set-cf-url" dir="ltr" placeholder="https://confluence.example.com" value={url} onChange={(e) => setUrl(e.target.value)} aria-label={t("cfUrl")} />
+        <input className="set-cf-token" dir="ltr" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)}
+          placeholder={info?.hasToken ? t("cfTokenKept") : t("cfToken")} aria-label={t("cfToken")} />
+        <input className="set-cf-user" dir="ltr" placeholder={t("cfUser")} value={user} onChange={(e) => setUser(e.target.value)} aria-label={t("cfUser")} />
+        <button className="btn sm outline set-cf-test" disabled={busy || !url || !(token || info?.hasToken)} onClick={() => { void saveTest(); }}>{t("cfSaveTest")}</button>
+        {state && <small className={`set-cf-state ${state.ok ? "ok" : "bad"}`} role="status">{state.ok ? "✓ " : "⚠ "}{state.text}</small>}
+      </span></div>
+  );
+}
+

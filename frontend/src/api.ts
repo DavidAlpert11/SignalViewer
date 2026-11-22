@@ -55,6 +55,8 @@ export interface InspectFrame { t: number; at: number; len?: number; id?: number
   bytes?: number[]; roles?: string[]; fields?: (number | null)[]; values: (number | string | null)[]; text?: string; parts?: string[];
   /** filled in the page: the frame's message's field names, and (text) which field each part is */
   fieldNames?: string[]; fieldAt?: (number | null)[] }
+/** CP4: the Confluence settings the page may see */
+export interface ConfluenceInfo { url: string; user: string; hasToken: boolean; recent: { url: string; title: string }[] }
 export interface InspectPattern { hex: string; bytes: number; count: number; every: number; regular: number; first: number; role?: string;
   /** MSG6: with pauses in the stream - how often right after one / right before one, and what that makes it */
   afterPause?: number; beforePause?: number; time?: "start" | "end" | null }
@@ -549,6 +551,12 @@ export const api = {
     call<{ path: string; rows: number }>("/api/export/csv", { path, signals, t0, t1 }),
   /** CP1: a plot / a tab for a Confluence page - the page saved (every sample), the HTML macro's lines, the static copy */
   clip: (body: Record<string, unknown>) => call<{ path: string; name: string; size: number; macro: string; static: string }>("/api/export/clip", body),
+  /** CP4: Send to Confluence - the settings (never the token), a test, the send, the page in the browser */
+  confluence: () => call<ConfluenceInfo>("/api/confluence"),
+  confluenceSet: (body: { url?: string; user?: string; token?: string }) => call<ConfluenceInfo>("/api/confluence", body),
+  confluenceTest: () => call<{ user: string }>("/api/confluence/test", {}),
+  confluenceSend: (body: Record<string, unknown>) => call<{ page: string; url: string; added: boolean; updated: boolean; name: string; size: number }>("/api/export/confluence", body),
+  confluenceOpen: () => call<{ opened: boolean; url: string }>("/api/confluence/open", {}),
   /** CP3: the Signal Viewer user macro for Confluence (installed once by an administrator) */
   clipUserMacro: () => call<{ name: string; template: string }>("/api/export/clip/user-macro"),
   report: (body: Record<string, unknown>) => call<{ path: string; size: number }>("/api/report", body),

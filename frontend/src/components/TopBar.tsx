@@ -15,7 +15,7 @@ import { openSession, saveSession } from "../files";
 import { copyErrorDetails, reportProblem } from "../errorReport";
 import type { MenuItem, MoreTabs } from "../store";
 import { openMenu } from "./Overlays";
-import { copyForConfluence } from "../clip";
+import { copyForConfluence, sendToConfluence } from "../clip";
 import { addToReport } from "../reportDoc";
 import { EXAMPLE_LABEL, openExample } from "./Welcome";
 import { startTour } from "./Tour";
@@ -264,6 +264,7 @@ export function PlotTabs() {
                 { label: t("renameTab"), run: () => setEditing(tab.id) },
                 { label: t("duplicateTab"), run: () => actions.duplicateTab(tab.id) },
                 { label: t("saveTemplate") + "…", run: () => { actions.switchTab(tab.id); useApp.setState({ templatesOpen: true, templatesNew: "tab" }); } },
+                { label: t("cfSendTab"), run: () => { void sendToConfluence(tab); } },   // CP4
                 { label: t("clipTab"), run: () => { void copyForConfluence(tab); } },   // CP1
                 { label: t("rdAddToReport"), run: () => addToReport(tab) },   // RE1
                 { label: "", run: () => {}, sep: true },

@@ -137,3 +137,55 @@ def test_copy_for_confluence_with_the_signal_viewer_user_macro(pg):
     page.wait_for_function("""() => { const f = document.querySelector('.sv-clip iframe');
         return f && f.contentDocument && f.contentDocument.querySelector('.canvas canvas') && f.getBoundingClientRect().height > 300; }""", timeout=15000)
     page.close()
+
+
+def test_send_to_confluence_from_the_app(pg):
+    """CP4 (owner, 2026-11-22: "the most important: a good way to throw an interactive plot from the app straight to
+    Confluence, the easiest way"): Settings -> Confluence once (address, token, Save and test: who you are); then the
+    plot's menu -> Send to Confluence…, the page's link, OK - the page has the attachment and the macro, nothing saved,
+    dragged or pasted. Against a stand-in for Confluence's REST API."""
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend", "tests"))
+    from fake_confluence import TOKEN, Fake
+    conf = Fake()
+    try:
+        open_files(pg, "run_a.csv")
+        sig(pg, "Speed").click()
+        # not set up: the toast says where
+        pg.locator(".plot-more").first.click()
+        pg.locator(".menu.ctx button", has_text="Send to Confluence").first.click()
+        pg.locator(".toast", has_text="not set up yet").wait_for(timeout=15000)
+        pg.locator(".toast button", has_text="Open Settings").click()
+        pg.locator(".set-cf-url").fill(conf.url + "/display/ENG/Bench+run+7")     # a page's link: its server is kept
+        pg.locator(".set-cf-token").fill(TOKEN)
+        pg.locator(".set-cf-test").click()
+        pg.locator(".set-cf-state.ok", has_text="Connected as Dana Tester").wait_for(timeout=15000)
+        assert pg.locator(".set-cf-url").input_value() == conf.url
+        if os.environ.get("SV_SHOTS"):
+            pg.locator(".set-confluence-conn").scroll_into_view_if_needed()
+            pg.screenshot(path=os.path.join(os.environ["SV_SHOTS"], "cf_settings.png"))
+        assert pg.locator(".set-cf-token").input_value() == "" and "kept" in pg.locator(".set-cf-token").get_attribute("placeholder")
+        pg.keyboard.press("Escape")
+        # the plot -> the page
+        pg.locator(".plot-more").first.click()
+        pg.locator(".menu.ctx button", has_text="Send to Confluence").first.click()
+        box = pg.locator(".dialog.small input")
+        box.wait_for()
+        box.fill(conf.url + "/pages/viewpage.action?pageId=4711")
+        if os.environ.get("SV_SHOTS"):
+            pg.screenshot(path=os.path.join(os.environ["SV_SHOTS"], "cf_send.png"))
+        pg.locator(".dialog.small .btn.primary").click()
+        pg.locator(".toast", has_text="Sent:").wait_for(timeout=30000)
+        assert "Bench run 7" in pg.locator(".toast", has_text="Sent:").inner_text()
+        names = list(conf.attachments)
+        assert len(names) == 1 and names[0].endswith(".html") and b'id="sv-data"' in conf.attachments[names[0]]["data"]
+        assert conf.page["version"] == 4 and 'data-name="%s"' % names[0] in conf.page["body"]
+        # again: the link offered is the last page; the attachment gets a new version, the page is left as it is
+        pg.locator(".plot-more").first.click()
+        pg.locator(".menu.ctx button", has_text="Send to Confluence").first.click()
+        assert box.input_value().endswith("pageId=4711")
+        pg.locator(".dialog.small .btn.primary").click()
+        pg.locator(".toast", has_text="Sent again").wait_for(timeout=30000)
+        assert conf.attachments[names[0]]["versions"] == 2 and conf.page["version"] == 4
+    finally:
+        conf.close()

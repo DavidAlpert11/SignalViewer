@@ -2,6 +2,8 @@
 
 ## Next – unreleased
 
+- New: **Send to Confluence** - the easiest way to put an interactive plot or tab on a Confluence page: the plot's ⋯ menu (or a tab's menu, or Ctrl+K) → *Send to Confluence…*, paste the page's link, OK. The app attaches it and adds the macro that shows it - live, every sample - nothing to save, drag or paste. Set up once in *Settings → Confluence*: the address and a personal access token (*Save and test* says who you are). Sent again, the page shows the new version.
+
 - New: *Messages* - **the bytes as hex, numbers or ASCII** (or hex with the character under it), and pointing at a byte shows what the bytes from it read as: 16 / 32-bit LSB and MSB first, float, **double**, text. A byte's menu offers a **double** (8 bytes) and **text (ASCII)** to the end of the values, each choice showing the value it reads there. A value can take a **conversion formula** on its raw value `x` (`x*0.01 - 40`), as any formula in the app; text in a binary message becomes a text signal of the recording.
 
 - New: *Messages* step 4 lists **every message in the stream with its count and share** - a histogram of the messages, the types not described yet too. Untick one to leave its values out of the recording (still counted); **Plot** beside a message shows that message's variables alone, a plot per variable. The recording has a new signal, **`message`**: which message passed when, by name - a lane under its plots shows the messages in order.

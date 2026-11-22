@@ -14,7 +14,7 @@ import { api, type FsPlaces } from "../api";
 import { tieredSort } from "../fuzzy";
 import { areaCommands, type AreaCommand } from "../areaCommands";
 import { makeReplay } from "../replay";
-import { copyForConfluence } from "../clip";
+import { copyForConfluence, sendToConfluence } from "../clip";
 import { addToReport } from "../reportDoc";
 import { getPrefValue, setPref } from "../prefs";
 
@@ -97,6 +97,8 @@ export default function CommandPalette() {
       { id: "clearreport", label: `${t("clearMenu")}: ${t("clearReportItem")}`, group: t("report"), icon: <Icon.Eraser />, run: () => { void clearReport(); } },
       // CP1: the active plot / the tab for a Confluence page
       { id: "clipplot", label: t("clipPlot"), group: t("report"), icon: <Icon.Copy />, run: () => { const tb = activeTab(st().ws); const p = tb?.plots[tb.active ?? 0]; if (tb && p) void copyForConfluence(tb, p); } },
+      { id: "cfplot", label: t("cfSendPlot"), group: t("report"), icon: <Icon.Copy />, run: () => { const tb = activeTab(st().ws); const p = tb?.plots[tb.active ?? 0]; if (tb && p) void sendToConfluence(tb, p); } },
+      { id: "cftab", label: t("cfSendTab"), group: t("report"), icon: <Icon.Copy />, run: () => { const tb = activeTab(st().ws); if (tb) void sendToConfluence(tb); } },
       { id: "cliptab", label: t("clipTab"), group: t("report"), icon: <Icon.Copy />, run: () => { const tb = activeTab(st().ws); if (tb) void copyForConfluence(tb); } },
       { id: "rdplot", label: `${t("rdAddToReport")}: ${t("plotTitle", { n: "" }).trim()}`, group: t("report"), icon: <Icon.Report />, run: () => { const tb = activeTab(st().ws); if (tb?.plots.length) addToReport(tb, tb.active ?? 0); } },
       { id: "rdtab", label: `${t("rdAddToReport")}: ${t("tab")}`, group: t("report"), icon: <Icon.Report />, run: () => { const tb = activeTab(st().ws); if (tb) addToReport(tb); } },
