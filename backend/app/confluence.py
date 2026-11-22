@@ -221,7 +221,8 @@ def _marker_for(body: str, title: str) -> Optional[re.Match]:
     """The marker this plot takes: one with its title, else one without a title."""
     found = list(MARKER.finditer(body))
     named = [m for m in found if m.group(1) and _text(m.group(1)).lower() == (title or "").strip().lower()]
-    return (named or [m for m in found if not m.group(1)] or [None])[0]
+    pick = named or [m for m in found if not m.group(1)]
+    return pick[0] if pick else None
 
 
 def outline(link: str, title: str, name: str) -> Dict[str, Any]:
