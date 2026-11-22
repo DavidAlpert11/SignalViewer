@@ -2,6 +2,8 @@
 
 ## Next – unreleased
 
+- New: **Copy for Confluence without the HTML macro** - Confluence Data Center keeps that macro off by default. *Settings → Copy for Confluence → Signal Viewer macro*: an administrator installs the Signal Viewer user macro once (the button beside it saves its template, with the steps), and the copy becomes `{signalviewer:file=…}`, pasted with *Insert → Markup* - the plot or tab as live as before.
+
 - New: in the HTML page (a report, a tab, a Confluence copy) the **time plots of a tab zoom together and share the cursor** - a drag, the wheel or a double click on one moves them all, a click places the cursor (and its values) in every plot. The 🔗 button at the top makes each plot zoom on its own again.
 
 - Fixed: a formula in the report (e.g. `$v = \frac{d}{t}$`) sometimes showed as an error or in another style - two previews drew it at the same moment and matplotlib's formula drawing is not thread-safe (145 of 160 drawings failed in a test that does that); they are drawn one at a time now.

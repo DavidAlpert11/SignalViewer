@@ -73,3 +73,32 @@ def test_clip_hebrew_static_is_rtl_and_empty_is_refused():
     assert client.post("/api/export/clip", json={"path": "x", "tabs": [{"plots": []}]}).status_code == 400
     frag = report.build_clip_static(None, {"lang": "he", "tabs": [], "notes": [{"t": 1, "text": "הערה"}]})
     assert 'dir="rtl"' in frag and "הערות" in frag
+
+
+def test_user_macro_template_is_velocity_safe_and_the_copy_is_its_markup(tmp_path):
+    """CP3 (owner, 2026-11-22): Confluence Data Center keeps the HTML macro off - the Signal Viewer user macro an
+    administrator installs once. Its template is Velocity: the script must carry no "$" or "#" of its own; the
+    attachment's name, the page and the height come from Confluence, HTML-encoded."""
+    t = client.get("/api/export/clip/user-macro").json()
+    assert t["name"] == "signalviewer"
+    tpl = t["template"]
+    assert "## @param file:" in tpl and "## @param height:" in tpl
+    body = "\n".join(ln for ln in tpl.splitlines() if not ln.startswith("##"))
+    script = body.split("<script>", 1)[1].split("</script>", 1)[0]
+    assert "$" not in script and "#" not in script
+    assert 'data-name="$!generalUtil.htmlEncode($!paramfile)"' in body and 'data-page="$!content.id"' in body
+    assert body.count("</script>") == 1
+    # the copy: the markup, not the HTML macro's lines; a name the markup cannot carry is refused
+    path = tmp_path / "s.csv"
+    path.write_text("time,a\n0,1\n1,2\n2,3\n", encoding="utf-8")
+    run = client.post("/api/files/open", json={"paths": [str(path)]}).json()["opened"][0]
+    try:
+        plot = {"mode": "time", "title": "A", "signals": [{"id": f"{run['id']}/a", "label": "a", "color": "#e33", "width": 1.5,
+                                                         "scale": 1, "offset": 0, "state": False, "tOffset": 0}]}
+        r = client.post("/api/export/clip", json={"path": str(tmp_path / "run 1.html"), "macro": "user", "tabs": [{"name": "", "plots": [plot]}]})
+        assert r.status_code == 200, r.text
+        assert re.fullmatch(r"\{signalviewer:file=run 1\.html\|height=\d+\}", r.json()["macro"])
+        bad = client.post("/api/export/clip", json={"path": str(tmp_path / "a|b.html"), "macro": "user", "tabs": [{"name": "", "plots": [plot]}]})
+        assert bad.status_code == 400 and "|" in bad.json()["detail"]
+    finally:
+        client.delete(f"/api/runs/{run['id']}")

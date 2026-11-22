@@ -4,6 +4,8 @@
  * attachment); the clipboard's text/plain is the HTML macro's few lines that show that attachment (zoom, the
  * cursor, lines on and off; a whole page inside the macro stalled the owner's editor), its text/html a picture,
  * the statistics table and the notes without scripts - what a page without the macro, Word or an e-mail keeps.
+ * CP3: with the Signal Viewer user macro (Settings; Confluence Data Center keeps the HTML macro off) text/plain is
+ * {signalviewer:file=...}, pasted with Insert > Markup.
  */
 import { api } from "./api";
 import { pickPath, rangeKey, useApp, type Plot, type Tab } from "./store";
@@ -24,7 +26,7 @@ export async function copyForConfluence(tab: Tab, only?: Plot) {
   const path = await pickPath({ mode: "save", title: translate(lang, "clipSave"), exts: [".html"],
     defaultName: `${(title || "signalviewer").replace(/[\\/:*?"<>|]+/g, "_").slice(0, 60)}.html` });
   if (!path) return;
-  const body = { path, title, lang, theme: "light", notes, tabs: [{ name: tab.name || "", plots: kept.map(({ p, pi }) => plotSpec(tab, p, pi, plotLabel)) }] };
+  const body = { path, title, lang, theme: "light", notes, macro: st.confluenceMacro, tabs: [{ name: tab.name || "", plots: kept.map(({ p, pi }) => plotSpec(tab, p, pi, plotLabel)) }] };
   // ClipboardItem takes promises: the write starts inside the click (its permission) while the server builds it
   const res = api.clip(body);
   try {
@@ -34,11 +36,25 @@ export async function copyForConfluence(tab: Tab, only?: Plot) {
     })]);
     const r = await res;
     const kb = Math.max(1, Math.round(r.size / 1024));
-    st.toast({ kind: "info", text: translate(lang, "clipDone", { name: r.name, size: kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} kB` }) });
+    st.toast({ kind: "info", text: translate(lang, st.confluenceMacro === "user" ? "clipDoneUser" : "clipDone", { name: r.name, size: kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} kB` }) });
   } catch {
     // the server's own words when it was the one that failed (a signal no longer open...), else the clipboard's
     // (the file is saved all the same: its macro lines can be copied again)
     const r = await res.then((x) => x, (e: Error) => e);
     st.toast({ kind: "error", text: r instanceof Error ? r.message : translate(lang, "clipFailed", { name: r.name }) });
+  }
+}
+
+/** CP3: the user macro's template saved for the Confluence administrator (Settings). */
+export async function saveConfluenceMacro() {
+  const st = useApp.getState(), lang = st.lang;
+  const path = await pickPath({ mode: "save", title: translate(lang, "setConfluenceSave"), exts: [".txt"], defaultName: "signalviewer-confluence-macro.txt" });
+  if (!path) return;
+  try {
+    const m = await api.clipUserMacro();
+    const r = await api.saveText(path, m.template, ".txt", false);
+    st.toast({ kind: "info", text: translate(lang, "setConfluenceSaved", { path: r.path }) });
+  } catch (e) {
+    st.toast({ kind: "error", text: (e as Error).message });
   }
 }

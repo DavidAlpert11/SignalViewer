@@ -216,6 +216,7 @@ class ClipRequest(BaseModel):
     theme: str = "light"
     tabs: List[dict] = []           # one tab (the tab copied) or one tab with the one plot copied
     notes: List[dict] = []
+    macro: str = "html"             # CP3: "html" - the HTML macro's lines; "user" - the Signal Viewer user macro's markup
 
 
 @router.post("/api/export/clip")
@@ -227,6 +228,8 @@ async def export_clip(req: ClipRequest):
     if not any(t.get("plots") for t in body["tabs"]):
         fail(400, "Nothing to copy: the plot or tab has no lines.")
     path = _check_target(req.path, ".html")
+    if req.macro == "user" and any(c in os.path.basename(path) for c in "|{}"):
+        fail(400, "Confluence's markup cannot carry | { or } in a file name: save the page under another name.")
     try:
         page = await asyncio.to_thread(reports.build_clip_page, store, body)
         static = await asyncio.to_thread(reports.build_clip_static, store, body)
@@ -234,7 +237,14 @@ async def export_clip(req: ClipRequest):
         fail(404, "One of the plot's signals is no longer open.")
     await asyncio.to_thread(atomic_write, path, page)
     return {"path": path, "name": os.path.basename(path), "size": len(page.encode("utf-8")),
-            "macro": reports.build_clip_macro(body, os.path.basename(path)), "static": static}
+            "macro": (reports.build_clip_markup if req.macro == "user" else reports.build_clip_macro)(body, os.path.basename(path)),
+            "static": static}
+
+
+@router.get("/api/export/clip/user-macro")
+def clip_user_macro():
+    """CP3: the Signal Viewer user macro's template - a Confluence administrator installs it once."""
+    return {"name": reports.USER_MACRO, "template": reports.build_user_macro_template()}
 
 
 class ImageRequest(BaseModel):

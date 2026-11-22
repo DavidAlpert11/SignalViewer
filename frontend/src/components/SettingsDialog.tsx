@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactElement } from "react";
+import { saveConfluenceMacro } from "../clip";
 import { api, type StorageInfo, type StorageKind } from "../api";
 import { actions, LINE_STYLES, useApp, type LineStyle } from "../store";
 import { useT, type TKey } from "../i18n";
@@ -107,6 +108,7 @@ export default function SettingsDialog() {
   const lineStyle = useApp((s) => s.lineStyle);
   const bandInCard = useApp((s) => s.bandInCard);
   const tplTabChoice = useApp((s) => s.tplTabChoice);
+  const confluenceMacro = useApp((s) => s.confluenceMacro);
   const offlineOnly = useApp((s) => s.offlineOnly);
   const offlineForced = useApp((s) => s.offlineForced);
   const sweepLines = useApp((s) => s.sweepLines);
@@ -150,6 +152,12 @@ export default function SettingsDialog() {
             {seg(tplTabChoice, [["ask", t("setTabChoiceAsk")], ["defaults", t("setTabChoiceDefaults")]], (v) => useApp.setState({ tplTabChoice: v }), t("setTabChoice"))}</div>
                     <div className="set-row"><span>{t("setAskClose")}<small>{t("setAskCloseHint")}</small></span>
             {seg(askBeforeClose ? "on" : "off", [["on", t("setAskCloseOn")], ["off", t("setAskCloseOff")]], (v) => useApp.setState({ askBeforeClose: v === "on" }), t("setAskClose"))}</div>
+          {/* CP3: how Copy for Confluence shows the page - the HTML macro, or the user macro an administrator installs once */}
+          <div className="set-row set-confluence"><span>{t("setConfluence")}<small>{t(confluenceMacro === "user" ? "setConfluenceUserHint" : "setConfluenceHint")}</small></span>
+            <span className="set-lines-ctl">
+              {seg(confluenceMacro, [["html", t("setConfluenceHtml")], ["user", t("setConfluenceUser")]], (v) => useApp.setState({ confluenceMacro: v }), t("setConfluence"))}
+              <button className="btn sm outline set-confluence-save" onClick={() => { void saveConfluenceMacro(); }}>{t("setConfluenceSaveBtn")}</button>
+            </span></div>
           {/* 1.29: one cap for the Sweeps plots (the Data step, All runs, a table's HTML page) - counts and actions are of
               the whole table whatever it is */}
           <div className="set-row set-sweep-lines"><span>{t("setSweepLines")}<small>{t(sweepLines === 0 || sweepLines > 1_000_000 ? "setSweepLinesWarn" : "setSweepLinesHint")}</small></span>

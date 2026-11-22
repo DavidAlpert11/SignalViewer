@@ -127,6 +127,8 @@ export interface UiSlice {
   lineStyle: "solid" | "dash" | "dot" | "dashdot";   // N3: a new line's style (Settings; default solid)
   /** U1: a template with several tabs opened from its chip - ask which tabs, or open its default tabs */
   tplTabChoice: "ask" | "defaults";
+  /** CP3: Copy for Confluence - the HTML macro's lines, or the Signal Viewer user macro's markup (Settings) */
+  confluenceMacro: "html" | "user";
   /** O1: "Never use the network" (a setting): online map layers fall back to the offline map */
   offlineOnly: boolean;
   /** O1: SV_OFFLINE=1 for the app - the same, and the setting is locked on (from /api/settings; UI only) */
@@ -232,6 +234,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   clickPlacesCursor: false,
   lineStyle: "solid",
   tplTabChoice: "ask",
+  confluenceMacro: "html",
   offlineOnly: false,
   offlineForced: false,
   tabChoice: null,

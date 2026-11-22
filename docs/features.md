@@ -590,6 +590,8 @@ overshoot, energy...), with a second, finer sweep to merge. The same answer on t
 - A plot that cannot go into a report (a video, occurrences) is listed with the reason, not left out
 - A single plot: PNG, a high-resolution PNG for a report (twice the pixels), SVG, or an interactive page (HTML)
 - **Copy for Confluence** (a plot's ⋯ menu, a tab's right-click menu, Ctrl+K): the plot or tab saved with every sample - attached to the Confluence page, the copied lines pasted into its HTML macro show it live (zoom to every sample, cursor, lines on and off, statistics, notes; maps and 3D views too); pasted straight into a page, Word or an e-mail: a picture, the table and the notes
+  - **Confluence Data Center** keeps the HTML macro off unless an administrator turns it on. Instead, the administrator installs the **Signal Viewer macro** once: *Settings → Copy for Confluence → Save the macro for the administrator…* saves its template; in Confluence: *General configuration → User Macros → Create a User Macro*, name `signalviewer`, *No macro body*, the file's text as the *Template*. Then choose *Signal Viewer macro* in the same setting: the copy becomes `{signalviewer:file=plot.html|height=…}`, pasted with *Insert → Markup* (or *Insert → Other macros → Signal Viewer* and the file's name)
+- In the HTML page, the **time plots of a tab zoom together** and share the cursor (the 🔗 button at the top makes each zoom on its own)
 - PDF
 - Word
 - Per-plot captions, report language and theme

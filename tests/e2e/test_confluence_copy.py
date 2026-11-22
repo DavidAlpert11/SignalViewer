@@ -96,3 +96,44 @@ def test_copy_for_confluence_is_interactive_in_the_macro_and_static_when_pasted(
     page.wait_for_selector("#ed img")
     assert page.locator("#ed table").count() >= 1 and page.locator("#ed script").count() == 0
     page.close()
+
+
+def _render_user_macro(template, markup):
+    """Confluence's part, stood in for: the user macro's Velocity with the parameters of `markup` and page 4711."""
+    m = re.fullmatch(r"\{signalviewer:file=([^|}]+)\|height=(\d+)\}", markup)
+    assert m, markup
+    import html as H
+    body = "\n".join(ln for ln in template.splitlines() if not ln.startswith("##"))
+    return (body.replace("$!generalUtil.htmlEncode($!paramfile)", H.escape(m.group(1)))
+            .replace("$!generalUtil.htmlEncode($!paramheight)", m.group(2))
+            .replace("$!content.id", "4711").replace("$!req.contextPath", ""))
+
+
+def test_copy_for_confluence_with_the_signal_viewer_user_macro(pg):
+    """CP3 (owner, 2026-11-22): Settings -> Copy for Confluence: Signal Viewer macro. The copy is the macro's markup;
+    the template (saved from Settings for the administrator) renders the plot live in a page - one without the
+    meta tags too: Confluence gives the user macro the page itself."""
+    open_files(pg, "run_a.csv")
+    sig(pg, "Speed").click()
+    pg.evaluate("window.__sv.setState({ confluenceMacro: 'user' })")
+    _copy(pg, "plot.html")
+    pg.wait_for_selector(".toast:has-text('Insert > Markup')")
+    text = pg.evaluate("navigator.clipboard.readText()")
+    assert text.startswith("{signalviewer:file=plot.html|height=")
+    saved = open(os.path.join(pg.env["out"], "plot.html"), encoding="utf-8").read()
+    # the template, as the Settings button saves it
+    pg.evaluate("window.__sv.setState({ settingsOpen: true })")
+    pg.locator(".set-confluence .seg button", has_text="Signal Viewer macro").wait_for()
+    assert pg.locator(".set-confluence .seg button.on").inner_text() == "Signal Viewer macro"
+    pg.locator(".set-confluence-save").click()
+    save_as(pg, "macro.txt")
+    pg.wait_for_selector(".toast:has-text('User Macros')", timeout=15000)
+    tpl = open(os.path.join(pg.env["out"], "macro.txt"), encoding="utf-8").read()
+    page = pg.context.new_page()
+    page.route(CONF + "/download/attachments/4711/plot.html", lambda r: r.fulfill(status=200, body=saved, content_type="text/html; charset=utf-8"))
+    page.route(CONF + "/display/X", lambda r: r.fulfill(status=200, content_type="text/html; charset=utf-8",
+               body="<html><body><h1>Page</h1>%s</body></html>" % _render_user_macro(tpl, text)))
+    page.goto(CONF + "/display/X")
+    page.wait_for_function("""() => { const f = document.querySelector('.sv-clip iframe');
+        return f && f.contentDocument && f.contentDocument.querySelector('.canvas canvas') && f.getBoundingClientRect().height > 300; }""", timeout=15000)
+    page.close()

@@ -1249,16 +1249,26 @@ CLIP_WORDS = {
 # often forced to download), and the frame shows it from srcdoc.
 # Found by place, not by id: the same lines pasted twice must show twice (a script run from markup has
 # currentScript; one an editor inserts later runs in order, so the first box not yet taken is its own).
-_CLIP_JS = """(function(){var s=document.currentScript,r=s&&s.parentNode&&s.parentNode.classList.contains('sv-clip')?s.parentNode:document.querySelector('.sv-clip:not([data-sv])');
-if(!r)return;r.setAttribute('data-sv','1');var f=r.querySelector('iframe'),m=r.querySelector('p'),name=%(name)s,W=%(words)s;
+# One script for both ways in (CP2): the box says the attachment's name (data-name), its words' language and -
+# in the user macro - the page and the context path Confluence gave it (data-page, data-ctx); else the meta tags.
+# No "$" and no "#" in it: the user macro's template is Velocity.
+_CLIP_JS = """(function(){var s=document.currentScript,r=s&&s.parentNode&&s.parentNode.classList.contains('sv-clip')&&!s.parentNode.getAttribute('data-sv')?s.parentNode:document.querySelector('.sv-clip:not([data-sv])');
+if(!r)return;r.setAttribute('data-sv','1');var f=r.querySelector('iframe'),m=r.querySelector('p'),name=r.getAttribute('data-name'),A=%(words)s;
+var W=A[(r.getAttribute('data-lang')||document.documentElement.lang||'en').slice(0,2)]||A.en,h=parseInt(r.getAttribute('data-h'),10);
+if(h>=120&&h<=20000)f.style.height=h+'px';
 function meta(n){var e=document.querySelector('meta[name="'+n+'"]');return e?e.getAttribute('content'):''}
 function say(k){m.textContent=W[k].replace('{name}',name);m.style.display=''}
 function fit(){try{var d=f.contentDocument;if(d&&d.body&&d.body.childElementCount)f.style.height=Math.max(160,d.documentElement.scrollHeight)+'px'}catch(e){}}
 f.addEventListener('load',function(){fit();try{new ResizeObserver(fit).observe(f.contentDocument.body)}catch(e){}});
-var pid=meta('ajs-page-id')||meta('ajs-latest-page-id');if(!pid){say('noPage');return}
-say('loading');fetch(meta('ajs-context-path')+'/download/attachments/'+pid+'/'+encodeURIComponent(name),{credentials:'same-origin'})
+var pid=r.getAttribute('data-page')||meta('ajs-page-id')||meta('ajs-latest-page-id'),ctx=r.getAttribute('data-ctx')||meta('ajs-context-path');
+if(!pid||!name){say('noPage');return}
+say('loading');fetch(ctx+'/download/attachments/'+pid+'/'+encodeURIComponent(name),{credentials:'same-origin'})
 .then(function(r){if(!r.ok)throw new Error(r.status);return r.text()})
 .then(function(t){f.srcdoc=t;m.style.display='none'},function(){say('missing')})})();"""
+
+
+def _clip_script() -> str:
+    return _CLIP_JS % {"words": json.dumps(CLIP_WORDS, ensure_ascii=False)}
 
 
 def _clip_height(req: Dict) -> int:
@@ -1274,11 +1284,42 @@ def build_clip_page(store, req: Dict) -> str:
 
 def build_clip_macro(req: Dict, name: str) -> str:
     """The HTML macro's few lines: a frame that shows the attachment `name` of the page they are on."""
-    words = CLIP_WORDS.get(req.get("lang", "en"), CLIP_WORDS["en"])
-    js = _CLIP_JS % {"name": json.dumps(name), "words": json.dumps(words, ensure_ascii=False)}
-    return ('<div class="sv-clip"><p style="color:#5a6979;font:13px sans-serif;display:none"></p>'
+    return ('<div class="sv-clip" data-name="%s" data-lang="%s"><p style="color:#5a6979;font:13px sans-serif;display:none"></p>'
             '<iframe title="%s" style="width:100%%;height:%dpx;border:0;display:block"></iframe><script>%s</script></div>'
-            % (html.escape(name), _clip_height(req), js.replace("</", "<\\/")))
+            % (html.escape(name), html.escape(req.get("lang", "en")), html.escape(name), _clip_height(req),
+               _clip_script().replace("</", "<\\/")))
+
+
+# CP2 (owner, 2026-11-22): Confluence Data Center keeps the HTML macro off by default. An administrator installs this
+# user macro once instead (General configuration > User Macros) - the same box and script, the page id and context
+# path from Confluence itself, the attachment's name a parameter. The copy then puts {signalviewer:file=...} on the
+# clipboard, pasted with Insert > Markup.
+USER_MACRO = "signalviewer"
+
+USER_MACRO_HEAD = """## Signal Viewer - an interactive plot or tab attached to this page (the .html file that "Copy for Confluence" saves).
+## Installed ONCE by a Confluence administrator: General configuration > User Macros > Create a User Macro
+##   Macro Name: signalviewer      Visibility: Visible to all users      Macro Title: Signal Viewer
+##   Macro Body Processing: No macro body      Template: this whole text.
+## Then, in a page: drag the .html file onto the page (an attachment), Insert > Markup, paste what Signal Viewer copied
+## ({signalviewer:file=plot.html}) - or Insert > Other macros > Signal Viewer and type the file's name.
+## @param file:title=Attachment (.html)|type=string|required=true|desc=The .html file Signal Viewer saved, attached to this page
+## @param height:title=Height (px)|type=int|default=600|desc=Its height until the plot has measured itself
+"""
+
+
+def build_user_macro_template() -> str:
+    """The user macro's Velocity template (Confluence Data Center / Server): the administrator pastes it once."""
+    box = ('<div class="sv-clip" data-name="$!generalUtil.htmlEncode($!paramfile)" data-page="$!content.id" '
+           'data-ctx="$!req.contextPath" data-h="$!generalUtil.htmlEncode($!paramheight)">'
+           '<p style="color:#5a6979;font:13px sans-serif;display:none"></p>'
+           '<iframe title="$!generalUtil.htmlEncode($!paramfile)" style="width:100%;height:600px;border:0;display:block"></iframe>'
+           '<script>' + _clip_script().replace("</", "<\\/") + '</script></div>\n')
+    return USER_MACRO_HEAD + box
+
+
+def build_clip_markup(req: Dict, name: str) -> str:
+    """What the user macro's way copies: the macro in Confluence's wiki markup (Insert > Markup)."""
+    return "{%s:file=%s|height=%d}" % (USER_MACRO, name, _clip_height(req))
 
 
 _CLIP_TD = "padding:3px 8px;border-top:1px solid #d5dce4;text-align:right;white-space:nowrap;direction:ltr"

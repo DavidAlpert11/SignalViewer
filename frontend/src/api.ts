@@ -543,6 +543,8 @@ export const api = {
     call<{ path: string; rows: number }>("/api/export/csv", { path, signals, t0, t1 }),
   /** CP1: a plot / a tab for a Confluence page - the page saved (every sample), the HTML macro's lines, the static copy */
   clip: (body: Record<string, unknown>) => call<{ path: string; name: string; size: number; macro: string; static: string }>("/api/export/clip", body),
+  /** CP3: the Signal Viewer user macro for Confluence (installed once by an administrator) */
+  clipUserMacro: () => call<{ name: string; template: string }>("/api/export/clip/user-macro"),
   report: (body: Record<string, unknown>) => call<{ path: string; size: number }>("/api/report", body),
   /** a plot as PNG (scale 2: for a report, twice the pixels), SVG or an interactive HTML page */
   image: (path: string, format: "png" | "svg" | "html", theme: string, plot: unknown, scale = 1, lang = "en") =>
