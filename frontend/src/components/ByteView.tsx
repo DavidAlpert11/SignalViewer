@@ -10,7 +10,7 @@ import { openMenu } from "./Overlays";
    checksum, footer; grey = not described yet). A click on a byte says what it is - the structure changes and the
    view (and the values in step 3) follow at once. Text sentences: their parts between the separators. */
 
-export type ByteRole = { kind: "header"; upto: number } | { kind: "length"; at: number } | { kind: "type"; at: number }
+export type ByteRole = { kind: "header"; upto: number } | { kind: "length"; at: number } | { kind: "type"; at: number } | { kind: "notype" }
   | { kind: "footer"; from: number } | { kind: "field"; at: number; type: string; endian: "le" | "be"; size?: number } | { kind: "nofield"; at: number }
   | { kind: "text"; index: number; type: string } | { kind: "start"; at: number };
 
@@ -72,7 +72,9 @@ export default function ByteView({ info, onRole }: { info: MessagesInspect; onRo
     const items: MenuItem[] = [];
     if (i <= 5) items.push({ label: t("msgSetHeader", { hex: b.slice(0, i + 1).map(hex2).join(" ") }), run: () => onRole(fi, { kind: "header", upto: i }) });
     items.push({ label: t("msgSetLength", { v: b[i], n: f.len ?? b.length }), run: () => onRole(fi, { kind: "length", at: i }) });
-    items.push({ label: t("msgSetType", { v: "0x" + hex2(b[i]) }), run: () => onRole(fi, { kind: "type", at: i }) });
+    if (f.roles?.[i] === "type")                      // MSG9: a type byte proposed where there is none
+      items.push({ label: t("msgSetNoType"), run: () => onRole(fi, { kind: "notype" }) });
+    else items.push({ label: t("msgSetType", { v: "0x" + hex2(b[i]) }), run: () => onRole(fi, { kind: "type", at: i }) });
     // what the bytes from here read as: shown beside each choice, so the right one is seen before it is chosen
     items.push({ label: t("msgSetField"), run: () => {}, items: fieldTypes.map(([ty, en, label]) => ({ label: `${label}${preview(b, i, ty, en)}`, run: () => onRole(fi, { kind: "field", at: i, type: ty, endian: en }) })) });
     // MSG8: text inside a binary message - to the end of the values (before the checksum / footer), or a length

@@ -130,6 +130,9 @@ export default function App() {
   // 2026-11-13: at 280 px it read as a column of wrapped words)
   const [invW, setInvW] = usePanelWidth("investigate", 380);
   const [inspW, setInspW] = usePanelWidth("inspector", 320);     // inspector on the other side
+  // MSG9: Messages wider still - the bytes, the values and the structure form (name, byte, type, order, scale, add,
+  // formula, unit) side by side
+  const [msgW, setMsgW] = usePanelWidth("messages", 520);
   const restored = useRef(false);
 
   /* theme + language on <html> (plots stay left-to-right in Hebrew) */
@@ -331,8 +334,8 @@ export default function App() {
     };
   }, []);
 
-  const wide = panel === "investigate" || panel === "messages";      // MSG3: the structure's fields table needs room too
-  const sideW = wide ? invW : sideW0, setSideW = wide ? setInvW : setSideW0;
+  const wide = panel === "investigate";
+  const sideW = panel === "messages" ? msgW : wide ? invW : sideW0, setSideW = panel === "messages" ? setMsgW : wide ? setInvW : setSideW0;
   const side = !!panel && panel !== "report";                // RE1: the report takes the stage, not a side panel
   const cols = [RAIL_W, side ? sideW : 0, "1fr", inspectorOpen ? inspW : 0].map((c) => (typeof c === "number" ? `${c}px` : c)).join(" ");
 

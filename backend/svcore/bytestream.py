@@ -260,6 +260,8 @@ def _frame_rule(b: np.ndarray, P: np.ndarray, force: Dict) -> Optional[Dict]:
         if len(vals) < 2 or len(vals) > MAX_TYPES:
             continue
         lens = {int(x): _mode(dn[ok][v == x])[0] for x in vals}
+        if len(set(lens.values())) == 1:                  # MSG9: one length for every value - a fixed length, said below
+            continue
         f = float(np.mean([dn[ok][i] == lens[int(v[i])] for i in range(len(v))]))
         if f >= 0.7 and (best is None or f > best["fit"] + 0.05):
             best = {"how": "type", "off": o, "lens": lens, "fit": f}
@@ -348,6 +350,10 @@ def _type_off(b: np.ndarray, frames, rule: Dict, force: Dict) -> Optional[int]:
             continue
         lens = {int(x): _mode(ln[v == x])[0] for x in vals}
         f = float(np.mean(ln == np.array([lens[int(x)] for x in v])))
+        # MSG9: all one length, nothing ties the byte to a kind of message - a type byte is then one whose kinds
+        # take turns (it changes often), not the high byte of a slow value or a counter (it seldom changes)
+        if len(np.unique(ln)) == 1 and int(np.count_nonzero(np.diff(v))) < max(3, 0.1 * len(v)):
+            continue
         if (f, -len(vals)) > score and f >= 0.9:
             best, score = o, (f, -len(vals))
     return best

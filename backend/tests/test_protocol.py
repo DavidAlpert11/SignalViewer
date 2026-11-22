@@ -223,3 +223,18 @@ def test_double_ascii_and_a_conversion_formula():
     bad["messages"][0]["fields"][0]["formula"] = "y * 2"
     with pytest.raises(P.ProtocolError, match="unknown name 'y'"):
         P.parse(sig, bad)
+
+
+def test_the_proposal_reads_a_counter_a_double_and_text():
+    """MSG9 (owner, 2026-11-22): one kind of message of one length - AA 55 | a 16-bit counter | a double | 6 bytes of
+    text with a NUL. Before: the counter's high byte taken for a type byte (three kinds of message), the NUL for a
+    footer, the double for a float and loose bytes. Now each as it is, in both byte orders."""
+    from svcore import bytestream as bs
+    for fmt, en in (("<H", "le"), (">H", "be")):
+        data = b"".join(b"\xAA\x55" + struct.pack(fmt, 5000 + k) + struct.pack(">d", 1.5 * k) + (b"SN%03d\0" % (k % 3)) for k in range(400))
+        t = np.array([i * 0.0005 + (i // 18) * 0.01 for i in range(len(data))])
+        bs._CACHE.clear()
+        s = P.suggest([(t, np.frombuffer(data, np.uint8).astype(float))])
+        assert s["type"] is None and s["size"] == 18 and not s.get("footer") and len(s["messages"]) == 1
+        got = [(f["offset"], f["type"], f.get("endian"), f.get("size")) for f in s["messages"][0]["fields"]]
+        assert got == [(2, "u16", en, None), (4, "f64", "be", None), (12, "ascii", None, 6)], got

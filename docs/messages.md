@@ -64,7 +64,8 @@ The app looks for **byte patterns that repeat** and proposes the message's templ
   checksum, footer - grey: not described yet. **Click a byte to say what it is**: *The header is these bytes*, *The
   length byte*, *The type byte*, *The footer: from here to the end*, *A value starts here* (8 / 16 / 32-bit, signed or
   not, LSB first or MSB first, float, double - each choice shows the value it reads there), *Text (ASCII) starts here*
-  (to the end of the values, or 4 / 8 / 16 bytes) or *Not a value*.
+  (to the end of the values, or 4 / 8 / 16 bytes) or *Not a value*. A type byte proposed where there is none: *Not the
+  type byte* - one kind of message, the clicked message's values kept.
 - **Hex · Dec · ASCII · Hex + ASCII** (above the bytes) - each byte as hex, as a number, as its character, or hex with
   the character under it. Point at a byte: what the bytes from it read as - 16 / 32-bit LSB and MSB first, float,
   double, text - before anything is defined. A text stream (`$GPGGA,…`) shows each sentence's parts
@@ -83,7 +84,8 @@ once - and the template itself as a **form** or as its **JSON**: name the values
 bytes is one field: 2 bytes LSB or MSB first (`u16` / `i16`), 3, 4, or 8 for a double (`f64`); text is `ascii` with
 its length in bytes. The proposal guesses each value from how it moves from one message to the
 next - a 16-bit value **LSB first or MSB first** (whichever reads smooth), **signed** when it crosses zero, a 32-bit
-integer, a 32-bit float, a counter, flags, else a byte - and names it by place (`value_4`, `b10`). Text sentences
+integer, a 32-bit float, a **double** (8 bytes), **text** (3 or more printable characters), a counter (8 or 16-bit), flags,
+else a byte - and names it by place (`value_4`, `b10`). Text sentences
 (`$…,…*HH`) are proposed as **NMEA** - the sentences it knows with their fields, any other sentence's fields by place.
 
 - **Propose again** - forget the edits and propose from the stream.

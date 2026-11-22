@@ -374,3 +374,21 @@ def test_bytes_as_hex_numbers_ascii_a_text_field_and_a_formula(pg):
     pg.wait_for_function("""() => { const t = document.querySelector('.msgp-stream.open .msg-values-t');
         return t && [...t.querySelectorAll('tbody tr')].some(r => r.innerText.includes('10.01')); }""", timeout=15000)
     shot(pg, "msg8_values.png")
+
+
+def test_not_the_type_byte_makes_one_kind_of_message(pg):
+    """MSG9 (owner, 2026-11-22: "make it clear and easy"): a type byte proposed where the user knows there is none -
+    its menu says *Not the type byte*: one kind of message, the clicked message's values kept."""
+    shutil.copy(os.path.join(DEMO, "link_tx_rx.csv"), os.path.join(pg.env["data"], "link_tx_rx.csv"))
+    open_files(pg, "link_tx_rx.csv")
+    sig(pg, "rx_byte").click(button="right")
+    pg.locator(".menu.ctx button", has_text="Decode as messages").click()
+    ed = pg.locator(".msgp-stream.open")
+    att = ed.locator(".bv-frame", has=pg.locator(".bv-meta b", has_text="MSG_A0")).first
+    att.wait_for(timeout=30000)
+    assert "type byte at 2" in ed.locator(".msg-framing-line").inner_text()
+    att.locator(".bv-b").nth(2).click()
+    pg.locator(".menu.ctx button", has_text="Not the type byte").click()
+    pg.wait_for_function("document.querySelector('.msgp-stream.open .msg-framing-line').innerText.includes('one kind of message')", timeout=15000)
+    pg.wait_for_function("""() => { const c = [...document.querySelectorAll('.msgp-stream.open .msg-values-t caption')];
+        return c.length === 1 && c[0].innerText.startsWith('MSG ·'); }""", timeout=15000)       # one kind: one table

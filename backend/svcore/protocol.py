@@ -535,9 +535,40 @@ def _guess_fields(raw: np.ndarray, at: np.ndarray, first: int, last: int) -> Lis
         v = u8(j)
         return len(v) > 8 and float(np.mean(np.diff(v) % 256 == 1)) > 0.9
 
+    def carries(lo_b: int, hi_b: int) -> bool:
+        """MSG9: the byte hi_b goes up by one exactly when the counter byte lo_b wraps - one 16-bit counter."""
+        lo, hi = u8(lo_b), u8(hi_b)
+        dh = np.diff(hi) % 256
+        wrap = lo[1:] == 0
+        return bool(np.any(dh != 0) and np.all((dh == 0) | (wrap & (dh == 1))))
+
     j = first
     while j <= last:
         best: Optional[Dict] = None
+        if j + 1 <= last and (counter(j) and carries(j, j + 1) or counter(j + 1) and carries(j + 1, j)):
+            out.append({"name": "counter", "type": "u16", "offset": j, "endian": "le" if counter(j) and carries(j, j + 1) else "be"})
+            j += 2
+            continue
+        # MSG9: text - 3 or more printable characters in every message (a NUL or the payload's end closes it)
+        k = j
+        while k <= last and bool(np.all(((u8(k) >= 32) & (u8(k) < 127)) | ((k > j) & (u8(k) == 0)))):
+            k += 1
+        if k - j >= 3 and bool(np.all((u8(j) >= 32) & (u8(j) < 127))):
+            out.append({"name": "text_%d" % j, "type": "ascii", "offset": j, "size": k - j})
+            j = k
+            continue
+        # MSG9: a double - 8 bytes that read as a smooth, plausible value (before a float tries their first 4)
+        if j + 7 <= last:
+            for en in ("le", "be"):
+                v = val({"type": "f64", "offset": j, "endian": en})
+                if np.isfinite(v).all() and len(np.unique(v)) > 3 and np.nanmax(np.abs(v)) < 1e12 \
+                        and np.all((v == 0) | (np.abs(v) > 1e-9)) and _rough(v) < 0.2:
+                    best = {"type": "f64", "offset": j, "endian": en}
+                    break
+            if best is not None:
+                out.append({**best, "name": "value_%d" % j})
+                j += 8
+                continue
         if counter(j):                                  # a sequence number: one byte, +1 each message
             out.append({"name": "counter", "type": "u8", "offset": j})
             j += 1
@@ -658,7 +689,8 @@ def suggest(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Optional[D
         for size in (2, 1):
             tails = [e[-size:] for e in ends]
             v, c = max(((x, tails.count(x)) for x in set(tails)), key=lambda z: z[1])
-            if c >= 0.95 * len(tails):
+            # MSG9: 00 / FF at the end is padding or a text's NUL, not a footer
+            if c >= 0.95 * len(tails) and not all(x in (0x00, 0xFF) for x in v):
                 foot = v
                 break
     if foot:

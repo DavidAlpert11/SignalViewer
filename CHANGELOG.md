@@ -2,6 +2,8 @@
 
 ## Next – unreleased
 
+- Better: *Messages* proposes a message's variables more often right - a **16-bit counter** (LSB or MSB first) is one value, not a byte and a type; **a double** (8 bytes) and **text** (ASCII) are recognised; a message's trailing 00 / FF is no longer taken for a footer; a byte that changes slowly is not proposed as the type byte. A type byte proposed by mistake: its menu says **Not the type byte**. The Messages panel opens wider (520 px; drag its edge as before).
+
 - New: **Send to Confluence** - the easiest way to put an interactive plot or tab on a Confluence page: the plot's ⋯ menu (or a tab's menu, or Ctrl+K) → *Send to Confluence…*, paste the page's link, OK. The app attaches it and adds the macro that shows it - live, every sample - nothing to save, drag or paste. Set up once in *Settings → Confluence*: the address and a personal access token (*Save and test* says who you are). Sent again, the page shows the new version.
 
 - New: *Messages* - **the bytes as hex, numbers or ASCII** (or hex with the character under it), and pointing at a byte shows what the bytes from it read as: 16 / 32-bit LSB and MSB first, float, **double**, text. A byte's menu offers a **double** (8 bytes) and **text (ASCII)** to the end of the values, each choice showing the value it reads there. A value can take a **conversion formula** on its raw value `x` (`x*0.01 - 40`), as any formula in the app; text in a binary message becomes a text signal of the recording.

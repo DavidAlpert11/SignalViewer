@@ -334,6 +334,14 @@ export function applyRole(s: Structure, frame: InspectFrame, role: ByteRole): St
       m.fields.sort((x, y) => (x.index ?? 0) - (y.index ?? 0));
       break;
     }
+    case "notype": {                                 // MSG9: one kind of message - this frame's, with its fields and length
+      const m = msgOf();
+      const L = frame.len ?? b.length;
+      st.type = null;
+      st.messages = [{ ...m, id: 0, name: m.name.startsWith("MSG_") ? "MSG" : m.name, size: undefined }];
+      if (!st.length) st.size = L;
+      break;
+    }
     case "start": break;                                                   // the editor re-proposes with this header
   }
   return st;
