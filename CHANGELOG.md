@@ -2,6 +2,8 @@
 
 ## Next – unreleased
 
+- Fixed: in the HTML page (a report, an interactive plot, a Confluence copy), an **XY plot zooms both axes** - a box zooms x and y together, the wheel zooms both around the pointer (Shift: x only, Alt: y only), a double click shows everything again. Before, the y axis jumped back to fit and the wheel did nothing.
+
 ## 1.33.0 – 2026-11-21
 
 **Highlights:** **LaTeX in the report, and from raw bytes to variables in four clear steps.** Write the report in LaTeX as in Overleaf - your preamble and packages, with the app's plots, ready-made parts and values still in it - previewed as the PDF your own TeX makes, offline, or sent to Overleaf as a project; LaTeX blocks and any formula in a Markdown report drawn by TeX. A byte signal opened in *Messages* now walks you through it: what it carries, the byte patterns that repeat and the first messages byte by byte (click a byte to say what it is), each message's values as you define them, and a recording saved as CSV like any input.

@@ -161,6 +161,10 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · HTML page, XY plot (owner: "in the HTML export the zoom is only on x, not in XY"): viewer.js - a box zooms both axes
+  (the selection was read after uPlot cleared it, and an auto y re-ranged after x), the wheel zooms both around the pointer (Shift x,
+  Alt y), double click resets; window.__svPage for tests. e2e test_report_xy_zoom (new), test_report_doc, test_confluence_copy,
+  test_live_report green.
 - 2026-11-21 · Release 1.33.0 prepared (owner: "I only apply the patch, ready for a version"): version 1.33.0 (build.bat, version.py,
   CITATION 2026-11-21, installer .iss / version_info, install.md), CHANGELOG with highlights, README + Hebrew, features, limitations,
   reports(.he) LaTeX, GUIDE.he messages steps, validation page, pictures 42 48 49 50 51 55 56 and the new 57 (LaTeX; media scene

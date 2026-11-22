@@ -162,10 +162,22 @@
         series: [{}, faint, faint, faint, faint, { stroke: c, width: 2, points: { show: false } }],
         bands: [{ series: [2, 1], fill: c + "22" }, { series: [4, 3], fill: c + "55" }] };
     } else if (spec.mode === "xy") {
+      // XY: a box zooms both axes, the wheel zooms both around the pointer, a double click shows everything again
+      // (uPlot re-ranges an auto y whenever x changes - the zoom is kept here and given back by each scale's range)
+      self.xyZoom = null;
+      var fit = function (key, pad) { return function (u, mn, mx) { return self.xyZoom ? self.xyZoom[key] : uPlot.rangeNum(mn, mx, pad, true); }; };
       data = [null].concat(spec.signals.map(function (s) { var d = arr(s); return [Array.from(d[0]), Array.from(d[1], function (v) { return isFinite(v) ? v : null; })]; }));
       opts = { mode: 2, width: w, height: h, padding: [8, 12, 0, 4], legend: { show: false },
-        cursor: { drag: { x: true, y: true, uni: 20, setScale: true }, points: { show: false } },
-        scales: { x: { time: false, auto: true }, y: { auto: true } },
+        cursor: { drag: { x: true, y: true, uni: 20, setScale: false }, points: { show: false } },
+        scales: { x: { time: false, auto: true, range: fit("x", 0.02) }, y: { auto: true, range: fit("y", 0.05) } },
+        hooks: { setSelect: [function (u) {
+          var sl = { left: u.select.left, top: u.select.top, width: u.select.width, height: u.select.height };   // a copy: cleared below
+          if (sl.width < 4 && sl.height < 4) return;
+          var x0 = u.posToVal(sl.left, "x"), x1 = u.posToVal(sl.left + sl.width, "x");
+          var y0 = u.posToVal(sl.top + sl.height, "y"), y1 = u.posToVal(sl.top, "y");
+          u.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false);
+          self.xyTo(sl.width >= 4 ? [x0, x1] : [u.scales.x.min, u.scales.x.max], sl.height >= 4 ? [y0, y1] : [u.scales.y.min, u.scales.y.max]);
+        }] },
         axes: [Object.assign({}, axis, { size: 46, label: spec.xLabel, labelSize: 14, labelGap: 2 }), Object.assign({}, axis, { size: 56, values: ticks })],
         series: series };
     } else {
@@ -199,10 +211,26 @@
         self.cursor = v;
         u.redraw(false); self.renderLegend();
       });
+    } else if (spec.mode === "xy") {
+      u.over.addEventListener("wheel", function (e) {
+        e.preventDefault();
+        var rc = u.over.getBoundingClientRect(), f = e.deltaY < 0 ? 0.8 : 1.25;
+        var xv = u.posToVal(e.clientX - rc.left, "x"), yv = u.posToVal(e.clientY - rc.top, "y");
+        var sx = u.scales.x, sy = u.scales.y;
+        // Shift: only x; Alt: only y (a long track's one axis)
+        self.xyTo(e.altKey ? [sx.min, sx.max] : [xv - (xv - sx.min) * f, xv + (sx.max - xv) * f],
+                  e.shiftKey ? [sy.min, sy.max] : [yv - (yv - sy.min) * f, yv + (sy.max - yv) * f]);
+      }, { passive: false });
+      u.over.addEventListener("dblclick", function () { self.xyTo(null, null); });
     } else {
       u.over.addEventListener("dblclick", function () { self.build(); });
     }
     this.renderLegend();
+  };
+  Plot.prototype.xyTo = function (x, y) {         // XY: both axes to these ranges (null: everything)
+    var u = this.u;
+    this.xyZoom = x && y && x[1] > x[0] && y[1] > y[0] ? { x: x, y: y } : null;
+    u.batch(function () { u.setData(u.data, true); });
   };
   Plot.prototype.zoom = function (a, b, solo) {
     if (RP && RP.link !== false && !solo) { plots.forEach(function (p) { if (p.spec.mode === "time" && p.u) p.zoom(a, b, true); }); return; }   // R1: one zoom (a live report: each its own)
@@ -251,6 +279,7 @@
     });
   }
   var current = 0;
+  window.__svPage = { plots: function () { return plots; } };     // the tests reach each plot's uPlot here
   Array.prototype.forEach.call(document.querySelectorAll(".tabbtn"), function (b, j) { b.onclick = function () { current = j; renderTab(j); }; });
   document.getElementById("theme").onclick = function () {
     root.setAttribute("data-theme", root.getAttribute("data-theme") === "dark" ? "light" : "dark");
