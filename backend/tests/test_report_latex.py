@@ -147,3 +147,10 @@ def test_no_tex_at_all_formulas_as_mathml(monkeypatch):
     assert page.count('class="math mathml"') == 2 and 'class="field-err"' not in page
     assert _aligned_as_array("\\begin{align} a&=b\\\\c&=d\\end{align}") == "\\begin{array}{rl}a&=b\\\\c&=d\\end{array}"
     assert "<mtable>" in mathml("\\begin{aligned}a&=1\\\\b&=2\\end{aligned}", True)
+
+
+def test_tectonic_bundle_argument_on_windows_is_a_file_url():
+    """Tectonic reads -b as a URL first: "D:\\...\\texbundle.zip" was taken for the scheme "d" (build run on Windows,
+    2026-11-22: "doesn't specify a valid bundle"). A drive path goes as file:///D:/...; any other path as it is."""
+    assert TX.bundle_arg(r"D:\a\Signal Viewer\app\tex\texbundle.zip") == "file:///D:/a/Signal%20Viewer/app/tex/texbundle.zip"
+    assert TX.bundle_arg("/opt/sv/app/tex/texbundle.zip") == "/opt/sv/app/tex/texbundle.zip"

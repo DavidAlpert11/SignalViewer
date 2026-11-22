@@ -208,7 +208,8 @@ def main() -> int:
                 for junk in ("main.pdf", "main.aux", "main.toc", "main.out"):
                     if os.path.exists(os.path.join(d, junk)):
                         os.remove(os.path.join(d, junk))
-                p = subprocess.run([a.tectonic, "-b", os.path.abspath(a.out), "-C", "--keep-logs", "main.tex"], cwd=d, env=env,
+                from svcore.latex import bundle_arg   # a Windows path: a file:// URL
+                p = subprocess.run([a.tectonic, "-b", bundle_arg(os.path.abspath(a.out)), "-C", "--keep-logs", "main.tex"], cwd=d, env=env,
                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600)
                 ok = p.returncode == 0 and os.path.isfile(os.path.join(d, "main.pdf"))
                 print("  Tectonic, %s: %s" % (n, "ok" if ok else "FAILED"))

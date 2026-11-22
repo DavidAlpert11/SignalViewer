@@ -22,6 +22,7 @@ MiKTeX / MacTeX install by default.
 import glob
 import hashlib
 import os
+import pathlib
 import re
 import shutil
 import subprocess
@@ -88,6 +89,14 @@ def builtin() -> Optional[Tuple[str, str]]:
     exe = os.path.join(TEX_DIR, "tectonic.exe" if sys.platform.startswith("win") else "tectonic")
     zp = os.path.join(TEX_DIR, "texbundle.zip")
     return (exe, zp) if os.path.isfile(exe) and os.path.isfile(zp) else None
+
+
+def bundle_arg(path: str) -> str:
+    """Tectonic's -b reads a URL first: a Windows path (D:\\...) parses as one with the scheme "d" and is refused
+    ("doesn't specify a valid bundle") - there it is given as a file:// URL; elsewhere the path as it is."""
+    if re.match(r"^[A-Za-z]:[\\/]", path):
+        return pathlib.PureWindowsPath(path).as_uri()
+    return path
 
 
 def flavour(engine: str) -> str:
@@ -214,7 +223,7 @@ def _compile_builtin(folder: str, main: str, timeout: float) -> str:
         raise LatexError(status()["hint"] or "No LaTeX engine found.")
     base = os.path.splitext(main)[0]
     os.environ.setdefault("TECTONIC_CACHE_DIR", _cache_dir())
-    code, out = _run([bi[0], "-b", bi[1], "-C", "--keep-logs", main], folder, timeout)
+    code, out = _run([bi[0], "-b", bundle_arg(bi[1]), "-C", "--keep-logs", main], folder, timeout)
     pdf = os.path.join(folder, base + ".pdf")
     if code or not os.path.isfile(pdf):
         log = out

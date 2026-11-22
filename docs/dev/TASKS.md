@@ -163,6 +163,9 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · build run 45055081958: the AppData fix worked (Tectonic found its folders); next on Windows: "texbundle.zip doesn't
+  specify a valid bundle" - Tectonic reads -b as a URL first and D:\... is the scheme "d". svcore/latex.bundle_arg: a drive path
+  as file:///D:/... (make_tex_bundle.py too); test_report_latex::test_tectonic_bundle_argument_on_windows_is_a_file_url.
 - 2026-11-22 · CP3 (owner: Confluence 10.2, interactive): the user macro (Velocity template, the same script as the HTML macro),
   the markup copy, the setting and the save button. backend test_clip (4), e2e test_confluence_copy (2), test_settings,
   test_space_and_settings green.
