@@ -161,6 +161,21 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · test_report_doc failed now and then (a formula missing from the preview): two previews drew the same formula in
+  two threads - mathtext is not thread-safe; the failure was cached. reportdoc._MATH_LOCK; backend
+  test_formulas_drawn_at_once_by_several_previews (32 threads: 145 / 160 failed without the lock); e2e test_report_doc 4 / 4 runs green.
+- 2026-11-22 · RE4 the built-in LaTeX (owner: "a light solution like that we can bundle - yes"): Tectonic 0.17.0 pinned with its
+  SHA-256 (tools/get_tectonic.py: Windows 51 MB unpacked / 21 MB zip, Linux 26 MB) + a bundle of the TeX Live 2023 files the
+  samples read (tools/make_tex_bundle.py: xelatex -recorder on the app's own LaTeX - Markdown report, LaTeX document with the
+  usual packages, Hebrew report with --hebrew, formula picture - + the format's files + the fonts opened by name; 471 files,
+  9.3 MB zipped; --check typesets every sample with Tectonic from the zip alone, -C). svcore/latex.py: the computer's TeX
+  first, then the built-in (engine "tectonic", TECTONIC_CACHE_DIR ~/.signalviewer/tectonic: the format is made once, ~6 s,
+  then ~1 s a report); a missing package named as not in the built-in. reportdoc: MathML (latex2mathml, MIT, 79 kB) when
+  neither mathtext nor a TeX can draw a formula; align / aligned as arrays. build.yml: job tex-bundle (ubuntu-24.04,
+  TeX Live + polyglossia/bidi + FreeSerif, --hebrew --check) -> every build downloads it and gets Tectonic for its OS;
+  SignalViewer.spec carries app/tex; the PyPI package does not. Hebrew in the bundle is checked only in CI (no bidi.sty
+  here; the download of its source was not run). Tests: test_report_latex (7: built-in typesets, errors at the line, a
+  missing package; MathML with no TeX), full backend 1505.
 - 2026-11-22 · HTML page, XY plot (owner: "in the HTML export the zoom is only on x, not in XY"): viewer.js - a box zooms both axes
   (the selection was read after uPlot cleared it, and an auto y re-ranged after x), the wheel zooms both around the pointer (Shift x,
   Alt y), double click resets; window.__svPage for tests. e2e test_report_xy_zoom (new), test_report_doc, test_confluence_copy,

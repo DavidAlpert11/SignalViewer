@@ -26,7 +26,34 @@ permissions:
   contents: write          # only the release job uses it (to create the draft release)
 
 jobs:
+  tex-bundle:
+    # RE4: the small LaTeX bundle every package carries (tools/make_tex_bundle.py) - the TeX Live 2023 files the
+    # reports and the usual Overleaf packages read, Hebrew included, checked by Tectonic from the zip alone
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.11" }
+      - name: TeX Live (XeLaTeX, polyglossia + bidi, the usual packages) and FreeSerif
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends texlive-xetex texlive-latex-recommended texlive-latex-extra \
+            texlive-science texlive-pictures texlive-lang-arabic texlive-lang-other fonts-lmodern fonts-freefont-otf
+      - name: Python dependencies
+        run: pip install -r requirements.txt
+      - name: The bundle, checked with Tectonic offline (English and Hebrew)
+        run: |
+          python tools/get_tectonic.py
+          python tools/make_tex_bundle.py --hebrew --check
+      - uses: actions/upload-artifact@v6
+        with:
+          name: tex-bundle
+          path: backend/app/tex/texbundle.zip
+          if-no-files-found: error
+
   build:
+    needs: tex-bundle
+    if: ${{ !cancelled() }}      # a failed bundle (its job says why) leaves the packages without the built-in LaTeX
     strategy:
       fail-fast: false
       matrix:
@@ -44,6 +71,14 @@ jobs:
         with: { python-version: "3.11" }
       - uses: actions/setup-node@v5
         with: { node-version: "22" }
+
+      - uses: actions/download-artifact@v7      # RE4: the built-in LaTeX - the bundle (above) and Tectonic for this OS
+        id: texbundle
+        continue-on-error: true
+        with: { name: tex-bundle, path: backend/app/tex }
+      - name: Built-in LaTeX engine (Tectonic, pinned and checked)
+        if: steps.texbundle.outcome == 'success'
+        run: python tools/get_tectonic.py
 
       - name: Package name
         run: |

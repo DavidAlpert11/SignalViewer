@@ -333,7 +333,7 @@ export default function ReportScreen() {
           <button className="btn outline rd-pdf" disabled={!!busy} onClick={() => make("pdf")}>{busy === "pdf" ? t("loading") : "PDF"}</button>
           <button className="btn outline rd-docx" disabled={!!busy} onClick={() => make("docx")}>{busy === "docx" ? t("loading") : "Word"}</button>
         </>}
-        <button className={`btn ${latex ? "primary" : "outline"} rd-texpdf`} disabled={!!busy || !tex?.best} title={tex?.best ? t("rdTexPdfHint", { e: tex.best }) : tex?.hint ?? ""}
+        <button className={`btn ${latex ? "primary" : "outline"} rd-texpdf`} disabled={!!busy || !tex?.best} title={tex?.best === "tectonic" ? t("rdTexPdfBuiltin") : tex?.best ? t("rdTexPdfHint", { e: tex.best }) : tex?.hint ?? ""}
           onClick={() => make("texpdf")}>{busy === "texpdf" ? t("loading") : t("rdTexPdf")}</button>
         <button className="btn outline rd-texzip" disabled={!!busy} title={t("rdTexZipHint")} onClick={() => make("tex")}>{busy === "tex" ? t("loading") : t("rdTexZip")}</button>
         <button className="iconbtn rd-reset" title={t("rdResetMenu")} aria-label={t("rdResetMenu")} aria-haspopup="menu"

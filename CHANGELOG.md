@@ -2,6 +2,10 @@
 
 ## Next – unreleased
 
+- Fixed: a formula in the report (e.g. `$v = \frac{d}{t}$`) sometimes showed as an error or in another style - two previews drew it at the same moment and matplotlib's formula drawing is not thread-safe (145 of 160 drawings failed in a test that does that); they are drawn one at a time now.
+
+- New: **LaTeX built into the app - nothing to install.** *PDF (LaTeX)* and reports written in LaTeX now work on any computer, offline: the app carries the Tectonic engine (XeLaTeX) and a small bundle of TeX Live files (~9 MB) - what the reports need, Hebrew included, and the usual Overleaf packages (amsmath, mathtools, booktabs, tabularx, siunitx, TikZ, hyperref, geometry, fancyhdr, listings…). A TeX Live / MiKTeX on the computer is still used first, for every package; a package the built-in LaTeX lacks is named in the error. A formula matplotlib cannot read and no TeX can draw (matrices, aligned equations) now shows in the page as MathML instead of an error.
+
 - Fixed: in the HTML page (a report, an interactive plot, a Confluence copy), an **XY plot zooms both axes** - a box zooms x and y together, the wheel zooms both around the pointer (Shift: x only, Alt: y only), a double click shows everything again. Before, the y axis jumped back to fit and the wheel did nothing.
 
 ## 1.33.0 – 2026-11-21

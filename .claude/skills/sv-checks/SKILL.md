@@ -37,7 +37,8 @@ for f in test_report_parts test_report_doc; do python -m pytest -q tests/e2e/$f.
 | Changed | Run (tests/e2e/) |
 |---|---|
 | Report screen, parts, reportdoc.py, report.py | test_report_parts, test_report_doc, test_live_report, test_findings_report, test_confluence_copy |
-| LaTeX (reportlatex.py, svcore/latex.py) | backend test_report_latex; e2e test_report_doc -k latex |
+| LaTeX (reportlatex.py, svcore/latex.py, the built-in Tectonic) | backend test_report_latex (the built-in tests run after `python tools/get_tectonic.py` and `python tools/make_tex_bundle.py --check`); e2e test_report_doc -k latex |
+| The HTML page's plots (report_assets/viewer.js) | e2e test_report_xy_zoom, test_report_doc, test_confluence_copy, test_live_report |
 | Messages panel, structures, byte streams, links | backend test_bytestream test_protocol test_msginspect test_messages_library test_rawlink; e2e test_messages |
 | Templates, profiles | test_template_tabs, test_object_templates, test_templates_recent_badfiles |
 | Examples, welcome, Help menu | test_welcome_cards, test_fresh_user |

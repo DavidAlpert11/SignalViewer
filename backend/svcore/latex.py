@@ -12,6 +12,10 @@ project (.zip) - for Overleaf or another computer - and the page, PDF and Word w
   snippet()         a formula or a block drawn by real LaTeX - SVG for the page, PNG for Word / the PDF - for what
                     matplotlib's mathtext cannot read (align, matrices, tables, \\text{...})
 
+RE4: the app also carries Tectonic (one program) and a small bundle of TeX Live files (backend/app/tex/:
+tools/get_tectonic.py, tools/make_tex_bundle.py) - used when the computer has no TeX: the reports' LaTeX, the
+LaTeX document mode and the usual Overleaf packages, offline. A computer's own TeX comes first (every package).
+
 The folder searched besides the PATH: Settings key `texDir`, the environment variable SV_TEX, and where TeX Live /
 MiKTeX / MacTeX install by default.
 """
@@ -75,12 +79,36 @@ def find(tool: str) -> Optional[str]:
     return _found[tool]
 
 
+TEX_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app", "tex")
+BUILTIN = "tectonic"                                     # the engine the app carries (XeTeX inside)
+
+
+def builtin() -> Optional[Tuple[str, str]]:
+    """The app's own LaTeX: (Tectonic, its bundle) when both are there (a package; a source tree after the tools)."""
+    exe = os.path.join(TEX_DIR, "tectonic.exe" if sys.platform.startswith("win") else "tectonic")
+    zp = os.path.join(TEX_DIR, "texbundle.zip")
+    return (exe, zp) if os.path.isfile(exe) and os.path.isfile(zp) else None
+
+
+def flavour(engine: str) -> str:
+    """What the document is written for: Tectonic is XeLaTeX."""
+    return "xelatex" if engine == BUILTIN else engine
+
+
 def best_engine(unicode: bool = True) -> Optional[str]:
-    """XeLaTeX first (Unicode, Hebrew and any system font), then LuaLaTeX, then pdfLaTeX (no Hebrew)."""
+    """The computer's own first - XeLaTeX (Unicode, Hebrew and any system font), LuaLaTeX, pdfLaTeX (no Hebrew) -
+    then the app's built-in Tectonic."""
     for e in ENGINES if unicode else ("pdflatex", "xelatex", "lualatex"):
         if find(e):
             return e
-    return None
+    return BUILTIN if builtin() else None
+
+
+def _cache_dir() -> str:
+    """Tectonic keeps its LaTeX format there (made once, a few seconds): the user's own folder."""
+    d = os.path.join(os.path.expanduser("~"), ".signalviewer", "tectonic")
+    os.makedirs(d, exist_ok=True)
+    return d
 
 
 def status() -> Dict[str, Any]:
@@ -88,9 +116,12 @@ def status() -> Dict[str, Any]:
     conv = {t: find(t) for t in ("latex", "latexmk", "dvisvgm", "dvipng", "pdftoppm")}
     gs = find("gs") or find("gswin64c") or find("mgs")
     best = best_engine()
-    can_snip = bool((conv["latex"] and (conv["dvisvgm"] or conv["dvipng"])) or ((eng["pdflatex"] or best) and (conv["pdftoppm"] or gs)))
-    return {"engines": eng, "tools": {**conv, "ghostscript": gs}, "best": best, "snippets": can_snip,
-            "folder": os.path.dirname(best and find(best) or "") or None,
+    bi = builtin()
+    local = next((e for e in ENGINES if eng[e]), None)
+    can_snip = bool((conv["latex"] and (conv["dvisvgm"] or conv["dvipng"])) or ((eng["pdflatex"] or local) and (conv["pdftoppm"] or gs)))
+    return {"engines": {**eng, BUILTIN: bi[0] if bi else None}, "tools": {**conv, "ghostscript": gs}, "best": best,
+            "builtin": bool(bi), "snippets": can_snip,
+            "folder": os.path.dirname(best and (find(best) if best != BUILTIN else bi and bi[0]) or "") or None,
             "hint": None if best else "No LaTeX on this computer: install TeX Live (tug.org/texlive), MiKTeX (miktex.org) or "
                                       "MacTeX once - then it works offline. Meanwhile the LaTeX project (.zip) opens in Overleaf."}
 
@@ -113,8 +144,9 @@ def _run(cmd: List[str], cwd: str, timeout: float) -> Tuple[int, str]:
 _ERR_FLE = re.compile(r"^(?:\./)?([^:\n]+\.tex):(\d+): (.+)$", re.M)
 
 
-def parse_log(log: str) -> Tuple[str, Optional[int]]:
-    """TeX's first error and its line: `file.tex:12: message` (file-line-error), else `! message` ... `l.12`."""
+def parse_log(log: str, builtin: bool = False) -> Tuple[str, Optional[int]]:
+    """TeX's first error and its line: `file.tex:12: message` (file-line-error), else `! message` ... `l.12`.
+    `builtin`: the app's Tectonic - a missing package is one its bundle does not have."""
     m = _ERR_FLE.search(log)
     line: Optional[int]
     if m:
@@ -124,7 +156,7 @@ def parse_log(log: str) -> Tuple[str, Optional[int]]:
         if not b:
             miss = re.search(r"File `([^']+)' not found", log)
             if miss:
-                return "The package file %s is not installed (offline: install it with your TeX distribution's package manager)." % miss.group(1), None
+                return _missing(miss.group(1), builtin), None
             tail = [x for x in log.strip().splitlines() if x.strip()][-3:]
             return ("LaTeX stopped: " + " / ".join(tail)) if tail else "LaTeX stopped without a message.", None
         msg = b.group(1).strip()
@@ -132,13 +164,22 @@ def parse_log(log: str) -> Tuple[str, Optional[int]]:
         line = int(ln.group(1)) if ln else None
     miss = re.search(r"File `([^']+)' not found", log)
     if miss and "not found" in msg:
-        msg = "%s is not installed - install it with your TeX distribution's package manager (MiKTeX Console / tlmgr)." % miss.group(1)
+        msg = _missing(miss.group(1), builtin)
     return msg, line
+
+
+def _missing(name: str, builtin: bool) -> str:
+    if builtin:
+        return ("%s is not in the app's built-in LaTeX (it carries the report's packages and the usual ones). For every "
+                "package, install TeX Live or MiKTeX once - the app uses it first, offline." % name)
+    return "%s is not installed - install it with your TeX distribution's package manager (MiKTeX Console / tlmgr)." % name
 
 
 def compile_dir(folder: str, main: str = "main.tex", engine: Optional[str] = None, timeout: float = 240) -> str:
     """main.tex of `folder` -> main.pdf (its path). LatexError with TeX's message when it stops."""
     engine = engine or best_engine()
+    if engine == BUILTIN:
+        return _compile_builtin(folder, main, timeout)
     if not engine or not find(engine):
         raise LatexError(status()["hint"] or "No LaTeX engine found.")
     base = os.path.splitext(main)[0]
@@ -163,6 +204,28 @@ def compile_dir(folder: str, main: str = "main.tex", engine: Optional[str] = Non
         if line is None:
             line = _runaway_line(log, os.path.join(folder, main))
         raise LatexError(msg, line, log[-4000:])
+    return pdf
+
+
+def _compile_builtin(folder: str, main: str, timeout: float) -> str:
+    """The app's Tectonic with its bundle only (-C: never the network); it runs TeX as often as the references need."""
+    bi = builtin()
+    if not bi:
+        raise LatexError(status()["hint"] or "No LaTeX engine found.")
+    base = os.path.splitext(main)[0]
+    os.environ.setdefault("TECTONIC_CACHE_DIR", _cache_dir())
+    code, out = _run([bi[0], "-b", bi[1], "-C", "--keep-logs", main], folder, timeout)
+    pdf = os.path.join(folder, base + ".pdf")
+    if code or not os.path.isfile(pdf):
+        log = out
+        lp = os.path.join(folder, base + ".log")
+        if os.path.isfile(lp):
+            with open(lp, encoding="utf-8", errors="replace") as f:
+                log = f.read()
+        msg, line = parse_log(log, builtin=True)
+        if line is None:
+            line = _runaway_line(log, os.path.join(folder, main))
+        raise LatexError(msg, line, (log + "\n" + out)[-4000:])
     return pdf
 
 
@@ -251,7 +314,7 @@ def _snippet(tex: str, kind: str, fmt: str) -> Any:
                     with open(p, "rb") as f:
                         return f.read()
         # through a PDF: pdfLaTeX (or another engine), then pdftoppm / Ghostscript, cropped, ink kept on transparent
-        eng = find("pdflatex") or best_engine()
+        eng = find("pdflatex") or next((find(e) for e in ENGINES if find(e)), None)   # the computer's own TeX
         to_png = find("pdftoppm")
         gs = find("gs") or find("gswin64c") or find("mgs")
         if not eng or not (to_png or gs):

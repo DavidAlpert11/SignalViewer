@@ -203,11 +203,16 @@ right-to-left when it starts in Hebrew, left-to-right in English.
 
 ## LaTeX - as in Overleaf, offline
 
-The report can be written in **LaTeX**, and LaTeX can go into a Markdown report. Everything runs on this computer:
-the app uses the TeX installed on it - **TeX Live**, **MiKTeX** or **MacTeX**, installed once, then offline (MiKTeX:
-install its full set, or the packages you use, beforehand - its "install on the fly" needs the internet). Without one,
-the LaTeX project still comes out as a `.zip` for Overleaf or another computer. The app finds TeX on the PATH and where
-the installers put it; another folder: `SV_TEX=<folder>` or `"texDir"` in `~/.signalviewer/settings.json`.
+The report can be written in **LaTeX**, and LaTeX can go into a Markdown report. Everything runs on this computer,
+with **nothing to install**: the app carries its own LaTeX (1.34) - the **Tectonic** engine (XeLaTeX) and a small bundle
+of TeX Live files: what the reports need, Hebrew included, and the packages people reach for in Overleaf (`amsmath`,
+`mathtools`, `graphicx`, `booktabs`, `tabularx`, `multirow`, `xcolor`, `hyperref`, `geometry`, `float`, `caption`,
+`subcaption`, `enumitem`, `fancyhdr`, `titlesec`, `siunitx`, `listings`, TikZ, `microtype`…). A package it does not
+have is named in the error. With **TeX Live**, **MiKTeX** or **MacTeX** on the computer the app uses that one first -
+every package (MiKTeX offline: install its full set, or the packages you use, beforehand). The app finds TeX on the
+PATH and where the installers put it; another folder: `SV_TEX=<folder>` or `"texDir"` in
+`~/.signalviewer/settings.json`. A formula matplotlib cannot read and no TeX can draw is shown as **MathML** by the
+page itself.
 
 - **A LaTeX block in Markdown**: ` ```latex ` … ` ``` ` - anything LaTeX writes (`align`, matrices, a `tabular`, TikZ
   when installed) is drawn by TeX in the preview, the PDF and Word, and goes as it is into the LaTeX export. The

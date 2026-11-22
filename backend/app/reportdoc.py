@@ -21,6 +21,7 @@ import io
 import logging
 import os
 import re
+import threading
 from typing import Any, Dict, List, Optional, Tuple
 
 from app import report as R
@@ -275,6 +276,11 @@ def field_context(store):
 _math_cache: Dict[Tuple[str, str, int], Any] = {}
 
 
+# matplotlib's mathtext is not thread-safe: two previews drawing at once (typing, then the next pause) could fail a
+# formula it reads well, and the failure was kept - one at a time
+_MATH_LOCK = threading.Lock()
+
+
 def math_svg(tex: str, size: int = 14) -> str:
     """mathtext as inline SVG coloured by the text around it (light and dark)."""
     key = ("svg", tex, size)
@@ -283,7 +289,8 @@ def math_svg(tex: str, size: int = 14) -> str:
         from matplotlib.font_manager import FontProperties
         buf = io.BytesIO()
         try:
-            mathtext.math_to_image("$%s$" % tex, buf, prop=FontProperties(size=size), format="svg")
+            with _MATH_LOCK:
+                mathtext.math_to_image("$%s$" % tex, buf, prop=FontProperties(size=size), format="svg")
             svg = buf.getvalue().decode("utf-8")
             svg = svg[svg.find("<svg"):]
             svg = re.sub(r"<metadata>.*?</metadata>", "", svg, flags=re.S)
@@ -291,7 +298,7 @@ def math_svg(tex: str, size: int = 14) -> str:
             svg = svg.replace("<svg ", '<svg class="math" fill="currentColor" role="img" aria-label="%s" ' % html.escape(tex, quote=True), 1)
             _math_cache[key] = svg
         except Exception as e:                 # a formula mathtext cannot read: the computer's LaTeX (RE3), else said
-            _math_cache[key] = tex_svg(tex, "math" if size >= 16 else "inline", tex) or \
+            _math_cache[key] = tex_svg(tex, "math" if size >= 16 else "inline", tex) or mathml(tex, size >= 16) or \
                 '<span class="field-err" title="%s">$%s$</span>' % (html.escape(str(e).split("\n")[0], quote=True), html.escape(tex))
     return _math_cache[key]
 
@@ -309,6 +316,33 @@ def tex_svg(tex: str, kind: str, label: str = "") -> Optional[str]:
     svg = svg[svg.find("<svg"):]
     cls = "math tex tex-ink" if "<image" in svg else "math tex"
     return svg.replace("<svg ", '<svg class="%s" fill="currentColor" role="img" aria-label="%s" ' % (cls, html.escape(label or tex, quote=True)), 1)
+
+
+_ALIGNED = re.compile(r"\\begin\{(align|aligned|split|gather|gathered|equation|multline|alignat)\*?\}(?:\{\d+\})?(.*?)\\end\{\1\*?\}", re.S)
+
+
+def _aligned_as_array(tex: str) -> str:
+    """latex2mathml reads align / aligned poorly (its & stays a letter): the same rows as an array, right / left
+    columns in turn (gather, equation, multline: one centred column)."""
+    def one(m):
+        env, body = m.group(1), m.group(2).strip()
+        rows = [r for r in re.split(r"\\\\", body)]
+        if env in ("gather", "gathered", "equation", "multline"):
+            return "\\begin{array}{c}%s\\end{array}" % "\\\\".join(rows)
+        n = max(r.count("&") for r in rows) + 1
+        return "\\begin{array}{%s}%s\\end{array}" % (("rl" * n)[:n], "\\\\".join(rows))
+    return _ALIGNED.sub(one, tex)
+
+
+def mathml(tex: str, block: bool) -> Optional[str]:
+    """RE4: a formula neither mathtext nor a TeX on this computer can draw (matrices, aligned, cases with no TeX
+    installed): MathML, which the page's browser draws itself - no script, no font, offline (latex2mathml, MIT)."""
+    try:
+        from latex2mathml.converter import convert
+        out = convert(_aligned_as_array(tex.strip()), display="block" if block else "inline")
+    except Exception:                          # a formula it cannot read either: said as before
+        return None
+    return out.replace("<math ", '<math class="math mathml" ', 1).replace("<mi>&</mi>", "<mi>&amp;</mi>")
 
 
 def tex_png(tex: str, kind: str) -> Optional[Tuple[bytes, float]]:
@@ -331,7 +365,8 @@ def math_png(tex: str, size: int = 13, dpi: int = 200) -> Optional[bytes]:
         from matplotlib.font_manager import FontProperties
         buf = io.BytesIO()
         try:
-            mathtext.math_to_image("$%s$" % tex, buf, prop=FontProperties(size=size), dpi=dpi, format="png")
+            with _MATH_LOCK:
+                mathtext.math_to_image("$%s$" % tex, buf, prop=FontProperties(size=size), dpi=dpi, format="png")
             _math_cache[key] = buf.getvalue()
         except Exception:
             _math_cache[key] = None

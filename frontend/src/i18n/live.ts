@@ -196,7 +196,7 @@ export const en = {
   // RE3: the report in LaTeX
   rdFormat: "Written in", rdToTexDone: "The report is now a LaTeX document: the preview is the PDF this computer's LaTeX makes; [[plots]], [[parts]] and {{ values }} still work. Undo goes back to Markdown.",
   rdToMd: "Back to Markdown", rdToMdAsk: "The report goes back to Markdown, made again from the open tabs. The LaTeX text stays in Undo (Ctrl+Z).", rdToMdOk: "Back to Markdown",
-  rdTexPdf: "PDF (LaTeX)", rdTexPdfHint: "Typeset by this computer's LaTeX ({e}) - offline", rdTexZip: "LaTeX (.zip)",
+  rdTexPdf: "PDF (LaTeX)", rdTexPdfHint: "Typeset by this computer's LaTeX ({e}) - offline", rdTexPdfBuiltin: "Typeset by the app's built-in LaTeX (Tectonic) - offline, nothing to install", rdTexZip: "LaTeX (.zip)",
   rdTexZipHint: "The report as a LaTeX project - main.tex, the plots as vector PDF, latexmkrc. Overleaf: New project → Upload project; or compile it on any computer with XeLaTeX.",
   rdEquation: "Numbered equations (align)", rdTexBlock: "A LaTeX block (```latex): anything LaTeX writes - align, matrices, tables, TikZ - drawn by this computer's TeX, kept as is in the LaTeX export",
   rdTexOpen: "Open the PDF in its own viewer", rdTexWorking: "LaTeX is typesetting…",
@@ -396,7 +396,7 @@ export const he: typeof en = {
   msgSavedFile: "נשמר {path} ({n} שורות).", msgMadeLine: "ההקלטה \"{name}\" - {k} אותות - נמצאת ברשימת הקבצים.",
   rdFormat: "כתוב ב-", rdToTexDone: "הדוח הוא עכשיו מסמך LaTeX: התצוגה המקדימה היא ה-PDF שה-LaTeX של המחשב הזה מפיק; [[גרפים]], [[חלקים]] ו-{{ ערכים }} עדיין עובדים. ביטול (Undo) מחזיר ל-Markdown.",
   rdToMd: "חזרה ל-Markdown", rdToMdAsk: "הדוח חוזר ל-Markdown, נבנה מחדש מהלשוניות הפתוחות. טקסט ה-LaTeX נשמר בביטול (Ctrl+Z).", rdToMdOk: "חזרה ל-Markdown",
-  rdTexPdf: "PDF (LaTeX)", rdTexPdfHint: "מוסדר ב-LaTeX של המחשב הזה ({e}) - בלי אינטרנט", rdTexZip: "LaTeX (.zip)",
+  rdTexPdf: "PDF (LaTeX)", rdTexPdfHint: "מוסדר ב-LaTeX של המחשב הזה ({e}) - בלי אינטרנט", rdTexPdfBuiltin: "מוסדר ב-LaTeX המובנה של האפליקציה (Tectonic) - בלי אינטרנט ובלי התקנה", rdTexZip: "LaTeX (.zip)",
   rdTexZipHint: "הדוח כפרויקט LaTeX - main.tex, הגרפים כ-PDF וקטורי, latexmkrc. ב-Overleaf: New project → Upload project; או הידור בכל מחשב עם XeLaTeX.",
   rdEquation: "משוואות ממוספרות (align)", rdTexBlock: "בלוק LaTeX (```latex): כל מה ש-LaTeX כותב - align, מטריצות, טבלאות, TikZ - מצויר ב-TeX של המחשב הזה, ונשמר כמו שהוא בייצוא ל-LaTeX",
   rdTexOpen: "לפתוח את ה-PDF בתוכנה שלו", rdTexWorking: "LaTeX מסדר את הדוח…",

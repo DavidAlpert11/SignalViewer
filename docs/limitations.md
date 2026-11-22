@@ -18,9 +18,11 @@
 * The strip's flags are deliberately few: a signal that is mostly flat (a set point, a counter, a switch) is never flagged as stuck or saturated, nor is anything in the first or last 5% of the run. Files with more than 300 signals are scanned on their first 300.
 * Written reports (1.31): the editor is plain text (Markdown) - a line that mixes Hebrew and English shows in the
   editor in the browser's bidi order (the preview and the files are laid out per paragraph); math is matplotlib's
-  mathtext - matrices, aligned equations and ```latex blocks need a LaTeX installed on the computer (TeX Live / MiKTeX /
-  MacTeX; the app does not carry one); a report written in LaTeX is previewed as a PDF only with a LaTeX installed (without
-  one: the LaTeX project .zip for Overleaf), and the preview PDF shows in the window where it has a PDF view (else
+  mathtext - a formula it cannot read (matrices, aligned equations) is drawn by a TeX on the computer, else shown as
+  MathML in the page (in PDF and Word: as its LaTeX text); a ```latex block is drawn in the page, PDF and Word only
+  with a TeX installed on the computer (the app's built-in Tectonic typesets whole documents, not pictures); the
+  built-in LaTeX (1.34) carries the reports' packages and the usual ones, not all of TeX Live (a missing one is named -
+  install TeX Live / MiKTeX for every package); the preview PDF shows in the window where it has a PDF view (else
   *Open the PDF in its own viewer*); a template saved in the app carries the written report (1.32), but the
   command line's batch reports do not make it yet (they make the report of the template's tabs); one written report
   per session.

@@ -30,6 +30,7 @@ from svcore import latex as TX
 HEB = re.compile("[\u0590-\u05FF]")
 DOC_START = re.compile(r"^\s*(%[^\n]*\n\s*)*\\documentclass", re.S)
 HEB_FONTS = ("David CLM", "Frank Ruehl CLM", "Noto Serif Hebrew", "Noto Sans Hebrew", "Times New Roman", "Arial", "FreeSerif", "DejaVu Sans")
+HEB_FILE = "FreeSerif.otf"          # by file: in TeX Live (gnu-freefont) and in the app's built-in bundle (RE4)
 
 
 def is_latex_doc(text: str) -> bool:
@@ -322,7 +323,8 @@ def preamble(lang: str, engine: str, title: str, hebrew: bool = False) -> str:
         lines += ["\\usepackage{fontspec}"]
     if engine != "pdflatex" and (hebrew or lang == "he"):     # hyperref before polyglossia (bidi must come after it)
         feat = "Script=Hebrew" + (",Renderer=HarfBuzz" if engine == "lualatex" else "")
-        font = "\\newfontfamily\\hebrewfont{%s}[%s]" % (HEB_FONTS[-1], feat)
+        font = "\\IfFontExistsTF{%s}{\\newfontfamily\\hebrewfont{%s}[%s,BoldFont=FreeSerifBold.otf]}{\\newfontfamily\\hebrewfont{%s}[%s]}" % (
+            HEB_FILE, HEB_FILE, feat, HEB_FONTS[-1], feat)
         for f in reversed(HEB_FONTS[:-1]):           # the first Hebrew font this computer has
             font = "\\IfFontExistsTF{%s}{\\newfontfamily\\hebrewfont{%s}[%s]}{%s}" % (f, f, feat, font)
         lines += ["\\usepackage{polyglossia}",
@@ -340,12 +342,14 @@ def preamble(lang: str, engine: str, title: str, hebrew: bool = False) -> str:
 
 def _engine_for(req: Dict, text: str, local: bool) -> str:
     want = str(req.get("engine") or "")
-    if want in TX.ENGINES:
+    if want in TX.ENGINES or want == TX.BUILTIN:
         return want
     if not local:
         return "xelatex"                              # the project for Overleaf / another computer
     hebrew = bool(HEB.search(text)) or req.get("lang") == "he"
     e = TX.best_engine(unicode=True)
+    if e == "pdflatex" and hebrew and TX.builtin():
+        return TX.BUILTIN                             # pdfLaTeX has no Hebrew: the app's own XeLaTeX (Tectonic)
     if e == "pdflatex" and hebrew:
         raise TX.LatexError("Hebrew needs XeLaTeX or LuaLaTeX (in TeX Live / MiKTeX); only pdfLaTeX was found on this computer.")
     return e or "xelatex"
@@ -358,7 +362,8 @@ def write_project(store, req: Dict, folder: str, local: bool = True, progress=No
     S = R.STRINGS.get(lang, R.STRINGS["en"])
     text = str(req.get("text") or "")
     engine = _engine_for(req, text, local)
-    ctx = Ctx(folder, lang, engine, S, req.get("words") or {}, req.get("base") or "", req.get("assets") or {})
+    flav = TX.flavour(engine)                        # the built-in Tectonic is XeLaTeX
+    ctx = Ctx(folder, lang, flav, S, req.get("words") or {}, req.get("base") or "", req.get("assets") or {})
     linemap: Dict[int, int] = {}
     if is_latex_doc(text):
         ctx.bidi = ctx.unicode and bool(re.search(r"\\usepackage(\[[^\]]*\])?\{polyglossia\}", text)) and (lang == "he" or bool(HEB.search(text)))
@@ -368,12 +373,12 @@ def write_project(store, req: Dict, folder: str, local: bool = True, progress=No
         hebrew = lang == "he" or bool(HEB.search(text)) or any(HEB.search(str(it.get("text") or "")) for it in items)
         ctx.bidi = ctx.unicode and hebrew
         title = req.get("title") or next((b["text"] for b in blocks if b["t"] == "heading" and b["level"] == 1), "") or "Signal Viewer report"
-        body = preamble(lang, engine, esc(MARK.sub("", title), ctx.unicode), hebrew) + "\n\\begin{document}\n\n" + blocks_tex(blocks, items, ctx) + "\n\n\\end{document}\n"
+        body = preamble(lang, flav, esc(MARK.sub("", title), ctx.unicode), hebrew) + "\n\\begin{document}\n\n" + blocks_tex(blocks, items, ctx) + "\n\n\\end{document}\n"
     main = os.path.join(folder, "main.tex")
     with open(main, "w", encoding="utf-8") as f:
         f.write(body)
     with open(os.path.join(folder, "latexmkrc"), "w", encoding="utf-8") as f:     # Overleaf and latexmk pick the engine
-        f.write("$pdf_mode = %d;\n" % {"xelatex": 5, "lualatex": 4, "pdflatex": 1}[engine])
+        f.write("$pdf_mode = %d;\n" % {"xelatex": 5, "lualatex": 4, "pdflatex": 1}[flav])
     return main, engine, linemap
 
 

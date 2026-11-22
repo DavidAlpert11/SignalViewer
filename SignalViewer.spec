@@ -23,6 +23,7 @@ hidden = (
     + collect_submodules("signalviewer")       # W17 / W18: `SignalViewer.exe study ...` (run.py imports it inside main)
     + ["scipy.io.matlab", "h5py", "docx", "bidi", "bidi.algorithm", "multipart", "python_multipart",
        "openpyxl",   # pandas imports it by name for .xlsx
+       "latex2mathml", "latex2mathml.converter",   # RE4: imported inside a function
        "matplotlib.backends.backend_agg", "matplotlib.backends.backend_pdf", "matplotlib.backends.backend_svg",
        # live MAVLink (T12): imported inside functions / by name, PyInstaller cannot see them
        "pymavlink.mavutil", "pymavlink.dialects.v20.ardupilotmega", "serial", "serial.tools.list_ports"]
@@ -38,6 +39,11 @@ datas = [
     (os.path.join(ROOT, "backend", "app", "report_assets"), os.path.join("app", "report_assets")),
     # the offline map (elevation grids, Natural Earth and OpenStreetMap layers): tools/make_basemap.py
     (os.path.join(ROOT, "backend", "app", "basemap_data"), os.path.join("app", "basemap_data")),
+] + ([
+    # RE4: the built-in LaTeX - Tectonic + the small TeX bundle (tools/get_tectonic.py, tools/make_tex_bundle.py;
+    # build.yml makes both). Absent: the app uses the computer's TeX, or writes the project for Overleaf.
+    (os.path.join(ROOT, "backend", "app", "tex"), os.path.join("app", "tex")),
+] if os.path.isdir(os.path.join(ROOT, "backend", "app", "tex")) else []) + [
     (os.path.join(ROOT, "assets", "png"), os.path.join("assets", "png")),
     (os.path.join(ROOT, "assets", "icon.ico"), "assets"),          # the window icon on Windows
     (os.path.join(ROOT, "LICENSE"), "."),                          # the app's licence (T32)

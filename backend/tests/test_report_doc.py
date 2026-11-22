@@ -127,3 +127,21 @@ def test_hebrew_is_ordered_once(monkeypatch):
     monkeypatch.setattr(R, "_NATIVE_BIDI", False)
     pytest.importorskip("bidi")
     assert R._bidi("דוח 12") != "דוח 12"
+
+
+def test_formulas_drawn_at_once_by_several_previews():
+    """Two previews at once (typing, then the pause) drew the same formula in two threads: matplotlib's mathtext is
+    not thread-safe, a good formula failed and the failure was kept (the page showed TeX's or an error). One at a time."""
+    import threading
+    from app import reportdoc as D
+    res = []
+
+    def go(i):
+        D._math_cache.pop(("svg", "v = \\frac{d}{t}", 14 + i % 4), None)
+        res.append(D.math_svg("v = \\frac{d}{t}", 14 + i % 4).startswith('<svg class="math"'))
+    ts = [threading.Thread(target=go, args=(i,)) for i in range(32)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    assert res == [True] * 32

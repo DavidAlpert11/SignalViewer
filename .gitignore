@@ -7,6 +7,8 @@ dist-pypi/
 frontend/dist/
 frontend/.local-dist/
 site/
+# RE4: the built-in LaTeX (Tectonic + its TeX bundle) - made by tools/get_tectonic.py and tools/make_tex_bundle.py
+backend/app/tex/
 __pycache__/
 .pytest_cache/
 *.pyc

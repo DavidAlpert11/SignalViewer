@@ -108,3 +108,42 @@ def test_a_formula_mathtext_cannot_read_is_drawn_by_tex(st):
         pytest.skip("nothing to turn TeX's output into a picture")
     page = build_doc_html(st, {"text": "$$\\begin{pmatrix}1&0\\\\0&1\\end{pmatrix}$$\n\n```latex\n\\fbox{boxed}\n```\n", "items": []})
     assert page.count('class="math tex') == 2 and 'class="field-err"' not in page
+
+
+# ---- RE4: the app's built-in LaTeX (Tectonic + its small bundle) and MathML when there is no TeX at all
+
+def _no_system_tex(monkeypatch):
+    from app import reportdoc
+    monkeypatch.setattr(reportdoc, "_math_cache", {})               # formulas drawn earlier by the computer's TeX
+    monkeypatch.setattr(TX, "_cache", {})
+    for e in TX.ENGINES + ("latex", "latexmk", "dvisvgm", "dvipng", "pdftoppm", "gs", "gswin64c", "mgs"):
+        monkeypatch.setitem(TX._found, e, None)
+
+
+builtin = pytest.mark.skipif(not TX.builtin(), reason="no built-in LaTeX here (tools/get_tectonic.py, tools/make_tex_bundle.py)")
+
+
+@builtin
+def test_builtin_tectonic_typesets_offline(st, tmp_path, monkeypatch):
+    _no_system_tex(monkeypatch)
+    monkeypatch.setenv("TECTONIC_CACHE_DIR", str(tmp_path / "cache"))
+    assert TX.best_engine() == "tectonic" and TX.status()["builtin"]
+    pdf = tmp_path / "r.pdf"
+    build_doc(st, {"text": MD, "items": items(st.rid), "lang": "en"}, "texpdf", str(pdf))
+    assert pdf.read_bytes()[:5] == b"%PDF-"
+    doc = "\\documentclass[12pt]{report}\n\\usepackage{tikz,siunitx}\n\\begin{document}\nMax ⟦0⟧ \\SI{3}{\\metre}.\n\n⟦1⟧\n\n\\undefinedthing\n\\end{document}\n"
+    r = RL.preview(st, {"text": doc, "items": items(st.rid), "lang": "en"})
+    assert r["pdf"] is None and r["line"] == 8 and "Undefined control sequence" in r["error"]
+    r = RL.preview(st, {"text": doc.replace("\\undefinedthing\n", ""), "items": items(st.rid), "lang": "en"})
+    assert r["error"] is None and r["engine"] == "tectonic"
+    r = RL.preview(st, {"text": "\\documentclass{article}\n\\usepackage{nosuchpkg}\n\\begin{document}x\\end{document}\n", "items": [], "lang": "en"})
+    assert "not in the app's built-in LaTeX" in r["error"] and "nosuchpkg.sty" in r["error"]
+
+
+def test_no_tex_at_all_formulas_as_mathml(monkeypatch):
+    _no_system_tex(monkeypatch)
+    from app.reportdoc import _aligned_as_array, mathml
+    page = build_doc_html(Store(), {"text": "$$\\begin{pmatrix}1&0\\\\0&1\\end{pmatrix}$$\n\n$$\\begin{align} a&=b\\\\c&=d\\end{align}$$\n", "items": []})
+    assert page.count('class="math mathml"') == 2 and 'class="field-err"' not in page
+    assert _aligned_as_array("\\begin{align} a&=b\\\\c&=d\\end{align}") == "\\begin{array}{rl}a&=b\\\\c&=d\\end{array}"
+    assert "<mtable>" in mathml("\\begin{aligned}a&=1\\\\b&=2\\end{aligned}", True)
