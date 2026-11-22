@@ -1339,7 +1339,8 @@ def build_clip_static(store, req: Dict) -> str:
     for tab in req.get("tabs", []):
         for p in tab.get("plots", []):
             pd = plot_data(store, {**p, "lang": lang}, for_html=False)
-            png = base64.b64encode(build_image(store, p, "png", "light", 1.0)).decode("ascii")
+            sc = max(1.0, min(4.0, float(req.get("scale") or 1)))          # CP7: Settings -> Copied pictures
+            png = base64.b64encode(build_image(store, p, "png", "light", sc)).decode("ascii")
             parts.append('<h3 style="margin:14px 0 4px">%s</h3>' % html.escape(pd["title"]))
             if pd.get("caption"):
                 parts.append('<p style="margin:0 0 6px;color:#5a6979;white-space:pre-wrap">%s</p>' % html.escape(pd["caption"]))

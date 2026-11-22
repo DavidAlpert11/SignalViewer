@@ -358,6 +358,8 @@ export const en = {
   clipDone: "Saved {name} ({size}) and copied. In Confluence: drag {name} onto the page (it becomes an attachment), then Insert > HTML and paste - the plot is live there, every sample. Pasted straight into a page, Word or an e-mail: a picture with the statistics and the notes.",
   clipDoneUser: "Saved {name} ({size}) and copied. In Confluence: drag {name} onto the page (it becomes an attachment), then Insert > Markup and paste - the Signal Viewer macro shows the plot live, every sample. Pasted straight into a page, Word or an e-mail: a picture with the statistics and the notes.",
   // CP3: Settings - how Copy for Confluence shows the page
+  setCopyScale: "Copied pictures", setCopyScaleHint: "Copy image and the picture in Copy for Confluence: as on the screen, or drawn again from the data at twice or three times the pixels - sharp in Word, a slide or print. (A plot dragged out keeps the screen's picture; Save image for a report has its own.)",
+  setCopyScale1: "As on screen", setCopyScale2: "High (×2)", setCopyScale3: "Print (×3)",
   setConfluence: "The macro that shows it",
   setConfluenceHint: "Send and Copy use Confluence's HTML macro. Confluence Data Center keeps that macro off unless an administrator turns it on - then choose the Signal Viewer macro (installed once)",
   setConfluenceUserHint: "the copy is {signalviewer:file=...}, pasted with Insert > Markup. A Confluence administrator installs the Signal Viewer macro once: save it with the button and send it to them",
@@ -752,6 +754,8 @@ export const he: typeof en = {
   clipSave: "שמירת הדף לצירוף ב-Confluence",
   clipDone: "{name} נשמר ({size}) והועתק. ב-Confluence: גררו את {name} אל הדף (הוא נשמר כקובץ מצורף), ואז Insert > HTML והדבקה - הגרף חי שם, כל הדגימות. הדבקה ישירה לדף, ל-Word או למייל: תמונה עם הסטטיסטיקות וההערות.",
   clipDoneUser: "{name} נשמר ({size}) והועתק. ב-Confluence: גררו את {name} אל הדף (הוא נשמר כקובץ מצורף), ואז Insert > Markup והדבקה - המאקרו של Signal Viewer מציג את הגרף חי, כל הדגימות. הדבקה ישירה לדף, ל-Word או למייל: תמונה עם הסטטיסטיקות וההערות.",
+  setCopyScale: "תמונות מועתקות", setCopyScaleHint: "Copy image והתמונה ב-Copy for Confluence: כמו על המסך, או מצוירות מחדש מהנתונים בפי שניים או שלושה פיקסלים - חדות ב-Word, במצגת או בהדפסה. (גרף שנגרר החוצה נשאר בתמונת המסך; ל-Save image for a report יש הגדרה משלו.)",
+  setCopyScale1: "כמו על המסך", setCopyScale2: "גבוהה (×2)", setCopyScale3: "להדפסה (×3)",
   setConfluence: "המאקרו שמציג את הגרף",
   setConfluenceHint: "השליחה וההעתקה משתמשות במאקרו HTML של Confluence. ב-Confluence Data Center המאקרו הזה כבוי עד שמנהל המערכת מפעיל אותו - אז בחרו במאקרו של Signal Viewer (מותקן פעם אחת)",
   setConfluenceUserHint: "ההעתקה היא {signalviewer:file=...}, ומדביקים אותה ב-Insert > Markup. מנהל Confluence מתקין את המאקרו של Signal Viewer פעם אחת: שמרו אותו בכפתור ושלחו לו",

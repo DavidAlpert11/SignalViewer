@@ -25,7 +25,7 @@ function clipContent(tab: Tab, only?: Plot) {
   const notes = (st.ws.notes ?? []).filter((n) => n.status !== "rejected" && (!range || ((n.t2 ?? n.t) >= range[0] && n.t <= range[1])))
     .map((n) => ({ t: n.t, ...(n.t2 !== undefined ? { t2: n.t2 } : {}), text: n.text }));
   const title = only ? only.title || plotLabel.replace("{n}", String(tab.plots.indexOf(only) + 1)) : tab.name || "";
-  return { title, lang, theme: "light", notes, macro: st.confluenceMacro,
+  return { title, lang, theme: "light", notes, macro: st.confluenceMacro, scale: st.copyScale,
     tabs: [{ name: tab.name || "", plots: kept.map(({ p, pi }) => plotSpec(tab, p, pi, plotLabel)) }] };
 }
 

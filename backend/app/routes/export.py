@@ -219,6 +219,7 @@ class ClipRequest(BaseModel):
     tabs: List[dict] = []           # one tab (the tab copied) or one tab with the one plot copied
     notes: List[dict] = []
     macro: str = "html"             # CP3: "html" - the HTML macro's lines; "user" - the Signal Viewer user macro's markup
+    scale: float = 1                # CP7: the static copy's pictures - 2 or 3 times the pixels (Settings: Copied pictures)
 
 
 @router.post("/api/export/clip")
@@ -399,6 +400,25 @@ async def export_drag_file(token: str, name: str, view: int = 0):
 def clip_user_macro():
     """CP3: the Signal Viewer user macro's template - a Confluence administrator installs it once."""
     return {"name": reports.USER_MACRO, "template": reports.build_user_macro_template()}
+
+
+class ImageBytes(BaseModel):
+    plot: dict
+    theme: str = "light"
+    scale: float = 2
+    lang: str = "en"
+
+
+@router.post("/api/export/image-bytes")
+async def export_image_bytes(req: ImageBytes):
+    """CP7 (owner, 2026-11-22: "a copy as a high-resolution picture"): the plot as a PNG drawn again from the data at
+    `scale` times the pixels (1-4), for the clipboard - nothing saved."""
+    from fastapi.responses import Response
+    try:
+        data = await asyncio.to_thread(reports.build_image, store, req.plot, "png", req.theme, max(1.0, min(4.0, req.scale)))
+    except KeyError:
+        fail(404, "One of the plot's signals is no longer open.")
+    return Response(data, media_type="image/png")
 
 
 class ImageRequest(BaseModel):

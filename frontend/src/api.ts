@@ -556,6 +556,9 @@ export const api = {
   confluenceSet: (body: { url?: string; user?: string; token?: string }) => call<ConfluenceInfo>("/api/confluence", body),
   confluenceTest: () => call<{ user: string }>("/api/confluence/test", {}),
   confluenceSend: (body: Record<string, unknown>) => call<{ page: string; url: string; added: boolean; updated: boolean; name: string; size: number; link?: boolean }>("/api/export/confluence", body),
+  /** CP7: the plot drawn again as a PNG at `scale` times the pixels, for the clipboard (Settings: Copied pictures) */
+  imageBytes: async (plot: unknown, theme: string, scale: number, lang: string) =>
+    (await send("/api/export/image-bytes", { plot, theme, scale, lang }, "POST")).blob(),
   /** CP5: a plot or tab dragged out of the window - what it is, for the link the system fetches at the drop */
   dragRegister: (body: Record<string, unknown>) => call<{ ok: boolean }>("/api/export/drag", body),
   confluenceOutline: (body: { page: string; title: string }) => call<{ page: string; shows: boolean; marker: string | null; headings: { level: number; text: string }[] }>("/api/confluence/outline", body),

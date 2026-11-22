@@ -2,6 +2,7 @@
 
 ## Next – unreleased
 
+- New: **Settings → Copied pictures** - *As on screen*, *High (×2)* (the default) or *Print (×3)*: *Copy image* and the picture in *Copy for Confluence* are drawn again from the data at that many times the pixels - sharp in Word, a slide or print.
 - New: *Send to Confluence* - **where on the page**: write `[[signalviewer]]` in the page where the plot should go (`[[signalviewer: its title]]` for one plot), or choose when sending - the end, the start, or under one of the page's headings. Sent again, a plot stays where it is (moved by hand too). Copied to another page, it still shows.
 - New: a plot or a tab **dragged onto Chrome or Edge** opens there as its interactive page.
 - New: **drag a plot or a tab out of the window** - by the plot's ⠿ grip or the tab itself. On a folder or the desktop it becomes an interactive page (HTML, every sample); in Word, an e-mail or an editor its picture with the title. After a drop outside the app, the toast offers *Send to Confluence* (live in the page) and *Copy for Confluence*.

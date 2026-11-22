@@ -109,6 +109,7 @@ export default function SettingsDialog() {
   const bandInCard = useApp((s) => s.bandInCard);
   const tplTabChoice = useApp((s) => s.tplTabChoice);
   const confluenceMacro = useApp((s) => s.confluenceMacro);
+  const copyScale = useApp((s) => s.copyScale);
   const offlineOnly = useApp((s) => s.offlineOnly);
   const offlineForced = useApp((s) => s.offlineForced);
   const sweepLines = useApp((s) => s.sweepLines);
@@ -140,6 +141,9 @@ export default function SettingsDialog() {
                 {LINE_STYLES.map((k) => <option key={k} value={k}>{t(`lineStyle_${k}` as TKey)}</option>)}</select></label>
               <button className="btn sm outline set-lines-apply" onClick={() => actions.applyLineDefaults()}>{t("setLinesApply")}</button>
             </span></div>
+          {/* CP7: the pictures copied - as on the screen, or drawn again at 2 / 3 times the pixels */}
+          <div className="set-row set-copy-scale"><span>{t("setCopyScale")}<small>{t("setCopyScaleHint")}</small></span>
+            {seg(copyScale, [[1, t("setCopyScale1")], [2, t("setCopyScale2")], [3, t("setCopyScale3")]], (v) => useApp.setState({ copyScale: v }), t("setCopyScale"))}</div>
           <div className="set-row"><span>{t("setBandInCard")}<small>{t("setBandInCardHint")}</small></span>
             {seg(bandInCard ? "in" : "above", [["in", t("setBandInCardIn")], ["above", t("setBandInCardAbove")]], (v) => useApp.setState({ bandInCard: v === "in" }), t("setBandInCard"))}</div>
           <h3 className="set-group-title">{t("setGrpTime")}</h3>

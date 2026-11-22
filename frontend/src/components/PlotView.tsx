@@ -162,9 +162,15 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   };
   const copyImage = async () => {
     const canvas = sectionRef.current?.querySelector("canvas");
-    if (!canvas) return;
+    const scale = useApp.getState().copyScale;
+    // CP7: drawn again by the server at 2 or 3 times the pixels (Settings: Copied pictures); as on the screen at 1,
+    // and for a map / 3D view (its own drawing)
+    const server = scale > 1 && !isMap;
+    if (!canvas && !server) return;
     try {
-      const blob: Blob = await new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("No image"))), "image/png"));
+      const blob: Promise<Blob> = server ? api.imageBytes(plotSpec(tab, plot, index, t("plotTitle", { n: "{n}" }), true), theme, scale, lang)
+        : new Promise((res, rej) => canvas!.toBlob((b) => (b ? res(b) : rej(new Error("No image"))), "image/png"));
+      // ClipboardItem takes the promise: the write starts inside the click while the server draws
       await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
       useApp.getState().toast({ kind: "info", text: t("copied") });
     } catch { useApp.getState().toast({ kind: "error", text: t("copyFailed") }); }

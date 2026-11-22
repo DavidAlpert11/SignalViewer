@@ -171,6 +171,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · CP7 (owner: "a copy as a high-resolution picture"): Settings -> Copied pictures, Copy image and the static copy
+  drawn again at 2 / 3 times. backend test_clip (6), e2e test_features (126), test_settings, test_confluence_copy green.
 - 2026-11-22 · CP6 (owner: where on the page; copy / move after; a drag onto Chrome opens it): markers, headings, the choice;
   data-page; text/uri-list. backend test_confluence (6), test_clip (5), e2e test_confluence_copy (4) green.
 - 2026-11-22 · CP5 (owner: "drag the plot or the tab out - HTML by default"): DownloadURL + picture + title; the toast after a drop

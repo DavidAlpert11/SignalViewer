@@ -8,7 +8,7 @@ import { getPrefValue, offlineForcedByEnv, setPref } from "./prefs";
 const KEYS = [
   "theme", "lang", "uiScale", "timeFormat", "liveAutoStop", "liveNewFiles", "tplTabChoice", "offlineOnly", "smoothFollow", "lineWidth", "lineStyle",
   "clickPlacesCursor",
-  "askBeforeClose", "bandInCard", "sweepLines", "sweepOver", "confluenceMacro", "byteShow",
+  "askBeforeClose", "bandInCard", "sweepLines", "sweepOver", "confluenceMacro", "byteShow", "copyScale",
 ] as const;
 type Key = (typeof KEYS)[number];
 
@@ -31,6 +31,7 @@ const VALID: Record<Key, (v: unknown) => boolean> = {
   sweepOver: (v) => v === "density" || v === "sample",
   confluenceMacro: (v) => v === "html" || v === "user",
   byteShow: (v) => v === "hex" || v === "dec" || v === "ascii" || v === "both",
+  copyScale: (v) => v === 1 || v === 2 || v === 3,
 };
 
 /** True when the user has chosen this setting (a session file then leaves it alone). */

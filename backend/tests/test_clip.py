@@ -9,6 +9,7 @@ import re
 import sys
 
 import numpy as np
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from fastapi.testclient import TestClient  # noqa: E402
@@ -123,3 +124,32 @@ def test_a_plot_dragged_out_is_its_page(tmp_path):
         assert client.get("/api/export/drag/0b9e2c34-0000-0000-0000-000000000000/x.html").status_code == 404
     finally:
         client.delete(f"/api/runs/{run['id']}")
+
+
+def test_copied_pictures_at_high_resolution(tmp_path):
+    """CP7 (owner, 2026-11-22: "a copy as a high-resolution picture"): the plot drawn again at 2 / 3 times the pixels
+    for the clipboard; the static copy's picture too."""
+    import io
+    from PIL import Image
+    path = tmp_path / "s.csv"
+    path.write_text("time,a\n" + "".join("%g,%g\n" % (i * 0.1, i % 5) for i in range(100)), encoding="utf-8")
+    run = client.post("/api/files/open", json={"paths": [str(path)]}).json()["opened"][0]
+    try:
+        plot = {"mode": "time", "title": "A", "signals": [{"id": f"{run['id']}/a", "label": "a", "color": "#e33", "width": 1.5,
+                                                         "scale": 1, "offset": 0, "state": False, "tOffset": 0}]}
+        w = {}
+        for sc in (1, 2, 3):
+            r = client.post("/api/export/image-bytes", json={"plot": plot, "scale": sc})
+            assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+            w[sc] = Image.open(io.BytesIO(r.content)).size[0]
+        assert w[2] == pytest.approx(2 * w[1], rel=0.02) and w[3] == pytest.approx(3 * w[1], rel=0.02)
+        s1 = report.build_clip_static(report_store(), {"tabs": [{"plots": [plot]}], "scale": 1})
+        s2 = report.build_clip_static(report_store(), {"tabs": [{"plots": [plot]}], "scale": 2})
+        assert len(s2) > 1.5 * len(s1) and 'width="800"' in s2           # more pixels, the same size on the page
+    finally:
+        client.delete(f"/api/runs/{run['id']}")
+
+
+def report_store():
+    from app.store import store
+    return store
