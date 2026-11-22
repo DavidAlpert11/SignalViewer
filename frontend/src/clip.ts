@@ -10,7 +10,7 @@
 import { api } from "./api";
 import { pickPath, rangeKey, useApp, type Plot, type Tab } from "./store";
 import { translate } from "./i18n";
-import { prompt } from "./components/Overlays";
+import { choose, prompt } from "./components/Overlays";
 import { pagePlots, plotSpec } from "./plotSpec";
 
 /** What a plot or a tab sends: its title, its notes, its plots as the report would show them; null: nothing to send. */
@@ -85,9 +85,24 @@ export async function sendToConfluence(tab: Tab, only?: Plot) {
   }
   const page = await prompt(tr("cfSendTitle", { what: content.title || tr("cfThis") }), tr("cfPageLabel"), info.recent[0]?.url ?? "");
   if (!page?.trim()) return;
+  // CP6: where on the page - a marker the page holds for it wins; sent again it stays where it is; else the user says
+  let where = "end";
+  try {
+    const o = await api.confluenceOutline({ page: page.trim(), title: content.title });
+    if (!o.marker && !o.shows) {
+      const options = [{ value: "end", label: tr("cfWhereEnd") }, { value: "start", label: tr("cfWhereStart") },
+        ...o.headings.map((h, i) => ({ value: `after:${i}`, label: `${"   ".repeat(Math.max(0, h.level - 1))}${tr("cfWhereAfter")} “${h.text}”` }))];
+      const w = await choose(tr("cfWhereTitle", { page: o.page }), tr("cfWhereLabel"), options, "end", tr("cfWhereNote"));
+      if (w === null) return;
+      where = w;
+    }
+  } catch (e) {
+    useApp.getState().toast({ kind: "error", text: (e as Error).message });
+    return;
+  }
   st.toast({ kind: "info", text: tr("cfSending", { page: info.recent.find((r) => r.url === page.trim())?.title ?? page.trim() }) });
   try {
-    const r = await api.confluenceSend({ page: page.trim(), ...content });
+    const r = await api.confluenceSend({ page: page.trim(), ...content, where });
     const kb = Math.max(1, Math.round(r.size / 1024));
     useApp.getState().toast({ kind: "info", text: tr(r.link ? "cfSentLink" : r.added ? "cfSent" : "cfSentAgain", { name: r.name, page: r.page, size: kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} kB` }),
       action: { label: tr("cfOpenPage"), run: () => { void api.confluenceOpen(); } } });
@@ -102,6 +117,7 @@ export async function sendToConfluence(tab: Tab, only?: Plot) {
    - a folder or the desktop: the interactive page as a file (DownloadURL: the system fetches it from the app at the
      drop - Chromium: Edge, Chrome, the desktop window's WebView2),
    - Word, an e-mail, an editor (Confluence's too): its picture with the title (text/html),
+   - a browser (its tab strip or a page): the page itself, opened (text/uri-list - shown, not downloaded),
    - anything that takes text: its title.
    A web page cannot be given a file by a drag from another window, so a Confluence page gets the picture: after a drop
    outside the app a toast offers the other ways - Send to Confluence (live in the page), Copy for Confluence. */
@@ -134,7 +150,9 @@ export function dragOutStart(e: React.DragEvent, tab: Tab, only?: Plot, shown?: 
     .map((n) => ({ t: n.t, ...(n.t2 !== undefined ? { t2: n.t2 } : {}), text: n.text }));
   void api.dragRegister({ token, title, lang: st.lang, theme: "light", notes,
     tabs: [{ name: tab.name || "", plots: kept.map(({ p, pi }) => plotSpec(tab, p, pi, plotLabel)) }] }).catch(() => {});
-  e.dataTransfer.setData("DownloadURL", `text/html:${name}:${location.origin}/api/export/drag/${token}/${encodeURIComponent(name)}`);
+  const link = `${location.origin}/api/export/drag/${token}/${encodeURIComponent(name)}`;
+  e.dataTransfer.setData("DownloadURL", `text/html:${name}:${link}`);
+  e.dataTransfer.setData("text/uri-list", `${link}?view=1`);          // a browser it is dropped on opens the page
   e.dataTransfer.setData("text/html", pictureOf(kept.map(({ p }) => p.id), title));
   e.dataTransfer.setData("text/plain", title);
 }

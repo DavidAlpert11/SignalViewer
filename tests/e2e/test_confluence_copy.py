@@ -148,6 +148,7 @@ def test_send_to_confluence_from_the_app(pg):
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend", "tests"))
     from fake_confluence import TOKEN, Fake
     conf = Fake()
+    conf.page["body"] = "<p>The bench run.</p><h2>Results</h2><p>r</p><h2>Notes</h2><p>n</p>"
     try:
         open_files(pg, "run_a.csv")
         sig(pg, "Speed").click()
@@ -175,11 +176,20 @@ def test_send_to_confluence_from_the_app(pg):
         if os.environ.get("SV_SHOTS"):
             pg.screenshot(path=os.path.join(os.environ["SV_SHOTS"], "cf_send.png"))
         pg.locator(".dialog.small .btn.primary").click()
+        # CP6: where on the page - its headings offered (the stand-in's page: one heading in it now)
+        choice = pg.locator(".dialog.small .prompt-choice")
+        choice.wait_for(timeout=15000)
+        assert "Under" in " ".join(choice.locator("option").all_inner_texts())
+        if os.environ.get("SV_SHOTS"):
+            pg.screenshot(path=os.path.join(os.environ["SV_SHOTS"], "cf_where.png"))
+        choice.select_option("after:0")
+        pg.locator(".dialog.small .btn.primary").click()
         pg.locator(".toast", has_text="Sent:").wait_for(timeout=30000)
         assert "Bench run 7" in pg.locator(".toast", has_text="Sent:").inner_text()
         names = list(conf.attachments)
         assert len(names) == 1 and names[0].endswith(".html") and b'id="sv-data"' in conf.attachments[names[0]]["data"]
         assert conf.page["version"] == 4 and 'data-name="%s"' % names[0] in conf.page["body"]
+        assert conf.page["body"].index("<h2>Results</h2>") < conf.page["body"].index('data-name=') < conf.page["body"].index("<h2>Notes</h2>")
         # again: the link offered is the last page; the attachment gets a new version, the page is left as it is
         pg.locator(".plot-more").first.click()
         pg.locator(".menu.ctx button", has_text="Send to Confluence").first.click()
@@ -211,17 +221,19 @@ def test_drag_a_plot_or_a_tab_out_of_the_window(pg):
         const grip = document.querySelector('.plot-grip');
         const dt = new DataTransfer();
         grip.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true }));
-        const url = dt.getData('DownloadURL'), html = dt.getData('text/html'), text = dt.getData('text/plain');
+        const url = dt.getData('DownloadURL'), html = dt.getData('text/html'), text = dt.getData('text/plain'), uri = dt.getData('text/uri-list');
         await new Promise(r => setTimeout(r, 300));
         const href = url.split(':').slice(2).join(':');
         const page = await (await fetch(href)).text();
+        const shown = await fetch(uri);                        // dropped on a browser: opened, not downloaded
         Object.defineProperty(dt, 'dropEffect', { value: 'copy' });   // a synthetic drag's dropEffect stays 'none' otherwise
         grip.dispatchEvent(new DragEvent('dragend', { dataTransfer: dt, bubbles: true }));
-        return { url, html: html.slice(0, 200), hasImg: html.includes('data:image/png;base64,'), text, page: page.slice(0, 4000), full: page.includes('id="sv-data"') };
+        return { uri, inline: (shown.headers.get('content-disposition') || '').startsWith('inline'), url, html: html.slice(0, 200), hasImg: html.includes('data:image/png;base64,'), text, page: page.slice(0, 4000), full: page.includes('id="sv-data"') };
     }""")
     assert got["url"].startswith("text/html:Plot 1.html:http://127.0.0.1:") and "/api/export/drag/" in got["url"]
     assert got["hasImg"] and "<h3>Plot 1</h3>" in got["html"] and got["text"] == "Plot 1"
     assert got["full"] and "<title>Plot 1</title>" in got["page"]
+    assert got["uri"].endswith("Plot%201.html?view=1") and got["inline"]
     pg.locator(".toast", has_text="Dragged out").wait_for(timeout=10000)
     assert pg.locator(".toast", has_text="Dragged out").locator("button", has_text="Send to Confluence").count() == 1
     # a tab: its plots, the same way

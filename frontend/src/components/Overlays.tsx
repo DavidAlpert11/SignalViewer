@@ -162,6 +162,11 @@ export function prompt(title: string, label: string, value: string, multiline = 
   return new Promise((resolve) => useApp.setState({ promptDialog: { title, label, value, multiline, resolve } }));
 }
 
+/** CP6: one choice from a list (the dialog of prompt with a select); null when cancelled. */
+export function choose(title: string, label: string, options: { value: string; label: string }[], value: string, note?: string): Promise<string | null> {
+  return new Promise((resolve) => useApp.setState({ promptDialog: { title, label, value, options, note, resolve } }));
+}
+
 export function PromptDialog() {
   const t = useT();
   const d = useApp((s) => s.promptDialog);
@@ -177,9 +182,12 @@ export function PromptDialog() {
         <div className="dialog-head"><h2>{d.title}</h2><button className="iconbtn" onClick={() => done(null)} aria-label={t("close")}><Icon.X /></button></div>
         <div className="dialog-pad">
           {(d as { confirmOnly?: boolean }).confirmOnly ? <p className="confirm-text">{d.label}</p> : <label className="afield"><span>{d.label}</span>
-            {d.multiline ? <textarea autoFocus rows={4} value={v} onChange={(e) => setV(e.target.value)} />
+            {d.options ? <select autoFocus className="prompt-choice" value={v} onChange={(e) => setV(e.target.value)}>
+                {d.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+              : d.multiline ? <textarea autoFocus rows={4} value={v} onChange={(e) => setV(e.target.value)} />
               : <input autoFocus value={v} onChange={(e) => setV(e.target.value)} onFocus={(e) => e.target.select()} />}
           </label>}
+          {d.note && <p className="hint prompt-note">{d.note}</p>}
         </div>
         <div className="dialog-foot"><span className="spacer" />
           <button className="btn outline" onClick={() => done(null)}>{t("cancel")}</button>

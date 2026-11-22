@@ -171,6 +171,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · CP6 (owner: where on the page; copy / move after; a drag onto Chrome opens it): markers, headings, the choice;
+  data-page; text/uri-list. backend test_confluence (6), test_clip (5), e2e test_confluence_copy (4) green.
 - 2026-11-22 · CP5 (owner: "drag the plot or the tab out - HTML by default"): DownloadURL + picture + title; the toast after a drop
   outside. e2e test_confluence_copy (4), test_move_plots, test_move_plots_tabs, test_features (126) green.
 - 2026-11-22 · CP4 (owner: "how do I test the Confluence export without Confluence?"): tools/try_confluence.py - the tests'

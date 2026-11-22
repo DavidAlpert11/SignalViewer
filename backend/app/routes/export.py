@@ -252,6 +252,7 @@ class ConfluenceSend(BaseModel):
     notes: List[dict] = []
     macro: str = "html"             # the macro the page gets: "html" or "user" (the Signal Viewer user macro)
     name: str = ""                  # the attachment's name (default: from the title)
+    where: str = "end"              # CP6: "end", "start", "after:<heading index>" (a marker in the page wins)
 
 
 class ConfluenceSettings(BaseModel):
@@ -304,11 +305,28 @@ async def export_confluence(req: ConfluenceSend):
         fail(404, "One of the plot's signals is no longer open.")
     try:
         out = await asyncio.to_thread(confluence.send, req.page, page, name, req.macro,
-                                      reports._clip_height(body), reports.build_clip_macro(body, name))
+                                      reports._clip_height(body), reports.build_clip_macro(body, name), req.where, req.title)
     except confluence.ConfluenceError as e:
         fail(400, str(e))
     _last_page["url"] = out["url"]
     return out
+
+
+class ConfluenceOutline(BaseModel):
+    page: str
+    title: str = ""
+    name: str = ""
+
+
+@router.post("/api/confluence/outline")
+async def confluence_outline(req: ConfluenceOutline):
+    """CP6: where on the page it can go - its headings, a marker waiting for it, whether it is there already."""
+    from app import confluence
+    name = req.name.strip() or confluence.safe_name(req.title)
+    try:
+        return await asyncio.to_thread(confluence.outline, req.page, req.title, name)
+    except confluence.ConfluenceError as e:
+        fail(400, str(e))
 
 
 @router.post("/api/confluence/open")
@@ -356,8 +374,9 @@ def export_drag(req: DragRegister):
 
 
 @router.get("/api/export/drag/{token}/{name}")
-async def export_drag_file(token: str, name: str):
-    """The dragged plot or tab as its interactive page - fetched by the system when the drag ends on a folder."""
+async def export_drag_file(token: str, name: str, view: int = 0):
+    """The dragged plot or tab as its interactive page - fetched by the system when the drag ends on a folder (a file),
+    or opened by a browser it was dropped on (?view=1: shown, not downloaded - CP5)."""
     import time
     from fastapi.responses import Response
     end = time.time() + 5                       # the page's POST may still be on its way when the drop is quick
@@ -371,8 +390,9 @@ async def export_drag_file(token: str, name: str):
     except KeyError:
         fail(404, "One of the plot's signals is no longer open.")
     safe = re.sub(r'[\\/:*?"<>|]+', "_", name) or "signalviewer.html"
+    disp = "inline" if view else "attachment"
     return Response(page, media_type="text/html; charset=utf-8",
-                    headers={"Content-Disposition": "attachment; filename*=UTF-8''" + urllib.parse.quote(safe)})
+                    headers={"Content-Disposition": disp + "; filename*=UTF-8''" + urllib.parse.quote(safe)})
 
 
 @router.get("/api/export/clip/user-macro")

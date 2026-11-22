@@ -110,7 +110,9 @@ export interface UiSlice {
   qualityFor: string | null;
   /** 26.U8: the event ] / [ went to (shown in the status bar while the cursor is on it) */
   eventAt: { text: string; t: number; n: number; of: number; level: "info" | "warning" | "error" } | null;
-  promptDialog: { title: string; label: string; value: string; multiline?: boolean; resolve: (v: string | null) => void } | null;
+  promptDialog: { title: string; label: string; value: string; multiline?: boolean; resolve: (v: string | null) => void;
+    /** CP6: a choice instead of a text (value: the option chosen); note: a line under it */
+    options?: { value: string; label: string }[]; note?: string } | null;
   uiScale: 1 | 1.12 | 1.25;
   helpOpen: boolean;
   guideOpen: boolean;          // T55: the user guide dialog

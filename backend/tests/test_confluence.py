@@ -57,6 +57,7 @@ def test_send_to_confluence_attaches_and_adds_the_macro_once(conf, run):
     assert b'id="sv-data"' in a["data"] and a["data"].startswith(b"<!doctype html>")
     assert conf.page["version"] == 4 and conf.page["body"].startswith("<p>The bench run.</p>")
     assert '<ac:structured-macro ac:name="html"' in conf.page["body"] and 'data-name="Speed.html"' in conf.page["body"]
+    assert 'data-page="4711"' in conf.page["body"]        # copied to another page, it still shows the file from this one
     # sent again (by its pageId link): a new version of the attachment, the page as it was
     again = client.post("/api/export/confluence", json={**body, "page": conf.url + "/pages/viewpage.action?pageId=4711"}).json()
     assert again["updated"] and not again["added"] and a["versions"] == 2 and conf.page["version"] == 4
@@ -104,3 +105,23 @@ def test_is_cloud():
     from app import confluence
     assert confluence.is_cloud({"url": "https://acme.atlassian.net/wiki"})
     assert not confluence.is_cloud({"url": "https://confluence.acme.local"})
+
+
+def test_where_on_the_page(conf, run):
+    """CP6 (owner, 2026-11-22: "how do I control where on the page it goes?"): under a heading the user picks, or in
+    place of a marker the page holds ([[signalviewer]] / [[signalviewer: its title]]) - the marker wins, no question."""
+    client.post("/api/confluence", json={"url": conf.url, "token": TOKEN})
+    conf.page["body"] = "<h2>Setup</h2><p>rig</p><h3>Sensors</h3><p>s</p><h2>Results</h2><p>r</p><p>[[signalviewer: Speed]]</p><h2>Notes</h2>"
+    o = client.post("/api/confluence/outline", json={"page": "4711", "title": "Other"}).json()
+    assert o["page"] == "Bench run 7" and not o["shows"] and o["marker"] is None
+    assert [h["text"] for h in o["headings"]] == ["Setup", "Sensors", "Results", "Notes"]
+    assert client.post("/api/confluence/outline", json={"page": "4711", "title": "Speed"}).json()["marker"] == "[[signalviewer: Speed]]"
+    # under "Setup": after its section (its sub-heading Sensors too), before Results
+    client.post("/api/export/confluence", json={"page": "4711", "title": "Other", "where": "after:0", "tabs": [_plot(run)]})
+    b = conf.page["body"]
+    assert b.index("<p>s</p>") < b.index('data-name="Other.html"') < b.index("<h2>Results</h2>")
+    # the marker: replaced (its paragraph), whatever "where" says
+    client.post("/api/export/confluence", json={"page": "4711", "title": "Speed", "where": "end", "tabs": [_plot(run)]})
+    b = conf.page["body"]
+    assert "[[signalviewer" not in b and b.index("<p>r</p>") < b.index('data-name="Speed.html"') < b.index("<h2>Notes</h2>")
+    assert client.post("/api/confluence/outline", json={"page": "4711", "title": "Speed"}).json()["shows"]

@@ -13,7 +13,7 @@ TOKEN = "tok-123"
 class Fake:
     def __init__(self, port: int = 0):
         self.page = {"id": "4711", "type": "page", "title": "Bench run 7", "space": "ENG", "version": 3,
-                     "body": "<p>The bench run.</p>"}
+                     "body": "<p>The bench run.</p><h2>Results</h2><p>The speed, as measured.</p><h2>Notes</h2><p>-</p>"}
         self.attachments = {}            # name -> {"id", "data", "versions"}
         self.calls = []
         self.srv = ThreadingHTTPServer(("127.0.0.1", port), self._handler())

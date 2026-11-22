@@ -2,6 +2,8 @@
 
 ## Next – unreleased
 
+- New: *Send to Confluence* - **where on the page**: write `[[signalviewer]]` in the page where the plot should go (`[[signalviewer: its title]]` for one plot), or choose when sending - the end, the start, or under one of the page's headings. Sent again, a plot stays where it is (moved by hand too). Copied to another page, it still shows.
+- New: a plot or a tab **dragged onto Chrome or Edge** opens there as its interactive page.
 - New: **drag a plot or a tab out of the window** - by the plot's ⠿ grip or the tab itself. On a folder or the desktop it becomes an interactive page (HTML, every sample); in Word, an e-mail or an editor its picture with the title. After a drop outside the app, the toast offers *Send to Confluence* (live in the page) and *Copy for Confluence*.
 - New: **try Send to Confluence with no Confluence** - `python tools/try_confluence.py` runs a stand-in of Confluence on this computer (it prints the address, the token and a page); send to it from the app and open the page in the browser: the plot is there, live.
 - Fixed: *Send to Confluence* to **Confluence Cloud** added a macro Cloud does not have (neither the HTML macro nor user macros exist there): the page now gets a link to the plot, which opens it live.

@@ -206,7 +206,65 @@ def _shows(body: str, name: str) -> bool:
             or ('<ri:attachment ri:filename="%s"' % esc) in body)
 
 
-def send(link: str, page_html: str, name: str, kind: str, height: int, html_macro: str) -> Dict[str, Any]:
+# CP6 (owner, 2026-11-22: "how do I control where on the page it goes?"): a marker the user writes in the page -
+# [[signalviewer]] (the next plot sent) or [[signalviewer: Speed]] (the plot of that title) - is replaced by the plot;
+# else where the user chose: the page's end (the default), its start, or under one of its headings.
+MARKER = re.compile(r"\[\[\s*signalviewer\s*(?::\s*([^\]]*?))?\s*\]\]", re.I)
+HEADING = re.compile(r"<h([1-6])(?:\s[^>]*)?>(.*?)</h\1>", re.S)
+
+
+def _text(s: str) -> str:
+    return html.unescape(re.sub(r"<[^>]+>", "", s)).strip()
+
+
+def _marker_for(body: str, title: str) -> Optional[re.Match]:
+    """The marker this plot takes: one with its title, else one without a title."""
+    found = list(MARKER.finditer(body))
+    named = [m for m in found if m.group(1) and _text(m.group(1)).lower() == (title or "").strip().lower()]
+    return (named or [m for m in found if not m.group(1)] or [None])[0]
+
+
+def outline(link: str, title: str, name: str) -> Dict[str, Any]:
+    """What the send dialog offers: the page's title, its headings, whether a marker is waiting for this plot, and
+    whether the page shows this plot already (sent again: it stays where it is)."""
+    c = config()
+    pid = page_id(c, link)
+    page = _call(c, "GET", "/rest/api/content/%s?expand=body.storage" % pid, what="read the page")
+    body = ((page.get("body") or {}).get("storage") or {}).get("value") or ""
+    m = _marker_for(body, title)
+    return {"page": page.get("title") or pid, "shows": _shows(body, name),
+            "marker": None if not m else _text(m.group(0)),
+            "headings": [{"level": int(h.group(1)), "text": _text(h.group(2))} for h in HEADING.finditer(body)][:60]}
+
+
+def place(body: str, macro: str, where: str, title: str) -> str:
+    """The page's storage with the macro put where asked: in place of its marker (always, when there is one), at
+    "start", "end", or "after:<i>" - under the i-th heading (before the next heading of its level or higher)."""
+    m = _marker_for(body, title)
+    if m:
+        # the paragraph that holds only the marker goes whole (a macro cannot sit inside a paragraph)
+        p0, p1 = body.rfind("<p", 0, m.start()), body.find("</p>", m.end())
+        if p0 >= 0 and p1 >= 0 and not _text(body[body.find(">", p0) + 1:m.start()]) and not _text(body[m.end():p1]):
+            return body[:p0] + macro + body[p1 + 4:]
+        return body[:m.start()] + "</p>" + macro + "<p>" + body[m.end():] if p0 >= 0 else body[:m.start()] + macro + body[m.end():]
+    if where == "start":
+        return macro + body
+    if where.startswith("after:"):
+        hs = list(HEADING.finditer(body))
+        try:
+            i = int(where.split(":", 1)[1])
+        except ValueError:
+            i = -1
+        if 0 <= i < len(hs):
+            lvl = int(hs[i].group(1))
+            nxt = next((h for h in hs[i + 1:] if int(h.group(1)) <= lvl), None)
+            at = nxt.start() if nxt else len(body)
+            return body[:at] + macro + body[at:]
+    return body + macro
+
+
+def send(link: str, page_html: str, name: str, kind: str, height: int, html_macro: str,
+         where: str = "end", title: str = "") -> Dict[str, Any]:
     """The page attached to the Confluence page `link` (a new version when it is there) and its macro added at the
     page's end unless the page shows it already. Returns the page's title, its address and what was done."""
     c = config()
@@ -227,7 +285,9 @@ def send(link: str, page_html: str, name: str, kind: str, height: int, html_macr
     storage = ((page.get("body") or {}).get("storage") or {}).get("value") or ""
     added = False
     if not _shows(storage, name):
-        new = storage + macro_storage(kind, name, height, html_macro)
+        # CP6: the HTML macro says the page its file is on - copied to another page, it still shows it from here
+        hm = html_macro.replace('<div class="sv-clip"', '<div class="sv-clip" data-page="%s"' % pid, 1)
+        new = place(storage, macro_storage(kind, name, height, hm), where, title)
         upd = {"id": pid, "type": page.get("type") or "page", "title": page.get("title") or "",
                "version": {"number": int((page.get("version") or {}).get("number") or 1) + 1,
                            "message": "Signal Viewer: %s" % name},
