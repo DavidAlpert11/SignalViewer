@@ -20,4 +20,8 @@ os.environ.setdefault("SV_TEST_REAL_HOME", os.path.expanduser("~"))   # for test
 _home = tempfile.mkdtemp(prefix="sv-test-home-")
 os.environ["HOME"] = _home
 os.environ["USERPROFILE"] = _home       # Windows: expanduser reads USERPROFILE
+# Windows resolves the known folders (AppData) from %USERPROFILE%: a home without them fails a program that asks
+# (the built-in Tectonic: "Unable to find standard directories for platform") - made as a real profile has them
+for _d in (("AppData", "Roaming"), ("AppData", "Local")):
+    os.makedirs(os.path.join(_home, *_d), exist_ok=True)
 os.environ.setdefault("SV_CACHE_DIR", os.path.join(_home, ".signalviewer", "cache"))

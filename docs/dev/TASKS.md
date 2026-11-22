@@ -161,6 +161,10 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · build run 45053658269 (manual, after RE4): tex-bundle green with Hebrew (552 files, 13.2 MB); Linux, macOS green;
+  Windows backend: the built-in Tectonic failed in the tests ("Unable to find standard directories") - conftest's temporary
+  USERPROFILE had no AppData, from which Windows resolves its known folders; conftest makes them. test_rawlink UDP failed
+  once on Windows (same length, other bytes; green in every earlier run, untouched by RE4) - watched, not changed.
 - 2026-11-22 · test_report_doc failed now and then (a formula missing from the preview): two previews drew the same formula in
   two threads - mathtext is not thread-safe; the failure was cached. reportdoc._MATH_LOCK; backend
   test_formulas_drawn_at_once_by_several_previews (32 threads: 145 / 160 failed without the lock); e2e test_report_doc 4 / 4 runs green.
