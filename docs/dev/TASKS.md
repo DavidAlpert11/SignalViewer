@@ -19,7 +19,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Task | Status | Next step |
 |---|---|---|
 | CP5 - drag a plot or a tab out of the window (owner, 2026-11-22) | built 2026-11-22 (the drag's data and the link tested in Chromium; a real drop on the Windows desktop not tested here) | the owner drags a plot's ⠿ onto his desktop, into Word, into Outlook |
-| Release 1.34.0 - CP4 Send to Confluence, CP3 the user macro, HL1 linked zoom, RE4 the built-in LaTeX, MSG5-MSG9 messages (owner, 2026-11-22: "yes - then release") | READY 2026-11-22: version in the five files + install.md, CHANGELOG 1.34.0 with highlights, README (English + Hebrew), limitations, validation page, pictures 52 53 55 56, the whole e2e one file at a time (99 files, 539 passed, none failed), quick_check parts (backend 1516, Vitest 301, mypy), mkdocs --strict | the owner tags v1.34.0 |
+| Release 1.34.0 - CP4 Send to Confluence, CP3 the user macro, HL1 linked zoom, RE4 the built-in LaTeX, MSG5-MSG9 messages (owner, 2026-11-22: "yes - then release") | READY again 2026-11-22 (the tag moved: CP5-CP7, Z1 and the Confluence placement folded in): CHANGELOG 1.34.0 by topic with new highlights, README (English + Hebrew), features, limitations; the whole e2e one file at a time - 100 files, 541 passed, test_study_loop failed once under load and passed alone twice; backend, Vitest, mypy, mkdocs --strict | the owner moves the tag v1.34.0 to this commit and publishes the Release |
 | CP4 - Send to Confluence straight from the app (owner, 2026-11-22: "the most important now") | built 2026-11-22 (against a stand-in of Confluence's REST API; not yet against the owner's Confluence 10.2) | the owner: Settings -> Confluence (address + personal access token), Save and test, then a plot's ⋯ -> Send to Confluence…; if his Data Center keeps the HTML macro off, the Signal Viewer macro (CP3) |
 | MSG8 - hex / numbers / ASCII, double, text fields, a conversion formula (owner, 2026-11-22) | built 2026-11-22 | the owner looks |
 | MSG9 - the proposal (16-bit counter, double, text; no slow type byte, no 00 footer), *Not the type byte*, a wider panel (owner, 2026-11-22) | built 2026-11-22 | the owner looks |
@@ -171,6 +171,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · Release 1.34.0 again: the whole e2e one file at a time - 100 files, 541 passed; test_study_loop 1 failed under
+  load (79 s), alone 3 / 3 twice (19 s). The owner moves the tag (commands given).
 - 2026-11-22 · Z1 (owner: "zoom on y, everywhere"): the app's XY / FFT / step / envelope and every plot of the HTML page; the
   wheel's keys as the app's time plot. CHANGELOG: everything after the v1.34.0 tag folded into 1.34.0 (the owner had not
   released it: the tag is moved). e2e test_zoom_values, test_report_xy_zoom, test_report_linked_zoom, test_live_report,
