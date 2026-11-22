@@ -89,7 +89,7 @@ export async function sendToConfluence(tab: Tab, only?: Plot) {
   try {
     const r = await api.confluenceSend({ page: page.trim(), ...content });
     const kb = Math.max(1, Math.round(r.size / 1024));
-    useApp.getState().toast({ kind: "info", text: tr(r.added ? "cfSent" : "cfSentAgain", { name: r.name, page: r.page, size: kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} kB` }),
+    useApp.getState().toast({ kind: "info", text: tr(r.link ? "cfSentLink" : r.added ? "cfSent" : "cfSentAgain", { name: r.name, page: r.page, size: kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} kB` }),
       action: { label: tr("cfOpenPage"), run: () => { void api.confluenceOpen(); } } });
   } catch (e) {
     useApp.getState().toast({ kind: "error", text: (e as Error).message });

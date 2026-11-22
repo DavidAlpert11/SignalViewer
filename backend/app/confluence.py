@@ -1,7 +1,8 @@
 """CP4 (owner, 2026-11-22: "the most important now - a good way to throw an interactive plot from the app straight to
 Confluence, the easiest way"): *Send to Confluence…* - the plot or tab's page (every sample, as Copy for Confluence
 saves it) uploaded as an attachment of a page and the macro that shows it added at the page's end, through
-Confluence's REST API (Data Center / Server 7.9+ with a personal access token; Cloud with an e-mail and an API token).
+Confluence's REST API (Data Center / Server 7.9+ with a personal access token; Cloud with an e-mail and an API token -
+Cloud has neither the HTML macro nor user macros: the page gets a link to the attachment, which opens live).
 Nothing to save, drag or paste. Sent again: the attachment gets a new version and the page is left as it is (its macro
 shows the newest).
 
@@ -178,8 +179,18 @@ def _multipart(name: str, data: bytes, ctype: str) -> Tuple[bytes, str]:
     return head + data + tail, "multipart/form-data; boundary=" + b
 
 
+def is_cloud(c: Dict[str, Any]) -> bool:
+    """Confluence Cloud (*.atlassian.net): no HTML macro and no user macros there - the page gets a link."""
+    host = urllib.parse.urlparse(c.get("url") or "").hostname or ""
+    return host.endswith(".atlassian.net")
+
+
 def macro_storage(kind: str, name: str, height: int, html_macro: str) -> str:
-    """The macro in Confluence's storage format: the Signal Viewer user macro, or the HTML macro with its lines."""
+    """The macro in Confluence's storage format: the Signal Viewer user macro, the HTML macro with its lines, or (Cloud,
+    where neither exists) a link to the attachment - it opens live in the browser."""
+    if kind == "link":
+        return ('<p><ac:link><ri:attachment ri:filename="%s" /><ac:plain-text-link-body><![CDATA[%s - interactive '
+                '(opens in the browser)]]></ac:plain-text-link-body></ac:link></p>' % (html.escape(name), name.replace("]]>", "")))
     if kind == "user":
         return ('<ac:structured-macro ac:name="signalviewer" ac:schema-version="1">'
                 '<ac:parameter ac:name="file">%s</ac:parameter><ac:parameter ac:name="height">%d</ac:parameter>'
@@ -191,13 +202,16 @@ def macro_storage(kind: str, name: str, height: int, html_macro: str) -> str:
 def _shows(body: str, name: str) -> bool:
     """The page shows this attachment already (either macro)."""
     esc = html.escape(name)
-    return ('<ac:parameter ac:name="file">%s</ac:parameter>' % esc) in body or ('data-name="%s"' % esc) in body
+    return (('<ac:parameter ac:name="file">%s</ac:parameter>' % esc) in body or ('data-name="%s"' % esc) in body
+            or ('<ri:attachment ri:filename="%s"' % esc) in body)
 
 
 def send(link: str, page_html: str, name: str, kind: str, height: int, html_macro: str) -> Dict[str, Any]:
     """The page attached to the Confluence page `link` (a new version when it is there) and its macro added at the
     page's end unless the page shows it already. Returns the page's title, its address and what was done."""
     c = config()
+    if is_cloud(c):
+        kind = "link"
     pid = page_id(c, link)
     data = page_html.encode("utf-8")
     had = _call(c, "GET", "/rest/api/content/%s/child/attachment?%s" % (pid, urllib.parse.urlencode({"filename": name})),
@@ -225,7 +239,8 @@ def send(link: str, page_html: str, name: str, kind: str, height: int, html_macr
     web = (links.get("base") or _base(c)) + (links.get("webui") or "/pages/viewpage.action?pageId=%s" % pid)
     title = page.get("title") or pid
     _remember(link.strip(), title)
-    return {"page": title, "url": web, "added": added, "updated": bool(existing), "name": name, "size": len(data)}
+    return {"page": title, "url": web, "added": added, "updated": bool(existing), "name": name, "size": len(data),
+            "link": kind == "link"}
 
 
 def safe_name(title: str) -> str:

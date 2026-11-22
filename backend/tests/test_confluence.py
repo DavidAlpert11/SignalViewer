@@ -88,3 +88,19 @@ def test_sv_offline_sends_nothing(monkeypatch, conf, run):
     monkeypatch.setenv("SV_OFFLINE", "1")
     r = client.post("/api/confluence/test")
     assert r.status_code == 400 and "SV_OFFLINE" in r.json()["detail"] and not conf.calls
+
+
+def test_confluence_cloud_gets_a_link(monkeypatch, conf, run):
+    """Cloud (*.atlassian.net) has neither the HTML macro nor user macros: the page gets a link to the attachment."""
+    from app import confluence
+    monkeypatch.setattr(confluence, "is_cloud", lambda c: True)
+    client.post("/api/confluence", json={"url": conf.url, "token": TOKEN})
+    out = client.post("/api/export/confluence", json={"page": "4711", "title": "Speed", "tabs": [_plot(run)]}).json()
+    assert out["link"] and out["added"]
+    assert '<ri:attachment ri:filename="Speed.html" />' in conf.page["body"] and "ac:structured-macro" not in conf.page["body"]
+
+
+def test_is_cloud():
+    from app import confluence
+    assert confluence.is_cloud({"url": "https://acme.atlassian.net/wiki"})
+    assert not confluence.is_cloud({"url": "https://confluence.acme.local"})

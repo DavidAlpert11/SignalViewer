@@ -170,6 +170,9 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · CP4 (owner: "how do I test the Confluence export without Confluence?"): tools/try_confluence.py - the tests'
+  stand-in as a tool, now showing the page (its macros drawn) and its attachments; e2e test_confluence_copy opens it and sees the plot.
+  Fixed: Confluence Cloud has neither the HTML macro nor user macros - the page gets a link (test_confluence 5).
 - 2026-11-22 · Release 1.34.0 prepared (owner: "yes - then release"): the whole e2e one file at a time - 99 files, 539 passed, none
   failed; pictures 52 53 55 56 (the bytes view, the step 4 list, the `message` lane); backend 1516, Vitest 301, mypy, mkdocs --strict.
 - 2026-11-22 · MSG9: the proposal reads the MSG8 test stream right by itself; Not the type byte; Messages 520 px. backend all,

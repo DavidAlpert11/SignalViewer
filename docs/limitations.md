@@ -51,7 +51,7 @@
   or `.mcap` is listed by its message types instead); a log's message types are its signals grouped by the name before
   the first dot, the count and rate those of its fields. An ICD layout used as a structure keeps its own time field as
   an ordinary field (a stream has its receive times).
-* Send to Confluence (1.34): Confluence Data Center / Server 7.9 or newer (personal access tokens) or Confluence Cloud; the page is edited at its end (the macro is not placed elsewhere); the HTML macro must be on, else the Signal Viewer user macro an administrator installs once; an attachment is limited by the server's size limit (a very long recording: send a shorter range). Tested against Confluence's REST API as documented, not against every version.
+* Send to Confluence (1.34): Confluence Data Center / Server 7.9 or newer (personal access tokens), live in the page. Confluence Cloud has neither the HTML macro nor user macros: the page gets the attachment and a link to it, which opens the plot live in the browser - not drawn inside the page; the page is edited at its end (the macro is not placed elsewhere); the HTML macro must be on, else the Signal Viewer user macro an administrator installs once; an attachment is limited by the server's size limit (a very long recording: send a shorter range). Tested against Confluence's REST API as documented, not against every version.
 * Listening to a link (1.32): one link at a time; serial ports need pyserial; nothing is sent (no handshake of our
   own); a growing `.svraw` is read again whole on each refresh - fine for hours of a serial link, slow for a very
   fast stream over a long time (stop and start a new recording).

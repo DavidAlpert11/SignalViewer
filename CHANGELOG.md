@@ -2,6 +2,9 @@
 
 ## Next – unreleased
 
+- New: **try Send to Confluence with no Confluence** - `python tools/try_confluence.py` runs a stand-in of Confluence on this computer (it prints the address, the token and a page); send to it from the app and open the page in the browser: the plot is there, live.
+- Fixed: *Send to Confluence* to **Confluence Cloud** added a macro Cloud does not have (neither the HTML macro nor user macros exist there): the page now gets a link to the plot, which opens it live.
+
 ## 1.34.0 – 2026-11-22
 
 **Highlights:** **An interactive plot straight onto a Confluence page, and messages from bytes to variables made plain.** *Send to Confluence…*: paste the page's link - the plot or tab is on the page, live with every sample (set up once: the address and a token); Confluence Data Center without the HTML macro gets the Signal Viewer macro. *Messages*: every message counted and in its order, one message's variables plotted alone; the bytes as hex, numbers or ASCII, doubles and text, a conversion formula; any column as the direction; a header told from a footer by the pauses. LaTeX built in - nothing to install. In the HTML page, the time plots zoom together.

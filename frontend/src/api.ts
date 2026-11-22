@@ -555,7 +555,7 @@ export const api = {
   confluence: () => call<ConfluenceInfo>("/api/confluence"),
   confluenceSet: (body: { url?: string; user?: string; token?: string }) => call<ConfluenceInfo>("/api/confluence", body),
   confluenceTest: () => call<{ user: string }>("/api/confluence/test", {}),
-  confluenceSend: (body: Record<string, unknown>) => call<{ page: string; url: string; added: boolean; updated: boolean; name: string; size: number }>("/api/export/confluence", body),
+  confluenceSend: (body: Record<string, unknown>) => call<{ page: string; url: string; added: boolean; updated: boolean; name: string; size: number; link?: boolean }>("/api/export/confluence", body),
   confluenceOpen: () => call<{ opened: boolean; url: string }>("/api/confluence/open", {}),
   /** CP3: the Signal Viewer user macro for Confluence (installed once by an administrator) */
   clipUserMacro: () => call<{ name: string; template: string }>("/api/export/clip/user-macro"),

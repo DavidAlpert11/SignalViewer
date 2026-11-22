@@ -187,5 +187,13 @@ def test_send_to_confluence_from_the_app(pg):
         pg.locator(".dialog.small .btn.primary").click()
         pg.locator(".toast", has_text="Sent again").wait_for(timeout=30000)
         assert conf.attachments[names[0]]["versions"] == 2 and conf.page["version"] == 4
+        # the page in a browser (tools/try_confluence.py shows it the same way): the plot drawn, live, in its frame
+        view = pg.context.new_page()
+        view.goto(conf.url + "/display/ENG/Bench+run+7")
+        view.wait_for_function("""() => { const f = document.querySelector('.sv-clip iframe');
+            return f && f.contentDocument && f.contentDocument.querySelector('.canvas canvas') && f.getBoundingClientRect().height > 300; }""", timeout=20000)
+        if os.environ.get("SV_SHOTS"):
+            view.screenshot(path=os.path.join(os.environ["SV_SHOTS"], "cf_page.png"))
+        view.close()
     finally:
         conf.close()
