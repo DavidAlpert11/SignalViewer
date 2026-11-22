@@ -95,7 +95,7 @@ def _roles(L: int, proto: Dict, m: Optional[Dict]) -> Tuple[List[str], List[Opti
     role = ["payload"] * L
     fld: List[Optional[int]] = [None] * L
     for j, f in enumerate((m or {}).get("fields") or []):
-        size = P.BIN_TYPES.get(f.get("type", "u8"), ("u", 1))[1]
+        size = P.field_size(f)
         for x in range(int(f.get("offset", 0)), min(L, int(f.get("offset", 0)) + size)):
             role[x], fld[x] = "field", j
     for x in range(min(hl, L)):
@@ -130,8 +130,11 @@ def _binary(t: np.ndarray, raw: np.ndarray, proto: Dict, n: int) -> Tuple[List[D
     for p, L, mid, status in every[:n]:
         m = by_id.get(mid)
         role, fld = _roles(L, proto, m)
-        values = []
+        values: List[Any] = []
         for f in (m or {}).get("fields") or []:
+            if f.get("type") == "ascii":                 # MSG8: its text
+                values.append(P.ascii_values(raw, np.asarray([p], dtype=np.int64), f)[2][0])
+                continue
             try:
                 v = float(P._value(raw, np.asarray([p], dtype=np.int64), f)[0]) if p + int(f.get("offset", 0)) < len(raw) else math.nan
             except Exception:                                   # a field past the frame's end: said, not raised

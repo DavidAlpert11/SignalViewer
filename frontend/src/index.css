@@ -2094,6 +2094,11 @@ input.fx-input { width: 100%; }
 .msg-values-t th, .msg-values-t td { border: 1px solid var(--line); padding: 1px 6px; text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .msg-values-t th { background: var(--panel-2); font-weight: 600; }
 .msg-made { color: var(--ink); }
+/* MSG8: the bytes as hex / numbers / characters */
+.bv-show { margin-inline-start: auto; }
+.bv-b.bv-two { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.05; }
+.bv-chr { font-size: var(--fs-3xs); color: var(--muted); }
+.msg-f-size input { width: 4em; }
 /* MSG7: the messages in the stream - count, share, in the recording, Plot */
 .msg-list { margin: 4px 0 8px; }
 .msg-list-t { width: 100%; border-collapse: collapse; font-size: var(--fs-m); }

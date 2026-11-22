@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fieldSize } from "../messages";
 import { useT } from "../i18n";
 import type { StructField, StructMessage, Structure } from "../store/model";
 
@@ -6,7 +7,7 @@ import type { StructField, StructMessage, Structure } from "../store/model";
    form - the framing (binary: header, length byte, type byte, checksum; text: the start, the separator, *HH) and
    each message with its fields (binary: byte, type, LSB / MSB first, scale, add, unit; text: place, type, unit) - or
    as its JSON, the same thing written out (a field's bits, labels, hemisphere live there too). */
-const BIN = ["u8", "i8", "u16", "i16", "u24", "i24", "u32", "i32", "f32", "f64"];
+const BIN = ["u8", "i8", "u16", "i16", "u24", "i24", "u32", "i32", "f32", "f64", "ascii"];
 const TXT = ["number", "int", "text", "lat", "lon", "hhmmss", "ddmmyy"];
 const SCHEMES = ["sum8", "xor8", "negsum8", "notsum8", "crc16ccitt", "crc16modbus", "fletcher16"];
 const hex = (v: number | string) => (typeof v === "number" ? "0x" + v.toString(16).toUpperCase().padStart(2, "0") : v);
@@ -28,8 +29,7 @@ export default function StructureEditor({ value, onChange }: { value: Structure;
     setMode(m);
   };
   const nextOffset = (m: StructMessage) => {
-    const sizes: Record<string, number> = { u8: 1, i8: 1, u16: 2, i16: 2, u24: 3, i24: 3, u32: 4, i32: 4, f32: 4, f64: 8 };
-    return m.fields.reduce((a, f) => Math.max(a, (f.offset ?? 0) + (sizes[f.type ?? "u8"] ?? 1)), 4);
+    return m.fields.reduce((a, f) => Math.max(a, (f.offset ?? 0) + fieldSize(f)), 4);
   };
   return (
     <div className="msg-struct">
@@ -86,19 +86,25 @@ export default function StructureEditor({ value, onChange }: { value: Structure;
               </legend>
               <table className="msg-fields">
                 <thead><tr><th>{t("msgFName")}</th><th>{bin ? t("msgFAt") : t("msgFIndex")}</th><th>{t("msgFType")}</th>{bin && <th>{t("msgFEndian")}</th>}
-                  <th>{t("msgFScale")}</th><th>{t("msgFAdd")}</th><th>{t("msgFUnit")}</th><th /></tr></thead>
+                  <th>{t("msgFScale")}</th><th>{t("msgFAdd")}</th><th title={t("msgFFormulaHint")}>{t("msgFFormula")}</th><th>{t("msgFUnit")}</th><th /></tr></thead>
                 <tbody>{m.fields.map((f, j) => (
                   <tr key={j}>
                     <td><input size={12} className="msg-f-name" value={f.name} onChange={(e) => setField(i, j, { name: e.target.value })} /></td>
                     <td><input type="number" min={0} className="msg-f-at" value={(bin ? f.offset : f.index) ?? 0}
                       onChange={(e) => setField(i, j, bin ? { offset: num(e.target.value) } : { index: num(e.target.value) })} /></td>
-                    <td><select className="msg-f-type" value={f.type ?? (bin ? "u8" : "number")} onChange={(e) => setField(i, j, { type: e.target.value })}>
-                      {(bin ? BIN : TXT).map((x) => <option key={x} value={x}>{x}</option>)}</select></td>
-                    {bin && <td><select className="msg-f-endian" value={f.endian ?? "le"} disabled={/8$/.test(f.type ?? "u8")}
+                    <td><select className="msg-f-type" value={f.type ?? (bin ? "u8" : "number")} title={t(`msgTy_${f.type ?? (bin ? "u8" : "number")}` as never)}
+                      onChange={(e) => setField(i, j, { type: e.target.value, ...(e.target.value === "ascii" && !f.size ? { size: 8 } : {}) })}>
+                      {(bin ? BIN : TXT).map((x) => <option key={x} value={x} title={t(`msgTy_${x}` as never)}>{x}</option>)}</select></td>
+                    {bin && <td>{f.type === "ascii"
+                      ? <label className="msg-f-size" title={t("msgFSizeHint")}><input type="number" min={1} max={255} value={f.size ?? 8}
+                          onChange={(e) => setField(i, j, { size: Math.max(1, Math.min(255, num(e.target.value, 8))) })} /> {t("msgFBytes")}</label>
+                      : <select className="msg-f-endian" value={f.endian ?? "le"} disabled={/8$/.test(f.type ?? "u8")}
                       onChange={(e) => setField(i, j, { endian: e.target.value as "le" | "be" })}>
-                      <option value="le">{t("msgLe")}</option><option value="be">{t("msgBe")}</option></select></td>}
-                    <td><input size={5} value={f.scale ?? 1} onChange={(e) => setField(i, j, { scale: num(e.target.value, 1) })} /></td>
-                    <td><input size={4} value={f.add ?? 0} onChange={(e) => setField(i, j, { add: num(e.target.value) })} /></td>
+                      <option value="le">{t("msgLe")}</option><option value="be">{t("msgBe")}</option></select>}</td>}
+                    <td><input size={5} value={f.scale ?? 1} disabled={!!f.formula || f.type === "ascii" || f.type === "text"} onChange={(e) => setField(i, j, { scale: num(e.target.value, 1) })} /></td>
+                    <td><input size={4} value={f.add ?? 0} disabled={!!f.formula || f.type === "ascii" || f.type === "text"} onChange={(e) => setField(i, j, { add: num(e.target.value) })} /></td>
+                    <td><input size={11} className="msg-f-formula" dir="ltr" placeholder="x*0.01-40" title={t("msgFFormulaHint")} value={f.formula ?? ""}
+                      disabled={f.type === "ascii" || f.type === "text"} onChange={(e) => setField(i, j, { formula: e.target.value || undefined })} /></td>
                     <td><input size={5} value={f.unit ?? ""} onChange={(e) => setField(i, j, { unit: e.target.value })} /></td>
                     <td><button className="linklike" aria-label={t("msgDel")} onClick={() => setMsg(i, { fields: m.fields.filter((_x, k) => k !== j) })}>✕</button></td>
                   </tr>

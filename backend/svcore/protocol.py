@@ -29,7 +29,7 @@ A structure (a dict, saved as JSON - `.svmsg.json` - and in the session):
            A sentence's id is its first field without the start ("GPGGA"); a message's id matches it whole or
            without the 2-letter talker ("GGA" matches GPGGA, GNGGA).
 
-Field types (binary): u8 i8 u16 i16 u24 i24 u32 i32 u64 i64 f32 f64, endian "le" (LSB first) or "be" (MSB first);
+Field types (binary): u8 i8 u16 i16 u24 i24 u32 i32 u64 i64 f32 f64, ascii (text of "size" bytes - MSG8), endian "le" (LSB first) or "be" (MSB first);
 value = raw * scale + add (after `bits`: [first bit, how many]). Text: number, int, text (text values), lat, lon
 (ddmm.mmmm / dddmm.mmmm with the hemisphere field), hhmmss (s of the day), ddmmyy (days since 2000-01-01).
 
@@ -104,9 +104,18 @@ def check(proto: Dict) -> Dict:
                 raise ProtocolError(f"{nm}: two fields are named \"{fn}\".")
             seen.add(fn)
             ty = f.get("type", "u8" if proto["kind"] == "binary" else "number")
+            if str(f.get("formula") or "").strip():
+                from svcore.formula import FormulaError, parse_rows
+                try:
+                    parse_rows(str(f["formula"]))
+                except FormulaError as e:
+                    raise ProtocolError(f"{nm}.{fn}: the formula: {e}.") from None
             if proto["kind"] == "binary":
-                if ty not in BIN_TYPES:
-                    raise ProtocolError(f"{nm}.{fn}: the type \"{ty}\" is not known (use {', '.join(BIN_TYPES)}).")
+                if ty == "ascii":
+                    if not isinstance(f.get("size"), (int, float)) or not 1 <= int(f["size"]) <= 255:
+                        raise ProtocolError(f"{nm}.{fn}: an ascii field says how many bytes it is (size 1-255).")
+                elif ty not in BIN_TYPES:
+                    raise ProtocolError(f"{nm}.{fn}: the type \"{ty}\" is not known (use {', '.join(BIN_TYPES)}, ascii).")
                 if not isinstance(f.get("offset"), (int, float)) or f["offset"] < 0:
                     raise ProtocolError(f"{nm}.{fn}: give its offset - the byte it starts at, counted from 0 at the header.")
                 if f.get("endian", "le") not in ("le", "be"):
@@ -136,6 +145,52 @@ def check(proto: Dict) -> Dict:
 
 # ------------------------------------------------------------------------------------------------ binary
 
+def convert(f: Dict, v: np.ndarray) -> np.ndarray:
+    """MSG8 (owner, 2026-11-22: "a variable of several bytes with a conversion formula, as on the other variables"):
+    the field's formula on its raw value `x` (e.g. "x*0.01 - 40", "(x - 32) / 1.8", "where(x > 32767, x - 65536, x)")
+    - the app's row formulas (svcore.formula's whitelist, no eval); no formula: scale and add."""
+    expr = str(f.get("formula") or "").strip()
+    if not expr:
+        return v * float(f.get("scale", 1) or 1) + float(f.get("add", 0) or 0)
+    import pandas as pd
+    from svcore.sweep.derived import DerivedError, row_formula
+    try:
+        out = row_formula(pd.DataFrame({"x": np.asarray(v, dtype=np.float64)}), expr)
+    except DerivedError as e:
+        raise ProtocolError("%s: %s (x is the field's raw value)." % (f.get("name", "field"), str(e).replace("No column named", "unknown name"))) from None
+    if out.dtype == object:
+        raise ProtocolError("%s: the formula gives text - it must give a number." % f.get("name", "field"))
+    return np.asarray(out, dtype=np.float64)
+
+
+def field_size(f: Dict) -> int:
+    """How many bytes a binary field takes."""
+    if f.get("type") == "ascii":
+        return int(f.get("size") or 1)
+    return BIN_TYPES.get(f.get("type", "u8"), ("u", 1))[1]
+
+
+def ascii_text(b: bytes) -> str:
+    """MSG8: bytes as text - up to the first NUL, the trailing spaces off, a byte that is not a printable character as
+    a dot (so the text stays one line and its length shows)."""
+    b = b.split(b"\0", 1)[0]
+    return "".join(chr(x) if 32 <= x < 127 or x >= 160 else "." for x in b).rstrip()
+
+
+def ascii_values(raw: np.ndarray, at: np.ndarray, f: Dict) -> Tuple[np.ndarray, Dict[int, str], List[Optional[str]]]:
+    """An ascii field of every frame: a code per text (a state, as a text column), the texts by code, and each frame's
+    text (None past the stream's end)."""
+    off, n = int(f["offset"]), int(f.get("size") or 1)
+    data = np.asarray(raw, dtype=np.uint8).tobytes()
+    texts: List[Optional[str]] = [ascii_text(data[a + off:a + off + n]) if a + off + n <= len(data) else None for a in at.tolist()]
+    code: Dict[str, int] = {}
+    for s_ in texts:
+        if s_ is not None and s_ not in code:
+            code[s_] = len(code)
+    v = np.array([code[s_] if s_ is not None else np.nan for s_ in texts], dtype=np.float64)
+    return v, {i: s_ for s_, i in code.items()}, texts
+
+
 def _value(raw: np.ndarray, at: np.ndarray, f: Dict) -> np.ndarray:
     """One field of every frame: raw bytes at `at` (frame starts) + offset, as the field's type says."""
     kind, size = BIN_TYPES[f.get("type", "u8")]
@@ -161,7 +216,7 @@ def _value(raw: np.ndarray, at: np.ndarray, f: Dict) -> np.ndarray:
             v = np.where(u >= top, u.astype(np.float64) - float(1 << (8 * size)), u.astype(np.float64))
         else:
             v = u.astype(np.float64)
-    v = v * float(f.get("scale", 1) or 1) + float(f.get("add", 0) or 0)
+    v = convert(f, v)
     v[~ok] = np.nan
     return v
 
@@ -251,6 +306,11 @@ def parse_binary(t: np.ndarray, raw: np.ndarray, proto: Dict) -> Dict:
         name = str(m.get("name") or m.get("id"))
         counts[name] = len(at)
         for f in m.get("fields") or []:
+            if f.get("type") == "ascii":                 # MSG8: text in a binary message - a state of its texts
+                v, lab, _texts = ascii_values(raw, at, f)
+                signals[f"{name}.{f['name']}"] = (tm, v)
+                labels[f"{name}.{f['name']}"] = lab
+                continue
             signals[f"{name}.{f['name']}"] = (tm, _value(raw, at, f))
             if f.get("labels"):
                 labels[f"{name}.{f['name']}"] = {int(a): str(b) for a, b in f["labels"].items()}
@@ -399,8 +459,7 @@ def parse_text(text: str, proto: Dict, times: Optional[np.ndarray] = None) -> Di
             hemi = f.get("hemi")
             y = np.array([_num(c, ty, r[1][int(hemi)] if hemi is not None and int(hemi) < len(r[1]) else "")
                           for c, r in zip(col, rs)], dtype=np.float64)
-            y = y * float(f.get("scale", 1) or 1) + float(f.get("add", 0) or 0)
-            signals[key] = (tm, y)
+            signals[key] = (tm, convert(f, y))
     report["messages"] = counts
     return {"signals": signals, "labels": labels, "report": report, "units": _units(msgs),
             "sequence": _sequence(seq, [str(m.get("name") or m["id"]) for m in msgs])}

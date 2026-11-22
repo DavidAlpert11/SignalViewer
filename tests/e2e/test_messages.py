@@ -326,3 +326,51 @@ def test_messages_in_order_counted_picked_and_one_plotted(pg):
     shot(pg, "msg7_one_message.png")
     ed.locator(".msg-list").scroll_into_view_if_needed()
     shot(pg, "msg7_list.png")
+
+
+def test_bytes_as_hex_numbers_ascii_a_text_field_and_a_formula(pg):
+    """MSG8 (owner, 2026-11-22: "convert hex to double and ascii, sometimes both"; "a variable of several bytes with a
+    conversion formula"): the byte view shows hex, decimal, ASCII or hex with the character under it; a byte's menu
+    says what each choice reads there; text from a byte to the end of the values; a field's formula on its raw x."""
+    import struct
+    data = b"".join(b"\xAA\x55" + struct.pack("<H", 5000 + k) + struct.pack(">d", 1.5 * k) + (b"SN%03d\0" % (k % 3)) for k in range(400))
+    with open(os.path.join(pg.env["data"], "frames.csv"), "w", encoding="utf-8") as f:
+        f.write("time,byte\n" + "".join("%.4f,%d\n" % (i * 0.0005 + (i // 18) * 0.01, b) for i, b in enumerate(data)))
+    open_files(pg, "frames.csv")
+    sig(pg, "byte").click(button="right")
+    pg.locator(".menu.ctx button", has_text="Decode as messages").click()
+    ed = pg.locator(".msgp-stream.open")
+    frame = ed.locator(".bv-frame").nth(1)
+    frame.wait_for(timeout=30000)
+    assert frame.locator(".bv-b").nth(0).inner_text() == "AA"
+    ed.locator(".bv-show button", has_text="ASCII").first.click()
+    assert frame.locator(".bv-b").nth(12).inner_text() == "S"
+    ed.locator(".bv-show button", has_text="Dec").click()
+    assert frame.locator(".bv-b").nth(0).inner_text() == "170"
+    ed.locator(".bv-show button", has_text="Hex + ASCII").click()
+    assert frame.locator(".bv-b").nth(13).inner_text().split() == ["4E", "N"]
+    assert "double LSB first" in frame.locator(".bv-b").nth(4).get_attribute("title")
+    shot(pg, "msg8_hex_ascii.png")
+    # bytes 12..: text to the end of the values
+    frame.locator(".bv-b").nth(12).click()
+    pg.locator(".menu.ctx button", has_text="Text (ASCII) starts here").click()
+    pg.locator(".menu.ctx.sub button", has_text="to the end of the values").first.click()
+    table = ed.locator(".msg-values-t").first
+    table.locator("td", has_text="SN001").wait_for(timeout=15000)       # the values follow a moment after the form
+    # bytes 4..11: a double, MSB first - the menu shows its value before it is chosen
+    frame.locator(".bv-b").nth(4).click()
+    pg.locator(".menu.ctx button", has_text="A value starts here").click()
+    item = pg.locator(".menu.ctx.sub button", has_text="double (64-bit), MSB first")
+    assert "= 1.5" in item.inner_text()
+    item.click()
+    table.locator("th", has_text="value_4").wait_for(timeout=15000)
+    # bytes 2..3: 16-bit LSB first through a formula
+    frame.locator(".bv-b").nth(2).click()
+    pg.locator(".menu.ctx button", has_text="A value starts here").click()
+    pg.locator(".menu.ctx.sub button", has_text="16-bit, LSB first").first.click()
+    table.locator("th", has_text="value_2").wait_for(timeout=15000)
+    row = ed.locator(".msg-fields tr", has=pg.locator("input.msg-f-name[value='value_2']"))
+    row.locator(".msg-f-formula").fill("x*0.01 - 40")
+    pg.wait_for_function("""() => { const t = document.querySelector('.msgp-stream.open .msg-values-t');
+        return t && [...t.querySelectorAll('tbody tr')].some(r => r.innerText.includes('10.01')); }""", timeout=15000)
+    shot(pg, "msg8_values.png")

@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| MSG8 - hex / numbers / ASCII, double, text fields, a conversion formula (owner, 2026-11-22) | built 2026-11-22 | the owner looks; seen while testing (open): the proposal can take a 16-bit value's high byte for a type byte and a text's NUL for a footer - a menu item "not the type byte" / a better guess |
 | MSG7 - what passed in order, how often, and one message's variables (owner, 2026-11-22) | built 2026-11-22 | the owner looks (Messages → step 4) |
 | MSG6 - the pauses in the stream tell a header from a footer (owner, 2026-11-22) | built 2026-11-22 (automatic when the stream has pauses; no switch) | the owner tries his stream that showed it; if his recording has no pauses (bytes back to back), say so - then only a checksum or his click tells them apart |
 | MSG5 - any column with several values is the direction; the user picks TX and RX (owner, 2026-11-22) | built 2026-11-22 | the owner tries it on his own stream |
@@ -166,6 +167,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · MSG8 (owner: "hex to double and ascii"; "several bytes with a formula; is it clear"): byte view modes, reads-as, double /
+  text in the menu, ascii fields, a field's formula. backend all (1512), e2e test_messages (12), Vitest, mypy green.
 - 2026-11-22 · MSG7 (owner: "plot which messages passed in order, their histogram; choose one message and get its variables"): the
   recording's `message`, skip, the step 4 list and Plot. backend all (1511), e2e test_messages (11) green.
 - 2026-11-22 · MSG6 (owner: "the footer was detected as the header too - maybe by time"): reproduced - a recording that starts inside a

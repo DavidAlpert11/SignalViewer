@@ -4,6 +4,7 @@ checksum, a maker's own sentence), the proposals (binary fields guessed, NMEA re
 import json
 import math
 import os
+import struct
 
 import numpy as np
 import pytest
@@ -181,3 +182,44 @@ def test_an_icd_layout_is_a_structure_too():
     keep = np.isin(ta, tb)
     assert np.allclose(ya[keep], yb)
     assert np.allclose(a["signals"]["MAG.mx"][1], b["signals"]["MAG.mx"][1])
+
+
+def _frames_with(payloads, header=b"\xAA\x55"):
+    """A stream of fixed-length frames: header + payload, 1 ms apart."""
+    data = b"".join(header + p for p in payloads)
+    t = np.arange(len(data)) * 0.001
+    return [(t, np.frombuffer(data, dtype=np.uint8).astype(float))]
+
+
+def test_double_ascii_and_a_conversion_formula():
+    """MSG8 (owner, 2026-11-22: "convert hex to double and to ascii; a variable of two bytes LSB / MSB with a conversion
+    formula, as on the other variables; 8 bytes to a double"): a frame AA 55 | u16 LSB first | f64 MSB first | 6 bytes
+    of text. The u16 through "x*0.01 - 40", the double read MSB first, the text a state of its texts."""
+    pays = []
+    for k in range(20):
+        pays.append(struct.pack("<H", 5000 + k) + struct.pack(">d", 1.5 * k) + (b"SN%03d\0" % (k % 3)))
+    sig = _frames_with(pays)
+    proto = {"kind": "binary", "header": "AA55", "size": 18, "messages": [{"id": 0, "name": "M", "fields": [
+        {"name": "temp", "offset": 2, "type": "u16", "endian": "le", "formula": "x*0.01 - 40", "unit": "C"},
+        {"name": "speed", "offset": 4, "type": "f64", "endian": "be"},
+        {"name": "serial", "offset": 12, "type": "ascii", "size": 6}]}]}
+    out = P.parse(sig, proto)
+    _t, temp = out["signals"]["M.temp"]
+    assert np.allclose(temp, (5000 + np.arange(20)) * 0.01 - 40)
+    assert np.allclose(out["signals"]["M.speed"][1], 1.5 * np.arange(20))
+    codes = out["signals"]["M.serial"][1]
+    lab = out["labels"]["M.serial"]
+    assert [lab[int(c)] for c in codes[:4]] == ["SN000", "SN001", "SN002", "SN000"]
+    # the guided view: the text itself and the converted value
+    from svcore import msginspect as MI
+    fr = MI.inspect(sig, structure=proto)["frames"][1]
+    assert fr["values"][0] == pytest.approx(10.01) and fr["values"][1] == pytest.approx(1.5) and fr["values"][2] == "SN001"
+    assert fr["roles"][12:18] == ["field"] * 6
+    # a formula that is not one: said with the field's name
+    bad = json.loads(json.dumps(proto))
+    bad["messages"][0]["fields"][0]["formula"] = "x +* 2"
+    with pytest.raises(P.ProtocolError, match="M.temp"):
+        P.check(bad)
+    bad["messages"][0]["fields"][0]["formula"] = "y * 2"
+    with pytest.raises(P.ProtocolError, match="unknown name 'y'"):
+        P.parse(sig, bad)

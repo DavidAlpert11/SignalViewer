@@ -129,6 +129,8 @@ export interface UiSlice {
   tplTabChoice: "ask" | "defaults";
   /** CP3: Copy for Confluence - the HTML macro's lines, or the Signal Viewer user macro's markup (Settings) */
   confluenceMacro: "html" | "user";
+  /** MSG8: how the byte view shows a byte - hex, decimal, its ASCII character, or hex with the character under it */
+  byteShow: "hex" | "dec" | "ascii" | "both";
   /** O1: "Never use the network" (a setting): online map layers fall back to the offline map */
   offlineOnly: boolean;
   /** O1: SV_OFFLINE=1 for the app - the same, and the setting is locked on (from /api/settings; UI only) */
@@ -235,6 +237,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   lineStyle: "solid",
   tplTabChoice: "ask",
   confluenceMacro: "html",
+  byteShow: "hex",
   offlineOnly: false,
   offlineForced: false,
   tabChoice: null,

@@ -63,7 +63,11 @@ The app looks for **byte patterns that repeat** and proposes the message's templ
 - **The first messages byte by byte**, each byte coloured by what it is: header, length, type, a value (field),
   checksum, footer - grey: not described yet. **Click a byte to say what it is**: *The header is these bytes*, *The
   length byte*, *The type byte*, *The footer: from here to the end*, *A value starts here* (8 / 16 / 32-bit, signed or
-  not, LSB first or MSB first, float) or *Not a value*. A text stream (`$GPGGA,…`) shows each sentence's parts
+  not, LSB first or MSB first, float, double - each choice shows the value it reads there), *Text (ASCII) starts here*
+  (to the end of the values, or 4 / 8 / 16 bytes) or *Not a value*.
+- **Hex · Dec · ASCII · Hex + ASCII** (above the bytes) - each byte as hex, as a number, as its character, or hex with
+  the character under it. Point at a byte: what the bytes from it read as - 16 / 32-bit LSB and MSB first, float,
+  double, text - before anything is defined. A text stream (`$GPGGA,…`) shows each sentence's parts
   between the commas; click a part to make it a field (number, text, latitude, longitude, time of day).
 - When no message is found yet, the stream's first bytes are shown: click the byte where a message starts.
 - Below: **the whole stream by this template** - how many messages, how many with a bad checksum, of types not
@@ -75,7 +79,9 @@ The app looks for **byte patterns that repeat** and proposes the message's templ
 
 Each message's values in the first messages, read with the template - a wrong byte order, offset or scale shows at
 once - and the template itself as a **form** or as its **JSON**: name the values, fix a type, the byte order
-(LSB / MSB first), a scale, an add, a unit. The proposal guesses each value from how it moves from one message to the
+(LSB / MSB first), a scale, an add, a **formula** on the raw value `x` (`x*0.01 - 40`), a unit. A value of several
+bytes is one field: 2 bytes LSB or MSB first (`u16` / `i16`), 3, 4, or 8 for a double (`f64`); text is `ascii` with
+its length in bytes. The proposal guesses each value from how it moves from one message to the
 next - a 16-bit value **LSB first or MSB first** (whichever reads smooth), **signed** when it crosses zero, a 32-bit
 integer, a 32-bit float, a counter, flags, else a byte - and names it by place (`value_4`, `b10`). Text sentences
 (`$…,…*HH`) are proposed as **NMEA** - the sentences it knows with their fields, any other sentence's fields by place.
@@ -134,8 +140,10 @@ integer, a 32-bit float, a counter, flags, else a byte - and names it by place (
 - `checksum`: in the last 1 or 2 bytes, over the bytes from `from` up to it - `sum8`, `xor8`, `negsum8`, `notsum8`,
   `crc16ccitt` (MSB first), `crc16modbus` (LSB first), `fletcher16` (as UBX). A message whose checksum fails is left
   out and counted.
-- Field types: `u8 i8 u16 i16 u24 i24 u32 i32 f32 f64`; `endian`: `le` = **LSB first** (little-endian), `be` =
-  **MSB first** (big-endian). The value = raw × `scale` + `add`; `bits: [first, how many]` takes bits out of it;
+- Field types: `u8 i8 u16 i16 u24 i24 u32 i32 f32 f64` (f64: a **double**, 8 bytes) and `ascii` (text of `size` bytes -
+  up to a NUL; a recording's text value, like a flight mode); `endian`: `le` = **LSB first** (little-endian), `be` =
+  **MSB first** (big-endian). The value = raw × `scale` + `add`, or a **`formula`** on the raw value `x` - any formula
+  the app knows: `"x*0.01 - 40"`, `"(x - 32) / 1.8"`, `"where(x > 32767, x - 65536, x)"` (then scale and add are not used); `bits: [first, how many]` takes bits out of it;
   `labels` gives text to values.
 
 ### A text structure (NMEA and the like)

@@ -144,6 +144,8 @@ export interface MessageStream { id: string; sources: string[]; carries: "tx" | 
 /** MSG2: a message structure (svcore/protocol.py) - binary (header, length, type, checksum, fields by offset) or
  *  text (NMEA-like sentences, fields by index) */
 export interface StructField { name: string; type?: string; offset?: number; index?: number; endian?: "le" | "be";
+  /** MSG8: an ascii field's length in bytes; a conversion formula on the raw value x (instead of scale and add) */
+  size?: number; formula?: string;
   scale?: number; add?: number; unit?: string; bits?: [number, number]; hemi?: number; labels?: Record<string, string> }
 export interface StructMessage { id: number | string; name: string; size?: number | null; fields: StructField[] }
 export interface Structure { kind: "binary" | "text"; name?: string; header?: string; length?: { offset: number; add: number } | null;

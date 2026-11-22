@@ -280,6 +280,8 @@ export function messageTypes(signals: SignalInfo[]): { type: string; ids: string
 
 const hx = (v: number) => v.toString(16).toUpperCase().padStart(2, "0");
 const SIZE: Record<string, number> = { u8: 1, i8: 1, u16: 2, i16: 2, u24: 3, i24: 3, u32: 4, i32: 4, u64: 8, i64: 8, f32: 4, f64: 8 };
+/** How many bytes a binary field takes (MSG8: an ascii field says it). */
+export const fieldSize = (f: { type?: string; size?: number }) => f.type === "ascii" ? Math.max(1, f.size ?? 1) : SIZE[f.type ?? "u8"] ?? 1;
 
 /** The structure after the user said what a byte (or a text part) of one shown message is: the header ends here, the
  *  length / type byte, the footer starts here, a field of a type starts here, or not a field. Pure - the panel's
@@ -312,15 +314,16 @@ export function applyRole(s: Structure, frame: InspectFrame, role: ByteRole): St
     }
     case "field": {
       const m = msgOf();
-      const n = SIZE[role.type] ?? 1;
-      m.fields = m.fields.filter((f) => { const a = f.offset ?? 0, z = a + (SIZE[f.type ?? "u8"] ?? 1); return z <= role.at || a >= role.at + n; });
-      m.fields.push({ name: `value_${role.at}`, offset: role.at, type: role.type, ...(n > 1 ? { endian: role.endian } : {}) });
+      const n = role.type === "ascii" ? Math.max(1, role.size ?? 1) : SIZE[role.type] ?? 1;
+      m.fields = m.fields.filter((f) => { const a = f.offset ?? 0, z = a + fieldSize(f); return z <= role.at || a >= role.at + n; });
+      m.fields.push(role.type === "ascii" ? { name: `text_${role.at}`, offset: role.at, type: "ascii", size: n }
+        : { name: `value_${role.at}`, offset: role.at, type: role.type, ...(n > 1 ? { endian: role.endian } : {}) });
       m.fields.sort((x, y) => (x.offset ?? 0) - (y.offset ?? 0));
       break;
     }
     case "nofield": {
       const m = msgOf();
-      m.fields = m.fields.filter((f) => { const a = f.offset ?? 0, z = a + (SIZE[f.type ?? "u8"] ?? 1); return !(role.at >= a && role.at < z); });
+      m.fields = m.fields.filter((f) => { const a = f.offset ?? 0, z = a + fieldSize(f); return !(role.at >= a && role.at < z); });
       break;
     }
     case "text": {
