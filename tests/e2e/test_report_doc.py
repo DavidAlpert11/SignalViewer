@@ -167,7 +167,9 @@ def test_latex_report_written_in_latex_typeset_offline(pg):
     pg.locator(".rail button[aria-label='Report']").click()
     pg.wait_for_selector(".rd .rd-text")
     write(pg, "# Drive test\n\nTop speed **{{ max(Speed) }}**.\n\n[[Drive.Speed]]\n\n```latex\n\\begin{align} v &= d/t \\end{align}\n```\n")
-    preview_has(pg, 'class="math tex')                                     # a ```latex block drawn by TeX in the page
+    from svcore import latex as TX
+    if TX.status()["snippets"]:                     # a ```latex block drawn by TeX in the page (the computer's TeX only:
+        preview_has(pg, 'class="math tex')          # the built-in Tectonic typesets documents, not snippets - RE4)
     pg.locator(".rd-format").select_option("tex")
     pg.wait_for_function("(window.__sv.state().ws.report?.doc?.text || '').startsWith('% Made by Signal Viewer')", timeout=15000)
     text = S(pg, "s.ws.report.doc.text")

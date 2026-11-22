@@ -580,7 +580,7 @@ def build_doc_html(store, req: Dict, progress=None) -> str:
             s.pop("stats", None)
     payload_tabs = [{"name": "", "plots": [{k: v for k, v in p.items() if k not in ("spec", "xyz", "geo_png", "geo_html")} for p in plots]}]
     replay = R._replay(req.get("replay")) if plots else None
-    payload = {"lang": lang, "strings": {"toggle": S["toggle"], **({k: S[k] for k in ("rpPlay", "rpPause", "rpStory", "rpStoryHint", "rpStoryPrev", "rpStoryNext", "rpStoryStay")} if replay else {})},
+    payload = {"lang": lang, "strings": {"toggle": S["toggle"], "link": S["link"], "unlink": S["unlink"], **({k: S[k] for k in ("rpPlay", "rpPause", "rpStory", "rpStoryHint", "rpStoryPrev", "rpStoryNext", "rpStoryStay")} if replay else {})},
                "tabs": payload_tabs, **({"replay": replay} if replay else {})}
     return R.fill_page({**req, "title": title}, S, payload, replay, intro="", nav="",
                        panes='<div class="tabpane doc">%s</div>' % body, summary="", css=DOC_CSS)

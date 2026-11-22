@@ -31,8 +31,10 @@ RAW_LIMIT = 150000                     # signals up to this length are embedded 
 
 STRINGS = {
     "en": {"generated": "Generated", "summary": "Summary", "notes": "Notes", "toggle": "Click to show or hide", "theme": "Light / dark",
+           "link": "Zoom and cursor together in every time plot of the tab - click to zoom each plot on its own",
+           "unlink": "Each time plot zooms on its own - click to zoom them all together",
            "min": "Min", "max": "Max", "mean": "Mean", "rms": "RMS", "std": "Std", "samples": "Samples",
-           "signal": "Signal", "hint": "Drag to zoom · wheel to zoom · double-click to reset · click to place the cursor",
+           "signal": "Signal", "hint": "Drag to zoom · wheel to zoom · double-click to reset · click to place the cursor · 🔗 one zoom for every plot of the tab",
            "page": "Page", "plot": "Plot", "notOpen": "its signals are not open", "peak": "Peak", "visible": "Statistics for the shown time range",
            "limits": "Limits", "pass": "Pass", "fail": "Fail",
            "envNote": "{n} runs · median, {p}–{q} % band, min–max", "envFar": "Far from the rest:",
@@ -43,8 +45,10 @@ STRINGS = {
            "rpPlay": "Play", "rpPause": "Pause", "rpSpeed": "Speed", "rpStart": "To the start", "rpTimeline": "Timeline",
            "rpMade": "Made with Signal Viewer", "rpTag": "offline flight log & test data analysis", "rpGet": "Get it free"},
     "he": {"generated": "נוצר", "summary": "סיכום", "notes": "הערות", "toggle": "לחיצה להצגה או הסתרה", "theme": "בהיר / כהה",
+           "link": "זום וסמן יחד בכל גרפי הזמן בטאב - לחיצה לזום נפרד לכל גרף",
+           "unlink": "כל גרף זמן בזום משלו - לחיצה לזום משותף לכולם",
            "min": "מינ׳", "max": "מקס׳", "mean": "ממוצע", "rms": "RMS", "std": "סטיית תקן", "samples": "דגימות",
-           "signal": "סיגנל", "hint": "גרירה לזום · גלגלת לזום · לחיצה כפולה לאיפוס · לחיצה למיקום הסמן",
+           "signal": "סיגנל", "hint": "גרירה לזום · גלגלת לזום · לחיצה כפולה לאיפוס · לחיצה למיקום הסמן · 🔗 זום אחד לכל גרפי הטאב",
            "page": "עמוד", "plot": "גרף", "notOpen": "האותות שלו אינם פתוחים", "peak": "שיא", "visible": "סטטיסטיקות לטווח הזמן המוצג",
            "limits": "גבולות", "pass": "עבר", "fail": "נכשל",
            "envNote": "{n} ריצות · חציון, רצועת {p}–{q} %, מינ׳–מקס׳", "envFar": "רחוקות מהשאר:",
@@ -393,7 +397,8 @@ header{display:flex;align-items:flex-start;gap:16px;margin-bottom:20px}
 h1{margin:0;font-size:26px;font-weight:600;color:var(--ink-strong);letter-spacing:-.01em;flex:1}
 .meta{color:var(--muted);font-size:13px;margin-top:4px}
 button{font:inherit;color:inherit;cursor:pointer}
-#theme{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 10px}
+#theme,#link{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 10px}
+#link[aria-pressed=false]{opacity:.45;filter:grayscale(1)}
 .text{white-space:pre-wrap;max-width:75ch;margin:0 0 20px}
 nav{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:24px 0 16px}
 .tabbtn{border:0;background:none;padding:8px 14px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
@@ -417,7 +422,7 @@ td:not(:first-child){direction:ltr;text-align:right}
 .hint{color:var(--muted);font-size:12px;margin:0 0 14px}
 .u-select{background:rgba(242,169,59,.15)!important}
 footer{color:var(--muted);font-size:12px;margin-top:40px;border-top:1px solid var(--line);padding-top:12px}
-@media print{#theme,.hint,nav{display:none}.tabpane{display:block!important}body{background:#fff}}
+@media print{#theme,#link,.hint,nav{display:none}.tabpane{display:block!important}body{background:#fff}}
 .rsec-table th, .rsec-table td { text-align: start; }
 .rsec ul { margin: 4px 0 12px; }
 """
@@ -548,7 +553,7 @@ def build_html(store, req: Dict, progress=None, clip: bool = False) -> str:
         replay["story"] = [story_of(store, tab, replay, lang) for tab in req.get("tabs", [])]
         sl = (req.get("replay") or {}).get("storyLength")
         replay["storyLength"] = float(sl) if isinstance(sl, (int, float)) and 20 <= sl <= 600 else 90.0
-    payload = {"lang": lang, "strings": {"toggle": S["toggle"], **({k: S[k] for k in ("rpPlay", "rpPause", "rpStory", "rpStoryHint", "rpStoryPrev", "rpStoryNext", "rpStoryStay")} if replay else {})},
+    payload = {"lang": lang, "strings": {"toggle": S["toggle"], "link": S["link"], "unlink": S["unlink"], **({k: S[k] for k in ("rpPlay", "rpPause", "rpStory", "rpStoryHint", "rpStoryPrev", "rpStoryNext", "rpStoryStay")} if replay else {})},
                "tabs": payload_tabs, **({"replay": replay} if replay else {})}
     nav_items = []
     for i, t in enumerate(tabs):
@@ -583,7 +588,9 @@ def fill_page(req: Dict, S: Dict, payload: Dict, replay: Optional[Dict], intro: 
     return TEMPLATE.format(
         lang=lang, dir="rtl" if lang == "he" else "ltr", theme="dark" if req.get("theme") == "dark" else "light",
         title=title, uplot_css=_asset("uPlot.min.css"), css=_fonts_css() + CSS + (REPLAY_CSS if replay else "") + (CLIP_CSS if clip else "") + css, generated=S["generated"],
-        date=datetime.now().strftime("%Y-%m-%d %H:%M"), theme_label=S["theme"], intro=intro, hint=(S["rpHint"] if replay["compact"] else S["lvHint"]) if replay else S["hint"],
+        date=datetime.now().strftime("%Y-%m-%d %H:%M"), theme_label=S["theme"], intro=intro,
+        # one zoom for the tab's time plots (a replay page has its own: one time for the page)
+        link_btn="" if replay else '<button id="link" aria-pressed="true" title="%s" hidden>&#128279;</button>' % html.escape(S["link"]), hint=(S["rpHint"] if replay["compact"] else S["lvHint"]) if replay else S["hint"],
         nav=nav, panes=panes, summary=summary, data=data_json, body_class=(' class="replay"' if replay["compact"] else ' class="live"') if replay else "",
         bar=_replay_bar(S) if replay else "", footer=_brand_footer(S) if replay else "" if clip else "<footer>Signal Viewer</footer>",   # RV8: the one page sent carries the brand line
         uplot_js=_asset("uPlot.iife.min.js"), viewer_js=_asset("viewer.js"))
@@ -765,7 +772,7 @@ TEMPLATE = """<!doctype html>
 <title>{title}</title><style>{uplot_css}</style><style>{css}</style></head>
 <body{body_class}><main>
 <header><div style="flex:1"><h1>{title}</h1><div class="meta">{generated} {date}</div></div>
-<button id="theme" title="{theme_label}">&#9680;</button></header>
+{link_btn}<button id="theme" title="{theme_label}">&#9680;</button></header>
 {intro}
 <p class="hint">{hint}</p>
 {nav}{panes}

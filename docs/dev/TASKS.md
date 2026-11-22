@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| HL1 - one zoom and one cursor for the HTML page's time plots (owner, 2026-11-22) | built 2026-11-22 | the owner looks (any report / tab saved as HTML, the 🔗 button) |
 | Release 1.33.0 - MSG4 guided messages, RE3 LaTeX, the agent skills (owner, 2026-11-21: "a patch ready for a version") | READY 2026-11-21: version in the five files, CHANGELOG 1.33.0 with highlights, README (English + Hebrew) and docs (features, limitations, reports + reports.he LaTeX, messages, GUIDE.he messages), validation page, pictures 42 48-51 55-57, the whole e2e one file at a time (97 files, 526 passed, 1 failed: test_study_loop - fixed, then 18 / 18 green), quick_check, mkdocs --strict | the owner applies the patch, pushes, tags v1.33.0 |
 | RE3 - LaTeX in the report, as in Overleaf, offline (owner, 2026-11-21) | built 2026-11-21 (tested with TeX Live 2023: XeLaTeX / pdfLaTeX; Hebrew in LaTeX not tested here - this container has no bidi.sty) | the owner tries a Hebrew report in LaTeX with his MiKTeX / TeX Live; next: SyncTeX, syntax colours, the CLI |
 | MSG4 - from raw bytes to variables in four guided steps (owner, 2026-11-21) | built 2026-11-21 | the owner tries it on his own stream (Messages → open a stream); next: a field's bits from the byte menu, a checksum chosen by a click |
@@ -161,6 +162,11 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · HL1 (owner: "can all the plots in the HTML export be linked when zooming"): viewer.js linked() - a tab's time plots
+  share zoom and cursor, the 🔗 button in the header (report.py, reportdoc.py strings en / he). test_report_doc's LaTeX test: the
+  ```latex block's picture checked only with a computer TeX (the built-in typesets documents) - the rest of it now passes here with
+  the built-in Tectonic alone (bundle from build run 45053658269). e2e test_report_linked_zoom (new), test_report_xy_zoom,
+  test_report_doc, test_confluence_copy, test_live_report, test_report_parts green.
 - 2026-11-22 · build run 45053658269 (manual, after RE4): tex-bundle green with Hebrew (552 files, 13.2 MB); Linux, macOS green;
   Windows backend: the built-in Tectonic failed in the tests ("Unable to find standard directories") - conftest's temporary
   USERPROFILE had no AppData, from which Windows resolves its known folders; conftest makes them. test_rawlink UDP failed

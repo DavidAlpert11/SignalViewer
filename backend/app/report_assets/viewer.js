@@ -10,6 +10,9 @@
   var T = R.strings;
   // R1: a replay page has one time for the whole page (report.py's _replay); a report keeps a cursor per plot
   var RP = R.replay || null;
+  // one zoom and one cursor for the time plots of a tab (the 🔗 button; a replay page: RP.link)
+  var LINK = { on: !RP && R.link !== false };
+  function linked() { return RP ? RP.link !== false : LINK.on; }
 
   function dec(b64, Ctor) {
     var bin = atob(b64), u = new Uint8Array(bin.length);
@@ -208,8 +211,10 @@
         if (Math.abs(e.clientX - downX) > 3) return;
         var v = u.posToVal(e.clientX - u.over.getBoundingClientRect().left, "x");
         if (RP) { setTime(v, true); return; }                  // R1: every plot and map follows
-        self.cursor = v;
-        u.redraw(false); self.renderLegend();
+        (linked() ? plots : [self]).forEach(function (p) {
+          if (p.spec.mode !== "time" || !p.u) return;
+          p.cursor = v; p.u.redraw(false); p.renderLegend();
+        });
       });
     } else if (spec.mode === "xy") {
       u.over.addEventListener("wheel", function (e) {
@@ -233,7 +238,7 @@
     u.batch(function () { u.setData(u.data, true); });
   };
   Plot.prototype.zoom = function (a, b, solo) {
-    if (RP && RP.link !== false && !solo) { plots.forEach(function (p) { if (p.spec.mode === "time" && p.u) p.zoom(a, b, true); }); return; }   // R1: one zoom (a live report: each its own)
+    if (linked() && !solo) { plots.forEach(function (p) { if (p.spec.mode === "time" && p.u) p.zoom(a, b, true); }); return; }   // one zoom (R1; a live report: each its own)
     var u = this.u;
     if (a === null) {
       u.setData(this.timeData(null, null), true);
@@ -277,10 +282,24 @@
       if (spec.mode === "spec" || spec.mode === "xyz" || spec.mode === "geo" || spec.mode === "3d") return;   // an image / the map's (or 3D view's) own page
       plots.push(new Plot(spec, host));
     });
+    var lb = document.getElementById("link");               // the link matters with two time plots or more
+    if (lb) lb.hidden = plots.filter(function (p) { return p.spec.mode === "time"; }).length < 2;
   }
   var current = 0;
-  window.__svPage = { plots: function () { return plots; } };     // the tests reach each plot's uPlot here
+  window.__svPage = { plots: function () { return plots; }, get linked() { return linked(); } };     // the tests reach each plot's uPlot here
   Array.prototype.forEach.call(document.querySelectorAll(".tabbtn"), function (b, j) { b.onclick = function () { current = j; renderTab(j); }; });
+  var linkBtn = document.getElementById("link");
+  if (linkBtn) linkBtn.onclick = function () {
+    LINK.on = !LINK.on;
+    linkBtn.setAttribute("aria-pressed", String(LINK.on)); linkBtn.title = LINK.on ? T.link : T.unlink;
+    if (!LINK.on) return;
+    // linked again: every time plot to the first one's range and cursor
+    var first = plots.filter(function (p) { return p.spec.mode === "time" && p.u; })[0];
+    if (!first) return;
+    var sx = first.u.scales.x, c = first.cursor;
+    first.zoom(sx.min, sx.max);
+    plots.forEach(function (p) { if (p.spec.mode === "time" && p.u) { p.cursor = c; p.u.redraw(false); p.renderLegend(); } });
+  };
   document.getElementById("theme").onclick = function () {
     root.setAttribute("data-theme", root.getAttribute("data-theme") === "dark" ? "light" : "dark");
     plots.forEach(function (p) { p.build(); });
