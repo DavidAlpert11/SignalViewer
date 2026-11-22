@@ -3,7 +3,7 @@ import uPlot from "uplot";
 import { api } from "../api";
 import { actions, rangeKey, signalName, TRACE_COLORS, useApp, type Plot, type Range, type Tab } from "../store";
 import { useT } from "../i18n";
-import { axisStyle, reportGutter, tickValues, useGutter, useSize } from "./chartUtil";
+import { axisStyle, reportGutter, tickValues, useGutter, useSize, attachBoxZoom, boxZoomSelect, zoomRange, type BoxZoom } from "./chartUtil";
 
 interface Props { tab: Tab; plot: Plot; index: number; onLoading: (b: boolean) => void }
 type Env = Awaited<ReturnType<typeof api.envelope>>;
@@ -22,6 +22,7 @@ export default function EnvelopeChart({ tab, plot, index, onLoading }: Props) {
   const cursor = useApp((s) => s.cursor);
   const wrapRef = useRef<HTMLDivElement>(null);
   const uRef = useRef<uPlot | null>(null);
+  const zoom = useRef<BoxZoom>({ x: null, y: null }).current;      // Z1: the values (time: the tab's window)
   const size = useSize(wrapRef);
   const [env, setEnv] = useState<Env | null>(null);
   const key = rangeKey(tab, plot);
@@ -65,21 +66,16 @@ export default function EnvelopeChart({ tab, plot, index, onLoading }: Props) {
       width: size.w, height: size.h,
       padding: [8, Math.max(12, gutter[1]), 0, 4],
       legend: { show: false },
-      cursor: { y: false, drag: { x: true, y: false, setScale: false } },
+      cursor: { y: false, drag: { x: true, y: true, uni: 20, setScale: false } },
       scales: {
         x: { time: false, auto: () => !rangeRef.current,
           range: (_u, mn, mx): uPlot.Range.MinMax => (rangeRef.current ? [rangeRef.current[0], rangeRef.current[1]] : [mn, mx]) },
-        y: plot.ylim ? { auto: false, range: () => plot.ylim! } : { auto: true },
+        y: { auto: true, range: zoomRange(zoom, "y", (mn, mx) => plot.ylim ?? (uPlot.rangeNum(mn, mx, 0.1, true) as [number, number])) },
       },
       axes: [{ ...axis, size: 46 }, { ...axis, size: Math.max(60, gutter[0] - 4), values: tickValues }],
       hooks: {
-        // a dragged time window zooms every linked plot of the tab (one zoom-history step)
-        setSelect: [(u) => {
-          const { left, width } = u.select;
-          u.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false);
-          if (width < 3) return;
-          actions.setRange(key, [u.posToVal(left, "x"), u.posToVal(left + width, "x")]);
-        }],
+        // a dragged time window zooms every linked plot of the tab (one zoom-history step); Z1: up / down the values
+        setSelect: [boxZoomSelect(zoom, (a, b) => actions.setRange(key, [a, b]))],
       },
       series: [{}, { ...faint, label: "min" }, { ...faint, label: "max" },
         { ...faint, label: "lo" }, { ...faint, label: "hi" },
@@ -89,15 +85,14 @@ export default function EnvelopeChart({ tab, plot, index, onLoading }: Props) {
     const u = new uPlot(opts, data, host);
     uRef.current = u;
     const onDown = () => actions.setActivePlot(index);
-    const onDbl = () => actions.setRange(key, null);
+    const offZoom = attachBoxZoom(u, zoom, { onX: (r) => actions.setRange(key, r) });
     const onCtx = (e: MouseEvent) => {           // the moment under a right-click, for the plot's menu
       const r = u.over.getBoundingClientRect();
       (e as MouseEvent & { svTime?: number }).svTime = u.posToVal(e.clientX - r.left, "x");
     };
     u.over.addEventListener("contextmenu", onCtx);
     host.addEventListener("mousedown", onDown, true);
-    host.addEventListener("dblclick", onDbl);
-    return () => { host.removeEventListener("mousedown", onDown, true); host.removeEventListener("dblclick", onDbl); u.destroy(); uRef.current = null; };
+    return () => { host.removeEventListener("mousedown", onDown, true); offZoom(); u.destroy(); uRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [env, color, theme, scale, size.w > 0 && size.h > 0, plot.ylim?.[0], plot.ylim?.[1], key, gutter[0], gutter[1]]);
   // the tab's time window changed (a zoom here or in a linked plot): move the axis, no rebuild

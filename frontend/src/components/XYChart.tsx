@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api } from "../api";
 import { actions, shownSpan, signalName, useApp, type Plot } from "../store";
-import { axisStyle, tickValues, dpr, ink, indexSpan, orderedLinesIn, PLOT_THEME, useSize, wheelZoom } from "./chartUtil";
+import { attachBoxZoom, axisStyle, boxZoomSelect, tickValues, dpr, ink, indexSpan, orderedLinesIn, PLOT_THEME, useSize, zoomRange, type BoxZoom } from "./chartUtil";
 
 interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void; emptyText: string }
 
@@ -17,6 +17,8 @@ export default function XYChart({ plot, index, onLoading, emptyText }: Props) {
   const cvals = useApp((s) => s.cvals);
   const wrapRef = useRef<HTMLDivElement>(null);
   const uRef = useRef<uPlot | null>(null);
+  const zoom = useRef<BoxZoom>({ x: null, y: null }).current;      // Z1: both axes, kept through rebuilds
+  useEffect(() => { zoom.x = null; zoom.y = null; }, [plot.xSignal, zoom]);
   const size = useSize(wrapRef);
   const [data, setData] = useState<{ id: string; x: Float64Array; y: Float64Array; t: Float64Array }[]>([]);
   const playMode = useApp((s) => s.playMode);
@@ -82,10 +84,10 @@ export default function XYChart({ plot, index, onLoading, emptyText }: Props) {
       width: size.w, height: size.h,
       padding: [8, 12, 0, 4],
       legend: { show: false },
-      cursor: { drag: { x: true, y: true, uni: 20, setScale: true }, points: { show: false } },
+      cursor: { drag: { x: true, y: true, uni: 20, setScale: false }, points: { show: false } },
       scales: {
-        x: plot.xlim ? { time: false, auto: false, range: () => plot.xlim! } : { time: false, auto: true },
-        y: plot.ylim ? { auto: false, range: () => plot.ylim! } : { auto: true },
+        x: { time: false, auto: true, range: zoomRange(zoom, "x", (mn, mx) => plot.xlim ?? (uPlot.rangeNum(mn, mx, 0.02, true) as [number, number])) },
+        y: { auto: true, range: zoomRange(zoom, "y", (mn, mx) => plot.ylim ?? (uPlot.rangeNum(mn, mx, 0.05, true) as [number, number])) },
       },
       axes: [
         { ...axis, size: 46, label: signalName(runs, plot.xSignal, false), labelSize: 14, labelGap: 2 },
@@ -94,25 +96,13 @@ export default function XYChart({ plot, index, onLoading, emptyText }: Props) {
       // the timeline's mode: only the points up to the time / in the last seconds
       series: [{}, ...rows.map(({ ps }) => ({ stroke: ink(ps.color, theme), width: ps.width, points: { show: false },
         paths: orderedLinesIn((si) => indexSpan(rows[si - 1]?.d?.t ?? [], shownSpan(markRef.current))) }))],
-      hooks: { draw: [drawMarks] },
+      hooks: { draw: [drawMarks], setSelect: [boxZoomSelect(zoom)] },
     } as unknown as uPlot.Options;
     const u = new uPlot(opts, aligned, host);
     uRef.current = u;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const r = u.over.getBoundingClientRect();
-      const f = wheelZoom(e);                 // F27: in proportion to the step
-      if (f === null) return;
-      const xv = u.posToVal(e.clientX - r.left, "x"), yv = u.posToVal(e.clientY - r.top, "y");
-      const sx = u.scales.x, sy = u.scales.y;
-      u.batch(() => {
-        u.setScale("x", { min: xv - (xv - sx.min!) * f, max: xv + (sx.max! - xv) * f });
-        u.setScale("y", { min: yv - (yv - sy.min!) * f, max: yv + (sy.max! - yv) * f });
-      });
-    };
-    u.over.addEventListener("wheel", onWheel, { passive: false });
+    const off = attachBoxZoom(u, zoom, { both: true });           // the wheel: both axes (Shift x, Alt y); double click: all
     host.addEventListener("mousedown", () => actions.setActivePlot(index), true);
-    return () => { u.destroy(); uRef.current = null; };
+    return () => { off(); u.destroy(); uRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, styleKey, theme, scale, size.w > 0 && size.h > 0, plot.xSignal, plot.xlim?.[0], plot.xlim?.[1], plot.ylim?.[0], plot.ylim?.[1]]);
 

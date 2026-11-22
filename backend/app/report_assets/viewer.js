@@ -130,6 +130,24 @@
       return o;
     }));
     var hasRight = spec.mode === "time" && spec.signals.some(function (s) { return s.axis === "right"; });
+    // Z1 (owner, 2026-11-22: "zoom on y too, everywhere"): XY, FFT, step response and envelope zoom both axes - a box
+    // (its direction picks the axes), the wheel around the pointer, a double click shows everything. The zoom is kept
+    // here and given back by each scale's range (uPlot re-ranges an auto y whenever x changes)
+    self.xyZoom = null;
+    var fit = function (key, pad, log) { return function (u, mn, mx) {
+      if (self.xyZoom) return self.xyZoom[key];
+      if (log) return uPlot.rangeLog(Math.max(mn, 1e-15), mx, 10, true);
+      return pad ? uPlot.rangeNum(mn, mx, pad, true) : [mn, mx];
+    }; };
+    var boxSelect = function (u) {
+      var sl = { left: u.select.left, top: u.select.top, width: u.select.width, height: u.select.height };   // a copy: cleared below
+      if (sl.width < 4 && sl.height < 4) return;
+      var x0 = u.posToVal(sl.left, "x"), x1 = u.posToVal(sl.left + sl.width, "x");
+      var y0 = u.posToVal(sl.top + sl.height, "y"), y1 = u.posToVal(sl.top, "y");
+      u.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false);
+      self.xyTo(sl.width >= 4 ? [x0, x1] : [u.scales.x.min, u.scales.x.max], sl.height >= 4 ? [y0, y1] : [u.scales.y.min, u.scales.y.max]);
+    };
+    var box = { x: true, y: true, uni: 20, setScale: false };
     // RE2: with a second axis, each axis says whose it is - its lines' names, the right one in its line's colour
     var sideNames = function (right) { return spec.signals.filter(function (s) { return (s.axis === "right") === right; })
       .map(function (s) { return s.label; }).join(", "); };
@@ -138,18 +156,23 @@
       var r0 = spec.range;
       data = this.timeData(r0 ? r0[0] : null, r0 ? r0[1] : null);
       opts = { width: w, height: h, padding: [8, 12, 0, 4], legend: { show: false },
-        cursor: { y: false, drag: { x: true, y: false, setScale: false }, bind: { dblclick: function () { return null; } } },
-        scales: hasRight ? { x: { time: false, auto: !r0, range: r0 ? function () { return [r0[0], r0[1]]; } : undefined }, y2: { auto: true } }
-          : { x: { time: false, auto: !r0, range: r0 ? function () { return [r0[0], r0[1]]; } : undefined } },
+        cursor: { y: false, drag: box, bind: { dblclick: function () { return null; } } },
+        scales: Object.assign({ x: { time: false, auto: !r0, range: r0 ? function () { return [r0[0], r0[1]]; } : undefined },
+          y: { auto: true, range: function (u, mn, mx) { return self.yZoom || uPlot.rangeNum(mn, mx, 0.1, true); } } },   // Z1: the values
+          hasRight ? { y2: { auto: true } } : {}),
         axes: [Object.assign({}, axis, { size: 34 }), Object.assign({}, axis, { size: 56, values: ticks },
             hasRight ? { label: sideNames(false), labelSize: 16, labelFont: "11px sans-serif" } : {})]
           .concat(hasRight ? [Object.assign({}, axis, { scale: "y2", side: 1, size: 56, values: ticks, grid: { show: false },
             label: sideNames(true), labelSize: 16, labelFont: "bold 11px sans-serif", stroke: rightColor })] : []),
         series: series,
         hooks: { draw: [drawStates, drawCursor], setSelect: [function (u) {
-          if (u.select.width < 4) return;
-          var a = u.posToVal(u.select.left, "x"), c = u.posToVal(u.select.left + u.select.width, "x");
-          u.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false); self.zoom(a, c);
+          // sideways: the time (every linked plot); up / down: this plot's values; diagonal: both
+          var sl = { left: u.select.left, top: u.select.top, width: u.select.width, height: u.select.height };
+          u.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false);
+          var W = u.over.clientWidth, H = u.over.clientHeight;
+          var xs = sl.width >= 4 && sl.width < W - 1, ys = sl.height >= 4 && sl.height < H - 1;
+          if (ys) { self.yZoom = [u.posToVal(sl.top + sl.height, "y"), u.posToVal(sl.top, "y")]; u.setScale("y", { min: self.yZoom[0], max: self.yZoom[1] }); }
+          if (xs) self.zoom(u.posToVal(sl.left, "x"), u.posToVal(sl.left + sl.width, "x"));
         }] } };
     } else if (spec.mode === "env") {
       // T14b: envelope of many runs - min…max (faint), percentile band, median
@@ -159,28 +182,19 @@
       data = [Array.from(dec(E.t, Float64Array)), f32("min"), f32("max"), f32("lo"), f32("hi"), f32("median")];
       var faint = { stroke: c + "55", width: 0.75, points: { show: false } };
       opts = { width: w, height: h, padding: [8, 12, 0, 4], legend: { show: false },
-        cursor: { y: false, drag: { x: true, y: false, setScale: true } },
-        scales: { x: { time: false } },
+        cursor: { y: false, drag: box },
+        scales: { x: { time: false, auto: true, range: fit("x", 0) }, y: { auto: true, range: fit("y", 0.1) } },
+        hooks: { setSelect: [boxSelect] },
         axes: [Object.assign({}, axis, { size: 34 }), Object.assign({}, axis, { size: 56, values: ticks })],
         series: [{}, faint, faint, faint, faint, { stroke: c, width: 2, points: { show: false } }],
         bands: [{ series: [2, 1], fill: c + "22" }, { series: [4, 3], fill: c + "55" }] };
     } else if (spec.mode === "xy") {
       // XY: a box zooms both axes, the wheel zooms both around the pointer, a double click shows everything again
-      // (uPlot re-ranges an auto y whenever x changes - the zoom is kept here and given back by each scale's range)
-      self.xyZoom = null;
-      var fit = function (key, pad) { return function (u, mn, mx) { return self.xyZoom ? self.xyZoom[key] : uPlot.rangeNum(mn, mx, pad, true); }; };
       data = [null].concat(spec.signals.map(function (s) { var d = arr(s); return [Array.from(d[0]), Array.from(d[1], function (v) { return isFinite(v) ? v : null; })]; }));
       opts = { mode: 2, width: w, height: h, padding: [8, 12, 0, 4], legend: { show: false },
-        cursor: { drag: { x: true, y: true, uni: 20, setScale: false }, points: { show: false } },
+        cursor: { drag: box, points: { show: false } },
         scales: { x: { time: false, auto: true, range: fit("x", 0.02) }, y: { auto: true, range: fit("y", 0.05) } },
-        hooks: { setSelect: [function (u) {
-          var sl = { left: u.select.left, top: u.select.top, width: u.select.width, height: u.select.height };   // a copy: cleared below
-          if (sl.width < 4 && sl.height < 4) return;
-          var x0 = u.posToVal(sl.left, "x"), x1 = u.posToVal(sl.left + sl.width, "x");
-          var y0 = u.posToVal(sl.top + sl.height, "y"), y1 = u.posToVal(sl.top, "y");
-          u.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false);
-          self.xyTo(sl.width >= 4 ? [x0, x1] : [u.scales.x.min, u.scales.x.max], sl.height >= 4 ? [y0, y1] : [u.scales.y.min, u.scales.y.max]);
-        }] },
+        hooks: { setSelect: [boxSelect] },
         axes: [Object.assign({}, axis, { size: 46, label: spec.xLabel, labelSize: 14, labelGap: 2 }), Object.assign({}, axis, { size: 56, values: ticks })],
         series: series };
     } else {
@@ -191,20 +205,43 @@
       var tables = spec.signals.map(function (s) { var d = arr(s); return [Array.from(d[0]), Array.from(d[1], function (v) { return !isFinite(v) ? null : !spec.log ? v : v > 0 ? Math.max(v, floor) : null; })]; });
       data = tables.length === 1 ? tables[0] : uPlot.join(tables, tables.map(function () { return [1]; }));
       opts = { width: w, height: h, padding: [8, 12, 0, 4], legend: { show: false },
-        cursor: { y: false, drag: { x: true, y: false, setScale: true } },
-        scales: { x: { time: false }, y: spec.log ? { distr: 3 } : { auto: true } },
+        cursor: { y: false, drag: box },
+        scales: { x: { time: false, auto: true, range: fit("x", 0) }, y: { auto: true, distr: spec.log ? 3 : 1, range: fit("y", 0.1, spec.log) } },
+        hooks: { setSelect: [boxSelect] },
         axes: [Object.assign({}, axis, { size: 46, label: spec.mode === "step" ? "s" : "Hz", labelSize: 14, labelGap: 2 }), Object.assign({}, axis, { size: 60, values: ticks })],
         series: series };
     }
     this.u = new uPlot(opts, data, this.canvas);
     var u = this.u;
+    // Z1: the wheel around the pointer - inside the plot the time (x; an XY plot both axes); as in the app over the
+    // value axis or with Shift the values, over the x axis or with Alt x only, with Ctrl both
+    u.root.addEventListener("wheel", function (e) {
+      var rc = u.over.getBoundingClientRect(), f = e.deltaY < 0 ? 0.8 : 1.25;
+      var inside = e.clientX >= rc.left && e.clientX <= rc.right && e.clientY >= rc.top && e.clientY <= rc.bottom;
+      var onY = !inside && e.clientX < rc.left && e.clientY >= rc.top && e.clientY <= rc.bottom;
+      var onX = !inside && e.clientY > rc.bottom && e.clientX >= rc.left && e.clientX <= rc.right;
+      if (!inside && !onY && !onX) return;
+      e.preventDefault();
+      var both = spec.mode === "xy";
+      var doY = onY || (inside && (e.shiftKey || e.ctrlKey || (both && !e.altKey)));
+      var doX = onX || (inside && (e.altKey || e.ctrlKey || (!e.shiftKey && !doY) || (both && !e.shiftKey)));
+      var cx = Math.min(Math.max(e.clientX - rc.left, 0), rc.width), cy = Math.min(Math.max(e.clientY - rc.top, 0), rc.height);
+      var sx = u.scales.x, sy = u.scales.y, xv = u.posToVal(cx, "x"), yv = u.posToVal(cy, "y");
+      var nx = doX ? [xv - (xv - sx.min) * f, xv + (sx.max - xv) * f] : [sx.min, sx.max];
+      var ny = [sy.min, sy.max];
+      if (doY) {
+        if (sy.distr === 3 && sy.min > 0 && yv > 0) {          // a log axis: around the pointer in decades
+          var l = Math.log10(yv), lo = Math.log10(sy.min), hi = Math.log10(sy.max);
+          ny = [Math.pow(10, l - (l - lo) * f), Math.pow(10, l + (hi - l) * f)];
+        } else ny = [yv - (yv - sy.min) * f, yv + (sy.max - yv) * f];
+      }
+      if (spec.mode === "time") {
+        if (doY) { self.yZoom = ny; u.setScale("y", { min: ny[0], max: ny[1] }); }
+        if (doX) self.zoom(nx[0], nx[1]);
+      } else self.xyTo(nx, ny);
+    }, { passive: false });
     if (spec.mode === "time") {
-      u.over.addEventListener("wheel", function (e) {
-        e.preventDefault();
-        var rc = u.over.getBoundingClientRect(), xv = u.posToVal(e.clientX - rc.left, "x"), f = e.deltaY < 0 ? 0.8 : 1.25;
-        self.zoom(xv - (xv - u.scales.x.min) * f, xv + (u.scales.x.max - xv) * f);
-      }, { passive: false });
-      u.over.addEventListener("dblclick", function () { self.zoom(null, null); });
+      u.over.addEventListener("dblclick", function () { self.yZoom = null; self.zoom(null, null); });
       var downX = 0;
       u.over.addEventListener("mousedown", function (e) { downX = e.clientX; });
       u.over.addEventListener("mouseup", function (e) {
@@ -216,19 +253,8 @@
           p.cursor = v; p.u.redraw(false); p.renderLegend();
         });
       });
-    } else if (spec.mode === "xy") {
-      u.over.addEventListener("wheel", function (e) {
-        e.preventDefault();
-        var rc = u.over.getBoundingClientRect(), f = e.deltaY < 0 ? 0.8 : 1.25;
-        var xv = u.posToVal(e.clientX - rc.left, "x"), yv = u.posToVal(e.clientY - rc.top, "y");
-        var sx = u.scales.x, sy = u.scales.y;
-        // Shift: only x; Alt: only y (a long track's one axis)
-        self.xyTo(e.altKey ? [sx.min, sx.max] : [xv - (xv - sx.min) * f, xv + (sx.max - xv) * f],
-                  e.shiftKey ? [sy.min, sy.max] : [yv - (yv - sy.min) * f, yv + (sy.max - yv) * f]);
-      }, { passive: false });
-      u.over.addEventListener("dblclick", function () { self.xyTo(null, null); });
     } else {
-      u.over.addEventListener("dblclick", function () { self.build(); });
+      u.over.addEventListener("dblclick", function () { self.xyTo(null, null); });
     }
     this.renderLegend();
   };

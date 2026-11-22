@@ -235,6 +235,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 - A drag zooms by its direction: nearly sideways = time, nearly up or down = values, diagonal = a box (no mode to set); for one drag Shift = values, Ctrl = always a box. The wheel zooms time (over the value axis, or with Shift: values)
 - Wheel over the value axis zooms values only, over the time axis time only; Shift+wheel values only, Ctrl+wheel both, Alt+wheel time only
+- The same in an **XY plot, an FFT, a step response and the envelope** (1.34): the drag's direction picks the axes, the wheel around the pointer (an XY plot both axes), a double click shows everything - and in the **HTML page** too (a time plot's values: an up / down drag or the wheel over its value axis)
 - Alt+drag pans (follows the mode)
 - The wheel follows the size of the scroll (a trackpad zooms smoothly; a sideways swipe moves along the time) and one gesture is one step back
 - Backspace undoes one zoom step of both axes

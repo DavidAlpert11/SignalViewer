@@ -229,3 +229,75 @@ export function dragAxes(dx: number, dy: number): "x" | "y" | "xy" {
   const x = dx >= uni, y = dy >= uni;
   return x && y ? "xy" : x ? "x" : y ? "y" : dy > dx ? "y" : "x";
 }
+
+/* Z1 (owner, 2026-11-22: "I still cannot zoom on the y axis, only x - fix it everywhere"): a zoom of both axes for
+   the plots that have their own axes - XY, FFT, step response, the envelope's values. As on a time plot: the drag's
+   direction picks the axes (sideways x, up / down y, diagonal a box); the wheel zooms around the pointer - both axes
+   in an XY plot, else x; as on a time plot over the value axis or with Shift the values, over the x axis or with Alt
+   x only, with Ctrl both; a double click shows everything. The
+   zoom is kept here and given back by each scale's range: uPlot re-ranges an automatic y whenever x changes. */
+export type BoxZoom = { x: [number, number] | null; y: [number, number] | null };
+
+/** A scale's range that keeps the zoom; else `base` (the plot's own: limits, padding, a log axis). */
+export function zoomRange(z: BoxZoom, key: "x" | "y", base: (mn: number, mx: number) => [number, number]) {
+  return (_u: uPlot, mn: number, mx: number): uPlot.Range.MinMax => {
+    const r = z[key];
+    return r ? [r[0], r[1]] : base(mn, mx);
+  };
+}
+
+/** The selection as a zoom: which axes by the box's shape (uPlot spans the whole of an axis it does not zoom). */
+export function boxZoomSelect(z: BoxZoom, onX?: (a: number, b: number) => void) {
+  return (u: uPlot) => {
+    const s = { left: u.select.left, top: u.select.top, width: u.select.width, height: u.select.height };   // a copy: cleared below
+    u.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false);
+    const W = u.over.clientWidth, H = u.over.clientHeight;
+    const xs = s.width >= 4 && s.width < W - 1, ys = s.height >= 4 && s.height < H - 1;
+    if (!xs && !ys) return;
+    if (xs) {
+      const a = u.posToVal(s.left, "x"), b = u.posToVal(s.left + s.width, "x");
+      if (onX) onX(Math.min(a, b), Math.max(a, b)); else z.x = [Math.min(a, b), Math.max(a, b)];
+    }
+    if (ys) {
+      const a = u.posToVal(s.top + s.height, "y"), b = u.posToVal(s.top, "y");
+      z.y = [Math.min(a, b), Math.max(a, b)];
+    }
+    u.setData(u.data, true);
+  };
+}
+
+/** The wheel and the double click; returns what undoes them. `both`: the wheel zooms x and y together (XY). */
+export function attachBoxZoom(u: uPlot, z: BoxZoom, opts: { both?: boolean; logY?: boolean; onX?: (r: [number, number] | null) => void } = {}) {
+  const root = u.root;
+  (root as unknown as { svPlot?: uPlot }).svPlot = u;          // the tests read its scales here
+  const onWheel = (e: WheelEvent) => {
+    const f = wheelZoom(e);
+    if (f === null) return;
+    const r = u.over.getBoundingClientRect();
+    const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    const onValueAxis = !inside && e.clientX < r.left && e.clientY >= r.top && e.clientY <= r.bottom;
+    const onTimeAxis = !inside && e.clientY > r.bottom && e.clientX >= r.left && e.clientX <= r.right;
+    if (!inside && !onValueAxis && !onTimeAxis) return;
+    e.preventDefault();
+    // as on a time plot: Shift the values, Alt x only, Ctrl both; else XY both, the others x
+    const doY = onValueAxis || (inside && (e.shiftKey || e.ctrlKey || (!!opts.both && !e.altKey)));
+    const doX = onTimeAxis || (inside && (e.altKey || e.ctrlKey || (!e.shiftKey && !doY) || (!!opts.both && !e.shiftKey)));
+    if (doX) {
+      const xv = u.posToVal(Math.min(Math.max(e.clientX - r.left, 0), r.width), "x"), sx = u.scales.x;
+      const nx: [number, number] = [xv - (xv - sx.min!) * f, xv + (sx.max! - xv) * f];
+      if (opts.onX) opts.onX(nx); else z.x = nx;
+    }
+    if (doY) {
+      const sy = u.scales.y, yv = u.posToVal(Math.min(Math.max(e.clientY - r.top, 0), r.height), "y");
+      if (opts.logY && sy.min! > 0 && yv > 0) {             // a log axis: around the pointer in decades
+        const l = Math.log10(yv), lo = Math.log10(sy.min!), hi = Math.log10(sy.max!);
+        z.y = [10 ** (l - (l - lo) * f), 10 ** (l + (hi - l) * f)];
+      } else z.y = [yv - (yv - sy.min!) * f, yv + (sy.max! - yv) * f];
+    }
+    u.setData(u.data, true);
+  };
+  const onDbl = () => { z.x = null; z.y = null; if (opts.onX) opts.onX(null); u.setData(u.data, true); };
+  root.addEventListener("wheel", onWheel, { passive: false });
+  u.over.addEventListener("dblclick", onDbl);
+  return () => { root.removeEventListener("wheel", onWheel); u.over.removeEventListener("dblclick", onDbl); };
+}

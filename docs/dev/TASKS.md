@@ -171,6 +171,10 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-22 · Z1 (owner: "zoom on y, everywhere"): the app's XY / FFT / step / envelope and every plot of the HTML page; the
+  wheel's keys as the app's time plot. CHANGELOG: everything after the v1.34.0 tag folded into 1.34.0 (the owner had not
+  released it: the tag is moved). e2e test_zoom_values, test_report_xy_zoom, test_report_linked_zoom, test_live_report,
+  test_tuning_tools green; the whole suite next.
 - 2026-11-22 · CP7 (owner: "a copy as a high-resolution picture"): Settings -> Copied pictures, Copy image and the static copy
   drawn again at 2 / 3 times. backend test_clip (6), e2e test_features (126), test_settings, test_confluence_copy green.
 - 2026-11-22 · CP6 (owner: where on the page; copy / move after; a drag onto Chrome opens it): markers, headings, the choice;

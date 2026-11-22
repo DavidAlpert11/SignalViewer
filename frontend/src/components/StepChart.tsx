@@ -4,7 +4,7 @@ import uPlot from "uplot";
 import { api, type StepSeries } from "../api";
 import { fmtNum, useT } from "../i18n";
 import { actions, signalName, TRACE_COLORS, useApp, type Plot } from "../store";
-import { axisStyle, ink, tickValues, useSize } from "./chartUtil";
+import { attachBoxZoom, axisStyle, boxZoomSelect, ink, tickValues, useSize, zoomRange, type BoxZoom } from "./chartUtil";
 
 interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void }
 
@@ -20,6 +20,7 @@ export default function StepChart({ plot, index, onLoading }: Props) {
   const lang = useApp((s) => s.lang);
   const t = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
+  const zoom = useRef<BoxZoom>({ x: null, y: null }).current;      // Z1: time and response
   const uRef = useRef<uPlot | null>(null);
   const size = useSize(wrapRef);
   const [data, setData] = useState<StepSeries[]>([]);
@@ -60,16 +61,19 @@ export default function StepChart({ plot, index, onLoading }: Props) {
     const widthOf = (id: string) => sigs.find((s) => s.sig === id)?.width ?? 1.5;
     const opts: uPlot.Options = {
       width: size.w, height: size.h, padding: [8, 12, 0, 4], legend: { show: false },
-      cursor: { y: false, points: { size: 6 }, drag: { x: true, y: false, setScale: true } },
-      scales: { x: { time: false }, y: { auto: true, range: (_u, lo, hi) => [Math.min(0, lo), Math.max(1.2, hi * 1.05)] } },
+      cursor: { y: false, points: { size: 6 }, drag: { x: true, y: true, uni: 20, setScale: false } },
+      scales: { x: { time: false, auto: true, range: zoomRange(zoom, "x", (mn, mx) => [mn, mx]) },
+        y: { auto: true, range: zoomRange(zoom, "y", (lo, hi) => [Math.min(0, lo), Math.max(1.2, hi * 1.05)]) } },
+      hooks: { setSelect: [boxZoomSelect(zoom)] },
       axes: [{ ...axis, size: 46, label: "s", labelSize: 14, labelGap: 2 }, { ...axis, size: 60, values: tickValues }],
       series: [{}, ...ok.map((d) => ({ stroke: colorOf(d.pair[1]), width: widthOf(d.pair[1]) + 0.5, points: { show: false } }))],
       plugins: [unityLine(axis.stroke as string)],
     };
     const u = new uPlot(opts, aligned, host);
     uRef.current = u;
+    const off = attachBoxZoom(u, zoom);
     host.addEventListener("mousedown", () => actions.setActivePlot(index), true);
-    return () => { u.destroy(); uRef.current = null; };
+    return () => { off(); u.destroy(); uRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, styleKey, theme, scale, size.w > 0 && size.h > 0]);
   useEffect(() => { uRef.current?.setSize({ width: size.w, height: size.h }); }, [size]);

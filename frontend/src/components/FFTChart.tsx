@@ -4,7 +4,7 @@ import uPlot from "uplot";
 import { api, type FilterSetup, type SpectrumGrid } from "../api";
 import { fmtNum, useT } from "../i18n";
 import { actions, useApp, type Plot } from "../store";
-import { axisStyle, ink, tickValues, useSize } from "./chartUtil";
+import { attachBoxZoom, axisStyle, boxZoomSelect, ink, tickValues, useSize, zoomRange, type BoxZoom } from "./chartUtil";
 
 interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void; onPeaks: (p: Record<string, number>) => void }
 
@@ -19,6 +19,7 @@ export default function FFTChart({ plot, index, onLoading, onPeaks }: Props) {
   const t = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
   const uRef = useRef<uPlot | null>(null);
+  const zoom = useRef<BoxZoom>({ x: null, y: null }).current;      // Z1: frequency and level
   const size = useSize(wrapRef);
   const [data, setData] = useState<{ id: string; x: Float64Array; y: Float32Array; peak: number; grid?: SpectrumGrid }[]>([]);
   const [orderHz, setOrderHz] = useState<number | null>(null);    // T16b: the mean rotation rate, rev/s
@@ -107,11 +108,13 @@ export default function FFTChart({ plot, index, onLoading, onPeaks }: Props) {
       width: size.w, height: size.h,
       padding: [8, 12, 0, 4],
       legend: { show: false },
-      cursor: { y: false, points: { size: 6 }, drag: { x: true, y: false, setScale: true } },
+      cursor: { y: false, points: { size: 6 }, drag: { x: true, y: true, uni: 20, setScale: false } },
       scales: {
-        x: plot.xlim ? { time: false, auto: false, range: () => plot.xlim! } : { time: false },
-        y: plot.ylim ? { auto: false, distr: log ? 3 : 1, range: () => plot.ylim! } : log ? { distr: 3 } : { auto: true },
+        x: { time: false, auto: true, range: zoomRange(zoom, "x", (mn, mx) => plot.xlim ?? [mn, mx]) },
+        y: { auto: true, distr: log ? 3 : 1, range: zoomRange(zoom, "y", (mn, mx) => plot.ylim
+          ?? ((log ? uPlot.rangeLog(Math.max(mn, 1e-15), mx, 10, true) : uPlot.rangeNum(mn, mx, 0.1, true)) as [number, number])) },
       },
+      hooks: { setSelect: [boxZoomSelect(zoom)] },
       axes: [{ ...axis, size: 46, label: "Hz", labelSize: 14, labelGap: 2 }, { ...axis, size: 60, values: tickValues }],
       series: [{}, ...rows.map(({ ps }) => ({ stroke: ink(ps.color, theme), width: ps.width, points: { show: false } })),
         ...est.map(({ ps }) => ({ stroke: ink(ps.color, theme), width: Math.max(1, ps.width - 0.5), dash: [6, 4], points: { show: false } }))],
@@ -120,8 +123,9 @@ export default function FFTChart({ plot, index, onLoading, onPeaks }: Props) {
     };
     const u = new uPlot(opts, aligned, host);
     uRef.current = u;
+    const off = attachBoxZoom(u, zoom, { logY: log });
     host.addEventListener("mousedown", () => actions.setActivePlot(index), true);
-    return () => { u.destroy(); uRef.current = null; };
+    return () => { off(); u.destroy(); uRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, filt, plot.fftMethod, styleKey, theme, scale, plot.fftLog, size.w > 0 && size.h > 0, plot.xlim?.[0], plot.xlim?.[1], plot.ylim?.[0], plot.ylim?.[1], orderHz, ord?.blades]);
 
