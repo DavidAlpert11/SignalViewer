@@ -86,6 +86,7 @@ are told apart by them.
   its usual range around the span - candidates, not causes - and the lag between any two of them.
   Under each, the same signal in the other runs: a change that a run without the problem has too
   does not explain it alone. On a long log, filter the list or take rows and groups out with ×.
+  Asked again for another span, the one shown goes to *Asked before*: a click shows it again, ✕ removes it.
   Try it all on the example *find out what went wrong*: [the tutorial](investigate-tutorial.md).
 - **Runs × conditions** (button under the conditions): every open run against every condition, with
   what tells the runs apart (a payload, a gain, the number in the file name). The odd run is marked; a
@@ -402,7 +403,7 @@ shown change together – on the axis, in the list, in the legend – and it can
   *Open it* in the message shows it in your browser before you send it.
 - **Report** (left): since 1.31 a report you write, like Markdown, in place of the plots – `[[tab.plot]]` puts a
   plot or a whole tab in, `{{ max(Roll) }}` a value computed on every sample, with a live preview beside it
-  (see [Writing a report](reports.md)) – saved as interactive HTML, PDF or Word. Every report opens with **The process in brief**: the data, what was
+  (see [Writing a report](reports.md); the editor has its own Ctrl+Z, Ctrl+/ comments and line keys) – saved as interactive HTML, PDF or Word. Every report opens with **The process in brief**: the data, what was
   checked (the log's own check, Compare's verdict, the investigation), what it shows and the conclusion –
   write the conclusion under *Summary*. **The HTML report is one live page**: a time bar at the bottom moves every
   plot's cursor, the map and the 3D view together, with Play and the log's marks, while each plot keeps its

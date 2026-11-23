@@ -25,7 +25,7 @@
   install TeX Live / MiKTeX for every package); the preview PDF shows in the window where it has a PDF view (else
   *Open the PDF in its own viewer*); a template saved in the app carries the written report (1.32), but the
   command line's batch reports do not make it yet (they make the report of the template's tabs); one written report
-  per session.
+  per session. The editor's own undo history (1.35) is not saved with the session.
 * Ready-made report parts (1.32): pairs, objects and states are found by the signals' names - a pair named
   otherwise is not found (write its plot with `[[plot A, B]]` and its values with `{{ }}`); `[[differences]]`
   compares the files on their recorded time (no automatic time alignment - align them first in Compare when their
@@ -33,7 +33,7 @@
   (as *Compare objects…*); `[[trajectory]]` reads a latitude / longitude track. The parts are not offered in Sweeps.
 * Reports: "Stretches together" (occurrences) plots are not drawn in reports yet; a finding's plot is the time plots of the tab it was found in (up to two) at its view. The journal keeps the last 200 steps; it is saved with the session, not with templates.
 * Runs × conditions works on the open files: a folder of runs is opened (up to 200 files at a time, each read into memory) - for a folder of hundreds, *Summarize a folder* reads one file at a time into a Sweeps table instead. Parameters come from signals that hold one value and from numbers in file names; a side file of parameters is not read yet.
-* What changed first finds a change in level (beyond 4 times the usual noise, 3 samples in a row); a change only in how a signal oscillates (same level, more shaking) shows only when it pushes samples that far. It reads the usual level well before the span - an event that has been building for longer than that is measured against its own start. Near the start of the file it reads it from whatever is there before the span; with nothing before it, it says so instead of answering.
+* What changed first finds a change in level (beyond 4 times the usual noise, 3 samples in a row); a change only in how a signal oscillates (same level, more shaking) shows only when it pushes samples that far. It reads the usual level well before the span - an event that has been building for longer than that is measured against its own start. Near the start of the file it reads it from whatever is there before the span; with nothing before it, it says so instead of answering. The earlier spans under *Asked before* (1.35) are not saved with the session.
 * What differs inside the stretches compares means (in units of the spread outside) - a signal that only changes shape, not level, ranks low. The overlay draws the first 200 stretches.
 * Conditions: kept in the session (no shared library yet). A selection is the two cursors - Shift+drag was planned for it, but Shift+drag already zooms the values (T19), so it stays that. Conditions are looked for file by file, on the first signal's samples (other signals: nearest sample).
 * Vector smoothing is a plain centred moving average (no Kalman filter, no outlier rejection); angles and quaternions are not smoothed. The last half-window of a live file is averaged over fewer samples until more arrive.
