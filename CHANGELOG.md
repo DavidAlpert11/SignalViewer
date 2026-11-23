@@ -2,6 +2,10 @@
 
 ## Next – unreleased
 
+## 1.35.0 – 2026-11-23
+
+**Highlights:** **A report editor that behaves like an editor, and Messages you can undo.** The report's text has its own Ctrl+Z - a whole run of typing or a piece the app put in, with the cursor where it was - comments with Ctrl+/ (left out of the report, plots and values inside them too) and the line keys of a code editor. In *Messages* one field is removed alone (Undo in the notice), a stream can be forgotten or taken off the list, and *Add a stream* defines any signal - another TX, another link. *What changed* keeps the spans you asked about before, a click away. And the file dialog no longer loses a click made while a folder loads.
+
 - Fixed: the **file dialog lost a click** made while another folder was still being listed: after a path typed and Enter,
   the old folder's list stayed clickable; a file picked there was dropped when the new list came and *Open* stayed
   disabled. Now the old list takes no clicks (and dims if the new folder is slow) until the new one is shown.

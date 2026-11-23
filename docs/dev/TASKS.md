@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| Release 1.35.0 - MSG10 messages (one field, streams forgotten / removed, Add a stream), WC5 earlier What changed spans, RE4 (editor) the report editor's undo / comments / line keys, FB1 the file dialog's lost click (owner, 2026-11-23: "update all the documents") | READY 2026-11-23: version in the five files + install.md, CITATION date, CHANGELOG 1.35.0 with highlights, README (English + Hebrew), GUIDE + GUIDE.he, features, limitations, validation page, pictures 42 48-53 55-57; the whole e2e one file at a time - 100 files, 545 passed, test_report_doc's LaTeX test failed only for want of a TeX (with TeX Live installed: 5 / 5); quick_check, mkdocs --strict, ci | the owner tags v1.35.0 and publishes the Release |
 | CP5 - drag a plot or a tab out of the window (owner, 2026-11-22) | built 2026-11-22 (the drag's data and the link tested in Chromium; a real drop on the Windows desktop not tested here) | the owner drags a plot's ⠿ onto his desktop, into Word, into Outlook |
 | Release 1.34.0 - CP4 Send to Confluence, CP3 the user macro, HL1 linked zoom, RE4 the built-in LaTeX, MSG5-MSG9 messages (owner, 2026-11-22: "yes - then release") | READY again 2026-11-22 (the tag moved: CP5-CP7, Z1 and the Confluence placement folded in): CHANGELOG 1.34.0 by topic with new highlights, README (English + Hebrew), features, limitations; the whole e2e one file at a time - 100 files, 541 passed, test_study_loop failed once under load and passed alone twice; backend, Vitest, mypy, mkdocs --strict | the owner moves the tag v1.34.0 to this commit and publishes the Release |
 | CP4 - Send to Confluence straight from the app (owner, 2026-11-22: "the most important now") | built 2026-11-22 (against a stand-in of Confluence's REST API; not yet against the owner's Confluence 10.2) | the owner: Settings -> Confluence (address + personal access token), Save and test, then a plot's ⋯ -> Send to Confluence…; if his Data Center keeps the HTML macro off, the Signal Viewer macro (CP3) |
@@ -171,6 +172,14 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-23 · Release 1.35.0 prepared (owner: "yes - update all the documents"): version 1.35.0 (build.bat, version.py,
+  CITATION 2026-11-23, installer .iss + version_info, install.md), CHANGELOG 1.35.0 – 2026-11-23 with highlights; README
+  (the report editor's undo and comments, English + Hebrew), GUIDE.md / GUIDE.he.md (Asked before, the editor's keys;
+  he: the field rows, Add a stream, the stream's ⋯), limitations (the editor's undo and Asked before are not saved);
+  ROADMAP: MSG10, WC5, RE4 (editor - the ID was the built-in LaTeX's), FB1, the release. Validation page. Pictures 42
+  48 49 50 51 52 53 55 56 57 (57 with TeX Live installed in the container). The whole e2e one file at a time: 100
+  files, 545 passed, 1 failed - test_report_doc::test_latex_report_written_in_latex_typeset_offline, no TeX in the
+  container; after `apt-get install texlive-xetex ...` test_report_doc 5 / 5.
 - 2026-11-23 · FB1 - the file dialog lost the row click (the flaky test_messages direction-column test). Cause: after the
   serial-link example the dialog starts in examples/serial_link, which also has link_mixed.csv; the test typed the data
   folder + Enter, `goto_folder` saw the path box (not the listing) and clicked link_mixed.csv in the OLD list; the new
