@@ -2,7 +2,7 @@
    out of App.tsx with the examples' labels). */
 import { useEffect, useState } from "react";
 import { api, type ExampleId } from "../api";
-import { actions, useApp } from "../store";
+import { useApp } from "../store";
 import { useT, type TKey } from "../i18n";
 import { Icon } from "../icons";
 import { addDataExts } from "../values";
@@ -11,8 +11,6 @@ import { requestStudy } from "../sweeps/studyOpen";
 import { requestAreaExample } from "../areaExample";
 import { summarizeFolder } from "../folderSummary";
 import { startDemoGuide } from "../demoGuide";
-import { openAutoReport } from "../reportReady";
-import { makeRecording, streamFor } from "../messages";
 
 export const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", bench: "exampleBench", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate", folderOfFlights: "exampleFolderOfFlights", commonGains: "exampleCommonGains", smartSweepDemo: "exampleSmartSweepDemo", sweepTable: "exampleSweepTable", reportDemo: "exampleReportDemo", serialLink: "exampleSerialLink", linkStructure: "exampleLinkStructure", gpsNmea: "exampleGpsNmea" } as const satisfies Record<ExampleId, string>;
 const EXAMPLE_DESC = { flight: "exampleFlightDesc", twoFlights: "exampleTwoFlightsDesc", car: "exampleCarDesc", bench: "exampleBenchDesc", ardupilot: "exampleArdupilotDesc", simVsFlight: "exampleSimVsFlightDesc", investigate: "exampleInvestigateDesc", folderOfFlights: "exampleFolderOfFlightsDesc", commonGains: "exampleCommonGainsDesc", smartSweepDemo: "exampleSmartSweepDemoDesc", sweepTable: "exampleSweepTableDesc", reportDemo: "exampleReportDemoDesc", serialLink: "exampleSerialLinkDesc", linkStructure: "exampleLinkStructureDesc", gpsNmea: "exampleGpsNmeaDesc" } as const satisfies Record<ExampleId, string>;
@@ -37,36 +35,27 @@ export function openExample(example: Example): void {
     (e) => useApp.getState().toast({ kind: "error", text: String((e as Error).message) }));
 }
 
+/** the example's runs, in the order of its files - those just opened, or the ones that were open already */
+function opened(paths: string[], ids: string[] | undefined): string[] {
+  if (ids?.length === paths.length) return ids;
+  const runs = useApp.getState().runs;
+  return paths.map((p) => runs.find((r) => r.path === p)?.id).filter((x): x is string => !!x);
+}
+
 function openPrepared(ex: Example): void {
   if (ex.open === "study") requestStudy(ex.paths[ex.paths.length - 1], ex.id === "smartSweepDemo");
   else if (ex.open === "sweep") requestAreaExample("sweeps", ex.paths[ex.paths.length - 1]);   // its .svsweep: the table and its question
   // FL1: a folder of recordings (its measures.json beside them) summed up, a row per recording in Sweeps
   else if (ex.open === "summary") void summarizeFolder(ex.paths[0].replace(/[\\/][^\\/]*$/, "")).then((ok) => { if (ok) void startDemoGuide(ex.id, []); });
-  // RE2: the two runs, then the Report screen with the automatic report made of the parts that fit them
-  else if (ex.open === "report") void openPaths(ex.paths).then(() => openAutoReport());
-  else if (ex.open === "messages") void openPaths(ex.paths).then(() => openAutoReport("messages"));
-  // MSG2: a GPS receiver's NMEA: its track on a map at once (the objects found by name), speed and satellites beside it
-  else if (ex.open === "map") void openPaths(ex.paths, undefined, { noStart: true }).then(async (ids) => {
-    const run = useApp.getState().runs.find((r) => r.id === ids?.[0]);
-    if (!run) return;
-    const { detectObjects } = await import("../objectDetect");
-    const { candidateObject, objectColors } = await import("../objectAdd");
-    const c = detectObjects(run).candidates.find((x) => /GGA/.test(x.name)) ?? detectObjects(run).candidates[0];
-    if (c) actions.addObjectsToMaps([await candidateObject(c, objectColors(undefined)())]);
-    const by = (n: string) => run.signals.find((s) => s.name.startsWith(n))?.id;
-    const side = [by("RMC.speed"), by("GGA.sats"), by("GGA.alt")].filter((x): x is string => !!x);
-    if (side.length) actions.plotsInNewTab(side.map((id) => ({ title: id.slice(id.indexOf("/") + 1), ids: [id] })), run.name);
-  });
-  // MSG2: the recording, then its two structure files: TX and RX messages -> two recordings of their own, plotted
-  else if (ex.open === "structure") void openPaths(ex.paths.slice(0, 1)).then(async (ids) => {
-    const rid = ids?.[0] ?? useApp.getState().runs.find((r) => r.path === ex.paths[0])?.id;
-    if (!rid) return;
-    const [tx, rx] = await Promise.all(ex.paths.slice(1, 3).map((p) => api.messagesStructure(p).then((r) => r.structure)));
-    const def = { ...streamFor([`${rid}/tx_byte`, `${rid}/rx_byte`]), structures: { TX: tx, RX: rx } };
-    for (const side of ["TX", "RX"]) await makeRecording(useApp.getState().ws.messageStreams?.find((m) => m.id === def.id) ?? def, side);
-  });
+  // owner, 2026-11-23: the report, the serial link, its structures and the NMEA open as they are - the demo's steps
+  // (demoGuide.ts) build the result in front of the user
+  else if (ex.open === "report") void openPaths(ex.paths, undefined, { autoView: true }).then((ids) => startDemoGuide(ex.id, opened(ex.paths, ids)));
+  else if (ex.open === "messages" || ex.open === "structure" || ex.open === "map") {
+    const paths = ex.open === "structure" ? ex.paths.slice(0, 1) : ex.paths;
+    void openPaths(paths, undefined, { noStart: true }).then((ids) => startDemoGuide(ex.id, opened(paths, ids)));
+  }
   // RV5: once its view is open, the demo's own setup and its line of what to do next
-  else void openPaths(ex.paths, undefined, { autoView: true }).then((ids) => startDemoGuide(ex.id, ids));
+  else void openPaths(ex.paths, undefined, { autoView: true }).then((ids) => startDemoGuide(ex.id, opened(ex.paths, ids)));
 }
 
 /** W1: an example as a card with its picture (made by tools/make_readme_media.py --only examples, one per

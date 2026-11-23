@@ -1092,3 +1092,28 @@ On a big table Sweeps drew a random sample of the runs (above 50,000) and severa
 - [x] Release 1.35.0 (2026-11-23): MSG10, WC5, RE4 (editor), FB1.
 - [ ] RE2.6 The block editor (per-paragraph RTL, table grid, cards, drag, outline).
 - [ ] RE2.7 *Expand to text*; report checks before export; numbering / toc; Confluence copy of the document; Sweeps parts.
+
+## UX - one coherent app: modules, workspaces as pages, guided examples (owner, 2026-11-23)
+Owner (Hebrew, translated): *"clean up and reorganise the code - modular, easy to maintain; then review the design: the
+report got a full window but Investigate did not, other things only a corner on the side; defining a signal as messages
+is reached only by a right-click; some examples load the finished result instead of showing how it is built - load,
+then lead the user"*, and: *"if you define whole areas for these, design them really differently - in the end it must
+look like one whole, flowing, coherent app, not sections cut off from each other."*
+- [x] UX1 App.tsx is the frame only: shell/effects.ts (restore + autosave, ping, playback, live follow / poll, pushed
+  data, the drop, conditions, log data - a hook each), shell/Dialogs.tsx, shell/CursorValues.tsx, shell/panels.tsx (the
+  panels' views as a Record over PanelId, the rail); components/rail.ts is the one table of panels (button, width,
+  place). No behaviour change.
+- [x] UX2 Workspaces as pages: shell/PanelFrame.tsx - one frame, two places (beside: the side panel; on the stage: the
+  page head = the Report's head, the demo's line, an index column = the Report's library column, the main column).
+  rail.ts isFull: Report always, Messages by default, Investigate while What changed is shown; the ⤢ / ⤡ remembered
+  (sv3.full.<id>); showPlotsBeside when the active tab, its plots or the cursor change (usePlotsComeBack), forgotten by
+  a new What changed. App keeps the panel at one place in the React tree (only its grid column moves: .panel-slot /
+  .stage-panel), so a page that moves beside the plots keeps what it had open. Messages as a page: master-detail (the stream chosen in the main column). Tests: Vitest
+  panelPlace.test.ts; e2e test_messages (the serial link's steps check the page and the plots coming back).
+- [x] UX3 Messages - *Add a stream* as a form (components/AddStream.tsx): one signal / TX and RX / byte columns; open by
+  itself with no stream; msgFocus.carries "pair" passed to StreamEditor. Tests: e2e test_messages::test_add_a_stream_form.
+- [x] UX4 Examples step by step (demoGuide.ts DEMOS: steps, done, setup; DemoGuide: n/N, *Show the result*): serialLink,
+  linkStructure, gpsNmea, reportDemo open raw; the line also on pages (PanelFrame, ReportScreen). Tests: e2e
+  test_messages (3 examples), test_report_parts::test_the_report_demo_example_opens_the_automatic_report.
+- [ ] UX5 The review's next steps (TASKS.md "UX review 2026-11-23").
+

@@ -173,8 +173,8 @@ Time and counter signals are not compared; signals in one file only are listed.
 a scenario (`mission.phase`: IDLE, TAKEOFF, CRUISE, TURN, DESCENT, LAND), four commanded / measured pairs
 (`ctrl.alt_cmd`/`ctrl.alt`, speed, roll with steps, pitch), three objects (`sim.*` the truth, `nav.*` the estimate,
 `gps.*` the receiver) and a receiver status. `mission_gust.csv` is the same mission with a gust at 140–160 s and the
-receiver lost at 150–170 s. **Help → Examples → a report made for you** opens both and the automatic report;
-or open them yourself, *Report*, *Automatic report*.
+receiver lost at 150–170 s. **Help → Examples → a test report, step by step** opens both, plotted, and a line above the plots whose button writes
+the automatic report; or open them yourself, *Report*, *Automatic report*.
 
 **Other recordings:** the automatic report works on any open files - each part looks for what it needs by the
 signals' names and is left out when it finds nothing. A car's, a bench's or a simulation's recording without

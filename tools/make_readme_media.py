@@ -1117,11 +1117,18 @@ def _help_example(pg, text):
     pg.locator(".menu.ctx.sub button", has_text=text).click()
 
 
+def _finish_demo(pg):
+    """A step-by-step example (demoGuide.ts) taken to its end at once: its line's *Show the result*."""
+    pg.wait_for_selector(".demo-guide .demo-finish", timeout=60000)
+    pg.locator(".demo-guide .demo-finish").click()
+
+
 def img_52_messages_recording(b, app):
     """MSG2: Help -> Examples -> messages to signals - the serial link's two directions decoded by their structures
     (MSB / LSB first, 32-bit, float, bits, scales) into recordings of their own, plotted one plot per message."""
     ctx, pg = page(b, app)
     _help_example(pg, "messages to signals")
+    _finish_demo(pg)
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.name === 'rx_byte - messages')", timeout=60000)
     pg.wait_for_timeout(1500)
     pg.evaluate("() => { for (const t of [...document.querySelectorAll('.toast button[aria-label]')]) t.click(); }")
@@ -1130,7 +1137,10 @@ def img_52_messages_recording(b, app):
 
 
 def _wide_panel(pg, w=640):
-    """The side panel dragged wider by its edge (the structure's fields table wants room)."""
+    """The side panel dragged wider by its edge (the structure's fields table wants room). Messages opens as a page on the
+    whole stage (components/rail.ts) - nothing to drag then."""
+    if not pg.locator(".main > .resizer").count():
+        return
     r = pg.locator(".main > .resizer").first.bounding_box()
     pg.mouse.move(r["x"] + r["width"] / 2, r["y"] + 200)
     pg.mouse.down()
@@ -1196,6 +1206,7 @@ def img_54_gps_nmea(b, app):
     """MSG2: a GPS receiver's raw NMEA opened as a recording: the track on the map, the fix status as a lane."""
     ctx, pg = page(b, app)
     _help_example(pg, "raw NMEA")
+    _finish_demo(pg)
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => (p.mode === 'geo' || p.mode === '3d') && (p.objects || []).length))", timeout=60000)
     pg.evaluate("() => { const st = window.__sv.state(); const tb = st.ws.tabs.find(t => t.plots.some(p => p.mode === 'geo' || p.mode === '3d')); window.__sv.setState({ ws: { ...st.ws, activeTab: tb.id } }); }")
     pg.wait_for_timeout(1500)

@@ -2,6 +2,24 @@
 
 ## Next – unreleased
 
+- New: **Investigate, Messages and the Report are pages of one app.** The workspaces you read and work in open on the
+  whole screen in one frame - the head where the plots' bar is, the demo's line under it, a column of what there is
+  (streams, conditions, the report's parts) beside the thing worked on. Messages opens as a page; Investigate opens as a
+  page while *What changed* is shown and beside the plots while you place the cursors; anything they do that needs the
+  plots (a new tab, the cursor moved) brings the plots back with the panel beside them. The ⤢ / ⤡ in the head moves
+  a page beside the plots and back, remembered. The tools that act on the plots (Files, Create, Compare, Checks) stay
+  beside them.
+- New: *Messages* - **one clear place to say which signals carry bytes.** *Add a stream* opens a short form: one signal,
+  the two signals of a link (TX and RX), or byte columns with one message per row (the byte_0..byte_N columns of a
+  file in one click). It is open by itself while no stream is found. Before, two signals or columns needed a
+  right-click in Files (still there as a shortcut).
+- Changed: **examples built in front of you.** *A serial link*, *messages to signals*, *a GPS receiver's raw NMEA* and
+  *a test report, step by step* (was *a report made for you*) open as they are - the raw bytes, the two runs - with a
+  line of steps above them: each step says what is on screen and what to do next, its button does it (look for the
+  messages, plot them, write the link's report; use the structure files, make the recordings; the track, then speed
+  and satellites; write the report). *Show the result* does every step left at once. Opening an example whose files
+  are already open now starts its line too.
+
 ## 1.35.0 – 2026-11-23
 
 **Highlights:** **A report editor that behaves like an editor, and Messages you can undo.** The report's text has its own Ctrl+Z - a whole run of typing or a piece the app put in, with the cursor where it was - comments with Ctrl+/ (left out of the report, plots and values inside them too) and the line keys of a code editor. In *Messages* one field is removed alone (Undo in the notice), a stream can be forgotten or taken off the list, and *Add a stream* defines any signal - another TX, another link. *What changed* keeps the spans you asked about before, a click away. And the file dialog no longer loses a click made while a folder loads.

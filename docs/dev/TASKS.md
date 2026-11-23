@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| UX1-UX4 - one coherent app: App.tsx split into shell/, workspaces as pages (PanelFrame), Messages *Add a stream* form, examples step by step (owner, 2026-11-23) | built 2026-11-23 on branch `claude/cleanup-layout-guides` (not main: 1.35.0 waits for its tag); quick_check, Vitest panelPlace, e2e test_messages, test_report_parts, the views that gain / lose room | the owner looks at the branch; then the next steps of "UX review 2026-11-23" below |
 | Release 1.35.0 - MSG10 messages (one field, streams forgotten / removed, Add a stream), WC5 earlier What changed spans, RE4 (editor) the report editor's undo / comments / line keys, FB1 the file dialog's lost click (owner, 2026-11-23: "update all the documents") | READY 2026-11-23: version in the five files + install.md, CITATION date, CHANGELOG 1.35.0 with highlights, README (English + Hebrew), GUIDE + GUIDE.he, features, limitations, validation page, pictures 42 48-53 55-57; the whole e2e one file at a time - 100 files, 545 passed, test_report_doc's LaTeX test failed only for want of a TeX (with TeX Live installed: 5 / 5); quick_check, mkdocs --strict, ci | the owner tags v1.35.0 and publishes the Release |
 | CP5 - drag a plot or a tab out of the window (owner, 2026-11-22) | built 2026-11-22 (the drag's data and the link tested in Chromium; a real drop on the Windows desktop not tested here) | the owner drags a plot's ⠿ onto his desktop, into Word, into Outlook |
 | Release 1.34.0 - CP4 Send to Confluence, CP3 the user macro, HL1 linked zoom, RE4 the built-in LaTeX, MSG5-MSG9 messages (owner, 2026-11-22: "yes - then release") | READY again 2026-11-22 (the tag moved: CP5-CP7, Z1 and the Confluence placement folded in): CHANGELOG 1.34.0 by topic with new highlights, README (English + Hebrew), features, limitations; the whole e2e one file at a time - 100 files, 541 passed, test_study_loop failed once under load and passed alone twice; backend, Vitest, mypy, mkdocs --strict | the owner moves the tag v1.34.0 to this commit and publishes the Release |
@@ -50,6 +51,23 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
 ## Open specs (waiting for the owner)
+
+- **UX review 2026-11-23 (owner: "clean up the code, modular; review the design; examples that show how it is built";
+  "one whole, flowing, coherent app")** - built in UX1-UX4 (ROADMAP "UX"). The principle written into components/rail.ts:
+  *the tools that act on the plots (Files, Create, Compare, Checks) sit beside them; the workspaces read and worked in
+  (Investigate, Messages, Report) are pages in one frame* (shell/PanelFrame.tsx: head where the plots' bar is, the
+  demo's line, an index column, the main column - the Report's own anatomy). Proposed next, not started (each its own
+  task, the owner's yes first):
+  1. *Design* - the Inspector beside a page shows the plots' cursor values: hide it on a page, or give each page its
+     own (Messages: the byte under the pointer; Investigate: the signal chosen in What changed).
+  2. *Design* - Checks as a page too (its findings list + a finding's detail), the same frame.
+  3. *Design* - Sweeps: the same head / index / main anatomy as the pages, so the two areas read as one app.
+  4. *Examples* - the one-step demos (flight, car, bench, ardupilot, twoFlights) as two or three steps each.
+  5. *Code* - the files past ~1000 lines, split by part (the way App.tsx was): Globe3D.tsx 1379, TimeChart.tsx 1122,
+     GeoChart.tsx 1100, sweeps/state.ts 1138, index.css 2185 (its area rules into styles/*), backend reportparts.py
+     1420, report.py 1373, bin_loader.py 1271, routes/sweep.py 1100, csv_loader.py 1041.
+  6. *Media* - pictures 52-54 and the training film's messages / report chapters now follow the steps (their scripts
+     updated: `_finish_demo`, `_wide_panel` a no-op on a page); refresh them at the next release.
 
 - **MSG1 - messages in a byte stream (owner, 2026-11-19, Hebrew, translated):** *"Say we put in signals of messages that
   repeat: header1, header2, sometimes the next byte is the message size or type, then more details, and at the end
@@ -171,6 +189,14 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   docs/index.md and the welcome screen's groups.
 
 ## Log
+
+- 2026-11-23 · UX1-UX4 (owner, Hebrew: modular code; Investigate / other panels without room; messages only by a
+  right-click; examples that open finished - then "one whole, coherent app"): App.tsx -> shell/ (effects, Dialogs,
+  CursorValues, panels, PanelFrame); rail.ts the panels' table with place / width / isFull; Investigate, Messages as
+  pages in the Report's anatomy (index + main, the demo's line), the plots back when an action needs them; AddStream
+  form; demoGuide steps (serialLink, linkStructure, gpsNmea, reportDemo open raw), the label *a test report, step by
+  step*; tests: Vitest panelPlace (3), e2e test_messages (+ test_add_a_stream_form), test_report_parts; media scripts
+  follow the steps. On branch claude/cleanup-layout-guides - 1.35.0 is not tagged yet, main left as it is.
 
 - 2026-11-23 · Release 1.35.0 prepared (owner: "yes - update all the documents"): version 1.35.0 (build.bat, version.py,
   CITATION 2026-11-23, installer .iss + version_info, install.md), CHANGELOG 1.35.0 – 2026-11-23 with highlights; README

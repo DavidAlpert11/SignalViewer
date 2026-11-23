@@ -314,8 +314,10 @@ def ch_messages(f, app):
 
 def ch_report(f, app):
     pg = f.pg
-    f.cap("A report made for you – from ready-made parts", say="Reports. This demo opens two test missions with a report the app wrote by itself.", wait=False)
-    help_example(f, "a report made for you")
+    f.cap("A report from ready-made parts – one click", say="Reports. This demo opens two test missions; one click and the app writes the report by itself.", wait=False)
+    help_example(f, "a test report, step by step")
+    pg.wait_for_selector(".demo-guide .demo-next", timeout=60000)
+    pg.locator(".demo-guide .demo-next").click()
     pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').includes('class=\"plot')", timeout=120000)
     pg.wait_for_timeout(2500)
     no_toasts(pg)

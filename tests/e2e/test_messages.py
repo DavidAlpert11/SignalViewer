@@ -23,9 +23,20 @@ def shot(pg, name):
 
 
 def test_the_serial_link_example_opens_the_link_review(pg):
+    """Owner, 2026-11-23: the example is built in front of the user - the raw bytes, then each step's button: the
+    messages found (the Messages page on the link), their plots (the panel beside them), the link's report."""
     pg.locator(".topbar .menubar-btn", has_text="Help").click()
     pg.locator(".menu.ctx button", has_text="Examples").click()
     pg.locator(".menu.ctx.sub button", has_text="a serial link").click()
+    pg.wait_for_selector(".demo-guide[data-demo=serialLink][data-step='1'] .demo-next", timeout=30000)
+    assert not S(pg, "s.ws.messageStreams?.length") and S(pg, "s.panel") != "messages"          # only the raw bytes yet
+    pg.locator(".demo-guide .demo-next").click()
+    pg.wait_for_selector(".stage-panel .page.messages .msgp-current .msgp-edit", timeout=30000)   # Messages as a page
+    pg.wait_for_selector(".page.messages .demo-guide[data-step='2'] .demo-next")                # the line follows
+    pg.locator(".demo-guide .demo-next").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.name.startsWith('Messages: tx_byte'))", timeout=30000)
+    pg.wait_for_selector(".main .side.messages")                          # a new tab: the plots back, the panel beside them
+    pg.locator(".demo-guide[data-step='3'] .demo-next").click()
     pg.wait_for_selector(".rd .rd-text", timeout=30000)
     pg.wait_for_function("(window.__sv.state().ws.report?.doc?.text || '').includes('[[messages]]')", timeout=30000)
     # the packet's make-up, requests and replies, the handshake and its reconnect - in the preview
@@ -124,6 +135,11 @@ def example(pg, text):
 def test_messages_to_signals_example_makes_two_recordings(pg):
     """MSG2: the serial link with its two structure files -> two recordings of their own, plotted."""
     example(pg, "messages to signals")
+    pg.wait_for_selector(".demo-guide[data-demo=linkStructure] .demo-next", timeout=30000)
+    assert not S(pg, "s.runs.some(r => r.name.endsWith(' - messages'))")       # nothing made before the steps
+    for step in ("1", "2", "3"):                                              # open the link, its structure files, make
+        pg.locator(f".demo-guide[data-step='{step}'] .demo-next").click()
+    pg.wait_for_selector(".demo-guide[data-step=done]", timeout=60000)
     pg.wait_for_function("['tx_byte - messages', 'rx_byte - messages'].every(n => window.__sv.state().runs.some(r => r.name === n))", timeout=60000)
     sigs = S(pg, "s.runs.find(r => r.name === 'rx_byte - messages').signals.map(x => x.name)")
     assert "ATTITUDE.roll [deg]" in sigs and "ATTITUDE.alt [m]" in sigs and "STATUS.mode" in sigs
@@ -132,6 +148,24 @@ def test_messages_to_signals_example_makes_two_recordings(pg):
     shot(pg, "msg2_link_recording.png")
     ms = S(pg, "s.ws.messageStreams")
     assert len(ms) == 1 and sorted(m["label"] for m in ms[0]["made"]) == ["RX", "TX"]
+
+
+def test_add_a_stream_form(pg):
+    """UX3 (owner, 2026-11-23: "defining a signal as messages is reached only by a right-click"): Messages -> Add a
+    stream - the two signals of a link chosen as TX and RX in the panel itself; the page shows that stream's editor."""
+    shutil.copy(os.path.join(DEMO, "link_tx_rx.csv"), os.path.join(pg.env["data"], "link_tx_rx.csv"))
+    open_files(pg, "link_tx_rx.csv")
+    pg.locator(".rail button[aria-label=Messages]").click()
+    pg.wait_for_selector(".stage-panel .page.messages")                          # a page of its own
+    pg.locator(".msgp-add").click()
+    form = pg.locator(".msgp-addform")
+    form.locator("[data-kind=pair]").click()
+    assert form.locator("select").nth(0).input_value().endswith("/tx_byte")      # byte-like names guessed per side
+    assert form.locator("select").nth(1).input_value().endswith("/rx_byte")
+    form.locator(".msgp-addgo").click()
+    pg.wait_for_selector(".msgp-current .msgp-edit")
+    assert pg.locator(".msgp-current input[value=pair]").is_checked()
+    assert pg.locator(".page-index .msgp-stream.chosen").count() == 1
 
 
 def test_propose_a_binary_structure_rename_and_make(pg):
@@ -158,6 +192,7 @@ def test_propose_a_binary_structure_rename_and_make(pg):
 def test_gps_nmea_example_and_uart_proposes_nmea(pg):
     example(pg, "raw NMEA")
     pg.wait_for_function("window.__sv.state().runs.some(r => r.name.endsWith('receiver.nmea'))", timeout=60000)
+    pg.locator(".demo-guide[data-demo=gpsNmea] .demo-finish").click()          # its two steps: the track, the side plots
     sigs = S(pg, "s.runs.find(r => r.name.endsWith('receiver.nmea')).signals.map(x => x.name)")
     assert "GGA.lat [deg]" in sigs and "RMC.speed [kn]" in sigs
     # the track on a map at once, speed / satellites / altitude beside it

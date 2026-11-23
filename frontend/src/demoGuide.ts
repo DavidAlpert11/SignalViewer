@@ -1,43 +1,113 @@
 /* RV5: a demo opens what its welcome card promises and says, in one line, what to do next - with the
    click that does it (align the two clocks, put the cursors on the fault, open the panel that answers).
+   Owner, 2026-11-23: "some examples load the finished result instead of showing how it is built - load, then lead the
+   user". A demo is a short list of steps: each says what is on screen and what to do next, its button does that one
+   thing, and the line moves to the next step; *Show the result* does every step left at once.
    UI only: the line is not saved; it goes when closed, when its files close or when another demo opens. */
 import { api, type ExampleId } from "./api";
 import { actions, useApp } from "./store";
 import type { TKey } from "./i18n";
 import { applyTemplate } from "./templates";
 import { applySyncOffset } from "./sync";
+import { openAutoReport } from "./reportReady";
+import { decodeAsMessages, makeRecording, streamFor } from "./messages";
+import type { MessageStream } from "./store/model";
 
-export interface DemoGuide { id: ExampleId; runs: string[]; done?: boolean }
+export interface DemoGuide { id: ExampleId; runs: string[]; step?: number; done?: boolean }
 
-interface Step { text: TKey; act?: TKey; done?: TKey; go?: (runs: string[]) => Promise<void> | void;
+export interface Step { text: TKey; act?: TKey; go?: (runs: string[]) => Promise<void> | void }
+interface Demo {
+  steps: Step[];
+  /** what the line says once the last step's button was pressed (else the line goes) */
+  done?: TKey;
   /** FR5: a demo that opens in Sweeps has its line there (no recordings open; the recordings' stage does not show it) */
-  area?: "sweeps" }
+  area?: "sweeps";
+  /** the demo's own setup once its files are open, before its first step */
+  setup?: (runs: string[]) => Promise<void> | void;
+}
 
 const panel = (p: "compare" | "log" | "report" | "investigate") => () => useApp.setState({ panel: p });
+const one = (text: TKey, act?: TKey, go?: Step["go"], done?: TKey): Demo => ({ steps: [{ text, act, go }], done });
 
-export const DEMO_STEPS: Partial<Record<ExampleId, Step>> = {
-  flight: { text: "demoFlight", act: "demoFlightAct", go: () => { if (!useApp.getState().playing) actions.togglePlay(); } },
-  twoFlights: { text: "demoTwoFlights", act: "demoCompareAct", go: panel("compare") },
-  car: { text: "demoCar", act: "demoCompareAct", go: panel("compare") },
-  bench: { text: "demoBench", act: "demoChecksAct", go: panel("log") },
-  ardupilot: { text: "demoArdupilot", act: "demoChecksAct", go: panel("log") },
-  simVsFlight: { text: "demoSimVsFlight", act: "demoAlignAct", done: "demoSimVsFlightDone", go: alignSecond },
-  investigate: { text: "demoInvestigate", act: "demoInvestigateAct", done: "demoInvestigateDone", go: cursorsOnFirstBump },
-  folderOfFlights: { text: "demoFolder", act: "demoFolderAct", done: "demoFolderDone", go: worstCopterFirst, area: "sweeps" },
+export const DEMOS: Partial<Record<ExampleId, Demo>> = {
+  flight: one("demoFlight", "demoFlightAct", () => { if (!useApp.getState().playing) actions.togglePlay(); }),
+  twoFlights: { ...one("demoTwoFlights", "demoCompareAct", panel("compare")), setup: bothTracksOnOneMap },
+  car: one("demoCar", "demoCompareAct", panel("compare")),
+  bench: one("demoBench", "demoChecksAct", panel("log")),
+  ardupilot: one("demoArdupilot", "demoChecksAct", panel("log")),
+  simVsFlight: one("demoSimVsFlight", "demoAlignAct", alignSecond, "demoSimVsFlightDone"),
+  investigate: one("demoInvestigate", "demoInvestigateAct", cursorsOnFirstBump, "demoInvestigateDone"),
+  folderOfFlights: { ...one("demoFolder", "demoFolderAct", worstCopterFirst, "demoFolderDone"), area: "sweeps" },
+  // the two runs plotted, then the report the app writes from the parts that fit them
+  reportDemo: { steps: [{ text: "demoReport1", act: "demoReport1Act", go: () => openAutoReport() }], done: "demoReportDone" },
+  // raw bytes -> the messages found in them -> their plots -> the link's report
+  serialLink: {
+    setup: (runs) => plotRaw(runs[0], ["tx_byte", "rx_byte"]),
+    steps: [
+      { text: "demoLink1", act: "demoLink1Act", go: (runs) => openLink(runs[0]) },
+      { text: "demoLink2", act: "demoLink2Act", go: async (runs) => { if (!await decodeAsMessages(linkDef(runs[0]))) throw new Error("decode"); } },
+      { text: "demoLink3", act: "demoLink3Act", go: () => openAutoReport("messages") },
+    ],
+    done: "demoLinkDone",
+  },
+  // the same link and its structure files -> each direction's messages a recording of their own
+  linkStructure: {
+    setup: (runs) => plotRaw(runs[0], ["tx_byte", "rx_byte"]),
+    steps: [
+      { text: "demoStruct1", act: "demoLink1Act", go: (runs) => openLink(runs[0]) },
+      { text: "demoStruct2", act: "demoStruct2Act", go: (runs) => useStructureFiles(runs[0]) },
+      { text: "demoStruct3", act: "demoStruct3Act", go: (runs) => makeBothRecordings(runs[0]) },
+    ],
+    done: "demoStructDone",
+  },
+  // a receiver's NMEA read as a recording -> its track on the map -> speed, satellites, altitude
+  gpsNmea: {
+    steps: [
+      { text: "demoGps1", act: "demoGps1Act", go: (runs) => gpsTrack(runs[0]) },
+      { text: "demoGps2", act: "demoGps2Act", go: (runs) => gpsSide(runs[0]) },
+    ],
+    done: "demoGpsDone",
+  },
 };
 
-/** Is the demo's line on screen: a demo with a step, its files still open, the welcome screen not over the plots.
+/** the demo's step on screen now (null once its last button was pressed) */
+export const currentStep = (g: DemoGuide): Step | null => DEMOS[g.id]?.steps[g.step ?? 0] ?? null;
+
+/** Is the demo's line on screen: a demo with steps, its files still open, the welcome screen not over the plots.
  *  (FR2: the strip gives it the row of its own head - one rule for both.) */
 export const demoLineUp = (s: { demoGuide: DemoGuide | null; runs: { id: string }[]; startOpen: boolean }): boolean =>
-  !!s.demoGuide && !!DEMO_STEPS[s.demoGuide.id] && !DEMO_STEPS[s.demoGuide.id]!.area && !s.startOpen
+  !!s.demoGuide && !!DEMOS[s.demoGuide.id] && !DEMOS[s.demoGuide.id]!.area && !s.startOpen
   && s.demoGuide.runs.every((id) => s.runs.some((r) => r.id === id));
 
 /** Called once a demo's files are open with their view: the demo's own setup, then its line. */
 export async function startDemoGuide(id: ExampleId, runs: string[]) {
-  if (!DEMO_STEPS[id] || (!runs.length && !DEMO_STEPS[id]!.area)) return;
-  if (id === "twoFlights") await bothTracksOnOneMap();
-  useApp.setState({ demoGuide: { id, runs } });
+  const d = DEMOS[id];
+  if (!d || (!runs.length && !d.area)) return;
+  try { await d.setup?.(runs); } catch { /* the first step stands without it */ }
+  useApp.setState({ demoGuide: { id, runs, step: 0 } });
 }
+
+/** The current step's button: its action, then the next step (or the demo's last line). Throws when it failed. */
+export async function demoNext(g: DemoGuide) {
+  const d = DEMOS[g.id], i = g.step ?? 0, step = d?.steps[i];
+  if (!d || !step) return;
+  await step.go?.(g.runs);
+  const next = i + 1;
+  // FR2: once its button was pressed the line says what happened (the next step, or the "done" text) or goes -
+  // it never keeps offering what was just done
+  useApp.setState({ demoGuide: next < d.steps.length ? { ...g, step: next } : d.done ? { ...g, step: next, done: true } : null });
+}
+
+/** *Show the result*: every step left, one after the other. */
+export async function demoFinish(g: DemoGuide) {
+  let cur: DemoGuide | null = g;
+  while (cur && !cur.done && currentStep(cur)) {
+    await demoNext(cur);
+    cur = useApp.getState().demoGuide;
+  }
+}
+
+/* ---- the demos' own steps ------------------------------------------------------------------------------- */
 
 /** The card's "two tracks on one map": Position on the map over both files, the first tab. */
 async function bothTracksOnOneMap() {
@@ -79,4 +149,65 @@ async function worstCopterFirst() {
   if (!s || !tb || !s.columns.some((c) => c.name === "vibration_max")) throw new Error("no vibration column");
   useSweeps.setState({ dataTab: "table", rawAsk: { table: tb.id, sort: { c: "vibration_max", desc: true }, tick: { col: "vehicle", value: "X8-A" } } });
   goFlow("data");
+}
+
+const sigId = (run: string, name: string) => useApp.getState().runs.find((r) => r.id === run)?.signals.find((s) => s.name === name)?.id;
+
+/** The raw signals as they are - one plot each, in a tab of their own: what the file holds before anything is done. */
+function plotRaw(run: string, names: string[]) {
+  const ids = names.map((n) => sigId(run, n)).filter((x): x is string => !!x);
+  if (ids.length) actions.plotsInNewTab(ids.map((id) => ({ title: id.slice(id.indexOf("/") + 1), ids: [id] })), useApp.getState().runs.find((r) => r.id === run)?.name ?? "");
+}
+
+/** The link's two signals as one stream: TX and RX (kept definition when there is one). */
+function linkDef(run: string): MessageStream {
+  const ids = [sigId(run, "tx_byte"), sigId(run, "rx_byte")];
+  if (!ids[0] || !ids[1]) throw new Error("no tx_byte / rx_byte");
+  const d = streamFor(ids as string[]);
+  return d.carries === "pair" ? d : { ...d, carries: "pair", dir: null };
+}
+
+/** The Messages panel on the link (what Add a stream → TX and RX does). */
+function openLink(run: string) {
+  const d = linkDef(run);
+  useApp.setState({ panel: "messages", msgFocus: { ids: d.sources, carries: "pair" } });
+}
+
+/** The link's two structure files (beside it in the example's folder) as the structures of TX and RX - one Undo step;
+ *  the stream's editor shows them. */
+async function useStructureFiles(run: string) {
+  const path = useApp.getState().runs.find((r) => r.id === run)?.path ?? "";
+  const dir = path.replace(/[\\/][^\\/]*$/, ""), sep = path.includes("\\") ? "\\" : "/";
+  const [tx, rx] = await Promise.all(["link_tx", "link_rx"].map((n) => api.messagesStructure(`${dir}${sep}${n}.svmsg.json`).then((r) => r.structure)));
+  const def = { ...linkDef(run), structures: { TX: tx, RX: rx } };
+  useApp.getState().commit((ws) => {
+    const key = def.sources.join(",");
+    ws.messageStreams = [...(ws.messageStreams ?? []).filter((m) => m.sources.join(",") !== key), def];
+    return ws;
+  });
+}
+
+async function makeBothRecordings(run: string) {
+  const def = linkDef(run);
+  for (const side of ["TX", "RX"]) if (!await makeRecording(useApp.getState().ws.messageStreams?.find((m) => m.id === def.id) ?? def, side)) throw new Error("make");
+}
+
+/** MSG2: a GPS receiver's NMEA: its track on a map (the object found by name: GGA's position). */
+async function gpsTrack(run: string) {
+  const r = useApp.getState().runs.find((x) => x.id === run);
+  if (!r) throw new Error("no run");
+  const { detectObjects } = await import("./objectDetect");
+  const { candidateObject, objectColors } = await import("./objectAdd");
+  const found = detectObjects(r).candidates;
+  const c = found.find((x) => /GGA/.test(x.name)) ?? found[0];
+  if (!c) throw new Error("no position");
+  actions.addObjectsToMaps([await candidateObject(c, objectColors(undefined)())]);
+}
+
+function gpsSide(run: string) {
+  const r = useApp.getState().runs.find((x) => x.id === run);
+  const by = (n: string) => r?.signals.find((s) => s.name.startsWith(n))?.id;
+  const side = [by("RMC.speed"), by("GGA.sats"), by("GGA.alt")].filter((x): x is string => !!x);
+  if (!side.length) throw new Error("no signals");
+  actions.plotsInNewTab(side.map((id) => ({ title: id.slice(id.indexOf("/") + 1), ids: [id] })), r?.name ?? "");
 }
