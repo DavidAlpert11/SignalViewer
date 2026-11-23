@@ -55,6 +55,9 @@ export default function FileBrowser() {
   const [error, setError] = useState("");
   const [hidden, setHidden] = useState(0);              // files of other types in this folder
   const [places, setPlaces] = useState<FsPlaces | null>(null);
+  // FB1: another folder is being listed - the list shown is the old folder's and takes no clicks until the new one
+  // is in (a file clicked there was picked, then dropped when the new list came: Open stayed disabled)
+  const [loading, setLoading] = useState(false);
   // §7b (a friend's request: "like a browser"): a folder being made, a row being renamed, a delete being asked,
   // and what the last of them did - all inline, in this dialog (a second dialog would open under a picker)
   const [making, setMaking] = useState(false);
@@ -101,6 +104,9 @@ export default function FileBrowser() {
   const go = async (p?: string | null, initial = false) => {
     if (!initial) navigated.current = true;
     const my = ++seq.current;
+    // the folder shown, listed again (a refresh, a rename): its rows stay usable
+    const bare = (x: string) => x.replace(/[\\/]+$/, "");
+    setLoading(!!listed.current && (p == null || bare(p) !== bare(listed.current)));
     try {
       const r = await api.listDir(p, folderMode ? [".\u0000none"] : picker?.exts);   // folder mode: folders only
       if (my !== seq.current || (initial && navigated.current)) return;
@@ -109,20 +115,21 @@ export default function FileBrowser() {
       const same = !!listed.current && listed.current === r.path;
       listed.current = r.path;
       edited.current = false;
+      setLoading(false);
       setPath(r.path); if (!(initial && userTyped.current)) setTyped(r.path); setParent(r.parent); setEntries(r.entries); setError(""); setHidden(r.hidden ?? 0);
       setPicked((cur) => (same ? cur.filter((x) => r.entries.some((en) => en.path === x)) : []));
       if (!same) { anchor.current = null; setFilter(""); }
       setSugg([]); setSuggAt(-1);
       if (!same) { setMaking(false); setRenaming(null); setAsking(null); setNote(null); }
       if (r.path) setPref(lastDirKey(picker), r.path);
-    } catch (e) { if (my === seq.current) setError((e as Error).message); }
+    } catch (e) { if (my === seq.current) { setLoading(false); setError((e as Error).message); } }
   };
   // a layout effect: runs before the dialog is painted, so nothing typed in the first moments can be
   // overwritten by this initial load (a plain effect ran after paint and could reset `navigated`)
   useLayoutEffect(() => {
     // "show import options" is a per-open choice: it must not silently stick to the next open
     if (open) {
-      setPath(""); setTyped(""); setEntries([]); setSugg([]); setFilter("");   // not the previous open's folder, even for a moment
+      setPath(""); setTyped(""); setEntries([]); setSugg([]); setFilter(""); setLoading(false);   // not the previous open's folder, even for a moment
       setMaking(false); setRenaming(null); setAsking(null); setNote(null);
       api.places().then(setPlaces).catch(() => setPlaces(null));        // T24: the side column
       navigated.current = false; userTyped.current = false; listed.current = null; setWithOptions(false); go(startFolder(picker), true); setName(picker?.defaultName ?? "");
@@ -411,7 +418,7 @@ export default function FileBrowser() {
             ))}
           </div>
         )}
-        <div className="dialog-body" style={{ minHeight: 260 }}>
+        <div className={`dialog-body${loading ? " fs-loading" : ""}`} style={{ minHeight: 260 }} inert={loading} aria-busy={loading}>
           {error && <p className="empty-note">{error}</p>}
           {note && <p className={`fs-note ${note.kind}`} role={note.kind === "error" ? "alert" : "status"}><span>{note.text}</span>
             <button className="iconbtn sm" onClick={() => setNote(null)} aria-label={t("close")}><Icon.X /></button></p>}

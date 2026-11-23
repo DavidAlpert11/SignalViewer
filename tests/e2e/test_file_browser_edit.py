@@ -57,3 +57,38 @@ def test_outside_the_users_folders_is_refused_plainly(pg):
     dlg.locator(".fs-note.error", has_text="own folders").wait_for()
     assert not os.path.exists(os.path.join(pg.env["data"], "x"))
     pg.keyboard.press("Escape")
+
+
+def test_a_click_while_another_folder_loads_is_not_lost(pg):
+    """FB1 (2026-11-23, found by test_messages' direction-column test after the serial-link example): Enter on a
+    new folder left the old folder's list clickable until the new one arrived; a file clicked there (the same name
+    in both folders) was picked, then dropped when the new list came - Open stayed disabled. While another folder
+    loads, the old list takes no clicks; the click lands on the new folder's file."""
+    a, b = (os.path.join(pg.env["home"], n) for n in ("fb_a", "fb_b"))
+    for d in (a, b):
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, "same.csv"), "w") as f:
+            f.write("Time,V\n0,1\n1,2\n")
+    _open_dialog(pg, a)
+    held = []                                                                    # B's listing waits for the test
+
+    def hold(route):
+        if b in (route.request.post_data or ""):
+            held.append(route)
+        else:
+            route.continue_()
+    pg.route("**/api/fs/list", hold)
+    pg.fill(".crumbs input", b)
+    pg.press(".crumbs input", "Enter")
+    old = pg.locator(".fs-dialog .dialog-body .fs-row", has_text="same.csv").first
+    old.wait_for()                                                               # still folder A's row
+    with pytest.raises(Exception):                                               # A's list takes no click now
+        old.click(timeout=1500)
+    assert held, "the listing of B was not asked for"
+    held[0].continue_()
+    pg.unroute("**/api/fs/list")
+    pg.locator(".fs-dialog .dialog-body .fs-row", has_text="same.csv").first.click()
+    assert pg.locator(".dialog-foot .btn.primary").is_enabled()
+    pg.click(".dialog-foot .btn.primary")
+    pg.wait_for_function("window.__sv.state().runs.some(r => r.path.includes('fb_b'))", timeout=30000)
+    assert not pg.evaluate("window.__sv.state().runs.some(r => r.path.includes('fb_a'))")

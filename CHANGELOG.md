@@ -2,6 +2,10 @@
 
 ## Next – unreleased
 
+- Fixed: the **file dialog lost a click** made while another folder was still being listed: after a path typed and Enter,
+  the old folder's list stayed clickable; a file picked there was dropped when the new list came and *Open* stayed
+  disabled. Now the old list takes no clicks (and dims if the new folder is slow) until the new one is shown.
+
 - New: the report editor has **its own Undo**: Ctrl+Z goes back a whole run of typing, or a piece the app put in (bold, a
   plot from the library, a paste), with the cursor where it was - not one letter at a time; Ctrl+Y / Ctrl+Shift+Z redo.
   Also as ↶ ↷ in the editor's toolbar.

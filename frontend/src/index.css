@@ -1212,6 +1212,7 @@ input.fx-input { width: 100%; }
 
 /* recent files inside the open-files dialog */
 .fs-recent { border-bottom: 1px solid var(--line); padding: 6px 0 8px; max-height: 210px; overflow-y: auto; }
+.dialog-body.fs-loading { opacity: .55; transition: opacity .15s .2s; }   /* FB1: another folder is coming - dimmed only if it is slow */
 /* T24: places column */
 .fs-dialog { width: min(900px, 94vw); height: min(640px, 82vh); max-height: 82vh; }
 .fs-main { display: flex; flex: 1; min-height: 0; }

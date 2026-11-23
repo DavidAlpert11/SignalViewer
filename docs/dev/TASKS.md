@@ -171,6 +171,18 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-23 · FB1 - the file dialog lost the row click (the flaky test_messages direction-column test). Cause: after the
+  serial-link example the dialog starts in examples/serial_link, which also has link_mixed.csv; the test typed the data
+  folder + Enter, `goto_folder` saw the path box (not the listing) and clicked link_mixed.csv in the OLD list; the new
+  listing then reset the pick - Open disabled. A real user bug too (a slow folder, a click on the old list). Fix: while
+  another folder is listed, the old list is `inert` (dimmed after 0.2 s). Test: test_file_browser_edit
+  ::test_a_click_while_another_folder_loads_is_not_lost (the new listing held back by the test; failed before the fix). e2e: test_file_browser_edit,
+  test_messages, test_templates_recent_badfiles, test_first_minute, test_fresh_user, test_workflows, test_features (126)
+  green; the serial-link + direction-column pair 12 of 12.
+- 2026-11-23 · MSG10 / WC5 / RE4 pushed to main (the owner's patch). quick_check green, `npm run build`, mkdocs --strict;
+  e2e test_messages 14, test_what_changed 12, test_report_parts 3, test_live_report 6 passed; test_report_doc 4 passed,
+  test_latex_report_written_in_latex_typeset_offline failed twice: this container has no LaTeX ("No LaTeX on this
+  computer"), not the patch. ci by hand: green (frontend, backend 3.9 + 3.12, e2e).
 - 2026-11-23 · docs for MSG10 / WC5 / RE4: messages.md (Add a stream, the stream's ⋯, the structure form's rows),
   reports.md + reports.he.md (comments, the editor's keys), features.md (three lines). `mkdocs build --strict` green.
   The whole e2e one file at a time (101 files): 544 passed; test_messages::test_decode_as_messages_both_ways_with_a_direction_column
