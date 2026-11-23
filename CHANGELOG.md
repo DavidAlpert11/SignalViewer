@@ -2,6 +2,16 @@
 
 ## Next – unreleased
 
+- Fixed: *Messages* - **removing one field removed its whole message.** Each field is now one row (name, byte, type, order,
+  unit) with its own ✕ always in sight, and the field's conversion (scale, add, formula) folds under it; a removed field
+  comes back with *Undo* in the notice. A whole message is removed only from its own 🗑 button, after a question that says
+  how many fields go with it. Messages fold to their header.
+
+- New: *Messages* - **a byte stream can be taken away.** Each stream's ⋯ menu: *Start over*, *Forget the definition* (a
+  stream the app finds by itself stays listed) or *Remove from the list* (a stream added by hand) - asked first, one Undo.
+  **Add a stream** at the top of *Byte streams* defines any signal of the open files - another TX, another link - without
+  the right-click.
+
 ## 1.34.0 – 2026-11-22
 
 **Highlights:** **An interactive plot straight onto a Confluence page, and messages from bytes to variables made plain.** *Send to Confluence…*: paste the page's link - the plot or tab is on the page, live with every sample, where you put `[[signalviewer]]` or under the heading you choose (set up once: the address and a token; try it with no Confluence: `tools/try_confluence.py`); drag a plot or a tab out of the window - a folder gets the interactive page, Chrome opens it, Word gets a sharp picture. *Messages*: every message counted and in its order, one message's variables plotted alone; the bytes as hex, numbers or ASCII, doubles and text, a conversion formula; any column as the direction; a header told from a footer by the pauses. Every plot zooms its values too. LaTeX built in - nothing to install.

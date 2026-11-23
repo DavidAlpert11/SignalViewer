@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { fieldSize } from "../messages";
 import { useT } from "../i18n";
+import { Icon } from "../icons";
+import { useApp } from "../store";
+import { confirmAsk } from "./Overlays";
 import type { StructField, StructMessage, Structure } from "../store/model";
 
 /* MSG2 (owner, 2026-11-20: "propose structures and give the user freedom to define"): a message structure edited as a
@@ -30,6 +33,40 @@ export default function StructureEditor({ value, onChange }: { value: Structure;
   };
   const nextOffset = (m: StructMessage) => {
     return m.fields.reduce((a, f) => Math.max(a, (f.offset ?? 0) + fieldSize(f)), 4);
+  };
+  // fields are removed one by one, at once, with Undo in the notice; a whole message only from its menu, asked first
+  // (owner, 2026-11-23: removing one variable took the whole group - the field's ✕ was off to the side of a wide
+  // table and the message's "Remove" was the button in sight)
+  const latest = useRef(value);
+  latest.current = value;
+  const [closed, setClosed] = useState<string[]>([]);          // messages folded (by id and name)
+  const [openF, setOpenF] = useState<string[]>([]);            // fields with their conversion open ("i:j")
+  const msgKey = (m: StructMessage) => `${m.id}|${m.name}`;
+  const putBack = (fn: (s: Structure) => Structure | null) => { const v = fn(latest.current); if (v) onChange(v); };
+  const removeField = (i: number, j: number) => {
+    const m = value.messages[i], f = m.fields[j];
+    setMsg(i, { fields: m.fields.filter((_x, k) => k !== j) });
+    setOpenF([]);
+    useApp.getState().toast({ kind: "info", key: "msg-removed", text: t("msgFieldRemoved", { name: f.name, msg: m.name }), action: { label: t("undo"), run: () => putBack((s) => {
+      const k = s.messages.findIndex((x) => msgKey(x) === msgKey(m));
+      if (k < 0) return null;
+      const fs = [...s.messages[k].fields];
+      fs.splice(Math.min(j, fs.length), 0, f);
+      return { ...s, messages: s.messages.map((x, q) => (q === k ? { ...x, fields: fs } : x)) };
+    }) } });
+  };
+  const removeMsg = async (i: number) => {
+    const m = value.messages[i];
+    if (m.fields.length && !await confirmAsk(t("msgMsgRemove"), t("msgMsgRemoveAsk", { msg: m.name, n: m.fields.length }), t("msgMsgRemove"), true)) return;
+    const s0 = latest.current, k = s0.messages.findIndex((x) => msgKey(x) === msgKey(m));
+    if (k < 0) return;
+    onChange({ ...s0, messages: s0.messages.filter((_x, q) => q !== k) });
+    setOpenF([]);
+    useApp.getState().toast({ kind: "info", key: "msg-removed", text: t("msgMsgRemoved", { msg: m.name }), action: { label: t("undo"), run: () => putBack((s) => {
+      const ms = [...s.messages];
+      ms.splice(Math.min(k, ms.length), 0, m);
+      return { ...s, messages: ms };
+    }) } });
   };
   return (
     <div className="msg-struct">
@@ -76,46 +113,75 @@ export default function StructureEditor({ value, onChange }: { value: Structure;
                 <option value="">{t("msgNone2")}</option><option value="nmea">{t("msgCsNmea")}</option></select></label>
             </>}
           </div>
-          {value.messages.map((m, i) => (
-            <fieldset key={i} className="msg-msg" dir="ltr">
-              <legend>
-                <input className="msg-id" size={6} title={t("msgMsgId")} value={bin ? hex(m.id) : String(m.id)}
+          {value.messages.map((m, i) => {
+            const shut = closed.includes(msgKey(m));
+            return (
+            <section key={i} className={`msg-msg${shut ? " shut" : ""}`} dir="ltr">
+              <header className="msg-msg-head">
+                <button className="iconbtn msg-msg-chev" aria-expanded={!shut} aria-label={t(shut ? "msgShowFields" : "msgHideFields")}
+                  title={t(shut ? "msgShowFields" : "msgHideFields")}
+                  onClick={() => setClosed((c) => (shut ? c.filter((k) => k !== msgKey(m)) : [...c, msgKey(m)]))}><Icon.Chevron /></button>
+                <input className="msg-id" size={6} title={t("msgMsgId")} aria-label={t("msgMsgId")} value={bin ? hex(m.id) : String(m.id)}
                   onChange={(e) => setMsg(i, { id: bin ? (parseInt(e.target.value, e.target.value.toLowerCase().startsWith("0x") ? 16 : 10) || 0) : e.target.value })} />
-                <input className="msg-name" size={14} title={t("msgMsgName")} value={m.name} onChange={(e) => setMsg(i, { name: e.target.value })} />
-                <button className="linklike" onClick={() => set({ messages: value.messages.filter((_x, k) => k !== i) })}>{t("msgDel")}</button>
-              </legend>
-              <table className="msg-fields">
-                <thead><tr><th>{t("msgFName")}</th><th>{bin ? t("msgFAt") : t("msgFIndex")}</th><th>{t("msgFType")}</th>{bin && <th>{t("msgFEndian")}</th>}
-                  <th>{t("msgFScale")}</th><th>{t("msgFAdd")}</th><th title={t("msgFFormulaHint")}>{t("msgFFormula")}</th><th>{t("msgFUnit")}</th><th /></tr></thead>
-                <tbody>{m.fields.map((f, j) => (
-                  <tr key={j}>
-                    <td><input size={12} className="msg-f-name" value={f.name} onChange={(e) => setField(i, j, { name: e.target.value })} /></td>
-                    <td><input type="number" min={0} className="msg-f-at" value={(bin ? f.offset : f.index) ?? 0}
-                      onChange={(e) => setField(i, j, bin ? { offset: num(e.target.value) } : { index: num(e.target.value) })} /></td>
-                    <td><select className="msg-f-type" value={f.type ?? (bin ? "u8" : "number")} title={t(`msgTy_${f.type ?? (bin ? "u8" : "number")}` as never)}
-                      onChange={(e) => setField(i, j, { type: e.target.value, ...(e.target.value === "ascii" && !f.size ? { size: 8 } : {}) })}>
-                      {(bin ? BIN : TXT).map((x) => <option key={x} value={x} title={t(`msgTy_${x}` as never)}>{x}</option>)}</select></td>
-                    {bin && <td>{f.type === "ascii"
-                      ? <label className="msg-f-size" title={t("msgFSizeHint")}><input type="number" min={1} max={255} value={f.size ?? 8}
-                          onChange={(e) => setField(i, j, { size: Math.max(1, Math.min(255, num(e.target.value, 8))) })} /> {t("msgFBytes")}</label>
-                      : <select className="msg-f-endian" value={f.endian ?? "le"} disabled={/8$/.test(f.type ?? "u8")}
-                      onChange={(e) => setField(i, j, { endian: e.target.value as "le" | "be" })}>
-                      <option value="le">{t("msgLe")}</option><option value="be">{t("msgBe")}</option></select>}</td>}
-                    <td><input size={5} value={f.scale ?? 1} disabled={!!f.formula || f.type === "ascii" || f.type === "text"} onChange={(e) => setField(i, j, { scale: num(e.target.value, 1) })} /></td>
-                    <td><input size={4} value={f.add ?? 0} disabled={!!f.formula || f.type === "ascii" || f.type === "text"} onChange={(e) => setField(i, j, { add: num(e.target.value) })} /></td>
-                    <td><input size={11} className="msg-f-formula" dir="ltr" placeholder="x*0.01-40" title={t("msgFFormulaHint")} value={f.formula ?? ""}
-                      disabled={f.type === "ascii" || f.type === "text"} onChange={(e) => setField(i, j, { formula: e.target.value || undefined })} /></td>
-                    <td><input size={5} value={f.unit ?? ""} onChange={(e) => setField(i, j, { unit: e.target.value })} /></td>
-                    <td><button className="linklike" aria-label={t("msgDel")} onClick={() => setMsg(i, { fields: m.fields.filter((_x, k) => k !== j) })}>✕</button></td>
-                  </tr>
-                ))}</tbody>
-              </table>
-              <button className="linklike msg-add-field" onClick={() => setMsg(i, { fields: [...m.fields,
-                bin ? { name: `b${nextOffset(m)}`, offset: nextOffset(m), type: "u8" } : { name: `f${m.fields.length + 1}`, index: m.fields.length + 1, type: "number" }] })}>{t("msgAddField")}</button>
-            </fieldset>
-          ))}
-          <button className="linklike msg-add-msg" onClick={() => set({ messages: [...value.messages,
-            { id: bin ? 0 : "XXX", name: `MSG${value.messages.length + 1}`, fields: [] }] })}>{t("msgAddMsg")}</button>
+                <input className="msg-name" size={14} title={t("msgMsgName")} aria-label={t("msgMsgName")} value={m.name} onChange={(e) => setMsg(i, { name: e.target.value })} />
+                <span className="msg-msg-count" dir="auto">{m.fields.length === 1 ? t("msgNFieldsOne") : t("msgNFields", { n: m.fields.length })}</span>
+                <button className="iconbtn msg-msg-del" aria-label={t("msgMsgRemoveN", { msg: m.name })} title={t("msgMsgRemoveN", { msg: m.name })}
+                  onClick={() => void removeMsg(i)}><Icon.Trash /></button>
+              </header>
+              {!shut && <>
+                {m.fields.length > 0 ? (
+                  <div className="msg-fields" role="table" aria-label={m.name}>
+                    <div className="msg-f-head" role="row">
+                      <span role="columnheader" dir="auto">{t("msgFName")}</span><span role="columnheader">{bin ? t("msgFAt") : t("msgFIndex")}</span>
+                      <span role="columnheader">{t("msgFType")}</span><span role="columnheader">{bin ? t("msgFEndian") : ""}</span>
+                      <span role="columnheader">{t("msgFUnit")}</span><span /><span />
+                    </div>
+                    {m.fields.map((f, j) => {
+                      const fk = `${i}:${j}`;
+                      const more = openF.includes(fk);
+                      const plain = f.type === "ascii" || f.type === "text";
+                      const conv = plain ? "" : f.formula ? f.formula : [f.scale != null && f.scale !== 1 ? `×${f.scale}` : "", f.add ? (f.add > 0 ? `+${f.add}` : `${f.add}`) : ""].join(" ").trim();
+                      return (
+                        <div key={j} className={`msg-f${more ? " more" : ""}`} role="row">
+                          <input className="msg-f-name" aria-label={t("msgFName")} value={f.name} onChange={(e) => setField(i, j, { name: e.target.value })} />
+                          <input type="number" min={0} className="msg-f-at" aria-label={bin ? t("msgFAt") : t("msgFIndex")} value={(bin ? f.offset : f.index) ?? 0}
+                            onChange={(e) => setField(i, j, bin ? { offset: num(e.target.value) } : { index: num(e.target.value) })} />
+                          <select className="msg-f-type" aria-label={t("msgFType")} value={f.type ?? (bin ? "u8" : "number")} title={t(`msgTy_${f.type ?? (bin ? "u8" : "number")}` as never)}
+                            onChange={(e) => setField(i, j, { type: e.target.value, ...(e.target.value === "ascii" && !f.size ? { size: 8 } : {}) })}>
+                            {(bin ? BIN : TXT).map((x) => <option key={x} value={x} title={t(`msgTy_${x}` as never)}>{x}</option>)}</select>
+                          {bin ? (f.type === "ascii"
+                            ? <label className="msg-f-size" title={t("msgFSizeHint")}><input type="number" min={1} max={255} value={f.size ?? 8}
+                                onChange={(e) => setField(i, j, { size: Math.max(1, Math.min(255, num(e.target.value, 8))) })} /> {t("msgFBytes")}</label>
+                            : <select className="msg-f-endian" dir="auto" aria-label={t("msgFEndian")} value={f.endian ?? "le"} disabled={/8$/.test(f.type ?? "u8")}
+                                onChange={(e) => setField(i, j, { endian: e.target.value as "le" | "be" })}>
+                                <option value="le">{t("msgLe")}</option><option value="be">{t("msgBe")}</option></select>) : <span />}
+                          <input className="msg-f-unit" aria-label={t("msgFUnit")} value={f.unit ?? ""} onChange={(e) => setField(i, j, { unit: e.target.value })} />
+                          <button className={`msg-f-conv${conv ? " set" : ""}`} aria-expanded={more} disabled={plain}
+                            title={t("msgFConvHint")} onClick={() => setOpenF((o) => (more ? o.filter((k) => k !== fk) : [...o, fk]))}>
+                            {conv || "ƒ"}</button>
+                          <button className="iconbtn msg-f-del" aria-label={t("msgFieldRemove", { name: f.name })} title={t("msgFieldRemove", { name: f.name })}
+                            onClick={() => removeField(i, j)}><Icon.X /></button>
+                          {more && (
+                            <div className="msg-f-more">
+                              <label>{t("msgFScale")} <input size={5} className="msg-f-scale" value={f.scale ?? 1} disabled={!!f.formula} onChange={(e) => setField(i, j, { scale: num(e.target.value, 1) })} /></label>
+                              <label>{t("msgFAdd")} <input size={4} className="msg-f-add" value={f.add ?? 0} disabled={!!f.formula} onChange={(e) => setField(i, j, { add: num(e.target.value) })} /></label>
+                              <label title={t("msgFFormulaHint")}>{t("msgFFormula")} <input size={14} className="msg-f-formula" dir="ltr" placeholder="x*0.01-40" value={f.formula ?? ""}
+                                onChange={(e) => setField(i, j, { formula: e.target.value || undefined })} /></label>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : <p className="hint msg-f-none">{t("msgNoFields")}</p>}
+                <button className="msg-add msg-add-field" onClick={() => setMsg(i, { fields: [...m.fields,
+                  bin ? { name: `b${nextOffset(m)}`, offset: nextOffset(m), type: "u8" } : { name: `f${m.fields.length + 1}`, index: m.fields.length + 1, type: "number" }] })}>
+                  <Icon.Plus /> {t("msgAddField")}</button>
+              </>}
+            </section>
+          ); })}
+          <button className="msg-add msg-add-msg" onClick={() => set({ messages: [...value.messages,
+            { id: bin ? 0 : "XXX", name: `MSG${value.messages.length + 1}`, fields: [] }] })}><Icon.Plus /> {t("msgAddMsg")}</button>
         </>
       )}
     </div>

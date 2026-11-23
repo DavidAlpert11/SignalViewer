@@ -146,7 +146,8 @@ def test_propose_a_binary_structure_rename_and_make(pg):
     assert pg.locator(".msgp-stream.open .msg-hdr").input_value() == "EB90"
     att = pg.locator(".msgp-stream.open .msg-msg", has=pg.locator(".msg-name[value=MSG_A0]"))
     att.locator(".msg-f-name").first.fill("roll")
-    att.locator("input[size='5']").nth(0).fill("0.01")                           # x scale
+    att.locator(".msg-f-conv").first.click()                                     # the first field's conversion
+    att.locator(".msg-f-scale").first.fill("0.01")                               # x scale
     shot(pg, "msg2_propose_binary.png")
     pg.locator(".msgp-stream.open .msg-make").click()
     pg.wait_for_function("window.__sv.state().runs.some(r => r.name === 'rx_byte - messages')", timeout=30000)
@@ -369,7 +370,8 @@ def test_bytes_as_hex_numbers_ascii_a_text_field_and_a_formula(pg):
     pg.locator(".menu.ctx button", has_text="A value starts here").click()
     pg.locator(".menu.ctx.sub button", has_text="16-bit, LSB first").first.click()
     table.locator("th", has_text="value_2").wait_for(timeout=15000)
-    row = ed.locator(".msg-fields tr", has=pg.locator("input.msg-f-name[value='value_2']"))
+    row = ed.locator(".msg-f", has=pg.locator("input.msg-f-name[value='value_2']"))
+    row.locator(".msg-f-conv").click()
     row.locator(".msg-f-formula").fill("x*0.01 - 40")
     pg.wait_for_function("""() => { const t = document.querySelector('.msgp-stream.open .msg-values-t');
         return t && [...t.querySelectorAll('tbody tr')].some(r => r.innerText.includes('10.01')); }""", timeout=15000)
@@ -392,3 +394,40 @@ def test_not_the_type_byte_makes_one_kind_of_message(pg):
     pg.wait_for_function("document.querySelector('.msgp-stream.open .msg-framing-line').innerText.includes('one kind of message')", timeout=15000)
     pg.wait_for_function("""() => { const c = [...document.querySelectorAll('.msgp-stream.open .msg-values-t caption')];
         return c.length === 1 && c[0].innerText.startsWith('MSG ·'); }""", timeout=15000)       # one kind: one table
+
+
+def test_remove_one_field_a_message_and_a_stream(pg):
+    """Owner, 2026-11-23: removing one variable took its whole message, and a stream once defined could not be taken
+    away. A field's ✕ removes that field only (Undo in the notice); a message is removed from its own button, asked
+    first; a stream's ⋯ forgets its definition (one Undo) or, added by hand, takes it off the list."""
+    shutil.copy(os.path.join(DEMO, "link_tx_rx.csv"), os.path.join(pg.env["data"], "link_tx_rx.csv"))
+    open_files(pg, "link_tx_rx.csv")
+    sig(pg, "rx_byte").click(button="right")
+    pg.locator(".menu.ctx button", has_text="Decode as messages").click()
+    pg.locator(".msgp-stream.open .msg-propose").click()
+    att = pg.locator(".msgp-stream.open .msg-msg", has=pg.locator(".msg-name[value=MSG_A0]"))
+    att.wait_for()
+    names = lambda: att.locator(".msg-f-name").evaluate_all("els => els.map(e => e.value)")  # noqa: E731
+    before = names()
+    assert len(before) >= 2
+    att.locator(".msg-f-del").nth(1).click()
+    assert names() == before[:1] + before[2:]                                   # one field gone, the message kept
+    pg.locator(".toast", has_text="Removed").locator("button", has_text="Undo").click()
+    pg.wait_for_function("n => document.querySelectorAll('.msgp-stream.open .msg-msg .msg-f-name').length >= n", arg=len(before))
+    assert names() == before
+    # the whole message: asked first
+    n_msgs = pg.locator(".msgp-stream.open .msg-msg").count()
+    att.locator(".msg-msg-del").click()
+    pg.locator(".dialog .btn", has_text="Remove the message").click()
+    pg.wait_for_function("n => document.querySelectorAll('.msgp-stream.open .msg-msg').length === n - 1", arg=n_msgs)
+    # kept in the session, then forgotten from the stream's menu - one Undo brings it back
+    pg.locator(".msgp-stream.open .msg-make").click()
+    pg.wait_for_function("(window.__sv.state().ws.messageStreams || []).some(m => m.sources[0].endsWith('/rx_byte'))", timeout=30000)
+    pg.locator(".msgp-stream[data-key$='/rx_byte'] .msgp-stream-more").click()
+    pg.locator(".menu.ctx button", has_text="Forget the definition").click()
+    pg.locator(".dialog .btn", has_text="Forget the definition").click()
+    pg.wait_for_function("!(window.__sv.state().ws.messageStreams || []).some(m => m.sources[0].endsWith('/rx_byte'))")
+    assert pg.locator(".msgp-stream[data-key$='/rx_byte']").count() == 1      # found by itself: still listed, folded
+    assert pg.locator(".msgp-stream.open[data-key$='/rx_byte']").count() == 0
+    pg.evaluate("() => window.__sv.state().undo()")
+    pg.wait_for_function("(window.__sv.state().ws.messageStreams || []).some(m => m.sources[0].endsWith('/rx_byte'))")

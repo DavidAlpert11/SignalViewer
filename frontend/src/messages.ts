@@ -220,6 +220,15 @@ export async function remakeRecordings(streams: MessageStream[] | undefined): Pr
 /* ---- MSG3: the Messages panel's other actions --------------------------------------------------- */
 
 /** "Add to the report": the definition kept (one Undo step with it) and a [[messages <this stream>]] at the end. */
+/** A byte stream's definition taken out of the session (one Undo): the stream goes back to what the app finds by
+ *  itself. A recording made from it stays open now; it is not made again when the session opens. */
+export function forgetStream(ids: string[]) {
+  const st = useApp.getState();
+  const key = ids.join(",");
+  if (!(st.ws.messageStreams ?? []).some((m) => m.sources.join(",") === key)) return;
+  st.commit((ws) => { ws.messageStreams = (ws.messageStreams ?? []).filter((m) => m.sources.join(",") !== key); return ws; });
+}
+
 export function addStreamToReport(def: MessageStream) {
   const st = useApp.getState();
   const ids = def.sources;

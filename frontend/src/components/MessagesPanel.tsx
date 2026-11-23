@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { actions, useApp } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { api, type LibraryItem, type StreamRow } from "../api";
-import { isMessageLog, messageTypes } from "../messages";
+import { forgetStream, isMessageLog, messageTypes } from "../messages";
+import { Icon } from "../icons";
+import { choose, confirmAsk, openMenu } from "./Overlays";
 import StreamEditor from "./StreamEditor";
 
 /* MSG3 (owner, 2026-11-20: "organise all the message data - MAVLink, NMEA, general messages - in one central
@@ -27,6 +29,9 @@ export default function MessagesPanel() {
   const [rows, setRows] = useState<StreamRow[] | null>(null);
   const [lib, setLib] = useState<{ folder: string; items: LibraryItem[] } | null>(null);
   const [open, setOpen] = useState<string[]>([]);
+  // streams added by hand (Add a stream, a signal's right-click) - listed though the app did not find them itself
+  const [added, setAdded] = useState<string[]>([]);
+  const [gen, setGen] = useState<Record<string, number>>({});         // a stream's editor started again (Start over)
   const body = useRef<HTMLDivElement>(null);
   const files = runs.filter((r) => r.format !== "derived");
   const scan = files.filter((r) => !isMessageLog(r) || r.importSettings?.format === "svraw");     // logs are decoded already
@@ -45,6 +50,7 @@ export default function MessagesPanel() {
     if (!focus) return;
     const key = focus.ids.join(",");
     setOpen((o) => [key, ...o.filter((k) => k !== key)]);
+    setAdded((a) => (a.includes(key) ? a : [key, ...a]));
     useApp.setState({ msgFocus: null });
     window.setTimeout(() => body.current?.querySelector(`[data-key="${CSS.escape(key)}"]`)?.scrollIntoView({ block: "start" }), 50);
   }, [focus]);
@@ -52,12 +58,51 @@ export default function MessagesPanel() {
   const groups = useMemo(() => {
     const by = new Map<string, StreamRow[]>();
     for (const r of rows ?? []) by.set(r.key, [...(by.get(r.key) ?? []), r]);
-    for (const k of open) if (!by.has(k)) by.set(k, []);      // opened on a signal not found by itself
+    for (const k of [...added, ...(defs ?? []).map((d) => d.sources.join(","))]) if (!by.has(k)) by.set(k, []);   // not found by itself
     return [...by.entries()];
-  }, [rows, open]);
+  }, [rows, added, defs]);
   const logs = files.filter(isMessageLog).map((r) => ({ run: r, types: messageTypes(r.signals) })).filter((x) => x.types.length);
   const toggle = (k: string) => setOpen((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]));
   const defined = new Set((defs ?? []).map((d) => d.sources.join(",")));
+  const found = new Set((rows ?? []).map((r) => r.key));
+  const toast = (text: string, undo: boolean) => useApp.getState().toast({ kind: "info", text, ...(undo ? { undoesWs: true, action: { label: t("undo"), run: () => useApp.getState().undo() } } : {}) });
+
+  // + Add a stream: any signal of the open files that is not listed yet, likely byte signals first
+  const addStream = async () => {
+    const listed = new Set(groups.flatMap(([k]) => k.split(",")));
+    const byteish = /(^|[._ ])(byte|bytes|raw|rx|tx|data|uart|serial)([._ \d]|$)/i;
+    const opts = files.flatMap((r) => r.signals.filter((x) => !x.labels && !listed.has(x.id)).map((x) => ({ x, r })))
+      .sort((a, b) => Number(byteish.test(b.x.name)) - Number(byteish.test(a.x.name)))
+      .map(({ x, r }) => ({ value: x.id, label: `${x.name} · ${r.name}` }));
+    if (!opts.length) { useApp.getState().toast({ kind: "info", text: t("msgpAddNone") }); return; }
+    const id = await choose(t("msgpAdd"), t("msgpAddWhich"), opts, opts[0].value, t("msgpAddNote"));
+    if (id) useApp.setState({ msgFocus: { ids: [id] } });
+  };
+  const streamMenu = (e: React.MouseEvent, key: string, ids: string[], title: string) => {
+    const isDef = defined.has(key), isFound = found.has(key);
+    const made = (defs ?? []).find((d) => d.sources.join(",") === key)?.made ?? [];
+    const restart = () => { setGen((g) => ({ ...g, [key]: (g[key] ?? 0) + 1 })); };
+    openMenu(e, [
+      { label: t(open.includes(key) ? "msgpFold" : "msgpOpen"), run: () => toggle(key) },
+      { label: t("msgpStartOver"), disabled: !open.includes(key) && !isDef, run: async () => {
+        if (isDef && !await confirmAsk(t("msgpStartOver"), t("msgpStartOverAsk", { name: title }) + (made.length ? " " + t("msgpMadeStays") : ""), t("msgpStartOver"), true)) return;
+        forgetStream(ids); restart(); setOpen((o) => (o.includes(key) ? o : [...o, key]));
+        if (isDef) toast(t("msgpStartedOver", { name: title }), true);
+      } },
+      { label: "", run: () => {}, sep: true },
+      isFound
+        ? { label: t("msgpForget"), danger: true, disabled: !isDef, run: async () => {
+            if (!await confirmAsk(t("msgpForget"), t("msgpForgetAsk", { name: title }) + (made.length ? " " + t("msgpMadeStays") : ""), t("msgpForget"), true)) return;
+            forgetStream(ids); restart(); setOpen((o) => o.filter((k) => k !== key));
+            toast(t("msgpForgot", { name: title }), true);
+          } }
+        : { label: t("msgpRemove"), danger: true, run: async () => {
+            if (isDef && !await confirmAsk(t("msgpRemove"), t("msgpRemoveAsk", { name: title }) + (made.length ? " " + t("msgpMadeStays") : ""), t("msgpRemove"), true)) return;
+            forgetStream(ids); restart(); setOpen((o) => o.filter((k) => k !== key)); setAdded((a) => a.filter((k) => k !== key));
+            toast(t("msgpRemoved", { name: title }), isDef);
+          } },
+    ]);
+  };
 
   return (
     <aside className="side messages" aria-label={t("msgPanel")}>
@@ -76,7 +121,10 @@ export default function MessagesPanel() {
         )}
 
         <section className="msgp-sec msgp-streams">
-          <h3 className="alist-head">{t("msgpStreams")}</h3>
+          <div className="msgp-sec-head">
+            <h3 className="alist-head">{t("msgpStreams")}</h3>
+            <button className="btn outline sm msgp-add" onClick={() => void addStream()} disabled={!files.length}><Icon.Plus /> {t("msgpAdd")}</button>
+          </div>
           <p className="hint">{t("msgpStreamsHint")}</p>
           {rows === null && !groups.length && <p className="hint">{t("msgpLooking")}</p>}
           {rows !== null && !groups.length && <p className="hint msgp-none">{t("msgpNoStreams")}</p>}
@@ -87,10 +135,16 @@ export default function MessagesPanel() {
             const file = rs[0]?.file ?? runs.find((r) => r.id === ids[0].slice(0, ids[0].indexOf("/")))?.name;
             return (
               <div key={key} className={`msgp-stream${on ? " open" : ""}`} data-key={key}>
-                <button className="msgp-stream-head" aria-expanded={on} onClick={() => toggle(key)}>
-                  <span className="msgp-name"><bdi dir="ltr">{title}</bdi>{defined.has(key) && <span className="tag">{t("msgpDefined")}</span>}</span>
-                  <span className="msgp-file">{file}</span>
-                </button>
+                <div className="msgp-stream-top">
+                  <button className="msgp-stream-head" aria-expanded={on} onClick={() => toggle(key)}>
+                    <Icon.Chevron className="msgp-chev" />
+                    <span className="msgp-name"><bdi dir="ltr">{title}</bdi>{defined.has(key) && <span className="tag">{t("msgpDefined")}</span>}
+                      {!found.has(key) && <span className="tag">{t("msgpByHand")}</span>}</span>
+                    <span className="msgp-file">{file}</span>
+                  </button>
+                  <button className="iconbtn msgp-stream-more" aria-label={t("msgpStreamActions", { name: title })} title={t("msgpStreamActions", { name: title })}
+                    onClick={(e) => streamMenu(e, key, ids, title)}><Icon.More /></button>
+                </div>
                 {rs.map((r) => (
                   <div key={r.name} className="msgp-dir">
                     {r.error ? <span className="hint">⚠ {r.error}</span> : <>
@@ -103,7 +157,7 @@ export default function MessagesPanel() {
                     </>}
                   </div>
                 ))}
-                {on && <StreamEditor ids={ids} library={lib?.items ?? []} onLibrary={loadLib} />}
+                {on && <StreamEditor key={gen[key] ?? 0} ids={ids} library={lib?.items ?? []} onLibrary={loadLib} />}
               </div>
             );
           })}

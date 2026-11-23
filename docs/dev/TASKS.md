@@ -171,6 +171,12 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-23 · MSG10 (owner: "removing one variable removed a whole group; a stream once defined cannot be removed; how do I
+  define another TX"): StructureEditor - a row per field (✕ in sight, the conversion folded under it, Undo in the notice),
+  a message removed only from its 🗑 after a question, messages fold. MessagesPanel - each stream's ⋯ (Fold, Start over,
+  Forget the definition / Remove from the list; `messages.ts forgetStream`, one commit), *Add a stream* (any signal, byte-like
+  names first). e2e test_messages (14, new test_remove_one_field_a_message_and_a_stream) green; quick_check: test_rawlink
+  UDP failed once under load, alone green. Not yet: What changed keeping earlier spans (spec to the owner).
 - 2026-11-22 · Release 1.34.0 again: the whole e2e one file at a time - 100 files, 541 passed; test_study_loop 1 failed under
   load (79 s), alone 3 / 3 twice (19 s). The owner moves the tag (commands given).
 - 2026-11-22 · Z1 (owner: "zoom on y, everywhere"): the app's XY / FFT / step / envelope and every plot of the HTML page; the

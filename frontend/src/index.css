@@ -2022,8 +2022,18 @@ input.fx-input { width: 100%; }
 .messages .hint { margin: 2px 0 6px; }
 .msgp-stream { border: 1px solid var(--line); border-radius: var(--r-card); margin: 0 0 var(--sp-2); background: var(--panel); }
 .msgp-stream.open { border-color: var(--line-strong); box-shadow: 0 1px 6px rgba(0,0,0,.08); }
-.msgp-stream-head { display: flex; width: 100%; align-items: baseline; gap: var(--sp-2); padding: 6px 10px; background: none; border: 0; color: var(--ink); cursor: pointer; text-align: start; font: inherit; }
-.msgp-stream-head:hover { background: var(--panel-2); }
+/* a stream: its head opens it; ⋯ beside it - fold, start over, forget / remove (asked first, one Undo) */
+.msgp-stream-top { display: flex; align-items: stretch; border-radius: var(--r-card); }
+.msgp-stream-top:hover { background: var(--panel-2); }
+.msgp-stream-head { display: flex; flex: 1; min-width: 0; align-items: baseline; gap: var(--sp-2); padding: 7px 4px 7px 8px; background: none; border: 0; color: var(--ink); cursor: pointer; text-align: start; font: inherit; }
+.msgp-chev { width: 14px; height: 14px; flex: none; align-self: center; color: var(--muted); transition: transform .12s; transform: rotate(-90deg); }
+[dir="rtl"] .msgp-chev { transform: rotate(90deg); }
+.msgp-stream.open .msgp-chev { transform: none; }
+.msgp-stream-more { flex: none; align-self: center; height: 26px; min-width: 26px; padding: 0; margin-inline-end: 6px; color: var(--muted); }
+.messages .msgp-sec-head { display: flex; align-items: center; gap: var(--sp-2); margin-top: 8px; }
+.messages .msgp-sec-head .alist-head { flex: 1; border-top: 0; padding-top: 0; margin: 0; }
+.messages .msgp-add { flex: none; display: inline-flex; align-items: center; gap: 4px; }
+.messages .msgp-add svg { width: 14px; height: 14px; }
 .msgp-name { font-weight: 600; color: var(--ink-strong); display: inline-flex; gap: 6px; align-items: baseline; min-width: 0; overflow-wrap: anywhere; }
 .msgp-file { color: var(--muted); font-size: var(--fs-s); margin-inline-start: auto; }
 .msgp-dir { padding: 0 10px 6px; font-size: var(--fs-s); color: var(--ink); }
@@ -2048,12 +2058,44 @@ input.fx-input { width: 100%; }
 .msg-struct .seg { margin-bottom: var(--sp-2); }
 .msg-struct .msg-frame { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); align-items: center; margin-bottom: var(--sp-2); }
 .msg-struct .msg-frame input[type=number] { width: 4.5em; }
-.msg-struct .msg-msg { border: 1px solid var(--line); border-radius: var(--r-m); padding: 4px 8px 6px; margin: 0 0 var(--sp-2); }
-.msg-struct .msg-msg legend { display: flex; gap: 6px; align-items: center; }
-.msg-struct .msg-fields { border-collapse: collapse; font-size: var(--fs-s); }
-.msg-struct .msg-fields th { text-align: start; font-weight: 500; color: var(--muted); padding: 2px 4px; }
-.msg-struct .msg-fields td { padding: 1px 4px; }
-.msg-struct .msg-fields input[type=number] { width: 4em; }
+/* a message: a card - its id and name, how many fields, fold, remove (asked first). Each field one row: name, byte,
+   type, order, unit, its conversion (folded under the row), and its own ✕ always in sight - never a wide table */
+.msg-struct .msg-msg { border: 1px solid var(--line); border-radius: var(--r-l); background: var(--panel); margin: 0 0 var(--sp-2); overflow: hidden; }
+.msg-struct .msg-msg-head { display: flex; align-items: center; gap: var(--sp-1_5); padding: 5px 6px 5px 4px; background: var(--panel-2); }
+.msg-struct .msg-msg:not(.shut) .msg-msg-head { border-bottom: 1px solid var(--line); }
+.msg-struct .msg-msg-head .msg-id { width: 4.5em; font-family: var(--mono); font-size: var(--fs-s); }
+.msg-struct .msg-msg-head .msg-name { flex: 1 1 8em; min-width: 0; font-weight: 600; color: var(--ink-strong); }
+.msg-struct .msg-msg-count { color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; }
+.msg-struct .msg-msg-chev { height: 24px; min-width: 24px; padding: 0; color: var(--muted); }
+.msg-struct .msg-msg-chev svg { transition: transform .12s; }
+.msg-struct .msg-msg.shut .msg-msg-chev svg { transform: rotate(-90deg); }
+.msg-struct .msg-msg-del { height: 26px; min-width: 26px; padding: 0; color: var(--muted); }
+.msg-struct .msg-msg-del:hover, .msg-struct .msg-f-del:hover { color: var(--danger); background: var(--danger-soft); }
+.msg-struct .msg-fields { display: grid; grid-template-columns: minmax(6.5em, 1fr) 3.8em 5.6em 6.4em 4.2em auto 26px; column-gap: var(--sp-1);
+  padding: 4px 6px 0; font-size: var(--fs-s); }
+.msg-struct .msg-f-head, .msg-struct .msg-f { display: contents; }
+.msg-struct .msg-f-head > span { color: var(--muted); font-size: var(--fs-xs); padding: 0 2px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg-struct .msg-f > input, .msg-struct .msg-f > select, .msg-struct .msg-f > label, .msg-struct .msg-f > span, .msg-struct .msg-f > button { margin: 2px 0; min-width: 0; }
+.msg-struct .msg-f input, .msg-struct .msg-f select { width: 100%; box-sizing: border-box; }
+.msg-struct .msg-f .msg-f-name { font-weight: 500; }
+.msg-struct .msg-f-size { display: flex; align-items: center; gap: 3px; color: var(--muted); font-size: var(--fs-xs); }
+.msg-struct .msg-f-size input { width: 3.4em; }
+.msg-struct .msg-f-conv { font: inherit; font-size: var(--fs-xs); font-family: var(--mono); color: var(--muted); background: none; border: 1px dashed var(--line-strong);
+  border-radius: var(--r-s); padding: 0 6px; height: 24px; align-self: center; cursor: pointer; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-struct .msg-f-conv.set { color: var(--ink); border-style: solid; background: var(--panel-2); }
+.msg-struct .msg-f-conv[aria-expanded="true"] { border-color: var(--ink); }
+.msg-struct .msg-f-conv:disabled { visibility: hidden; }
+.msg-struct .msg-f-del { height: 24px; width: 26px; min-width: 0; padding: 0; color: var(--muted); align-self: center; }
+.msg-struct .msg-f-more { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); align-items: center; margin: 0 0 4px;
+  padding: 5px 8px; background: var(--panel-2); border-radius: var(--r-m); color: var(--muted); font-size: var(--fs-xs); }
+.msg-struct .msg-f-more label { display: inline-flex; align-items: center; gap: 4px; }
+.msg-struct .msg-f-more input { width: auto; font-size: var(--fs-s); }
+.msg-struct .msg-f-none { padding: 6px 10px 0; margin: 0; }
+.msg-struct .msg-add { display: flex; align-items: center; justify-content: center; gap: 4px; width: calc(100% - 12px); margin: 6px; padding: 4px;
+  font: inherit; font-size: var(--fs-s); color: var(--muted); background: none; border: 1px dashed var(--line-strong); border-radius: var(--r-m); cursor: pointer; }
+.msg-struct .msg-add:hover { color: var(--ink-strong); border-color: var(--ink); background: var(--panel-2); }
+.msg-struct .msg-add svg { width: 14px; height: 14px; }
+.msg-struct .msg-add-msg { width: 100%; margin: 0; padding: 7px; }
 .msg-struct .msg-json { width: 100%; font-family: var(--mono); font-size: var(--fs-s); }
 
 /* MSG4: the Messages panel's four steps and the byte view (each byte coloured by its role) */
