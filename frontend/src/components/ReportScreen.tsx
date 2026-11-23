@@ -18,6 +18,7 @@ import { DOC_STATS, PARTS, SPECIALS, defaultDocText, docBody, docText, isLatexDo
 import ReportParts from "./ReportParts";
 import { MAX_ALL, MAX_ONE, assetBytes, assetId, htmlToMarkdown, pictureAsset, tsvToMarkdown } from "../reportPaste";
 import { readyInsert } from "../reportReady";
+import DemoGuide from "./DemoGuide";
 
 type View = "write" | "both" | "show";
 type Format = "html" | "pdf" | "docx" | "tex" | "texpdf";
@@ -354,8 +355,8 @@ export default function ReportScreen() {
 
   return (
     <div className="rd" role="region" aria-label={t("report")}>
-      <div className="rd-head">
-        <h2 className="rd-title"><Icon.Report aria-hidden="true" />{t("report")}</h2>
+      <div className="rd-head page-head">
+        <h2 className="rd-title page-title"><Icon.Report aria-hidden="true" />{t("report")}</h2>
         <div className="seg" role="group">
           {(["write", "both", "show"] as View[]).map((v) => (
             <button key={v} className={view === v ? "on" : ""} aria-pressed={view === v} onClick={() => setView(v)}>{t(v === "write" ? "rdWrite" : v === "both" ? "rdBoth" : "rdShow")}</button>
@@ -388,6 +389,7 @@ export default function ReportScreen() {
             { label: t("rdReset"), run: () => { void reset(); } },
           ])}><Icon.Reset /></button>
       </div>
+      <DemoGuide />
       <div className={`rd-body rd-${view}`}>
         {view !== "show" && (
           <aside className="rd-lib" aria-label={t("rdLibrary")}>

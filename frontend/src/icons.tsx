@@ -52,6 +52,9 @@ export const Icon = {
   Send: mk(<><path d="M21 3L10 14" /><path d="M21 3l-7 18-4-7-7-4z" /></>),     // R1: a replay page to send
   Download: mk(<><path d="M12 4v11M7 10l5 5 5-5" /><path d="M5 19h14" /></>),
   Merge: mk(<><path d="M6 4v5a5 5 0 0 0 5 5h1v6M18 4v5a5 5 0 0 1-5 5" /><path d="M9 17l3 3 3-3" /></>),
+  // a panel on the whole stage / back beside the plots (rail.ts isFull)
+  Expand: mk(<path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />),
+  Collapse: mk(<path d="M20 10h-6V4M4 14h6v6M14 10l7-7M10 14l-7 7" />),
   Keyboard: mk(<><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" /></>),
 };
 

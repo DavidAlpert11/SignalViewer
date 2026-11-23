@@ -19,11 +19,18 @@ import { openMenu } from "./Overlays";
 const CHECKSUMS = ["", "none", "sum8", "xor8", "negsum8", "notsum8", "crc16ccitt", "crc16modbus", "fletcher16"];
 const hex2 = (v: number) => v.toString(16).toUpperCase().padStart(2, "0");
 
-export default function StreamEditor({ ids, library, onLibrary }: { ids: string[]; library: LibraryItem[]; onLibrary: () => void }) {
+export default function StreamEditor({ ids, carries, library, onLibrary }: {
+  ids: string[]; library: LibraryItem[]; onLibrary: () => void;
+  /** what the user said it carries when adding it (two signals: TX and RX), over the guess from the names */
+  carries?: "pair";
+}) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const runs = useApp((s) => s.runs);
-  const [def, setDef] = useState<MessageStream>(() => streamFor(ids));
+  const [def, setDef] = useState<MessageStream>(() => {
+    const d = streamFor(ids);
+    return carries && !(useApp.getState().ws.messageStreams ?? []).some((m) => m.id === d.id) ? { ...d, carries, dir: null } : d;
+  });
   const [busy, setBusy] = useState(false);
   const [side, setSide] = useState<string>("");
   const [info, setInfo] = useState<MessagesInspect | null>(null);

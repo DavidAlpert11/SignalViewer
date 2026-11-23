@@ -13,6 +13,8 @@ export interface UiSlice {
   /** the work area on screen (areas.ts); the panels, dialogs and tabs below are the Recordings area's */
   area: AreaId;
   panel: PanelId | null;
+  /** a side panel moved to the whole stage, or back beside the plots, this session (components/rail.ts isFull) */
+  panelFull: Partial<Record<PanelId, boolean>>;
   inspectorOpen: boolean;
   inspectorScope: "active" | "all";
   selected: { plotId: string; sig: string } | null;
@@ -61,7 +63,7 @@ export interface UiSlice {
   similarDialog: { runId: string; ids: string[] } | null;
   /** MSG1: *Decode as messages…* - the byte signal(s) being defined as a stream of messages */
   /** MSG3: the Messages panel opened on these byte signals (a signal's right-click *Decode as messages…*) */
-  msgFocus: { ids: string[] } | null;
+  msgFocus: { ids: string[]; carries?: "pair" } | null;
   /** L10: a plot being dragged by its handle (the tabs light up as drop targets) */
   plotDrag: string | null;
   compareOffer: string | null;     // N7: a map / 3D plot whose objects were just added - offer to compare them
@@ -161,6 +163,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   lang: (navigator.language || "").startsWith("he") ? "he" : "en",
   area: DEFAULT_AREA,
   panel: "data",
+  panelFull: {},
   inspectorOpen: inspectorPref() === "open",   // closed until there is something to show (T08)
   inspectorScope: "active",
   selected: null,

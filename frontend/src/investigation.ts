@@ -3,6 +3,7 @@
 import { api } from "./api";
 import { translate, type TKey } from "./i18n";
 import { activeTab, fileLabel, rangeKey, uid, useApp, type FindingStatus, type JournalStep, type SavedView, type StepKind } from "./store";
+import { forgetPlotsBeside } from "./components/rail";
 
 /** What is on screen now (to bring it back later). */
 export function captureView(): SavedView {
@@ -25,6 +26,7 @@ export function openWhatChanged(span: { a: number; b: number }) {
   const same = (x: { a: number; b: number }) => x.a === span.a && x.b === span.b;
   const cur = st.whatChanged;
   const earlier = [...(cur && !same(cur) ? [cur] : []), ...st.wcEarlier.filter((x) => !same(x) && !(cur && x.a === cur.a && x.b === cur.b))].slice(0, 12);
+  forgetPlotsBeside("investigate");          // a new answer to read: on the whole stage again (rail.ts)
   useApp.setState({ panel: "investigate", whatChanged: span, wcEarlier: earlier });
 }
 

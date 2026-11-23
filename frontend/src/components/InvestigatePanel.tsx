@@ -9,6 +9,7 @@ import { openWhatChanged, record, restoreView } from "../investigation";
 import { combineConditions, condSignals, deleteCondition, evaluateOne, intervalsByRun, overlayInNewTab, saveCondition, stepOccurrence, updateCondition, usedBy } from "../conditions";
 import { api } from "../api";
 import { copyText } from "../errorReport";
+import PanelFrame from "../shell/PanelFrame";
 
 /** Investigation spec, step 2: the session's named conditions - shown or hidden, stepped through,
  *  edited in place with a live count, combined, deleted (one undo). */
@@ -50,77 +51,77 @@ export default function InvestigatePanel() {
     openMenu(e, items);
   };
 
-  return (
-    <aside className="side investigate" aria-label={t("investigate")}>
-      <div className="side-head"><h2>{t("investigate")}</h2></div>
-      <div className="inv-body">
-        {whatChanged && newOne && (
-          <button className="btn outline sm inv-wc-new" onClick={() => openWhatChanged(newOne)}>
-            <Icon.Plus /> {t("wcNewBetween", { a: fmtNum(newOne.a, lang, 6), b: fmtNum(newOne.b, lang, 6) })}</button>
-        )}
-        {earlier.length > 0 && (
-          <div className="wc-earlier" role="group" aria-label={t("wcEarlier")}>
-            <span className="wc-earlier-label">{t("wcEarlier")}</span>
-            {earlier.map((x) => (
-              <span key={`${x.a}|${x.b}`} className="wc-earlier-row">
-                <button className="wc-earlier-open" title={t("wcEarlierOpen")} onClick={() => openWhatChanged(x)}>
-                  <bdi>{t("wcSpanShort", { a: fmtNum(x.a, lang, 6), b: fmtNum(x.b, lang, 6) })}</bdi></button>
-                <button className="wc-earlier-del" aria-label={t("wcEarlierRemove")} title={t("wcEarlierRemove")}
-                  onClick={() => useApp.setState({ wcEarlier: useApp.getState().wcEarlier.filter((y) => y !== x) })}><Icon.X /></button>
-              </span>
-            ))}
-            {earlier.length > 1 && <button className="linklike wc-earlier-clear" onClick={() => useApp.setState({ wcEarlier: [] })}>{t("wcEarlierClear")}</button>}
-          </div>
-        )}
-        {whatChanged && <WhatChanged key={`${whatChanged.a}|${whatChanged.b}`} />}
-        {/* how to start: what went wrong at a moment is the first question - two cursors around it */}
-        {!whatChanged && files.length > 0 && (
-          <div className="card info inv-start">
-            <h3 className="card-title">{t("invStartTitle")}</h3>
-            <p className="card-meta">{t("invStartText")}</p>
-            {cursor.on && cursor.dual && cursor.t1 !== null && cursor.t2 !== null && cursor.t1 !== cursor.t2
-              ? <button className="btn primary sm inv-wc" onClick={() => openWhatChanged({ a: Math.min(cursor.t1!, cursor.t2!), b: Math.max(cursor.t1!, cursor.t2!) })}>
-                  {t("invStartGo")}</button>
-              : <button className="btn outline sm inv-dual" onClick={() => actions.toggleDual()}>{t("invStartDual")}</button>}
-          </div>
-        )}
-        <div className="cond-head">
-          <h3 className="eyebrow">{t("conditions")}</h3>
-          <button className="btn outline sm cond-new" onClick={() => useApp.setState({ condEdit: { id: "new" } })} disabled={!files.length}>
-            <Icon.Plus /> {t("condNew")}
-          </button>
-        </div>
-        {!files.length && <p className="empty-state">{t("condNoFiles")}</p>}
-        {edit?.id === "new" && <CondEditor key="new" />}
-        {!conds.length && edit?.id !== "new" && files.length > 0 && <p className="empty-state">{t("condEmpty")}</p>}
-        <ul className="cond-list">
-          {conds.map((c) => {
-            const k = count(c.id);
-            return (
-              <li key={c.id} className={`cond-row${focus === c.id ? " focus" : ""}${c.visible ? "" : " hidden"}`}>
-                <div className="cond-line">
-                  <button className="iconbtn cond-eye" aria-pressed={c.visible} title={t(c.visible ? "condHide" : "condShow")}
-                    onClick={() => updateCondition(c.id, { visible: !c.visible })}>{c.visible ? "◉" : "○"}</button>
-                  <span className="cond-swatch" style={{ background: c.color }} />
-                  <button className="linklike cond-name" title={t("condStepHint")}
-                    onClick={() => stepOccurrence(c.id, 1)}>{c.name}</button>
-                  <span className="cond-count" title={k.tip}>{k.missing ? "–" : fmtNum(k.n, lang, 6)}</span>
-                  <button className="iconbtn cond-more" aria-label={t("condMenu")} onClick={(e) => rowMenu(e, c)}><Icon.More /></button>
-                </div>
-                {edit?.id === c.id ? <CondEditor key={c.id} cond={c} before={k.n} /> : (
-                  <div className="cond-text">{c.combine ? c.combine.ids.map((id) => conds.find((x) => x.id === id)?.name ?? "?").join(c.combine.op === "and" ? " ∧ " : " ∨ ") : c.text}</div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-        {conds.length > 0 && <p className="hint">{t("condKeysHint")}</p>}
-        {files.length > 0 && <button className="btn outline sm cond-matrix" onClick={() => useApp.setState({ matrixOpen: true })}>{t("mxOpen", { n: files.length })}</button>}
-        {focus && conds.some((c) => c.id === focus) && <OccSection key={focus} cond={conds.find((c) => c.id === focus)!} />}
-        <Journal />
+  // the answer worked on (What changed, or how to start) and what there is (earlier spans, conditions, the journal):
+  // one frame places them beside the plots or as a page (shell/PanelFrame.tsx)
+  const main = <>
+    {whatChanged && newOne && (
+      <button className="btn outline sm inv-wc-new" onClick={() => openWhatChanged(newOne)}>
+        <Icon.Plus /> {t("wcNewBetween", { a: fmtNum(newOne.a, lang, 6), b: fmtNum(newOne.b, lang, 6) })}</button>
+    )}
+    {whatChanged && <WhatChanged key={`${whatChanged.a}|${whatChanged.b}`} />}
+    {/* how to start: what went wrong at a moment is the first question - two cursors around it */}
+    {!whatChanged && files.length > 0 && (
+      <div className="card info inv-start">
+        <h3 className="card-title">{t("invStartTitle")}</h3>
+        <p className="card-meta">{t("invStartText")}</p>
+        {cursor.on && cursor.dual && cursor.t1 !== null && cursor.t2 !== null && cursor.t1 !== cursor.t2
+          ? <button className="btn primary sm inv-wc" onClick={() => openWhatChanged({ a: Math.min(cursor.t1!, cursor.t2!), b: Math.max(cursor.t1!, cursor.t2!) })}>
+              {t("invStartGo")}</button>
+          : <button className="btn outline sm inv-dual" onClick={() => actions.toggleDual()}>{t("invStartDual")}</button>}
       </div>
-    </aside>
-  );
+    )}
+  </>;
+  const index = <>
+    {earlier.length > 0 && (
+      <div className="wc-earlier" role="group" aria-label={t("wcEarlier")}>
+        <span className="wc-earlier-label">{t("wcEarlier")}</span>
+        {earlier.map((x) => (
+          <span key={`${x.a}|${x.b}`} className="wc-earlier-row">
+            <button className="wc-earlier-open" title={t("wcEarlierOpen")} onClick={() => openWhatChanged(x)}>
+              <bdi>{t("wcSpanShort", { a: fmtNum(x.a, lang, 6), b: fmtNum(x.b, lang, 6) })}</bdi></button>
+            <button className="wc-earlier-del" aria-label={t("wcEarlierRemove")} title={t("wcEarlierRemove")}
+              onClick={() => useApp.setState({ wcEarlier: useApp.getState().wcEarlier.filter((y) => y !== x) })}><Icon.X /></button>
+          </span>
+        ))}
+        {earlier.length > 1 && <button className="linklike wc-earlier-clear" onClick={() => useApp.setState({ wcEarlier: [] })}>{t("wcEarlierClear")}</button>}
+      </div>
+    )}
+    <div className="cond-head">
+      <h3 className="eyebrow">{t("conditions")}</h3>
+      <button className="btn outline sm cond-new" onClick={() => useApp.setState({ condEdit: { id: "new" } })} disabled={!files.length}>
+        <Icon.Plus /> {t("condNew")}
+      </button>
+    </div>
+    {!files.length && <p className="empty-state">{t("condNoFiles")}</p>}
+    {edit?.id === "new" && <CondEditor key="new" />}
+    {!conds.length && edit?.id !== "new" && files.length > 0 && <p className="empty-state">{t("condEmpty")}</p>}
+    <ul className="cond-list">
+      {conds.map((c) => {
+        const k = count(c.id);
+        return (
+          <li key={c.id} className={`cond-row${focus === c.id ? " focus" : ""}${c.visible ? "" : " hidden"}`}>
+            <div className="cond-line">
+              <button className="iconbtn cond-eye" aria-pressed={c.visible} title={t(c.visible ? "condHide" : "condShow")}
+                onClick={() => updateCondition(c.id, { visible: !c.visible })}>{c.visible ? "◉" : "○"}</button>
+              <span className="cond-swatch" style={{ background: c.color }} />
+              <button className="linklike cond-name" title={t("condStepHint")}
+                onClick={() => stepOccurrence(c.id, 1)}>{c.name}</button>
+              <span className="cond-count" title={k.tip}>{k.missing ? "–" : fmtNum(k.n, lang, 6)}</span>
+              <button className="iconbtn cond-more" aria-label={t("condMenu")} onClick={(e) => rowMenu(e, c)}><Icon.More /></button>
+            </div>
+            {edit?.id === c.id ? <CondEditor key={c.id} cond={c} before={k.n} /> : (
+              <div className="cond-text">{c.combine ? c.combine.ids.map((id) => conds.find((x) => x.id === id)?.name ?? "?").join(c.combine.op === "and" ? " ∧ " : " ∨ ") : c.text}</div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+    {conds.length > 0 && <p className="hint">{t("condKeysHint")}</p>}
+    {files.length > 0 && <button className="btn outline sm cond-matrix" onClick={() => useApp.setState({ matrixOpen: true })}>{t("mxOpen", { n: files.length })}</button>}
+    {focus && conds.some((c) => c.id === focus) && <OccSection key={focus} cond={conds.find((c) => c.id === focus)!} />}
+    <Journal />
+  </>;
+  return <PanelFrame id="investigate" title={t("investigate")} className="investigate" bodyClass="inv-body" main={main} index={index} />;
 }
 
 /** The editor of one condition (or a new one): what it says, its options, and - while it is being

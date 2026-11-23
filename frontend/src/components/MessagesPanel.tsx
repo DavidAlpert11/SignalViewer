@@ -4,8 +4,10 @@ import { fmtNum, useT } from "../i18n";
 import { api, type LibraryItem, type StreamRow } from "../api";
 import { forgetStream, isMessageLog, messageTypes } from "../messages";
 import { Icon } from "../icons";
-import { choose, confirmAsk, openMenu } from "./Overlays";
+import { confirmAsk, openMenu } from "./Overlays";
 import StreamEditor from "./StreamEditor";
+import AddStream, { streamTitle } from "./AddStream";
+import PanelFrame, { usePlace } from "../shell/PanelFrame";
 
 /* MSG3 (owner, 2026-11-20: "organise all the message data - MAVLink, NMEA, general messages - in one central
    place"): the Messages panel. What is running now (a link, MAVLink - started and stopped in Live ▾), the byte
@@ -31,8 +33,11 @@ export default function MessagesPanel() {
   const [open, setOpen] = useState<string[]>([]);
   // streams added by hand (Add a stream, a signal's right-click) - listed though the app did not find them itself
   const [added, setAdded] = useState<string[]>([]);
+  const [carries, setCarries] = useState<Record<string, "pair">>({});      // a pair said so in the form
+  const [adding, setAdding] = useState<boolean | null>(null);             // the form; null: open while nothing is listed
   const [gen, setGen] = useState<Record<string, number>>({});         // a stream's editor started again (Start over)
   const body = useRef<HTMLDivElement>(null);
+  const place = usePlace();
   const files = runs.filter((r) => r.format !== "derived");
   const scan = files.filter((r) => !isMessageLog(r) || r.importSettings?.format === "svraw");     // logs are decoded already
   const seen = scan.map((r) => `${r.id}:${r.version ?? ""}`).join("|") + JSON.stringify(defs ?? []);
@@ -49,6 +54,8 @@ export default function MessagesPanel() {
   useEffect(() => {
     if (!focus) return;
     const key = focus.ids.join(",");
+    if (focus.carries) setCarries((c) => ({ ...c, [key]: focus.carries! }));
+    setAdding(false);
     setOpen((o) => [key, ...o.filter((k) => k !== key)]);
     setAdded((a) => (a.includes(key) ? a : [key, ...a]));
     useApp.setState({ msgFocus: null });
@@ -67,17 +74,8 @@ export default function MessagesPanel() {
   const found = new Set((rows ?? []).map((r) => r.key));
   const toast = (text: string, undo: boolean) => useApp.getState().toast({ kind: "info", text, ...(undo ? { undoesWs: true, action: { label: t("undo"), run: () => useApp.getState().undo() } } : {}) });
 
-  // + Add a stream: any signal of the open files that is not listed yet, likely byte signals first
-  const addStream = async () => {
-    const listed = new Set(groups.flatMap(([k]) => k.split(",")));
-    const byteish = /(^|[._ ])(byte|bytes|raw|rx|tx|data|uart|serial)([._ \d]|$)/i;
-    const opts = files.flatMap((r) => r.signals.filter((x) => !x.labels && !listed.has(x.id)).map((x) => ({ x, r })))
-      .sort((a, b) => Number(byteish.test(b.x.name)) - Number(byteish.test(a.x.name)))
-      .map(({ x, r }) => ({ value: x.id, label: `${x.name} · ${r.name}` }));
-    if (!opts.length) { useApp.getState().toast({ kind: "info", text: t("msgpAddNone") }); return; }
-    const id = await choose(t("msgpAdd"), t("msgpAddWhich"), opts, opts[0].value, t("msgpAddNote"));
-    if (id) useApp.setState({ msgFocus: { ids: [id] } });
-  };
+  const listed = new Set(groups.flatMap(([k]) => k.split(",")));
+  const formOpen = adding ?? (rows !== null && !groups.length);
   const streamMenu = (e: React.MouseEvent, key: string, ids: string[], title: string) => {
     const isDef = defined.has(key), isFound = found.has(key);
     const made = (defs ?? []).find((d) => d.sources.join(",") === key)?.made ?? [];
@@ -104,102 +102,123 @@ export default function MessagesPanel() {
     ]);
   };
 
-  return (
-    <aside className="side messages" aria-label={t("msgPanel")}>
-      <div className="side-head"><h2>{t("msgPanel")}</h2></div>
-      <div className="msgp-body" ref={body}>
-        {(link?.running || mav?.running) && (
-          <section className="card info msgp-running">
-            <h3 className="card-title">{t("msgpRunning")}</h3>
-            {link?.running && <p className="card-meta msgp-link"><span className="live-dot on" /> <bdi dir="ltr">{link.conn}{link.peer ? ` ← ${link.peer}` : ""}</bdi>{" · "}
-              {link.sinceData == null ? t("mavWaiting") : t("linkStats", { kb: Math.round((link.bytes ?? 0) / 1024), rate: Math.round(link.rate ?? 0) })}
-              {link.error ? ` · ${link.error}` : ""}</p>}
-            {mav?.running && <p className="card-meta msgp-mav"><span className="live-dot on" /> MAVLink <bdi dir="ltr">{mav.conn}</bdi>{" · "}
-              {mav.sinceData == null ? t("mavWaiting") : t("msgpMavStats", { n: mav.frames ?? 0, kb: Math.round((mav.bytes ?? 0) / 1024) })}</p>}
-            <p className="card-meta">{t("msgpRunningHint")}</p>
-          </section>
-        )}
+  const page = place === "stage";
+  // on the page one stream is worked on at a time (the main column); beside the plots each opens in place
+  const current = page ? groups.find(([k]) => k === open[0]) : undefined;
+  const pick = (k: string) => { setAdding(false); setOpen(page ? [k] : open.includes(k) ? open.filter((x) => x !== k) : [...open, k]); };
+  const editor = (key: string, ids: string[]) => <StreamEditor key={gen[key] ?? 0} ids={ids} carries={carries[key]} library={lib?.items ?? []} onLibrary={loadLib} />;
+  const dirLines = (rs: StreamRow[]) => rs.map((r) => (
+    <div key={r.name} className="msgp-dir">
+      {r.error ? <span className="hint">⚠ {r.error}</span> : <>
+        <span className="msgp-dir-line">{dirLabel(r) && <><b dir="ltr">{dirLabel(r)}</b>{" "}</>}
+          {t("msgpMsgs", { n: fmtNum(r.count ?? 0, lang, 6) })} · <bdi dir="ltr">{r.header}</bdi>
+          {r.checksum ? <> · <bdi dir="ltr">{r.checksum}</bdi>{r.errors ? <span className="msgp-bad"> {t("msgpBad", { n: r.errors })}</span> : null}</> : null}
+          {" · "}{t("msgpTypes", { n: r.types?.length ?? 0 })}</span>
+        {r.typed && <span className="msgp-types" dir="ltr">{(r.types ?? []).slice(0, 8).map((x) => (
+          <span key={x.type} className="chip-s" title={`${x.count}`}>{hex(x.type)} {x.rate ? `${fmtNum(x.rate, lang, 3)} Hz` : `×${x.count}`}</span>))}</span>}
+      </>}
+    </div>
+  ));
+  const fileOf = (ids: string[], rs: StreamRow[]) => rs[0]?.file ?? runs.find((r) => r.id === ids[0].slice(0, ids[0].indexOf("/")))?.name;
 
-        <section className="msgp-sec msgp-streams">
-          <div className="msgp-sec-head">
-            <h3 className="alist-head">{t("msgpStreams")}</h3>
-            <button className="btn outline sm msgp-add" onClick={() => void addStream()} disabled={!files.length}><Icon.Plus /> {t("msgpAdd")}</button>
-          </div>
-          <p className="hint">{t("msgpStreamsHint")}</p>
-          {rows === null && !groups.length && <p className="hint">{t("msgpLooking")}</p>}
-          {rows !== null && !groups.length && <p className="hint msgp-none">{t("msgpNoStreams")}</p>}
-          {groups.map(([key, rs]) => {
-            const ids = key.split(",");
-            const on = open.includes(key);
-            const title = ids.length === 1 ? bare(ids[0]) : ids.length === 2 ? ids.map(bare).join(" + ") : `${bare(ids[0])}…${bare(ids[ids.length - 1])}`;
-            const file = rs[0]?.file ?? runs.find((r) => r.id === ids[0].slice(0, ids[0].indexOf("/")))?.name;
-            return (
-              <div key={key} className={`msgp-stream${on ? " open" : ""}`} data-key={key}>
-                <div className="msgp-stream-top">
-                  <button className="msgp-stream-head" aria-expanded={on} onClick={() => toggle(key)}>
-                    <Icon.Chevron className="msgp-chev" />
-                    <span className="msgp-name"><bdi dir="ltr">{title}</bdi>{defined.has(key) && <span className="tag">{t("msgpDefined")}</span>}
-                      {!found.has(key) && <span className="tag">{t("msgpByHand")}</span>}</span>
-                    <span className="msgp-file">{file}</span>
-                  </button>
-                  <button className="iconbtn msgp-stream-more" aria-label={t("msgpStreamActions", { name: title })} title={t("msgpStreamActions", { name: title })}
-                    onClick={(e) => streamMenu(e, key, ids, title)}><Icon.More /></button>
-                </div>
-                {rs.map((r) => (
-                  <div key={r.name} className="msgp-dir">
-                    {r.error ? <span className="hint">⚠ {r.error}</span> : <>
-                      <span className="msgp-dir-line">{dirLabel(r) && <><b dir="ltr">{dirLabel(r)}</b>{" "}</>}
-                        {t("msgpMsgs", { n: fmtNum(r.count ?? 0, lang, 6) })} · <bdi dir="ltr">{r.header}</bdi>
-                        {r.checksum ? <> · <bdi dir="ltr">{r.checksum}</bdi>{r.errors ? <span className="msgp-bad"> {t("msgpBad", { n: r.errors })}</span> : null}</> : null}
-                        {" · "}{t("msgpTypes", { n: r.types?.length ?? 0 })}</span>
-                      {r.typed && <span className="msgp-types" dir="ltr">{(r.types ?? []).slice(0, 8).map((x) => (
-                        <span key={x.type} className="chip-s" title={`${x.count}`}>{hex(x.type)} {x.rate ? `${fmtNum(x.rate, lang, 3)} Hz` : `×${x.count}`}</span>))}</span>}
-                    </>}
-                  </div>
-                ))}
-                {on && <StreamEditor key={gen[key] ?? 0} ids={ids} library={lib?.items ?? []} onLibrary={loadLib} />}
-              </div>
-            );
-          })}
-        </section>
-
-        {logs.length > 0 && (
-          <section className="msgp-sec msgp-logs">
-            <h3 className="alist-head">{t("msgpLogs")}</h3>
-            <p className="hint">{t("msgpLogsHint")}</p>
-            {logs.map(({ run, types }) => (
-              <details key={run.id} className="msgp-log" open={logs.length === 1}>
-                <summary><span className="msgp-name">{run.name}</span> <span className="msgp-file">{t("msgpTypes", { n: types.length })}</span></summary>
-                <table className="msgp-table">
-                  <thead><tr><th>{t("msgpType")}</th><th>{t("msgpFields")}</th><th>{t("msgpCount")}</th><th>{t("msgpRate")}</th></tr></thead>
-                  <tbody>{types.map((x) => (
-                    <tr key={x.type} tabIndex={0} title={x.ids.map(bare).join("\n")}
-                      onClick={() => actions.plotsInNewTab([{ title: x.type, ids: x.ids.slice(0, 6) }], x.type)}
-                      onKeyDown={(e) => { if (e.key === "Enter") actions.plotsInNewTab([{ title: x.type, ids: x.ids.slice(0, 6) }], x.type); }}>
-                      <td dir="ltr">{x.type}</td><td>{x.ids.length}</td><td>{fmtNum(x.count, lang, 6)}</td><td>{x.rate ? fmtNum(x.rate, lang, 3) : "—"}</td>
-                    </tr>))}</tbody>
-                </table>
-              </details>
-            ))}
-          </section>
-        )}
-
-        <section className="msgp-sec msgp-lib">
-          <h3 className="alist-head">{t("msgpLib")}</h3>
-          <p className="hint">{t("msgpLibHint")}</p>
-          <ul className="msgp-lib-list">
-            {(lib?.items ?? []).map((i) => (
-              <li key={i.key} title={i.path ?? ""}>
-                <span className="msgp-name" dir="ltr">{i.name}</span>
-                <span className="tag">{t(i.source === "builtin" ? "msgpBuiltin" : i.source === "readers" ? "msgpIcd" : "msgpYours")}</span>
-                {i.error ? <span className="msgp-bad">⚠ {i.error}</span> : <span className="msgp-file">{t("msgpLibMsgs", { n: i.messages ?? 0 })}</span>}
-              </li>
-            ))}
-          </ul>
-          {lib && <p className="hint msgp-folder"><bdi dir="ltr">{lib.folder}</bdi>{" "}
-            <button className="linklike" onClick={() => api.messagesLibraryReveal().catch((e) => useApp.getState().toast({ kind: "error", text: String((e as Error).message) }))}>{t("msgpOpenFolder")}</button></p>}
-        </section>
-      </div>
-    </aside>
+  const running = (link?.running || mav?.running) && (
+    <section className="card info msgp-running">
+      <h3 className="card-title">{t("msgpRunning")}</h3>
+      {link?.running && <p className="card-meta msgp-link"><span className="live-dot on" /> <bdi dir="ltr">{link.conn}{link.peer ? ` ← ${link.peer}` : ""}</bdi>{" · "}
+        {link.sinceData == null ? t("mavWaiting") : t("linkStats", { kb: Math.round((link.bytes ?? 0) / 1024), rate: Math.round(link.rate ?? 0) })}
+        {link.error ? ` · ${link.error}` : ""}</p>}
+      {mav?.running && <p className="card-meta msgp-mav"><span className="live-dot on" /> MAVLink <bdi dir="ltr">{mav.conn}</bdi>{" · "}
+        {mav.sinceData == null ? t("mavWaiting") : t("msgpMavStats", { n: mav.frames ?? 0, kb: Math.round((mav.bytes ?? 0) / 1024) })}</p>}
+      <p className="card-meta">{t("msgpRunningHint")}</p>
+    </section>
   );
+  const addForm = <AddStream files={files} listed={listed} open={formOpen && files.length > 0} onOpen={setAdding}
+    onAdd={(ids, c) => useApp.setState({ msgFocus: { ids, ...(c ? { carries: c } : {}) } })} />;
+
+  const streams = (
+    <section className="msgp-sec msgp-streams">
+      <div className="msgp-sec-head">
+        <h3 className="alist-head">{t("msgpStreams")}</h3>
+        <button className="btn outline sm msgp-add" onClick={() => setAdding(!formOpen)} aria-expanded={formOpen} disabled={!files.length}><Icon.Plus /> {t("msgpAdd")}</button>
+      </div>
+      {!page && <p className="hint">{t("msgpStreamsHint")}</p>}
+      {rows === null && !groups.length && <p className="hint">{t("msgpLooking")}</p>}
+      {rows !== null && !groups.length && <p className="hint msgp-none">{t("msgpNoStreams")}</p>}
+      {!page && addForm}
+      {groups.map(([key, rs]) => {
+        const ids = key.split(",");
+        const on = page ? current?.[0] === key && !formOpen : open.includes(key);
+        const title = streamTitle(ids);
+        return (
+          <div key={key} className={`msgp-stream${on ? (page ? " chosen" : " open") : ""}`} data-key={key}>
+            <div className="msgp-stream-top">
+              <button className="msgp-stream-head" aria-expanded={on} aria-current={page && on ? "true" : undefined} onClick={() => pick(key)}>
+                <Icon.Chevron className="msgp-chev" />
+                <span className="msgp-name"><bdi dir="ltr">{title}</bdi>{defined.has(key) && <span className="tag">{t("msgpDefined")}</span>}
+                  {!found.has(key) && <span className="tag">{t("msgpByHand")}</span>}</span>
+                <span className="msgp-file">{fileOf(ids, rs)}</span>
+              </button>
+              <button className="iconbtn msgp-stream-more" aria-label={t("msgpStreamActions", { name: title })} title={t("msgpStreamActions", { name: title })}
+                onClick={(e) => streamMenu(e, key, ids, title)}><Icon.More /></button>
+            </div>
+            {dirLines(rs)}
+            {!page && on && editor(key, ids)}
+          </div>
+        );
+      })}
+    </section>
+  );
+
+  const logList = logs.length > 0 && (
+    <section className="msgp-sec msgp-logs">
+      <h3 className="alist-head">{t("msgpLogs")}</h3>
+      <p className="hint">{t("msgpLogsHint")}</p>
+      {logs.map(({ run, types }) => (
+        <details key={run.id} className="msgp-log" open={logs.length === 1}>
+          <summary><span className="msgp-name">{run.name}</span> <span className="msgp-file">{t("msgpTypes", { n: types.length })}</span></summary>
+          <table className="msgp-table">
+            <thead><tr><th>{t("msgpType")}</th><th>{t("msgpFields")}</th><th>{t("msgpCount")}</th><th>{t("msgpRate")}</th></tr></thead>
+            <tbody>{types.map((x) => (
+              <tr key={x.type} tabIndex={0} title={x.ids.map(bare).join("\n")}
+                onClick={() => actions.plotsInNewTab([{ title: x.type, ids: x.ids.slice(0, 6) }], x.type)}
+                onKeyDown={(e) => { if (e.key === "Enter") actions.plotsInNewTab([{ title: x.type, ids: x.ids.slice(0, 6) }], x.type); }}>
+                <td dir="ltr">{x.type}</td><td>{x.ids.length}</td><td>{fmtNum(x.count, lang, 6)}</td><td>{x.rate ? fmtNum(x.rate, lang, 3) : "—"}</td>
+              </tr>))}</tbody>
+          </table>
+        </details>
+      ))}
+    </section>
+  );
+
+  const library = (
+    <section className="msgp-sec msgp-lib">
+      <h3 className="alist-head">{t("msgpLib")}</h3>
+      <p className="hint">{t("msgpLibHint")}</p>
+      <ul className="msgp-lib-list">
+        {(lib?.items ?? []).map((i) => (
+          <li key={i.key} title={i.path ?? ""}>
+            <span className="msgp-name" dir="ltr">{i.name}</span>
+            <span className="tag">{t(i.source === "builtin" ? "msgpBuiltin" : i.source === "readers" ? "msgpIcd" : "msgpYours")}</span>
+            {i.error ? <span className="msgp-bad">⚠ {i.error}</span> : <span className="msgp-file">{t("msgpLibMsgs", { n: i.messages ?? 0 })}</span>}
+          </li>
+        ))}
+      </ul>
+      {lib && <p className="hint msgp-folder"><bdi dir="ltr">{lib.folder}</bdi>{" "}
+        <button className="linklike" onClick={() => api.messagesLibraryReveal().catch((e) => useApp.getState().toast({ kind: "error", text: String((e as Error).message) }))}>{t("msgpOpenFolder")}</button></p>}
+    </section>
+  );
+
+  // the page: what there is in the index (streams, the library), the thing worked on in the main column - the form
+  // that adds a stream, the stream chosen, or (nothing chosen) what is running and the logs' messages
+  const main = page ? <div className="msgp-body" ref={body}>
+    {running}
+    {formOpen ? addForm : current ? <div className="msgp-stream open msgp-current" data-key={current[0]}>
+        <div className="msgp-current-head"><h3><bdi dir="ltr">{streamTitle(current[0].split(","))}</bdi></h3>
+          <span className="msgp-file">{fileOf(current[0].split(","), current[1])}</span></div>
+        {editor(current[0], current[0].split(","))}
+      </div>
+      : <>{groups.length > 0 && <p className="hint msgp-choose">{t("msgpChoose")}</p>}{logList}</>}
+  </div> : null;
+  const index = page ? <>{streams}{library}</> : <div ref={body} className="msgp-side">{running}{streams}{logList}{library}</div>;
+  return <PanelFrame id="messages" title={t("msgPanel")} className="messages" bodyClass="msgp-body" main={main} index={index} />;
 }

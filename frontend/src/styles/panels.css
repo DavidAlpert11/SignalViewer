@@ -68,17 +68,17 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 
 /* RE1: the report written as a document - head row, then insert library | editor | live preview */
 .rd { display: flex; flex-direction: column; min-height: 0; height: 100%; background: var(--bg); }
-.rd-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
-.rd-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--fs-l); font-weight: 600; color: var(--ink-strong); }
-.rd-title svg { width: 18px; height: 18px; }
+.rd-head, .page-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.rd-title, .page-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--fs-l); font-weight: 600; color: var(--ink-strong); }
+.rd-title svg, .page-title svg { width: 18px; height: 18px; }
 .rd-sel { display: flex; align-items: center; gap: 6px; font-size: var(--fs-s); color: var(--muted); }
-.rd-head .spacer, .rd-toolbar .spacer { flex: 1; }
+.rd-head .spacer, .page-head .spacer, .rd-toolbar .spacer { flex: 1; }
 .rd-status { font-size: var(--fs-s); color: var(--muted); }
 .rd-problems { color: var(--danger); }
 .rd-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 260px minmax(0, 1fr) minmax(0, 1fr); }
 .rd-body.rd-write { grid-template-columns: 260px minmax(0, 1fr); }
 .rd-body.rd-show { grid-template-columns: minmax(0, 1fr); }
-.rd-lib { overflow: auto; padding: 8px 10px 16px; border-inline-end: 1px solid var(--line); background: var(--panel); }
+.rd-lib, .page-index { overflow: auto; padding: 8px 10px 16px; border-inline-end: 1px solid var(--line); background: var(--panel); }
 .rd-lib .hint { margin: 2px 0 8px; }
 .rd-lib .eyebrow { margin: 12px 0 4px; }
 .rd-lib-tab { display: flex; flex-direction: column; margin-bottom: 6px; }
@@ -125,3 +125,40 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
   .rd-body.rd-both { grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); }
   .rd-lib { max-height: 28vh; border-inline-end: 0; border-bottom: 1px solid var(--line); }
 }
+
+/* A workspace on the whole stage (shell/PanelFrame.tsx; components/rail.ts says which and when): the same anatomy as
+   the Report - its head where the plots' bar is (.page-head = .rd-head), the demo's line, an index column (.page-index =
+   the Report's library column) and the main column worked in. */
+.stage-panel > .page { flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--bg); }
+.page-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); }
+.page-index { display: flex; flex-direction: column; gap: var(--sp-1_5); }
+.page-main { min-width: 0; min-height: 0; overflow: auto; padding: 14px 24px 28px; display: flex; flex-direction: column; gap: var(--sp-2); }
+.page-main > * { width: 100%; max-width: 1200px; }
+.page-main .msgp-body { padding: 0; overflow: visible; }
+.page-head .panel-fill { margin-inline-start: 0; }
+.side-head .panel-fill { margin-inline-start: auto; color: var(--muted); }
+.side-head .panel-fill:hover, .page-head .panel-fill:hover { color: var(--ink); }
+/* Messages as a page: the stream worked on, its name above its editor */
+.messages .msgp-current-head { display: flex; align-items: baseline; gap: var(--sp-2); margin-bottom: 6px; }
+.messages .msgp-current-head h3 { margin: 0; font-size: var(--fs-l); color: var(--ink-strong); }
+.page.messages .msgp-stream.chosen { border-color: var(--accent); }
+.page.messages .msgp-stream-head[aria-current="true"] { background: var(--panel-2); }
+
+/* the Messages panel's "which signals carry the bytes" (components/AddStream.tsx) */
+.messages .msgp-addform { display: flex; flex-direction: column; gap: var(--sp-2); padding: 10px 12px; margin: 8px 0; }
+.messages .msgp-addform-head { display: flex; align-items: center; gap: var(--sp-2); }
+.messages .msgp-addform-head h4 { margin: 0; flex: 1; font-size: var(--fs-base); color: var(--ink-strong); }
+.messages .msgp-addform .hint { margin: 0; }
+.messages .msgp-addkind { align-self: flex-start; }
+.messages .msgp-addpair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.messages .msgp-addform select { width: 100%; }
+.messages .msgp-addform-foot { display: flex; align-items: center; gap: var(--sp-2); }
+/* a page's index column reads like the Report's library: small upper-case section heads, rows that do not break */
+.page-index .alist-head { font: var(--eyebrow); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--muted);
+  border-top: 0; padding-top: 0; margin: 12px 0 4px; }
+.page-index .msgp-sec + .msgp-sec { border-top: 1px solid var(--line); padding-top: 4px; }
+.page-index .tag { white-space: nowrap; }
+.page-index .msgp-name { flex-wrap: wrap; row-gap: 2px; }
+/* the cell a side panel (or the Inspector) sits in: the panel fills it (App.tsx keeps it at one place in the tree) */
+.panel-slot { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.panel-slot > * { flex: 1; min-height: 0; }
