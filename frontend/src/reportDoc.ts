@@ -8,6 +8,7 @@
    works on the next recording; they are resolved here to stable ids "<runId>/<name>" for the server, which
    computes every value on all the data (backend/svcore/docfields.py) and draws the page / PDF / Word
    (backend/app/reportdoc.py). What cannot be found is said in place, never left out without a word. */
+import { stripMdComments } from "./editText";
 import { activeTab, signalName, TRACE_COLORS, useApp, type ReportMeta, type Tab, type Workspace } from "./store";
 import { translate, type TKey } from "./i18n";
 import { pagePlot, pagePlots, plotSpec } from "./plotSpec";
@@ -238,6 +239,8 @@ export async function prepareDoc(ws: Workspace, text: string, lang: Lang): Promi
   const items: DocItem[] = [];
   const problems: string[] = [];
   const vars: string[] = [];
+  // RE4: Markdown comments (<!-- -->, Ctrl+/ in the editor) are left out before anything is read - their references too
+  if (!isLatexDoc(text)) { const c0 = codeRanges(text); text = stripMdComments(text, (i) => c0.some(([a, b]) => i >= a && i < b)); }
   const code = codeRanges(text);
   const inCode = (i: number) => code.some(([a, b]) => i >= a && i < b);
   const specials: { k: number; name: string; opts: string[] }[] = [];

@@ -206,3 +206,34 @@ def test_latex_report_written_in_latex_typeset_offline(pg):
         assert "main.tex" in z.namelist() and any(n.startswith("figures/plot-") for n in z.namelist())
         assert "\\includegraphics" in z.read("main.tex").decode("utf-8")
     assert open(os.path.join(pg.env["out"], "drive.pdf"), "rb").read(5) == b"%PDF-"
+
+
+def test_editor_undo_a_comment_and_line_keys(pg):
+    """RE4 (owner, 2026-11-23): Ctrl+Z in the report undoes a run of typing at once (not letter by letter) and what the
+    app put in (bold); Ctrl+Y brings it back; Ctrl+/ makes the lines a comment, left out of the report, and back."""
+    open_files(pg, "run_a.csv")
+    pg.locator(".rail button[aria-label='Report']").click()
+    ta = pg.locator(".rd-text")
+    ta.wait_for()
+    write(pg, "# Title\n\nfirst line\nsecond line")
+    ta.click()
+    pg.keyboard.press("Control+End")
+    pg.keyboard.type(" and more words")
+    pg.keyboard.press("Control+z")
+    assert ta.input_value() == "# Title\n\nfirst line\nsecond line"            # the whole run of typing at once
+    pg.keyboard.press("Control+y")
+    assert ta.input_value().endswith("second line and more words")
+    pg.keyboard.press("Control+b")
+    assert ta.input_value().endswith("words****")
+    pg.keyboard.press("Control+z")
+    assert ta.input_value().endswith("words")
+    # Ctrl+/ on the line with the caret: a comment, not in the preview; again: text
+    pg.keyboard.press("Control+z")
+    pg.keyboard.press("Control+/")
+    pg.wait_for_function("(window.__sv.state().ws.report?.doc?.text || '').includes('<!-- second line -->')", timeout=10000)
+    preview_has(pg, "first line")
+    assert "second line" not in (S(pg, "s.reportPreviewHtml") or "")
+    pg.keyboard.press("Control+/")
+    assert ta.input_value() == "# Title\n\nfirst line\nsecond line"
+    pg.keyboard.press("Alt+ArrowUp")                                         # the line moves up
+    assert ta.input_value() == "# Title\n\nsecond line\nfirst line"

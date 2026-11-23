@@ -13,6 +13,7 @@ import { confirmAsk, openMenu } from "./Overlays";
 import { clearReport } from "../clearing";
 import { refFor, wordAt } from "../formulaRefs";
 import { fuzzySort } from "../fuzzy";
+import { duplicateLines, indentLines, moveLines, newHistory, record, redo, toggleComment, undo, type History, type Snap } from "../editText";
 import { DOC_STATS, PARTS, SPECIALS, defaultDocText, docBody, docText, isLatexDoc, metaOf, plotRef, tabRef } from "../reportDoc";
 import ReportParts from "./ReportParts";
 import { MAX_ALL, MAX_ONE, assetBytes, assetId, htmlToMarkdown, pictureAsset, tsvToMarkdown } from "../reportPaste";
@@ -77,7 +78,27 @@ export default function ReportScreen() {
   const runs = useApp((s) => s.runs);
   const meta: ReportMeta = metaOf(ws, lang);
   const stored = docText(ws, lang);
-  const [text, setText] = useState(stored);
+  const [text, setTextRaw] = useState(stored);
+  // RE4: the editor's own undo - a step per pause in typing or per piece put in, with the caret (editText.ts)
+  const hist = useRef<History>(newHistory());
+  const textRef = useRef(text);
+  textRef.current = text;
+  const selRef = useRef({ a: 0, b: 0 });
+  const setText = (v: string, kind: "type" | "delete" | "put" = "put") => {
+    if (v === textRef.current) return;
+    const el = ed.current;
+    const s = kind === "put" && el ? { a: el.selectionStart ?? 0, b: el.selectionEnd ?? 0 } : selRef.current;
+    hist.current = record(hist.current, { text: textRef.current, ...s }, kind);
+    textRef.current = v;
+    setTextRaw(v);
+  };
+  /** a state of the text and its selection, put in the editor (undo, redo, the line keys) */
+  const show = (s: Snap, fromHistory = false) => {
+    if (!fromHistory) setText(s.text); else { textRef.current = s.text; setTextRaw(s.text); }
+    typing.current = true;
+    selRef.current = { a: s.a, b: s.b };
+    requestAnimationFrame(() => { const el = ed.current; if (el) { el.focus(); el.setSelectionRange(s.a, s.b); } });
+  };
   const [view, setView] = useState<View>(() => { try { return (localStorage.getItem("sv.rdView") as View) || "both"; } catch { return "both"; } });
   const [dir, setDir] = useState<"rtl" | "ltr">(meta.lang === "he" ? "rtl" : "ltr");
   const [html, setHtml] = useState<string | null>(null);
@@ -139,7 +160,11 @@ export default function ReportScreen() {
   }, []);
 
   const setMeta = (patch: Partial<ReportMeta>) => useApp.getState().commit((w) => { w.report = { ...metaOf(w, lang), ...patch }; return w; });
-  const edit = (v: string) => { typing.current = true; setText(v); };
+  const edit = (v: string) => {
+    typing.current = true;
+    const d = v.length - textRef.current.length;
+    setText(v, d === 1 ? "type" : d === -1 ? "delete" : "put");          // a paste, a cut, a selection replaced: a step of its own
+  };
   const put = (s: string, wrap?: [string, string]) => { typing.current = true; insertAt(ed.current, s, setText, wrap); };
   const block = (s: string) => put(asBlock(ed.current, s));
   const linePrefix = (p: string) => {
@@ -278,6 +303,27 @@ export default function ReportScreen() {
   };
 
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const el = e.currentTarget, a = el.selectionStart ?? 0, b = el.selectionEnd ?? a;
+    selRef.current = { a, b };
+    const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+    const cur = { text: el.value, a, b };
+    if (mod && !e.altKey && (k === "z" || k === "y")) {                // RE4: the editor's undo, not the browser's letter by letter
+      e.preventDefault();
+      const r = k === "z" && !e.shiftKey ? undo(hist.current, cur) : redo(hist.current, cur);
+      if (r) { hist.current = r[0]; show(r[1], true); }
+      return;
+    }
+    if (mod && !e.shiftKey && !e.altKey && (e.key === "/" || e.code === "Slash")) { e.preventDefault(); show(toggleComment(el.value, a, b, latex)); return; }
+    if (mod && e.shiftKey && !e.altKey && k === "d") { e.preventDefault(); show(duplicateLines(el.value, a, b)); return; }
+    if (e.altKey && !mod && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      e.preventDefault();
+      const r = moveLines(el.value, a, b, e.key === "ArrowDown");
+      if (r) show(r);
+      return;
+    }
+    if (e.key === "Tab" && !mod && !e.altKey && (e.shiftKey || (a !== b && el.value.slice(a, b).includes("\n")))) {
+      e.preventDefault(); show(indentLines(el.value, a, b, e.shiftKey)); return;
+    }
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "v") plainPaste.current = true;
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === "b" || e.key === "i")) {
       e.preventDefault(); put("", latex ? (e.key === "b" ? ["\\textbf{", "}"] : ["\\emph{", "}"]) : e.key === "b" ? ["**", "**"] : ["*", "*"]);
@@ -393,6 +439,9 @@ export default function ReportScreen() {
                 {tool("🔗", t("rdLink"), () => put("text", ["[", "](https://)"]))}
               </>}
               {tool("🖼", t("rpPicture"), () => pictureInput.current?.click(), "rd-picture")}
+              {tool(latex ? "%" : "<!>", t("rdComment"), () => { const el = ed.current; if (el) show(toggleComment(el.value, el.selectionStart ?? 0, el.selectionEnd ?? 0, latex)); }, "rd-comment")}
+              {tool("↶", t("rdUndo"), () => { const el = ed.current; if (!el) return; const r = undo(hist.current, { text: el.value, a: el.selectionStart ?? 0, b: el.selectionEnd ?? 0 }); if (r) { hist.current = r[0]; show(r[1], true); } }, "rd-undo")}
+              {tool("↷", t("rdRedo"), () => { const el = ed.current; if (!el) return; const r = redo(hist.current, { text: el.value, a: el.selectionStart ?? 0, b: el.selectionEnd ?? 0 }); if (r) { hist.current = r[0]; show(r[1], true); } }, "rd-redo")}
               <input ref={pictureInput} type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden
                 onChange={(e) => { void addPictures(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
               <span className="spacer" />
@@ -411,7 +460,7 @@ export default function ReportScreen() {
             <textarea ref={ed} className="rd-text" dir={dir} spellCheck={false} value={text} placeholder={t("rdPlaceholder")}
               aria-label={t("report")}
               onChange={(e) => { edit(e.target.value); setCaret(e.target.selectionStart ?? 0); }}
-              onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
+              onSelect={(e) => { const el = e.target as HTMLTextAreaElement; setCaret(el.selectionStart ?? 0); selRef.current = { a: el.selectionStart ?? 0, b: el.selectionEnd ?? 0 }; }}
               onKeyDown={onKey} onDrop={onDrop} onPaste={onPaste}
               onBlur={() => { typing.current = false; commitText(text); }} />
           </section>

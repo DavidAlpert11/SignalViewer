@@ -2,6 +2,14 @@
 
 ## Next – unreleased
 
+- New: the report editor has **its own Undo**: Ctrl+Z goes back a whole run of typing, or a piece the app put in (bold, a
+  plot from the library, a paste), with the cursor where it was - not one letter at a time; Ctrl+Y / Ctrl+Shift+Z redo.
+  Also as ↶ ↷ in the editor's toolbar.
+- New: **comments in the report** - Ctrl+/ (or the toolbar's `<!>`) makes the selected lines a comment, `<!-- … -->`
+  in Markdown, `%` in LaTeX, and makes them text again. A comment stays in the text and is left out of the report,
+  references inside it too. And line keys: Tab / Shift+Tab indent the selected lines, Alt+↑ / Alt+↓ move them,
+  Ctrl+Shift+D duplicates them (listed under ? in the editor).
+
 - New: *Investigate* - **more than one What changed.** With the two cursors around another span, *What changed between the
   cursors?* opens it and the one shown goes to *Asked before*: a click shows it again, its ✕ takes it off the list,
   *Clear all* takes them all. ✕ on the one shown closes it.

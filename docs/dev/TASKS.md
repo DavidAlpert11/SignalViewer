@@ -171,6 +171,11 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-23 · RE4 (owner: "Ctrl+Z in the report's editing; a comment with Ctrl+/ and so on"): `editText.ts` (the editor's
+  history - a step per pause or per piece put in, with the selection; toggleComment, indent, move, duplicate lines;
+  stripMdComments) + editText.test.ts; ReportScreen keys and ↶ ↷ <!> in the toolbar; `prepareDoc` leaves Markdown
+  comments out (their references too). Vitest 308; e2e test_report_doc (5, new test_editor_undo_a_comment_and_line_keys),
+  test_report_parts, test_live_report, test_findings_report, test_report_*_zoom green.
 - 2026-11-23 · WC5 (owner: "another investigation of what changed; and just remove it"): `ui.wcEarlier` (UI only, not
   saved), `investigation.ts openWhatChanged` (the shown span goes to the earlier ones; the chart's ? and the panel's button
   use it), *Asked before* chips in Investigate (open / ✕ / Clear all), *What changed between the cursors?* while one is

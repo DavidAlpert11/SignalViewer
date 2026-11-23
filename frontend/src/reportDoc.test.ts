@@ -68,6 +68,14 @@ describe("RE1: references in the written report", () => {
     expect(p.problems).toHaveLength(1); expect(p.plots).toBe(1);
   });
 
+  it("RE4: a Markdown comment is left out, its references too - not inside code", async () => {
+    const ws = useApp.getState().ws;
+    const p = await prepareDoc(ws, "one\n<!-- [[Missing]] -->\n<!-- [[Attitude.Roll]]\n{{ max(Speed) }} -->\ntwo\n`<!-- [[x]] -->`", "en");
+    expect(p.items).toHaveLength(0);
+    expect(p.problems).toEqual([]);
+    expect(p.text).toBe("one\ntwo\n`<!-- [[x]] -->`");
+  });
+
   it("an old session's report opens as the document its form made; Add to report appends", () => {
     useApp.getState().commit((w) => { w.report = { title: "Flight 12", intro: "Why", summary: "", lang: "en", theme: "light", scope: "all" }; return w; });
     const ws = useApp.getState().ws;
