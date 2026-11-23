@@ -28,6 +28,13 @@ and the report.
 ![The Messages panel: a serial link's two byte streams with their message types and rates, a flight log's message types, the structure library](images/55_messages_panel.png){ .sv-shot loading=lazy }
 
 Right-click a byte signal in the list (or select the byte columns) → **Decode as messages…** opens the panel on it.
+**Add a stream** at the top of *Byte streams* does the same for any signal of the open files - another TX, another
+link - with the signals named like bytes (`byte`, `rx`, `tx`, `raw`…) first.
+
+Each stream's **⋯**: *Fold*, *Start over* (what was defined forgotten, the editor back to what the app finds),
+*Forget the definition* (a stream the app found by itself stays listed) or *Remove from the list* (a stream added by
+hand). They ask first and are one *Undo*. A recording already made from the stream stays open, but it is not made
+again when the session opens.
 A link recording (`.svraw`) opened without its structure says so, with a button to the panel.
 
 ## From the raw signal to the variables - four steps
@@ -87,6 +94,11 @@ next - a 16-bit value **LSB first or MSB first** (whichever reads smooth), **sig
 integer, a 32-bit float, a **double** (8 bytes), **text** (3 or more printable characters), a counter (8 or 16-bit), flags,
 else a byte - and names it by place (`value_4`, `b10`). Text sentences
 (`$…,…*HH`) are proposed as **NMEA** - the sentences it knows with their fields, any other sentence's fields by place.
+
+In the form each message is a card - its id and name, how many fields, ▾ to fold it - and each field one row: name,
+byte (or index), type, byte order, unit, then its conversion (`ƒ`, or what it is: `×0.01 -40`, a formula) that opens
+the scale, add and formula under the row, and its own **✕**. A field removed comes back with *Undo* in the notice; a
+whole message goes only from its own 🗑, after a question that says how many fields go with it.
 
 - **Propose again** - forget the edits and propose from the stream.
 - **From the library…** - NMEA 0183 (built in: GGA, RMC, VTG, GSA, GSV, GLL, ZDA), yours, an ICD layout - or

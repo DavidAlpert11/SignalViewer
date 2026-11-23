@@ -201,6 +201,15 @@ mathtext, the same in the page, the PDF and Word). A formula mathtext cannot rea
 `\text{…}`, `\begin{align}` - is drawn by **this computer's LaTeX** when it has one (see below). Each paragraph reads
 right-to-left when it starts in Hebrew, left-to-right in English.
 
+**A comment** - `<!-- … -->`, on one line or several - stays in the text and is left out of the report, with any
+`[[ ]]` or `{{ }}` in it. **Ctrl+/** (or `<!>` in the toolbar) makes the selected lines comments and back (`%` in a
+LaTeX document).
+
+**Keys in the editor:** **Ctrl+Z** goes back a whole run of typing, or a piece the app put in (bold, a plot from the
+list, a paste), with the cursor where it was; **Ctrl+Y** (or Ctrl+Shift+Z) forward again - also ↶ ↷ in the toolbar.
+**Ctrl+B** / **Ctrl+I** bold, italic; **Tab** / **Shift+Tab** indent the selected lines; **Alt+↑** / **Alt+↓** move
+them; **Ctrl+Shift+D** duplicates them.
+
 ## LaTeX - as in Overleaf, offline
 
 The report can be written in **LaTeX**, and LaTeX can go into a Markdown report. Everything runs on this computer,

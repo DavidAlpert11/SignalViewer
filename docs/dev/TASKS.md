@@ -171,6 +171,11 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-23 · docs for MSG10 / WC5 / RE4: messages.md (Add a stream, the stream's ⋯, the structure form's rows),
+  reports.md + reports.he.md (comments, the editor's keys), features.md (three lines). `mkdocs build --strict` green.
+  The whole e2e one file at a time (101 files): 544 passed; test_messages::test_decode_as_messages_both_ways_with_a_direction_column
+  failed once - after the serial-link example its Ctrl+O dialog's Open stays disabled (the row click lost); the same on
+  main without these changes (3 of 12 runs of the pair), alone always green. Open: find why the click is lost.
 - 2026-11-23 · RE4 (owner: "Ctrl+Z in the report's editing; a comment with Ctrl+/ and so on"): `editText.ts` (the editor's
   history - a step per pause or per piece put in, with the selection; toggleComment, indent, move, duplicate lines;
   stripMdComments) + editText.test.ts; ReportScreen keys and ↶ ↷ <!> in the toolbar; `prepareDoc` leaves Markdown
