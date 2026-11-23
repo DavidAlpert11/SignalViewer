@@ -5,7 +5,7 @@ import { Icon } from "../icons";
 import { openMenu } from "./Overlays";
 import ExprInput, { type SigOption } from "./ExprInput";
 import WhatChanged from "./WhatChanged";
-import { record, restoreView } from "../investigation";
+import { openWhatChanged, record, restoreView } from "../investigation";
 import { combineConditions, condSignals, deleteCondition, evaluateOne, intervalsByRun, overlayInNewTab, saveCondition, stepOccurrence, updateCondition, usedBy } from "../conditions";
 import { api } from "../api";
 import { copyText } from "../errorReport";
@@ -22,7 +22,12 @@ export default function InvestigatePanel() {
   const lang = useApp((s) => s.lang);
   const files = runs.filter((r) => r.format !== "derived");
   const whatChanged = useApp((s) => s.whatChanged);
+  const earlier = useApp((s) => s.wcEarlier);
   const cursor = useApp((s) => s.cursor);
+  // the two cursors around a span not shown yet: What changed there (a new one; the one shown goes to the earlier ones)
+  const between = cursor.on && cursor.dual && cursor.t1 !== null && cursor.t2 !== null && cursor.t1 !== cursor.t2
+    ? { a: Math.min(cursor.t1, cursor.t2), b: Math.max(cursor.t1, cursor.t2) } : null;
+  const newOne = between && !(whatChanged && whatChanged.a === between.a && whatChanged.b === between.b) ? between : null;
 
   const count = (id: string) => {
     const r = results[id] ?? {};
@@ -49,6 +54,24 @@ export default function InvestigatePanel() {
     <aside className="side investigate" aria-label={t("investigate")}>
       <div className="side-head"><h2>{t("investigate")}</h2></div>
       <div className="inv-body">
+        {whatChanged && newOne && (
+          <button className="btn outline sm inv-wc-new" onClick={() => openWhatChanged(newOne)}>
+            <Icon.Plus /> {t("wcNewBetween", { a: fmtNum(newOne.a, lang, 6), b: fmtNum(newOne.b, lang, 6) })}</button>
+        )}
+        {earlier.length > 0 && (
+          <div className="wc-earlier" role="group" aria-label={t("wcEarlier")}>
+            <span className="wc-earlier-label">{t("wcEarlier")}</span>
+            {earlier.map((x) => (
+              <span key={`${x.a}|${x.b}`} className="wc-earlier-row">
+                <button className="wc-earlier-open" title={t("wcEarlierOpen")} onClick={() => openWhatChanged(x)}>
+                  <bdi>{t("wcSpanShort", { a: fmtNum(x.a, lang, 6), b: fmtNum(x.b, lang, 6) })}</bdi></button>
+                <button className="wc-earlier-del" aria-label={t("wcEarlierRemove")} title={t("wcEarlierRemove")}
+                  onClick={() => useApp.setState({ wcEarlier: useApp.getState().wcEarlier.filter((y) => y !== x) })}><Icon.X /></button>
+              </span>
+            ))}
+            {earlier.length > 1 && <button className="linklike wc-earlier-clear" onClick={() => useApp.setState({ wcEarlier: [] })}>{t("wcEarlierClear")}</button>}
+          </div>
+        )}
         {whatChanged && <WhatChanged key={`${whatChanged.a}|${whatChanged.b}`} />}
         {/* how to start: what went wrong at a moment is the first question - two cursors around it */}
         {!whatChanged && files.length > 0 && (
@@ -56,7 +79,7 @@ export default function InvestigatePanel() {
             <h3 className="card-title">{t("invStartTitle")}</h3>
             <p className="card-meta">{t("invStartText")}</p>
             {cursor.on && cursor.dual && cursor.t1 !== null && cursor.t2 !== null && cursor.t1 !== cursor.t2
-              ? <button className="btn primary sm inv-wc" onClick={() => useApp.setState({ whatChanged: { a: Math.min(cursor.t1!, cursor.t2!), b: Math.max(cursor.t1!, cursor.t2!) } })}>
+              ? <button className="btn primary sm inv-wc" onClick={() => openWhatChanged({ a: Math.min(cursor.t1!, cursor.t2!), b: Math.max(cursor.t1!, cursor.t2!) })}>
                   {t("invStartGo")}</button>
               : <button className="btn outline sm inv-dual" onClick={() => actions.toggleDual()}>{t("invStartDual")}</button>}
           </div>

@@ -2,6 +2,10 @@
 
 ## Next – unreleased
 
+- New: *Investigate* - **more than one What changed.** With the two cursors around another span, *What changed between the
+  cursors?* opens it and the one shown goes to *Asked before*: a click shows it again, its ✕ takes it off the list,
+  *Clear all* takes them all. ✕ on the one shown closes it.
+
 - Fixed: *Messages* - **removing one field removed its whole message.** Each field is now one row (name, byte, type, order,
   unit) with its own ✕ always in sight, and the field's conversion (scale, add, formula) folds under it; a removed field
   comes back with *Undo* in the notice. A whole message is removed only from its own 🗑 button, after a question that says

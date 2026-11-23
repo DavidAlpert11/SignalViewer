@@ -10,6 +10,7 @@ import { fmtNum, translate } from "../i18n";
 import { signalUnit } from "../units";
 import { timeUnitOf } from "../timeAxis";
 import { DASH, fade, lineLook, setpointsIn } from "../desired";
+import { openWhatChanged } from "../investigation";
 import { axisStyle, tickValues, timeTicks, xAxisSize, dpr, DRAG_UNI_MIN, dragUni, flag, ink, PLOT_THEME, PREVIEW_DASH, publishXView, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
 
 interface Props {
@@ -1109,7 +1110,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         <button className="btn sm sel-changed" onClick={() => {
           const c = useApp.getState().cursor;
           if (c.t1 === null || c.t2 === null) return;
-          useApp.setState({ panel: "investigate", whatChanged: { a: Math.min(c.t1, c.t2), b: Math.max(c.t1, c.t2) } });
+          openWhatChanged({ a: Math.min(c.t1, c.t2), b: Math.max(c.t1, c.t2) });
         }}>? {translate(useApp.getState().lang, "selWhatChanged")}</button>
       </div>);
   return (

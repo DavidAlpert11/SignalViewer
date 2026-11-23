@@ -274,3 +274,23 @@ def test_who_leads_whom_above_the_clusters(pg):
     pg.locator(".wc-chain-node").nth(2).click()                    # Motor3's node: its cluster opens
     pg.wait_for_function(f"document.querySelectorAll('.wc-cluster.open').length === {before + 1}")
     assert pg.locator(".wc-cluster.open .wc-chead", has_text="Motor3").count() == 1
+
+
+def test_another_span_keeps_the_first_one_to_open_again_or_remove(pg):
+    """Owner, 2026-11-23: another What changed without losing the first, and a way to take one away. Cursors around a
+    second span: *What changed between the cursors?* - the first goes to *Asked before*, a click shows it again, ✕
+    takes it off; ✕ on the one shown closes it."""
+    _around_first_error(pg)
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, t1: 62.5, t2: 63.5 } })")
+    pg.click(".inv-wc-new")
+    pg.wait_for_function("window.__sv.state().whatChanged.a === 62.5")
+    pg.wait_for_selector(".wc-earlier-row")
+    assert S(pg, "s.wcEarlier.length") == 1 and S(pg, "s.wcEarlier[0].a") == 38.46
+    pg.click(".wc-earlier-open")                                            # the first again; the second kept
+    pg.wait_for_function("window.__sv.state().whatChanged.a === 38.46")
+    assert S(pg, "s.wcEarlier.map(x => x.a)") == [62.5]
+    pg.click(".wc-earlier-del")
+    pg.wait_for_function("window.__sv.state().wcEarlier.length === 0")
+    assert pg.locator(".wc-earlier").count() == 0
+    pg.locator(".wc-head .iconbtn").click()
+    pg.wait_for_function("window.__sv.state().whatChanged === null")

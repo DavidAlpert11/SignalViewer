@@ -88,6 +88,8 @@ export interface UiSlice {
   /** Investigation step 4: "What changed?" around this span (the panel shows it), and the first-change
    *  moments drawn as dashed lines on the plots (signal id -> time). */
   whatChanged: { a: number; b: number } | null;
+  /** owner, 2026-11-23: the spans asked about before the one shown - opened again or removed one by one */
+  wcEarlier: { a: number; b: number }[];
   changeMarks: Record<string, number> | null;
   matrixOpen: boolean;                     // investigation step 5: runs x conditions
   /** FL1: the folder whose first recording is open to define measures on - the Runs matrix's Summarize uses it */
@@ -215,6 +217,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   condFocus: null,
   condEdit: null,
   whatChanged: null,
+  wcEarlier: [],
   changeMarks: null,
   matrixOpen: false,
   matrixFolder: null,

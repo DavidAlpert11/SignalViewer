@@ -2167,3 +2167,18 @@ input.fx-input { width: 100%; }
 .rd-tex-err .linklike { color: inherit; text-align: start; }
 .rd-tex-none { margin: 6px 0; }
 .rd-tex-open { align-self: flex-start; }
+
+/* What changed: the spans asked about before the one shown - a click shows one again, ✕ takes it off */
+.investigate .inv-wc-new { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 var(--sp-2); }
+.investigate .inv-wc-new svg { width: 14px; height: 14px; }
+.wc-earlier { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-1_5); margin: 0 0 var(--sp-2); font-size: var(--fs-s); }
+.wc-earlier-label { color: var(--muted); font-size: var(--fs-xs); }
+.wc-earlier-row { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: var(--r-round); background: var(--panel); overflow: hidden; }
+.wc-earlier-row:hover { border-color: var(--ink); }
+.wc-earlier-open { font: inherit; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; color: var(--ink); background: none; border: 0; padding: 2px 4px 2px 10px; cursor: pointer; }
+[dir="rtl"] .wc-earlier-open { padding: 2px 10px 2px 4px; }
+.wc-earlier-open:hover { color: var(--ink-strong); }
+.wc-earlier-del { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: var(--r-round); }
+.wc-earlier-del svg { width: 12px; height: 12px; }
+.wc-earlier-del:hover { color: var(--danger); background: var(--danger-soft); }
+.wc-earlier-clear { font-size: var(--fs-xs); color: var(--muted); }

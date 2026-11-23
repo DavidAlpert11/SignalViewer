@@ -19,6 +19,15 @@ export function restoreView(v: SavedView) {
     cursor: { ...st.cursor, on: v.t1 !== null, dual: v.t2 !== null, t1: v.t1, t2: v.t2, active: 1 } });
 }
 
+/** "What changed?" around a span: the one shown before it goes to the earlier ones (kept, opened again with a click). */
+export function openWhatChanged(span: { a: number; b: number }) {
+  const st = useApp.getState();
+  const same = (x: { a: number; b: number }) => x.a === span.a && x.b === span.b;
+  const cur = st.whatChanged;
+  const earlier = [...(cur && !same(cur) ? [cur] : []), ...st.wcEarlier.filter((x) => !same(x) && !(cur && x.a === cur.a && x.b === cur.b))].slice(0, 12);
+  useApp.setState({ panel: "investigate", whatChanged: span, wcEarlier: earlier });
+}
+
 /** Add a step to the journal (no undo step: it is a record, not an edit). */
 export function record(text: string, withView = true, kind?: StepKind) {
   const st = useApp.getState();

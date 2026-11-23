@@ -171,6 +171,10 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-23 · WC5 (owner: "another investigation of what changed; and just remove it"): `ui.wcEarlier` (UI only, not
+  saved), `investigation.ts openWhatChanged` (the shown span goes to the earlier ones; the chart's ? and the panel's button
+  use it), *Asked before* chips in Investigate (open / ✕ / Clear all), *What changed between the cursors?* while one is
+  shown. e2e test_what_changed (12, new test_another_span_keeps_the_first_one_to_open_again_or_remove) green.
 - 2026-11-23 · MSG10 (owner: "removing one variable removed a whole group; a stream once defined cannot be removed; how do I
   define another TX"): StructureEditor - a row per field (✕ in sight, the conversion folded under it, Undo in the notice),
   a message removed only from its 🗑 after a question, messages fold. MessagesPanel - each stream's ⋯ (Fold, Start over,
