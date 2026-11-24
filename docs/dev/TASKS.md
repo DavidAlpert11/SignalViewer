@@ -192,6 +192,13 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-24 · The build of v1.36.0 failed on Windows (owner pasted the log): backend test_rawlink - a UDP link's
+  bytes went back in time. time.time() on Windows moves in ~16 ms steps; chunks of one step had one stamp, and each
+  chunk's bytes are 1 µs apart from it, so the next chunk overlapped. Fix: svcore/rawlink.py stamps with wall time at
+  start + perf_counter; read_svraw keeps every byte after the one before (old recordings too). New test
+  test_chunks_with_one_time_stay_in_order. Backend test_rawlink 4 / 4, mypy. In the 1.36.0 section (not published:
+  the build failed) - the owner moves the tag v1.36.0 to this commit.
+
 - 2026-11-24 · The reviewer: "APPROVED FOR RELEASE" (re-checked 1-18 on 44c4177). Its suggestion done (index.css's
   parts say so in their header). The whole e2e one file at a time again: 100 files, 550 passed; test_report_doc's LaTeX
   test (no TeX), test_file_browser_edit once under load (alone: 3 / 3 twice). Release 1.36.0 prepared: version, CITATION,

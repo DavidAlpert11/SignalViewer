@@ -7,6 +7,7 @@ import threading
 import time
 
 import numpy as np
+import pytest
 
 from svcore import rawlink
 
@@ -32,6 +33,20 @@ def _wait(cond, timeout=5.0):
     while time.time() < end and not cond():
         time.sleep(0.05)
     return cond()
+
+
+def test_chunks_with_one_time_stay_in_order(tmp_path):
+    """A coarse clock (Windows' time.time() moves in steps of ~16 ms) stamped several chunks with one time: read
+    back, their bytes still follow each other - every time later than the one before."""
+    path = str(tmp_path / "coarse.svraw")
+    with open(path, "wb") as f:
+        f.write(rawlink.MAGIC)
+        for k, chunk in enumerate([b"\x01" * 200, b"\x02" * 200, b"\x03" * 50, b"\x04" * 10]):
+            us = 1_700_000_000_000_000 + (0 if k < 3 else 16_000)       # three chunks in one tick, then the next tick
+            f.write(rawlink.REC.pack(us, len(chunk)) + chunk)
+    t, b, t0 = rawlink.read_svraw(path)
+    assert len(t) == len(b) == 460 and np.all(np.diff(t) > 0)
+    assert t[-10] == pytest.approx(0.016, abs=1e-6)                            # a later tick keeps its own time
 
 
 def test_udp_link_recorded_and_decoded_by_its_structure(tmp_path):

@@ -59,6 +59,9 @@ class Receiver:
         self.last_rx: Optional[float] = None
         self.error: Optional[str] = None
         self.peer: Optional[str] = None
+        # the receive clock: the wall time at the start plus a high-resolution counter - time.time() alone moves in
+        # steps of up to ~16 ms on Windows, and the chunks of one step got one time (their bytes then went back)
+        self._wall0, self._perf0 = time.time(), time.perf_counter()
         self._stop = threading.Event()
         self._lock = threading.Lock()
         self._rate: List[Tuple[float, int]] = []
@@ -145,7 +148,7 @@ class Receiver:
                 continue
             if not data:
                 continue
-            now = time.time()
+            now = self._wall0 + (time.perf_counter() - self._perf0)
             self._file.write(REC.pack(int(now * 1e6), len(data)) + data)
             with self._lock:
                 self.error = None
@@ -203,6 +206,7 @@ def read_svraw(path: str) -> Tuple[np.ndarray, np.ndarray, int]:
     ts: List[np.ndarray] = []
     bs: List[bytes] = []
     t0 = None
+    after = -np.inf                     # the time of the last byte read: a chunk never starts at or before it
     while i + REC.size <= len(data):
         us, n = REC.unpack_from(data, i)
         if i + REC.size + n > len(data):
@@ -210,8 +214,12 @@ def read_svraw(path: str) -> Tuple[np.ndarray, np.ndarray, int]:
         chunk = data[i + REC.size: i + REC.size + n]
         t = us / 1e6
         t0 = t if t0 is None else t0
-        # the bytes of a chunk at its receive time, a microsecond apart (kept in order)
-        ts.append(t - t0 + np.arange(n) * 1e-6)
+        # the bytes of a chunk at its receive time, a microsecond apart, kept in order: two chunks stamped with one
+        # time (a coarse clock - recordings made on Windows before the high-resolution clock) follow each other
+        start = max(t - t0, after + 1e-6)
+        ts.append(start + np.arange(n) * 1e-6)
+        if n:
+            after = start + (n - 1) * 1e-6
         bs.append(chunk)
         i += REC.size + n
     if not bs:

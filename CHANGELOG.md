@@ -6,6 +6,10 @@
 
 **Highlights:** **One app, not separate sections.** Investigate, Messages, Checks and the Report open as pages in the plots' place, all in the same frame - a list on one side, the thing you work on beside it - and step back beside the plots when an action needs them; Sweeps reads the same way. *Messages* has one clear form to say which signals carry bytes. And every example is built in front of you, two or three steps each, from the raw file to its report.
 
+- Fixed: **a link recorded on Windows could have its bytes out of order in time.** Windows' clock moves in steps of
+  up to ~16 ms, so packets that came in the same step were stamped with one time and their bytes overlapped. The
+  receiver now stamps with a high-resolution clock, and a recording is always read in order - also one made before.
+
 - New: **Investigate, Messages and the Report are pages of one app.** The workspaces you read and work in open on the
   whole screen in one frame - the head where the plots' bar is, the demo's line under it, a list on one side (the byte
   streams, the conditions, Checks' sections, the report's parts) and the one you work on beside it. Messages opens as a page; Investigate opens as a
