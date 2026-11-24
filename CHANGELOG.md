@@ -11,7 +11,9 @@
   beside them. The Inspector belongs to the plots: it is not shown beside a page and comes back with the plots (its
   top-bar button says so while a page is on screen). *Checks* joins the same frame: beside the plots by default (a
   finding or an event is a click to its time), and with the ⤢ in its head a page - the file and its sections (checks,
-  events, parameters, the file, instruments, hardware) in the index column, the section read beside it.
+  events, parameters, the file, instruments, hardware) in the index column, the section read beside it. *Sweeps* reads
+  the same way: its row of steps is the page's head, with the study's name where a page has its title, the study's
+  column beside the step worked in.
 - New: *Messages* - **one clear place to say which signals carry bytes.** *Add a stream* opens a short form: one signal,
   the two signals of a link (TX and RX), or byte columns with one message per row (the byte_0..byte_N columns of a
   file in one click). It is open by itself while no stream is found. Before, two signals or columns needed a

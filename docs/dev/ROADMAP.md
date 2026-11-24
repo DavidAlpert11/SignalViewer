@@ -1123,4 +1123,8 @@ look like one whole, flowing, coherent app, not sections cut off from each other
     - beside by default (a click goes to a time), the ⤢ a page: the file, firmware, Align time and the sections
     (vertical tabs) in the index column, the section in the main column. Test: e2e
     test_checks_view::test_checks_as_a_page_and_back_beside_the_plots.
+  - [x] UX5.3 Sweeps in the pages' anatomy: FlowNav's row is a `.page-head` with the study's name and the area's icon
+    as its `.page-title` (useStudyName; the Navigator's own name head removed - one place for it), hidden under
+    1100 px; the left column was already the index (a side panel), the step the main column. Markup and CSS only.
+    Tests: e2e test_sweeps_* (6 files), test_folder_of_recordings, test_fresh_user, test_settings.
 

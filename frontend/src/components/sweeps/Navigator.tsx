@@ -1,5 +1,5 @@
 /* C7: the study's navigator (plan §4.3 / §4.6 A, mock-up sweeps.html) - the Data step's left column (PLAN 2026-11-16
-   §7a: only there - the problem and its layers of runs): the study's name; *Send runs* (SF1: what varies, the
+   §7a: only there - the problem and its layers of runs): *Send runs* (SF1: what varies, the
    scenarios, how to run - ✓ each); Tables - every table open in the area (a click shows its data), a table's merged parts,
    and the study file's tables with their rounds (from /api/sweeps/study/tables, polled with the loop: a round's
    file opens like any table, *new* marked); Add table, Merge, and *Remove from the study* (with Undo). */
@@ -17,8 +17,6 @@ import { confirmAsk } from "../Overlays";
 import { MergeBox, exportTable } from "./RawStep";
 import { fromFolder } from "../../folderSummary";
 
-const baseName = (p: string) => p.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? p;
-const stem = (n: string) => n.replace(/\.(svstudy\.json|svsweep|[^.]+)$/, "");
 /** the open table read from this file (a tab's own file, or one of its tables'), or -1 */
 const openIndex = (studies: Study[], file: string) =>
   studies.findIndex((s) => s.path === file || s.tables.some((tb) => recipeFiles(tb.recipe).includes(file)));
@@ -34,7 +32,6 @@ export default function Navigator() {
   const study = studies[active];
   const tables = useStudyFileTables(common.open ? common.path : "", common.loopProgress?.round ?? common.demoProgress?.round ?? 0,
     common.loopProgress?.runs.done ?? common.demoProgress?.runs.done ?? 0, common.seenAt);
-  const name = common.open ? (common.study?.name || stem(baseName(common.path)) || t("nsTitle")) : study ? stem(study.name) : "";
   const done = common.open && common.study ? setupDone(common.study, !!common.guess) : null;
   const tableOn = part !== "setup" && part !== "about";
   const show = (p: "setup" | "about") => useSweeps.setState({ part: p });
@@ -53,9 +50,6 @@ export default function Navigator() {
   }
   return (
     <aside className="side sw-nav" aria-label={t("nvTitle")}>
-      <div className="panel-head sw-nav-head">
-        <div className="sw-nav-name"><span className="eyebrow">{t("nvStudy")}</span><h2 className="ph-title" title={name}>{name}</h2></div>
-      </div>
       <div className="sw-nav-tree">
         {/* FR5: recordings are not sent anywhere - a table of them has no Send runs */}
         {(common.open || (study && !study.recordings)) && <>

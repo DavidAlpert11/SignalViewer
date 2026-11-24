@@ -11,6 +11,18 @@ import { hasGoal, readiness, setupDone } from "../../sweeps/setup";
 import { rerunCount } from "../../sweeps/split";
 import { useLeftHidden, useNarrow } from "../../sweeps/narrow";
 import type { StudyPanelState } from "../../sweeps/studyStore";
+import { Icon } from "../../icons";
+
+const baseName = (p: string) => p.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? p;
+const stem = (n: string) => n.replace(/\.(svstudy\.json|svsweep|[^.]+)$/, "");
+
+/** UX5.3: the study's name - the head of the area's page, as a workspace's title in Recordings */
+export function useStudyName(): string {
+  const t = useT();
+  const common = useSweeps((s) => s.common);
+  const study = useSweeps((s) => s.studies[s.active]);
+  return common.open ? (common.study?.name || stem(baseName(common.path)) || t("nsTitle")) : study ? stem(study.name) : "";
+}
 
 const TITLE: Record<FlowStep, TKey> = { data: "swStepData", columns: "swStepColumns", goal: "swStepGoal", results: "swStepResults", next: "swCenterNext" };
 export const flowTitle = (t: TFn, s: FlowStep) => t(TITLE[s]);
@@ -72,8 +84,11 @@ export default function FlowNav() {
   const rec = useSweeps(isRecordings);
   const steps = flowSteps(rec);
   const ci = steps.indexOf(cur);
+  const name = useStudyName();
+  // UX5.3: the area's page head (shell/PanelFrame.tsx's anatomy): its title where a page has its own, then the steps
   return (
-    <nav className="sw-steps" aria-label={t("swSteps")}>
+    <nav className="sw-steps page-head" aria-label={t("swSteps")}>
+      {name && <h2 className="page-title sw-page-title" title={name}><Icon.Table aria-hidden="true" /><span className="sw-ellipsis">{name}</span></h2>}
       {panel && <button className="iconbtn sw-panel-toggle" aria-pressed={!hidden} onClick={toggle}
         title={t(hidden ? "swShowPanel" : "swHidePanel")} aria-label={t(hidden ? "swShowPanel" : "swHidePanel")}>{hidden ? "›" : "‹"}</button>}
       {steps.map((s, i) => {

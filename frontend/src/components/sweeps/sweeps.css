@@ -578,3 +578,10 @@
 .sw-table-tools .sw-row > select { flex-basis: 100%; }
 .sw-table-tools .sw-row > .btn { flex: 0 0 auto; }
 .sw-tt-item { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 0.846rem; }
+
+/* UX5.3: the steps' row is the area's page head (the anatomy of Recordings' pages - styles/panels.css .page-head): the
+   study's name with the area's icon where a page has its title, then the five steps */
+.sw-steps.page-head { flex-wrap: nowrap; gap: 4px; padding: 8px 10px; align-items: center; }
+.sw-page-title { flex: 0 1 auto; min-width: 0; max-width: 220px; margin-inline: 4px 10px; }
+.sw-page-title .sw-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 1100px) { .sw-page-title { display: none; } }
