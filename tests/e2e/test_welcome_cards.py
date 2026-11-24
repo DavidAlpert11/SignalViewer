@@ -162,3 +162,16 @@ def test_a_demo_leads_on_to_its_report(pg):
     pg.click(".demo-guide .demo-finish")                                # Show the result: every step left
     pg.wait_for_selector(".rd .demo-guide[data-step='done']", timeout=30000)
     assert not pg.evaluate("window.__sv.state().playing")
+
+
+def test_a_step_done_by_hand_moves_the_line_on(pg):
+    """Review 2026-11-24 (#4): the line never offers what is already done - Checks opened from the rail moves the
+    ArduPilot demo's line to its next step (the report), as its own button would."""
+    _open_demo(pg, "ardupilot")
+    assert pg.locator(".demo-guide .demo-next").inner_text() == "Open Checks"
+    pg.click("nav.rail button[aria-label='Checks']")
+    pg.wait_for_selector(".demo-guide[data-step='2'] .demo-next:has-text('Write the report')")
+    pg.click("nav.rail button[aria-label='Report']")                   # the Report opened by hand, nothing written yet:
+    pg.wait_for_selector(".rd .demo-guide[data-step='2'] .demo-next")  # ... its button still writes the report
+    pg.click(".rd .demo-guide .demo-next")
+    pg.wait_for_selector(".rd .demo-guide[data-step='done']")

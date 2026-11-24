@@ -104,14 +104,18 @@ def test_paste_a_word_table_and_a_picture_and_keep_a_report_template(demo):
 
 
 def test_the_report_demo_example_opens_the_automatic_report(pg):
-    """Help -> Examples -> a test report, step by step: the two runs plotted, the demo's line - its button writes the
-    automatic report on the Report screen, where the line says what was made."""
+    """Help -> Examples -> a test report, step by step: the two runs plotted, the demo's line - Compare first, then its
+    button writes the automatic report on the Report screen, where the line says what was made."""
     pg.locator(".topbar .menubar-btn", has_text="Help").click()
     pg.locator(".menu.ctx button", has_text="Examples").click()
     pg.locator(".menu.ctx.sub button", has_text="a test report, step by step").click()
     pg.wait_for_selector(".demo-guide[data-demo=reportDemo] .demo-next", timeout=30000)
     assert S(pg, "s.panel") != "report" and not S(pg, "s.ws.report?.doc")              # nothing made before the click
-    pg.locator(".demo-guide .demo-next").click()
+    pg.locator(".demo-guide .demo-next").click()                                       # 1: rank where A and B differ
+    pg.wait_for_function("window.__sv.state().panel === 'compare'")
+    pg.wait_for_selector(".demo-guide[data-step='2'] .demo-next")
+    assert not S(pg, "s.ws.report?.doc")
+    pg.locator(".demo-guide .demo-next").click()                                       # 2: write the report
     pg.wait_for_selector(".rd .rd-text", timeout=30000)
     pg.wait_for_selector(".rd .demo-guide[data-step=done]")
     committed(pg, "[[toc]]", "[[tracking]]", "[[navigation]]", "[[differences]]", timeout=30000)

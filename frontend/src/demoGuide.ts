@@ -5,7 +5,7 @@
    thing, and the line moves to the next step; *Show the result* does every step left at once.
    UI only: the line is not saved; it goes when closed, when its files close or when another demo opens. */
 import { api, type ExampleId } from "./api";
-import { actions, useApp } from "./store";
+import { actions, useApp, type AppState } from "./store";
 import type { TKey } from "./i18n";
 import { applyTemplate } from "./templates";
 import { applySyncOffset } from "./sync";
@@ -16,7 +16,12 @@ import { openWhatChanged } from "./investigation";
 
 export interface DemoGuide { id: ExampleId; runs: string[]; step?: number; done?: boolean }
 
-export interface Step { text: TKey; act?: TKey; go?: (runs: string[]) => Promise<void> | void }
+export interface Step {
+  text: TKey; act?: TKey; go?: (runs: string[]) => Promise<void> | void;
+  /** the step's result already holds (the user did it by hand: opened the panel, played): the line moves on by itself
+   *  - it never offers what is already done (review 2026-11-24) */
+  done?: (s: AppState) => boolean;
+}
 interface Demo {
   steps: Step[];
   /** what the line says once the last step's button was pressed (else the line goes) */
@@ -28,34 +33,41 @@ interface Demo {
 }
 
 const panel = (p: "compare" | "log" | "report" | "investigate") => () => useApp.setState({ panel: p });
+const isOpen = (p: AppState["panel"]) => (s: AppState) => s.panel === p;
+/** the steps that open a panel: the button opens it; opened from the rail, the line moves on as well */
+const open = (text: TKey, act: TKey, p: "compare" | "log"): Step => ({ text, act, go: panel(p), done: isOpen(p) });
 const one = (text: TKey, act?: TKey, go?: Step["go"], done?: TKey): Demo => ({ steps: [{ text, act, go }], done });
 /** UX5.4: the last step of a recordings demo - the report the app writes from the parts that fit what is open */
-const report = (text: TKey): Step => ({ text, act: "demoReport1Act", go: () => openAutoReport() });
+const report = (text: TKey): Step => ({ text, act: "demoReport1Act", go: () => openAutoReport(),
+  done: (s) => s.panel === "report" && !!s.ws.report?.doc?.text });
 
 /* UX5.4 (owner, 2026-11-23: "load, then lead the user"): each demo opens what its card shows, then two or three steps
    lead through the work - look (play, align, the cursors), compare or check, then the report written from it. */
 export const DEMOS: Partial<Record<ExampleId, Demo>> = {
   flight: { steps: [
-    { text: "demoFlight", act: "demoFlightAct", go: () => { if (!useApp.getState().playing) actions.togglePlay(); } },
-    { text: "demoFlight2", act: "demoChecksAct", go: () => { if (useApp.getState().playing) actions.togglePlay(); useApp.setState({ panel: "log" }); } },
+    { text: "demoFlight", act: "demoFlightAct", go: () => { if (!useApp.getState().playing) actions.togglePlay(); }, done: (s) => s.playing },
+    { text: "demoFlight2", act: "demoChecksAct", go: () => { if (useApp.getState().playing) actions.togglePlay(); useApp.setState({ panel: "log" }); },
+      done: isOpen("log") },
     report("demoFlight3"),
   ], done: "demoReportMade" },
-  twoFlights: { steps: [{ text: "demoTwoFlights", act: "demoCompareAct", go: panel("compare") }, report("demoCompared")],
+  twoFlights: { steps: [open("demoTwoFlights", "demoCompareAct", "compare"), report("demoCompared")],
     done: "demoReportMade", setup: bothTracksOnOneMap },
-  car: { steps: [{ text: "demoCar", act: "demoCompareAct", go: panel("compare") }, report("demoCompared")], done: "demoReportMade" },
-  bench: { steps: [{ text: "demoBench", act: "demoChecksAct", go: panel("log") }, report("demoChecked")], done: "demoReportMade" },
-  ardupilot: { steps: [{ text: "demoArdupilot", act: "demoChecksAct", go: panel("log") }, report("demoChecked")], done: "demoReportMade" },
+  car: { steps: [open("demoCar", "demoCompareAct", "compare"), report("demoCompared")], done: "demoReportMade" },
+  bench: { steps: [open("demoBench", "demoChecksAct", "log"), report("demoChecked")], done: "demoReportMade" },
+  ardupilot: { steps: [open("demoArdupilot", "demoChecksAct", "log"), report("demoChecked")], done: "demoReportMade" },
   simVsFlight: { steps: [
     { text: "demoSimVsFlight", act: "demoAlignAct", go: alignSecond },
-    { text: "demoSimVsFlightDone", act: "demoCompareAct", go: panel("compare") },
+    open("demoSimVsFlightDone", "demoCompareAct", "compare"),
   ], done: "demoSimVsFlightDone2" },
+  // the cursors are this demo's own (around the first bump): placed elsewhere by hand they do not count
   investigate: { steps: [
     { text: "demoInvestigate", act: "demoInvestigateAct", go: cursorsOnFirstBump },
-    { text: "demoInvestigateDone", act: "demoInvestigateAct2", go: () => openWhatChanged({ a: 38.4, b: 39.3 }) },
+    { text: "demoInvestigateDone", act: "demoInvestigateAct2", go: () => openWhatChanged({ a: 38.4, b: 39.3 }), done: (s) => !!s.whatChanged },
   ], done: "demoInvestigateDone2" },
   folderOfFlights: { ...one("demoFolder", "demoFolderAct", worstCopterFirst, "demoFolderDone"), area: "sweeps" },
   // the two runs plotted, then the report the app writes from the parts that fit them
-  reportDemo: { steps: [{ text: "demoReport1", act: "demoReport1Act", go: () => openAutoReport() }], done: "demoReportDone" },
+  // review 2026-11-24: two steps like the other runs' demos - what differs, then the report written from the parts
+  reportDemo: { steps: [open("demoReport1", "demoCompareAct", "compare"), report("demoReport2")], done: "demoReportDone" },
   // raw bytes -> the messages found in them -> their plots -> the link's report
   serialLink: {
     setup: (runs) => plotRaw(runs[0], ["tx_byte", "rx_byte"]),
@@ -70,7 +82,7 @@ export const DEMOS: Partial<Record<ExampleId, Demo>> = {
   linkStructure: {
     setup: (runs) => plotRaw(runs[0], ["tx_byte", "rx_byte"]),
     steps: [
-      { text: "demoStruct1", act: "demoLink1Act", go: (runs) => openLink(runs[0]) },
+      { text: "demoStruct1", act: "demoStruct1Act", go: (runs) => openLink(runs[0]) },
       { text: "demoStruct2", act: "demoStruct2Act", go: (runs) => useStructureFiles(runs[0]) },
       { text: "demoStruct3", act: "demoStruct3Act", go: (runs) => makeBothRecordings(runs[0]) },
     ],
@@ -108,11 +120,27 @@ export async function demoNext(g: DemoGuide) {
   const d = DEMOS[g.id], i = g.step ?? 0, step = d?.steps[i];
   if (!d || !step) return;
   await step.go?.(g.runs);
+  const cur = useApp.getState().demoGuide;
+  if (!cur || cur.id !== g.id || (cur.step ?? 0) > i || cur.done) return;     // moved on already (its result held: demoSkip)
   const next = i + 1;
   // FR2: once its button was pressed the line says what happened (the next step, or the "done" text) or goes -
   // it never keeps offering what was just done
   useApp.setState({ demoGuide: next < d.steps.length ? { ...g, step: next } : d.done ? { ...g, step: next, done: true } : null });
 }
+
+/** The current step's result already holds (done by hand): the next step, without running this one's action. */
+function demoSkip(g: DemoGuide) {
+  const d = DEMOS[g.id];
+  if (!d) return;
+  const next = (g.step ?? 0) + 1;
+  useApp.setState({ demoGuide: next < d.steps.length ? { ...g, step: next } : d.done ? { ...g, step: next, done: true } : null });
+}
+// one watcher for every place the line is shown (above the plots, on a page, in the Report)
+useApp.subscribe((s) => {
+  const g = s.demoGuide;
+  if (!g || g.done) return;
+  if (currentStep(g)?.done?.(s)) demoSkip(g);
+});
 
 /** *Show the result*: every step left, one after the other. */
 export async function demoFinish(g: DemoGuide) {
@@ -201,6 +229,8 @@ async function useStructureFiles(run: string) {
     ws.messageStreams = [...(ws.messageStreams ?? []).filter((m) => m.sources.join(",") !== key), def];
     return ws;
   });
+  // the fields the structures gave are the editor's step 3: in view, not under the fold (review 2026-11-24)
+  setTimeout(() => document.querySelector(".msg-step-3")?.scrollIntoView({ block: "start" }), 150);
 }
 
 async function makeBothRecordings(run: string) {
