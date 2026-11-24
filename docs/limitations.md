@@ -5,6 +5,8 @@
 * A derived signal whose source file was closed stays in the list, marked, until you remove it.
 * The macOS package is not signed or notarized: after extracting, run `xattr -dr com.apple.quarantine SignalViewer` (or right-click → Open) the first time.
 * Without `pyarrow` the pandas parser keeps a malformed row that has too few fields (missing values become empty), while `pyarrow` skips it.
+* Below about 930 px wide the top bar no longer fits and the window scrolls sideways (the app is laid out for 1000 px
+  and more).
 * The timeline's modes apply to time, X-Y, map and spectrogram plots, not to FFT.
 * In a web browser (not the desktop window) Ctrl+PageUp / Ctrl+PageDown and Ctrl+Tab switch the browser's own tabs; use the *All tabs* list or *Go to tab* (Ctrl+K) there.
 * The right value axis follows its data: zooming the values (Shift+drag), panning, the axis limits dialog and linked value axes act on the left axis.

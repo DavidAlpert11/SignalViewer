@@ -3,11 +3,12 @@
 ## Next – unreleased
 
 - New: **Investigate, Messages and the Report are pages of one app.** The workspaces you read and work in open on the
-  whole screen in one frame - the head where the plots' bar is, the demo's line under it, a column of what there is
-  (streams, conditions, the report's parts) beside the thing worked on. Messages opens as a page; Investigate opens as a
+  whole screen in one frame - the head where the plots' bar is, the demo's line under it, a list on one side (the byte
+  streams, the conditions, Checks' sections, the report's parts) and the one you work on beside it. Messages opens as a page; Investigate opens as a
   page while *What changed* is shown and beside the plots while you place the cursors; anything they do that needs the
-  plots (a new tab, the cursor moved) brings the plots back with the panel beside them. The ⤢ / ⤡ in the head moves
-  a page beside the plots and back, remembered. The tools that act on the plots (Files, Create, Compare, Checks) stay
+  plots (a new tab, the cursor moved by you) brings the plots back with the panel beside them; playback does not, so a
+  page stays a page while it plays. The ⤢ / ⤡ in the head moves a page beside the plots and back, and each panel
+  remembers your choice. The tools that act on the plots (Files, Create, Compare, Checks) stay
   beside them. The Inspector belongs to the plots: it is not shown beside a page and comes back with the plots (its
   top-bar button says so while a page is on screen). *Checks* joins the same frame: beside the plots by default (a
   finding or an event is a click to its time), and with the ⤢ in its head a page - the file and its sections (checks,
@@ -20,9 +21,10 @@
   right-click in Files (still there as a shortcut).
 - Changed: **examples built in front of you.** *A serial link*, *messages to signals*, *a GPS receiver's raw NMEA* and
   *a test report, step by step* (was *a report made for you*) open as they are - the raw bytes, the two runs - with a
-  line of steps above them: each step says what is on screen and what to do next, its button does it (look for the
-  messages, plot them, write the link's report; use the structure files, make the recordings; the track, then speed
-  and satellites; write the report). *Show the result* does every step left at once. Opening an example whose files
+  line of steps above them, counted (2/3): each step says what is on screen and what to do next, its button does it
+  (look for the messages, plot them, write the link's report; open the link, use the structure files, make the
+  recordings; the track, then speed and satellites; rank where the two runs differ, then write the report). *Show the
+  result* does every step left at once, and a step you do by hand (a panel opened from the rail) moves the line on. Opening an example whose files
   are already open now starts its line too. The other demos lead on the same way, two or three steps each: the
   flight (play it, what Checks found, its report), two flights and the car's three runs (rank the differences, then the
   report), the bench and the ArduPilot log (Checks, then the report), the model against its flight (align the clocks,
