@@ -1133,4 +1133,14 @@ look like one whole, flowing, coherent app, not sections cut off from each other
     changed? (openWhatChanged). The report step is openAutoReport (the parts that fit). Tests: e2e
     test_welcome_cards::test_a_demo_leads_on_to_its_report, test_plot_room (the line moves on), test_welcome_cards,
     test_cursor_labels, test_file_colours, test_less_clutter, test_tab_band, test_report_parts.
+  - [x] UX5.5 Files past ~1000 lines split by part, no behaviour change, one commit each: app/report.py 1373 -> 1015
+    (+ report_office.py PDF / Word, report_clip.py Confluence; callers import them directly), app/reportparts.py 1420 ->
+    790 (+ reportparts_base.py, reportparts_messages.py), routes/sweep.py 1100 -> 681 (+ routes/sweep_tables.py, its own
+    router), index.css 2185 -> 1011 (its later parts in order into styles/tools, mapobjects, features, messages.css,
+    imported right after it - the built CSS byte for byte the same), sweeps/state.ts 1138 -> 699 (+ studyState.ts,
+    re-exported). Left, with the reason: Globe3D.tsx, TimeChart.tsx, GeoChart.tsx (each one component of 1000+ lines -
+    splitting means pulling out hooks, its own task with the 3D / map e2e), bin_loader.py (one 700-line class),
+    csv_loader.py (its follow part and load_csv call each other - a cycle). Tests: backend all, mypy, Vitest; e2e
+    test_confluence_copy, test_report_doc (4 / 5: the LaTeX one needs a TeX, as before), test_live_report,
+    test_findings_report, test_sweeps_*, test_messages, test_report_parts, test_needle.
 
