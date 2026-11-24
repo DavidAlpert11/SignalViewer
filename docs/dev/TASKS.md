@@ -19,7 +19,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Task | Status | Next step |
 |---|---|---|
 | UX1-UX4 - one coherent app: App.tsx split into shell/, workspaces as pages (PanelFrame), Messages *Add a stream* form, examples step by step (owner, 2026-11-23) | on main 2026-11-24 (owner: "approved, continue"; v1.35.0 was tagged first); quick_check, Vitest panelPlace, e2e test_messages, test_report_parts, test_features, the views that gain / lose room | UX5 below, item by item; then a reviewer session challenges the round until it approves a release (owner, 2026-11-24) |
-| UX5 - the review's next steps 1-6 ("UX review 2026-11-23" in Open specs) | approved by the owner 2026-11-24 ("approved, continue"); 1 on main (the Inspector hidden beside a page) | one item per commit, pushed to main; then the reviewer loop and release 1.36.0 prepared (the owner tags) |
+| UX5 - the review's next steps 1-6 ("UX review 2026-11-23" in Open specs) | approved by the owner 2026-11-24 ("approved, continue"); 1-2 on main (the Inspector hidden beside a page; Checks in the one frame, a page with its ⤢) | one item per commit, pushed to main; then the reviewer loop and release 1.36.0 prepared (the owner tags) |
 | Release 1.35.0 - MSG10 messages (one field, streams forgotten / removed, Add a stream), WC5 earlier What changed spans, RE4 (editor) the report editor's undo / comments / line keys, FB1 the file dialog's lost click (owner, 2026-11-23: "update all the documents") | READY 2026-11-23: version in the five files + install.md, CITATION date, CHANGELOG 1.35.0 with highlights, README (English + Hebrew), GUIDE + GUIDE.he, features, limitations, validation page, pictures 42 48-53 55-57; the whole e2e one file at a time - 100 files, 545 passed, test_report_doc's LaTeX test failed only for want of a TeX (with TeX Live installed: 5 / 5); quick_check, mkdocs --strict, ci | the owner tags v1.35.0 and publishes the Release |
 | CP5 - drag a plot or a tab out of the window (owner, 2026-11-22) | built 2026-11-22 (the drag's data and the link tested in Chromium; a real drop on the Windows desktop not tested here) | the owner drags a plot's ⠿ onto his desktop, into Word, into Outlook |
 | Release 1.34.0 - CP4 Send to Confluence, CP3 the user macro, HL1 linked zoom, RE4 the built-in LaTeX, MSG5-MSG9 messages (owner, 2026-11-22: "yes - then release") | READY again 2026-11-22 (the tag moved: CP5-CP7, Z1 and the Confluence placement folded in): CHANGELOG 1.34.0 by topic with new highlights, README (English + Hebrew), features, limitations; the whole e2e one file at a time - 100 files, 541 passed, test_study_loop failed once under load and passed alone twice; backend, Vitest, mypy, mkdocs --strict | the owner moves the tag v1.34.0 to this commit and publishes the Release |
@@ -190,6 +190,10 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   docs/index.md and the welcome screen's groups.
 
 ## Log
+
+- 2026-11-24 · UX5.2: Checks in the one frame (beside by default, a page with its ⤢: file + sections as the index,
+  the section as the main column); screenshots en/light and he/dark checked. quick_check; e2e test_checks_view,
+  test_event_navigation, test_tuning_tools, test_live_report, test_plot_polish.
 
 - 2026-11-24 · UX5.1: the Inspector is not shown beside a page (decided: hide - it is all the plots' properties; a
   page's own context would be a second Inspector); its top-bar button off with a hint, back with the plots

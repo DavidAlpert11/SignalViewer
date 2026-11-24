@@ -1119,4 +1119,8 @@ look like one whole, flowing, coherent app, not sections cut off from each other
   - [x] UX5.1 The Inspector beside a page: hidden (it is the plots' cursor values, statistics, notes - a page is in
     their place), its top-bar button off with a hint; back with the plots, inspectorOpen kept (rail.ts pageOnScreen).
     Test: e2e test_messages::test_the_inspector_is_not_beside_a_page.
+  - [x] UX5.2 Checks in the one frame (LogPanel through PanelFrame, `indexFirst` beside the plots): rail.ts full: false
+    - beside by default (a click goes to a time), the ⤢ a page: the file, firmware, Align time and the sections
+    (vertical tabs) in the index column, the section in the main column. Test: e2e
+    test_checks_view::test_checks_as_a_page_and_back_beside_the_plots.
 

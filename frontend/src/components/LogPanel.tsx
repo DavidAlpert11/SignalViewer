@@ -9,6 +9,7 @@ import { runLabels } from "../names";
 import { Checks, FileView, RunParams } from "./ChecksView";
 import Instruments from "./Instruments";   // F4
 import { copyText } from "../errorReport";
+import PanelFrame, { usePlace } from "../shell/PanelFrame";
 
 /* D7 Checks - for any open file: its checks (limits, data quality, a log's health check), its parameters
    and its structure (The file); a flight log adds its events (messages, flight modes, events, errors),
@@ -39,58 +40,53 @@ export default function LogPanel() {
   useEffect(() => { if (asked) { setRid(asked); useApp.setState({ checksRun: null }); } }, [asked]);
   const run = files.find((r) => r.id === rid) ?? logRuns[0] ?? files[0];
   const info = run?.log ? logs[run.id] : undefined;
+  const place = usePlace();
   const [tab, setTab] = useState<"health" | "events" | "params" | "hw" | "file" | "instruments">("health");
 
   useEffect(() => { ensureLogs(); }, [runs]);
 
-  if (!run) {
-    return (
-      <aside className="side" aria-label={t("chkTitle")}>
-        <div className="side-head"><h2>{t("chkTitle")}</h2></div>
-        <p className="hint" style={{ padding: "0 14px" }}>{t("chkNone")}</p>
-      </aside>
-    );
-  }
+  if (!run) return <PanelFrame id="log" title={t("chkTitle")} className="log-panel" bodyClass="log-body"
+    index={<p className="hint" style={{ padding: "0 14px" }}>{t("chkNone")}</p>} />;
   const isLog = !!run.log;
   const shownTab = !isLog && (tab === "events" || tab === "hw") ? "health" : tab;
   const runKey = `${run.samples}:${run.log?.events ?? 0}:${run.timeOffset}`;
   const tabBtn = (id: typeof tab, label: React.ReactNode) => (
     <button role="tab" aria-selected={shownTab === id} className={shownTab === id ? "on" : ""} onClick={() => setTab(id)} data-tab={id}>{label}</button>
   );
-  return (
-    <aside className="side log-panel" aria-label={t("chkTitle")}>
-      <div className="side-head"><h2>{t("chkTitle")}</h2></div>
-      {files.length > 1 && (
-        <label className="afield log-file"><span>{t("file")}</span>
-          <select value={run.id} onChange={(e) => setRid(e.target.value)}>
-            {files.map((r) => <option key={r.id} value={r.id}>{names.get(r.id) ?? r.name}</option>)}
-          </select></label>
-      )}
-      {info?.firmware && <div className="log-fw" title={info.firmware}>{info.firmware}</div>}
-      {isLog && files.length > 1 && (
-        <div className="log-actions">
-          <button className="btn" onClick={() => useApp.setState({ syncFor: run.id })} title={t("syncMenu")}><Icon.Link /> {t("syncShort")}</button>
-        </div>
-      )}
-      <div className="seg wide log-tabs" role="tablist">
-        {tabBtn("health", t("chkTabChecks"))}
-        {isLog && tabBtn("events", <>{t("logEvents")} <span className="cnt">{run.log!.events}</span>
-          {run.log!.errors > 0 && <span className="lvl-dot error" title={t("logErrorsN", { n: run.log!.errors })} />}</>)}
-        {tabBtn("params", <>{t("logParams")}{isLog && <> <span className="cnt">{run.log!.params}</span></>}</>)}
-        {tabBtn("file", t("chkTabFile"))}
-        {tabBtn("instruments", t("insTab"))}
-        {isLog && !!info?.hardware?.sections.length && tabBtn("hw", t("logHardware"))}
+  // UX5.2: the file and its sections are the index, the section is the main part - beside the plots one under the
+  // other, on a page (the ⤢) side by side like the other workspaces (shell/PanelFrame.tsx)
+  const index = <>
+    {files.length > 1 && (
+      <label className="afield log-file"><span>{t("file")}</span>
+        <select value={run.id} onChange={(e) => setRid(e.target.value)}>
+          {files.map((r) => <option key={r.id} value={r.id}>{names.get(r.id) ?? r.name}</option>)}
+        </select></label>
+    )}
+    {info?.firmware && <div className="log-fw" title={info.firmware}>{info.firmware}</div>}
+    {isLog && files.length > 1 && (
+      <div className="log-actions">
+        <button className="btn" onClick={() => useApp.setState({ syncFor: run.id })} title={t("syncMenu")}><Icon.Link /> {t("syncShort")}</button>
       </div>
-      {shownTab === "health" ? <Checks key={run.id} runId={run.id} isLog={isLog} runKey={runKey} />
-        : shownTab === "file" ? <FileView key={run.id} runId={run.id} runKey={runKey} />
-        : shownTab === "instruments" ? <Instruments key={run.id} runId={run.id} runKey={runKey} />
-        : !isLog ? <RunParams key={run.id} runId={run.id} />
-        : !info ? <p className="hint" style={{ padding: "0 14px" }}>…</p>
-        : shownTab === "hw" && info.hardware ? <Hardware hw={info.hardware} />
-        : shownTab === "events" ? <Events key={run.id} runId={run.id} info={info} lang={lang} cursorT={cursorT} markers={markers} />
-          : <Params key={run.id} info={info} lang={lang} others={logRuns.filter((r) => r.id !== run.id).map((r) => ({ id: r.id, name: names.get(r.id) ?? r.name }))} />}
-    </aside>
-  );
+    )}
+    <div className={`seg wide log-tabs${place === "stage" ? " vertical" : ""}`} role="tablist" aria-orientation={place === "stage" ? "vertical" : "horizontal"}>
+      {tabBtn("health", t("chkTabChecks"))}
+      {isLog && tabBtn("events", <>{t("logEvents")} <span className="cnt">{run.log!.events}</span>
+        {run.log!.errors > 0 && <span className="lvl-dot error" title={t("logErrorsN", { n: run.log!.errors })} />}</>)}
+      {tabBtn("params", <>{t("logParams")}{isLog && <> <span className="cnt">{run.log!.params}</span></>}</>)}
+      {tabBtn("file", t("chkTabFile"))}
+      {tabBtn("instruments", t("insTab"))}
+      {isLog && !!info?.hardware?.sections.length && tabBtn("hw", t("logHardware"))}
+    </div>
+  </>;
+  const main = shownTab === "health" ? <Checks key={run.id} runId={run.id} isLog={isLog} runKey={runKey} />
+    : shownTab === "file" ? <FileView key={run.id} runId={run.id} runKey={runKey} />
+    : shownTab === "instruments" ? <Instruments key={run.id} runId={run.id} runKey={runKey} />
+    : !isLog ? <RunParams key={run.id} runId={run.id} />
+    : !info ? <p className="hint" style={{ padding: "0 14px" }}>…</p>
+    : shownTab === "hw" && info.hardware ? <Hardware hw={info.hardware} />
+    : shownTab === "events" ? <Events key={run.id} runId={run.id} info={info} lang={lang} cursorT={cursorT} markers={markers} />
+      : <Params key={run.id} info={info} lang={lang} others={logRuns.filter((r) => r.id !== run.id).map((r) => ({ id: r.id, name: names.get(r.id) ?? r.name }))} />;
+  return <PanelFrame id="log" title={t("chkTitle")} className="log-panel" bodyClass="log-body" index={index} main={main} indexFirst />;
 }
 
 /* ------------------------------------------------------------------------- hardware */

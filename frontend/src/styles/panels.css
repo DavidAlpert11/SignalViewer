@@ -162,3 +162,12 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 /* the cell a side panel (or the Inspector) sits in: the panel fills it (App.tsx keeps it at one place in the tree) */
 .panel-slot { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .panel-slot > * { flex: 1; min-height: 0; }
+
+/* Checks (LogPanel, UX5.2) in the one frame: beside the plots its body fills the panel (the events' list scrolls in
+   it); as a page the file and its sections are the index column - the sections one under the other - and the chosen
+   section is the main column */
+.log-panel .log-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.page-index .log-tabs.vertical { flex-direction: column; flex-wrap: nowrap; margin: 4px 0 0 !important; }
+.page-index .log-tabs.vertical button { justify-content: flex-start; text-align: start; }
+.page-index.log-panel-index .afield, .page-index.log-panel-index .log-fw, .page-index.log-panel-index .log-actions { margin-inline: 0; }
+.page-main.log-panel-main { padding-inline: 14px; }

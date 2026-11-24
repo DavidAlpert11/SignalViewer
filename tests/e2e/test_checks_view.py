@@ -86,3 +86,21 @@ def test_the_checks_file_beside_a_recording_gives_the_verdict(pg):
     assert sec.locator(".card.ok[data-status=pass]").count() == 1
     sec.locator(".card.bad .pchange.span").click()                                # to the worst moment
     pg.wait_for_function("Math.abs(window.__sv.state().cursor.t1 - 559.74) < 0.5")
+
+
+def test_checks_as_a_page_and_back_beside_the_plots(pg):
+    """UX5.2: Checks in the one frame - beside the plots by default; its ⤢ makes it a page (the file and its sections in
+    the index column, the section in the main one), remembered; a click on an event brings the plots back beside it."""
+    _write(pg.env["data"], "bench_run_1.csv", 0.5, gap=True)
+    open_files(pg, "bench_run_1.csv")
+    pg.locator(".rail button[aria-label='Checks']").click()
+    pg.wait_for_selector("aside.log-panel .log-tabs")
+    pg.locator("aside.log-panel .panel-fill").click()
+    pg.wait_for_selector(".page.log-panel .page-index .log-tabs.vertical")
+    pg.wait_for_selector(".page.log-panel .page-main .checks[data-checks-ready='1']", timeout=20000)
+    assert pg.locator(".stage .plot").count() == 0                          # the page is in the plots' place
+    pg.locator(".page.log-panel .log-tabs button[data-tab='file']").click()
+    pg.wait_for_selector(".page.log-panel .page-main .checks[data-checks-ready='1']", state="detached")
+    assert S(pg, "s.panelFull.log") is True
+    pg.locator(".page-head .panel-fill").click()                            # beside the plots again
+    pg.wait_for_selector("aside.log-panel")

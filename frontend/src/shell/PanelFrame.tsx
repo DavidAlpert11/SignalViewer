@@ -16,7 +16,7 @@ import { panelDef } from "../components/rail";
 export const PlaceContext = createContext<"side" | "stage">("side");
 export const usePlace = () => useContext(PlaceContext);
 
-export default function PanelFrame({ id, title, className, bodyClass, actions, index, main, label }: {
+export default function PanelFrame({ id, title, className, bodyClass, actions, index, main, label, indexFirst }: {
   id: PanelId; title: string; label?: string;
   /** the panel's own class (on the side panel and on the page) and its side body's class */
   className: string; bodyClass: string;
@@ -26,13 +26,15 @@ export default function PanelFrame({ id, title, className, bodyClass, actions, i
   index: ReactNode;
   /** the thing worked on (a stream's editor, What changed...): the page's main column, or under the index beside */
   main?: ReactNode;
+  /** beside the plots, the index above the main part (Checks: the file and its sections, then the section) */
+  indexFirst?: boolean;
 }) {
   const place = usePlace();
   const I = Icon[panelDef(id).icon];
   if (place === "side") return (
     <aside className={`side ${className}`} aria-label={label ?? title}>
       <div className="side-head"><h2>{title}</h2>{actions}<FillButton id={id} /></div>
-      <div className={bodyClass}>{main}{index}</div>
+      <div className={bodyClass}>{indexFirst ? <>{index}{main}</> : <>{main}{index}</>}</div>
     </aside>
   );
   return (

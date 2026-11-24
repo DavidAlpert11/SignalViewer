@@ -11,7 +11,7 @@ import { useApp } from "../store";
 export const RAIL_W = 64;
 
 /** Where a panel is shown (owner, 2026-11-23: one coherent app). The tools that act on the plots (Files, Create,
- *  Compare, Checks) sit beside them; the workspaces read and worked in are pages on the whole stage, all in one frame
+ *  Compare, Checks) sit beside them (Checks may take the stage with its ⤢ - a long list read); the workspaces read and worked in are pages on the whole stage, all in one frame
  *  (shell/PanelFrame.tsx): the Report always, Investigate and Messages by their rule - and beside the plots with the ⤡
  *  in their head (remembered), or for a moment when what they did needs the plots. */
 export interface PanelDef {
@@ -38,7 +38,10 @@ export const RAIL: PanelDef[] = [
   // MSG3: byte streams, links, structures. MSG9: the bytes, the values and the structure form side by side
   { id: "messages", icon: "Messages", key: "msgPanel", short: "railMessages", width: ["messages", 520], place: "side", full: true },
   { id: "report", icon: "Report", key: "report", short: "railReport", width: ["side", 280], place: "stage" },   // RE1: in place of the plots
-  { id: "log", icon: "Log", key: "chkTitle", short: "railChecks", width: ["side", 280], place: "side" },  // D7: Checks for any open file
+  { id: "log", icon: "Log", key: "chkTitle", short: "railChecks", width: ["side", 280], place: "side",
+    // D7: Checks for any open file. UX5.2: beside the plots by default (a finding or an event is a click to its time),
+    // a page with the ⤢ to read a long list - the file and its sections in the index column, the section beside it
+    full: false },
 ];
 
 export const panelDef = (id: PanelId): PanelDef => RAIL.find((r) => r.id === id)!;
