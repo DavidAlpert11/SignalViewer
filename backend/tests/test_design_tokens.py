@@ -5,12 +5,23 @@ import os
 import re
 
 CSS = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "src", "index.css")
+STYLES = os.path.join(os.path.dirname(CSS), "styles")
+# UX5.5: index.css's later parts, moved out as they were and imported right after it - index.css for these rules
+INDEX_PARTS = ("tools.css", "mapobjects.css", "features.css", "messages.css")
 
 
 def _rules():
-    """The CSS without comments; custom-property definitions (the tokens themselves) left out."""
-    text = re.sub(r"/\*.*?\*/", "", open(CSS, encoding="utf-8").read(), flags=re.S)
+    """The CSS of index.css and its parts without comments; custom-property definitions (the tokens) left out."""
+    files = [CSS] + [os.path.join(STYLES, n) for n in INDEX_PARTS]
+    text = re.sub(r"/\*.*?\*/", "", "\n".join(open(f, encoding="utf-8").read() for f in files), flags=re.S)
     return re.sub(r"--[\w-]+\s*:[^;{}]*;", "", text)
+
+
+def test_index_parts_follow_index_css():
+    """The parts are imported right after index.css, in their order - so the cascade is index.css's own."""
+    main = open(os.path.join(os.path.dirname(CSS), "main.tsx"), encoding="utf-8").read()
+    imports = re.findall(r'^import "\./(index\.css|styles/[\w-]+\.css)";', main, re.M)
+    assert imports[:1 + len(INDEX_PARTS)] == ["index.css"] + [f"styles/{n}" for n in INDEX_PARTS], imports
 
 
 def test_font_sizes_are_on_the_scale():
@@ -28,7 +39,6 @@ def test_colours_are_tokens():
     assert not bad, f"use a colour token (index.css), not {sorted(set(bad))}"
 
 
-STYLES = os.path.join(os.path.dirname(CSS), "styles")
 COMPONENT = re.compile(r"\.(btn|iconbtn|chipbtn|linkbtn|linklike|pill|seg|toast|menu)(?![\w-])")
 PLACEMENT = re.compile(r"^(margin|align-self|justify-self|flex|order|grid-|position|inset|top|bottom|left|right|z-index|width|max-width|min-width)")
 
@@ -37,7 +47,7 @@ def test_components_are_defined_once():
     """A3: buttons, segmented controls, chips, pills, menus and toasts are defined in index.css only; an area's
     stylesheet may place one (margin, flex, ...) but not restyle it - one way to draw each component."""
     bad = []
-    for name in sorted(os.listdir(STYLES)):
+    for name in sorted(n for n in os.listdir(STYLES) if n not in INDEX_PARTS):
         text = re.sub(r"/\*.*?\*/", "", open(os.path.join(STYLES, name), encoding="utf-8").read(), flags=re.S)
         for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", text):
             last = [s.strip().split()[-1] for s in sel.split(",") if s.strip()]

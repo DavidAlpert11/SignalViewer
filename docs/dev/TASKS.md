@@ -191,6 +191,10 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-24 · Fix forward: backend test_design_tokens failed after the index.css split (its parts in styles/ counted
+  as an area's file, and the token checks read index.css only). The test now reads index.css with its parts and checks
+  they are imported right after it, in order. Backend 1520 passed.
+
 - 2026-11-24 · The whole e2e one file at a time after UX5: 100 files, 539 passed, 2 failed - test_report_doc's LaTeX
   test (no TeX in this container, as in 1.35.0) and test_map_smooth::test_playback_redraws_the_map_without_the_panels:
   App rendered on every playback frame since UX2 (usePlotsComeBack read the cursor with a selector; already failing at
