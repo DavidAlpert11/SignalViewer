@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| Release 1.36.0 - UX1-UX5: one coherent app (pages in one frame: Investigate, Messages, Checks, Report; Sweeps' page head), Add a stream, examples built step by step, the big files split (owner, 2026-11-23/24) | READY 2026-11-24: the reviewer session (session_0146GPW2guKSxqJE46HkbNSn) said "APPROVED FOR RELEASE" after 18 points answered / fixed; version in the five files + install.md, CITATION date, CHANGELOG 1.36.0 with highlights, README (English + Hebrew), GUIDE + GUIDE.he, features, limitations, validation page, pictures 09 10 23 25 26 30 38-43 48-56 and the training film; the whole e2e one file at a time - 100 files, 550 passed, test_report_doc's LaTeX test failed for want of a TeX, test_file_browser_edit failed once under load and passed alone twice; quick_check, mkdocs --strict | the owner tags v1.36.0 and publishes the Release |
 | UX1-UX4 - one coherent app: App.tsx split into shell/, workspaces as pages (PanelFrame), Messages *Add a stream* form, examples step by step (owner, 2026-11-23) | on main 2026-11-24 (owner: "approved, continue"; v1.35.0 was tagged first); quick_check, Vitest panelPlace, e2e test_messages, test_report_parts, test_features, the views that gain / lose room | UX5 below, item by item; then a reviewer session challenges the round until it approves a release (owner, 2026-11-24) |
 | UX5 - the review's next steps 1-6 ("UX review 2026-11-23" in Open specs) | approved by the owner 2026-11-24 ("approved, continue"); 1-3 on main (the Inspector hidden beside a page; Checks in the one frame, a page with its ⤢; Sweeps' steps row as the page head; the demos in 2-3 steps; 5 the big files split - five of ten, the rest with reasons in ROADMAP) | 1-6 on main 2026-11-24 (6: pictures and the training film made again), the whole e2e green (but LaTeX, no TeX here). Reviewer session session_0146GPW2guKSxqJE46HkbNSn opened 2026-11-24 (builder: session_0146GPW2jrfxNS8wsEvtdLkF): answer its points, fix forward, until "APPROVED FOR RELEASE"; then release 1.36.0 prepared (the owner tags) |
 | Release 1.35.0 - MSG10 messages (one field, streams forgotten / removed, Add a stream), WC5 earlier What changed spans, RE4 (editor) the report editor's undo / comments / line keys, FB1 the file dialog's lost click (owner, 2026-11-23: "update all the documents") | READY 2026-11-23: version in the five files + install.md, CITATION date, CHANGELOG 1.35.0 with highlights, README (English + Hebrew), GUIDE + GUIDE.he, features, limitations, validation page, pictures 42 48-53 55-57; the whole e2e one file at a time - 100 files, 545 passed, test_report_doc's LaTeX test failed only for want of a TeX (with TeX Live installed: 5 / 5); quick_check, mkdocs --strict, ci | the owner tags v1.35.0 and publishes the Release |
@@ -190,6 +191,11 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   docs/index.md and the welcome screen's groups.
 
 ## Log
+
+- 2026-11-24 · The reviewer: "APPROVED FOR RELEASE" (re-checked 1-18 on 44c4177). Its suggestion done (index.css's
+  parts say so in their header). The whole e2e one file at a time again: 100 files, 550 passed; test_report_doc's LaTeX
+  test (no TeX), test_file_browser_edit once under load (alone: 3 / 3 twice). Release 1.36.0 prepared: version, CITATION,
+  CHANGELOG highlights, validation page, mkdocs --strict. The owner tags v1.36.0.
 
 - 2026-11-24 · Reviewer (session_0146GPW2guKSxqJE46HkbNSn) batches 1-2, 18 points; answered and fixed forward:
   897d6da (a page stays a page while playing; e2e), eddf8d4 (demo lines: a step done by hand moves on, reportDemo in

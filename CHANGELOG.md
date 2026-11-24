@@ -2,6 +2,10 @@
 
 ## Next – unreleased
 
+## 1.36.0 – 2026-11-24
+
+**Highlights:** **One app, not separate sections.** Investigate, Messages, Checks and the Report open as pages in the plots' place, all in the same frame - a list on one side, the thing you work on beside it - and step back beside the plots when an action needs them; Sweeps reads the same way. *Messages* has one clear form to say which signals carry bytes. And every example is built in front of you, two or three steps each, from the raw file to its report.
+
 - New: **Investigate, Messages and the Report are pages of one app.** The workspaces you read and work in open on the
   whole screen in one frame - the head where the plots' bar is, the demo's line under it, a list on one side (the byte
   streams, the conditions, Checks' sections, the report's parts) and the one you work on beside it. Messages opens as a page; Investigate opens as a
@@ -24,8 +28,8 @@
   line of steps above them, counted (2/3): each step says what is on screen and what to do next, its button does it
   (look for the messages, plot them, write the link's report; open the link, use the structure files, make the
   recordings; the track, then speed and satellites; rank where the two runs differ, then write the report). *Show the
-  result* does every step left at once, and a step you do by hand (a panel opened from the rail) moves the line on. Opening an example whose files
-  are already open now starts its line too. The other demos lead on the same way, two or three steps each: the
+  result* does every step left at once, and a step you do by hand (a panel opened from the rail) moves the line on.
+  Opening an example whose files are already open now starts its line too. The other demos lead on the same way, two or three steps each: the
   flight (play it, what Checks found, its report), two flights and the car's three runs (rank the differences, then the
   report), the bench and the ArduPilot log (Checks, then the report), the model against its flight (align the clocks,
   then rank where they differ) and *Find out what went wrong* (the cursors around the first bump, then *What changed?*).
