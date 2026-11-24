@@ -36,6 +36,7 @@ from app.routes import (
     readers,
     session,
     sweep,
+    sweep_tables,
     sweeps_common,
     sweeps_farm,
     sweeps_report,
@@ -157,6 +158,7 @@ async def _unexpected_error(request: Request, exc: Exception):
 
 app.include_router(files.router)
 app.include_router(sweep.router)
+app.include_router(sweep_tables.router)    # UX5.5: the open tables' other endpoints
 app.include_router(sweeps_common.router)    # W14 / W15
 app.include_router(sweeps_farm.router)      # W17 / W18
 app.include_router(sweeps_templates.router)
