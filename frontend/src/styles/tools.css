@@ -1,5 +1,6 @@
 /* live mode, badges, the flight log panel, formula help, the spectrogram, notes / sync / health / templates, the template library, the timeline.
-   Moved out of index.css as they were (UX5.5) and imported right after it (main.tsx), so the cascade is unchanged. */
+   Moved out of index.css as they were (UX5.5) and imported right after it (main.tsx), so the cascade is unchanged.
+   Part of index.css, not an area file: components may be styled here (test_design_tokens reads it as index.css). */
 /* ---------------------------------------------------------------- live mode */
 .live-group { position: relative; display: inline-flex; align-items: center; gap: 0; }
 .live-btn.on { color: var(--amber-ink); background: var(--amber); box-shadow: none; }

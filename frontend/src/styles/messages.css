@@ -1,5 +1,6 @@
 /* the Messages panel (MSG2-MSG8), with Settings -> Confluence (CP4) and the LaTeX preview (RE3) between its blocks as they were.
-   Moved out of index.css as they were (UX5.5) and imported right after it (main.tsx), so the cascade is unchanged. */
+   Moved out of index.css as they were (UX5.5) and imported right after it (main.tsx), so the cascade is unchanged.
+   Part of index.css, not an area file: components may be styled here (test_design_tokens reads it as index.css). */
 /* MSG2: the messages' structure -> a recording */
 .msgp-edit .msg-structure { border-top: 1px solid var(--line); margin-top: var(--sp-2); padding-top: var(--sp-2); }
 .msgp-edit .msg-structure h3 { margin: 0 0 4px; font-size: var(--fs-m); }

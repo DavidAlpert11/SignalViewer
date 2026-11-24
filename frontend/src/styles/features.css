@@ -1,5 +1,6 @@
 /* the features added one by one (T10 ... P10) - each block names its task.
-   Moved out of index.css as they were (UX5.5) and imported right after it (main.tsx), so the cascade is unchanged. */
+   Moved out of index.css as they were (UX5.5) and imported right after it (main.tsx), so the cascade is unchanged.
+   Part of index.css, not an area file: components may be styled here (test_design_tokens reads it as index.css). */
 /* T10: segments of a state signal (Inspector) */
 .segments { margin: 0 0 10px; }
 .segments .seg-toggle { font-weight: 600; }

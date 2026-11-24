@@ -1,5 +1,6 @@
 /* map objects and the 3D view.
-   Moved out of index.css as they were (UX5.5) and imported right after it (main.tsx), so the cascade is unchanged. */
+   Moved out of index.css as they were (UX5.5) and imported right after it (main.tsx), so the cascade is unchanged.
+   Part of index.css, not an area file: components may be styled here (test_design_tokens reads it as index.css). */
 /* ---------------------------------------------------------------- map objects */
 .obj-add { margin-inline-start: 6px; }
 .obj-chips { display: inline-flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; }
