@@ -1,0 +1,175 @@
+/* the Messages panel (MSG2-MSG8), with Settings -> Confluence (CP4) and the LaTeX preview (RE3) between its blocks as they were.
+   Moved out of index.css as they were (UX5.5) and imported right after it (main.tsx), so the cascade is unchanged. */
+/* MSG2: the messages' structure -> a recording */
+.msgp-edit .msg-structure { border-top: 1px solid var(--line); margin-top: var(--sp-2); padding-top: var(--sp-2); }
+.msgp-edit .msg-structure h3 { margin: 0 0 4px; font-size: var(--fs-m); }
+.msgp-edit .msg-struct-tools { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin: var(--sp-2) 0; align-items: center; }
+.msgp-edit .msg-sides { margin: var(--sp-1) 0; }
+.msgp-edit .msg-struct { overflow-x: auto; }
+/* MSG3: the Messages panel */
+.messages .msgp-body { padding: 8px 12px 16px; overflow: auto; display: flex; flex-direction: column; gap: var(--sp-2); }
+.messages .msgp-sec > .alist-head { margin-top: 8px; }
+.messages .msgp-sec:first-child > .alist-head, .messages .msgp-running + .msgp-sec > .alist-head { border-top: 0; padding-top: 0; }
+.messages .hint { margin: 2px 0 6px; }
+.msgp-stream { border: 1px solid var(--line); border-radius: var(--r-card); margin: 0 0 var(--sp-2); background: var(--panel); }
+.msgp-stream.open { border-color: var(--line-strong); box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+/* a stream: its head opens it; ⋯ beside it - fold, start over, forget / remove (asked first, one Undo) */
+.msgp-stream-top { display: flex; align-items: stretch; border-radius: var(--r-card); }
+.msgp-stream-top:hover { background: var(--panel-2); }
+.msgp-stream-head { display: flex; flex: 1; min-width: 0; align-items: baseline; gap: var(--sp-2); padding: 7px 4px 7px 8px; background: none; border: 0; color: var(--ink); cursor: pointer; text-align: start; font: inherit; }
+.msgp-chev { width: 14px; height: 14px; flex: none; align-self: center; color: var(--muted); transition: transform .12s; transform: rotate(-90deg); }
+[dir="rtl"] .msgp-chev { transform: rotate(90deg); }
+.msgp-stream.open .msgp-chev { transform: none; }
+.msgp-stream-more { flex: none; align-self: center; height: 26px; min-width: 26px; padding: 0; margin-inline-end: 6px; color: var(--muted); }
+.messages .msgp-sec-head { display: flex; align-items: center; gap: var(--sp-2); margin-top: 8px; }
+.messages .msgp-sec-head .alist-head { flex: 1; border-top: 0; padding-top: 0; margin: 0; }
+.messages .msgp-add { flex: none; display: inline-flex; align-items: center; gap: 4px; }
+.messages .msgp-add svg { width: 14px; height: 14px; }
+.msgp-name { font-weight: 600; color: var(--ink-strong); display: inline-flex; gap: 6px; align-items: baseline; min-width: 0; overflow-wrap: anywhere; }
+.msgp-file { color: var(--muted); font-size: var(--fs-s); margin-inline-start: auto; }
+.msgp-dir { padding: 0 10px 6px; font-size: var(--fs-s); color: var(--ink); }
+.msgp-types { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.msgp-types .chip-s { font-family: var(--mono); font-size: var(--fs-xs); padding: 1px 6px; border-radius: var(--r-round); background: var(--panel-2); color: var(--muted); }
+.msgp-bad { color: var(--danger); }
+.msgp-edit { border-top: 1px solid var(--line); padding: 6px 10px 10px; }
+.msgp-actions { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin: var(--sp-2) 0 var(--sp-1); }
+.messages .tag { font-size: var(--fs-xs); font-weight: 500; padding: 0 6px; border-radius: var(--r-round); border: 1px solid var(--line); color: var(--muted); }
+.msgp-running .card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.msgp-log { border: 1px solid var(--line); border-radius: var(--r-card); padding: 4px 10px; margin: 0 0 var(--sp-2); }
+.msgp-log summary { cursor: pointer; display: flex; gap: var(--sp-2); align-items: baseline; }
+.msgp-table { border-collapse: collapse; width: 100%; font-size: var(--fs-s); margin: 4px 0; }
+.msgp-table th { text-align: start; color: var(--muted); font-weight: 500; padding: 2px 4px; }
+.msgp-table td { padding: 2px 4px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.msgp-table tbody tr { cursor: pointer; }
+.msgp-table tbody tr:hover, .msgp-table tbody tr:focus { background: var(--panel-2); outline: none; }
+.msgp-lib-list { list-style: none; margin: 0; padding: 0; }
+.msgp-lib-list li { display: flex; gap: var(--sp-2); align-items: baseline; padding: 3px 0; border-top: 1px solid var(--line); font-size: var(--fs-s); }
+.msgp-lib-list li:first-child { border-top: 0; }
+.msgp-folder { overflow-wrap: anywhere; }
+.msg-struct .seg { margin-bottom: var(--sp-2); }
+.msg-struct .msg-frame { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); align-items: center; margin-bottom: var(--sp-2); }
+.msg-struct .msg-frame input[type=number] { width: 4.5em; }
+/* a message: a card - its id and name, how many fields, fold, remove (asked first). Each field one row: name, byte,
+   type, order, unit, its conversion (folded under the row), and its own ✕ always in sight - never a wide table */
+.msg-struct .msg-msg { border: 1px solid var(--line); border-radius: var(--r-l); background: var(--panel); margin: 0 0 var(--sp-2); overflow: hidden; }
+.msg-struct .msg-msg-head { display: flex; align-items: center; gap: var(--sp-1_5); padding: 5px 6px 5px 4px; background: var(--panel-2); }
+.msg-struct .msg-msg:not(.shut) .msg-msg-head { border-bottom: 1px solid var(--line); }
+.msg-struct .msg-msg-head .msg-id { width: 4.5em; font-family: var(--mono); font-size: var(--fs-s); }
+.msg-struct .msg-msg-head .msg-name { flex: 1 1 8em; min-width: 0; font-weight: 600; color: var(--ink-strong); }
+.msg-struct .msg-msg-count { color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; }
+.msg-struct .msg-msg-chev { height: 24px; min-width: 24px; padding: 0; color: var(--muted); }
+.msg-struct .msg-msg-chev svg { transition: transform .12s; }
+.msg-struct .msg-msg.shut .msg-msg-chev svg { transform: rotate(-90deg); }
+.msg-struct .msg-msg-del { height: 26px; min-width: 26px; padding: 0; color: var(--muted); }
+.msg-struct .msg-msg-del:hover, .msg-struct .msg-f-del:hover { color: var(--danger); background: var(--danger-soft); }
+.msg-struct .msg-fields { display: grid; grid-template-columns: minmax(6.5em, 1fr) 3.8em 5.6em 6.4em 4.2em auto 26px; column-gap: var(--sp-1);
+  padding: 4px 6px 0; font-size: var(--fs-s); }
+.msg-struct .msg-f-head, .msg-struct .msg-f { display: contents; }
+.msg-struct .msg-f-head > span { color: var(--muted); font-size: var(--fs-xs); padding: 0 2px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg-struct .msg-f > input, .msg-struct .msg-f > select, .msg-struct .msg-f > label, .msg-struct .msg-f > span, .msg-struct .msg-f > button { margin: 2px 0; min-width: 0; }
+.msg-struct .msg-f input, .msg-struct .msg-f select { width: 100%; box-sizing: border-box; }
+.msg-struct .msg-f .msg-f-name { font-weight: 500; }
+.msg-struct .msg-f-size { display: flex; align-items: center; gap: 3px; color: var(--muted); font-size: var(--fs-xs); }
+.msg-struct .msg-f-size input { width: 3.4em; }
+.msg-struct .msg-f-conv { font: inherit; font-size: var(--fs-xs); font-family: var(--mono); color: var(--muted); background: none; border: 1px dashed var(--line-strong);
+  border-radius: var(--r-s); padding: 0 6px; height: 24px; align-self: center; cursor: pointer; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-struct .msg-f-conv.set { color: var(--ink); border-style: solid; background: var(--panel-2); }
+.msg-struct .msg-f-conv[aria-expanded="true"] { border-color: var(--ink); }
+.msg-struct .msg-f-conv:disabled { visibility: hidden; }
+.msg-struct .msg-f-del { height: 24px; width: 26px; min-width: 0; padding: 0; color: var(--muted); align-self: center; }
+.msg-struct .msg-f-more { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); align-items: center; margin: 0 0 4px;
+  padding: 5px 8px; background: var(--panel-2); border-radius: var(--r-m); color: var(--muted); font-size: var(--fs-xs); }
+.msg-struct .msg-f-more label { display: inline-flex; align-items: center; gap: 4px; }
+.msg-struct .msg-f-more input { width: auto; font-size: var(--fs-s); }
+.msg-struct .msg-f-none { padding: 6px 10px 0; margin: 0; }
+.msg-struct .msg-add { display: flex; align-items: center; justify-content: center; gap: 4px; width: calc(100% - 12px); margin: 6px; padding: 4px;
+  font: inherit; font-size: var(--fs-s); color: var(--muted); background: none; border: 1px dashed var(--line-strong); border-radius: var(--r-m); cursor: pointer; }
+.msg-struct .msg-add:hover { color: var(--ink-strong); border-color: var(--ink); background: var(--panel-2); }
+.msg-struct .msg-add svg { width: 14px; height: 14px; }
+.msg-struct .msg-add-msg { width: 100%; margin: 0; padding: 7px; }
+.msg-struct .msg-json { width: 100%; font-family: var(--mono); font-size: var(--fs-s); }
+
+/* MSG4: the Messages panel's four steps and the byte view (each byte coloured by its role) */
+:root {
+  --msg-header: rgba(61, 139, 253, .30); --msg-length: rgba(242, 169, 59, .34); --msg-type: rgba(171, 99, 250, .30);
+  --msg-field: rgba(76, 195, 138, .30); --msg-field-2: rgba(76, 195, 138, .16); --msg-checksum: rgba(224, 80, 80, .30);
+  --msg-footer: rgba(0, 180, 200, .30); --msg-payload: transparent;
+}
+.msg-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.msg-step { border: 1px solid var(--line); border-radius: var(--r-m); padding: 8px 10px; }
+.msg-step h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: var(--fs-m); color: var(--ink-strong); }
+.msg-n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--amber); color: var(--amber-ink); font-size: var(--fs-m); font-weight: 700; flex: none; }
+.msg-step > .hint { margin: 0 0 6px; }
+.msg-pats { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 4px 0 6px; }
+.msg-pat { cursor: pointer; font-family: "IBM Plex Mono", Consolas, monospace; }
+.msg-pat .msg-pat-n { color: var(--muted); }
+.msg-framing-line { font-family: "IBM Plex Mono", Consolas, monospace; font-size: var(--fs-m); }
+.bv-legend { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.bv-chip { font-size: var(--fs-s); border-radius: var(--r-s); padding: 0 6px; border: 1px solid var(--line); }
+.bv-frames, .bv-head .bv-bytes { display: flex; flex-direction: column; gap: 3px; overflow-x: auto; max-height: 280px; overflow-y: auto; }
+.bv-head .bv-bytes { flex-direction: row; flex-wrap: wrap; }
+.bv-frame { display: flex; gap: 6px; align-items: baseline; }
+.bv-meta { flex: none; width: 92px; font-size: var(--fs-s); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bv-meta b { color: var(--ink); font-weight: 600; }
+.bv-bad { color: var(--danger); margin-inline-start: 4px; }
+.bv-frame.st-bad .bv-bytes { opacity: .65; }
+.bv-bytes { display: flex; flex-wrap: nowrap; gap: 1px; }
+.bv-b { font-family: "IBM Plex Mono", Consolas, monospace; font-size: var(--fs-m); line-height: 18px; min-width: 22px; padding: 0 2px; border: 1px solid transparent; border-radius: var(--r-xs); background: var(--msg-payload); color: var(--ink); cursor: pointer; }
+.bv-b:hover, .bv-b:focus-visible { border-color: var(--line-strong); }
+.bv-part { min-width: auto; padding: 0 5px; white-space: nowrap; }
+.role-header { background: var(--msg-header); } .role-length { background: var(--msg-length); } .role-type { background: var(--msg-type); }
+.role-field { background: var(--msg-field); } .role-field.fld-1 { background: var(--msg-field-2); } .role-checksum { background: var(--msg-checksum); }
+.role-footer { background: var(--msg-footer); } .role-payload { background: var(--msg-payload); }
+.bv-b.role-payload { color: var(--muted); }
+.msg-values { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; overflow-x: auto; }
+.msg-values-t { font-size: var(--fs-m); border-collapse: collapse; }
+.msg-values-t caption { text-align: start; font-weight: 600; color: var(--ink-strong); padding: 2px 0; }
+.msg-values-t th, .msg-values-t td { border: 1px solid var(--line); padding: 1px 6px; text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.msg-values-t th { background: var(--panel-2); font-weight: 600; }
+.msg-made { color: var(--ink); }
+/* CP4: Settings -> Confluence */
+.set-cf-ctl { display: grid; grid-template-columns: 1fr; gap: 4px; min-width: 0; }
+.set-cf-ctl .set-cf-url { grid-column: 1 / -1; }
+.set-cf-ctl input { min-width: 0; font: inherit; padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--r-s); background: var(--bg); color: var(--ink); }
+.set-cf-state { grid-column: 1 / -1; }
+.set-cf-state.ok { color: var(--ok); }
+.set-cf-state.bad { color: var(--danger); }
+/* MSG8: the bytes as hex / numbers / characters */
+.bv-show { margin-inline-start: auto; }
+.bv-b.bv-two { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.05; }
+.bv-chr { font-size: var(--fs-3xs); color: var(--muted); }
+.msg-f-size input { width: 4em; }
+/* MSG7: the messages in the stream - count, share, in the recording, Plot */
+.msg-list { margin: 4px 0 8px; }
+.msg-list-t { width: 100%; border-collapse: collapse; font-size: var(--fs-m); }
+.msg-list-t td, .msg-list-t th { padding: 2px 4px; white-space: nowrap; }
+.msg-list-t th { text-align: start; font-weight: 600; color: var(--ink-strong); }
+.msg-list-bar { width: 40%; }
+.msg-list-bar span { display: block; height: 8px; border-radius: var(--r-xs); background: var(--msg-header); }
+.msg-list-n { text-align: end; font-variant-numeric: tabular-nums; color: var(--muted); }
+.msg-list-row.off th, .msg-list-row.off .msg-list-bar span { opacity: .45; }
+.msg-list-row.unknown th { color: var(--muted); font-weight: 400; }
+.msg-list-row.unknown .msg-list-bar span { background: var(--msg-payload); }
+
+/* RE3: a LaTeX report's preview - the PDF this computer's TeX made, its error at the line of the text */
+.rd-preview-tex { display: flex; flex-direction: column; gap: 4px; }
+.rd-preview-tex .rd-pdf-frame { flex: 1; min-height: 300px; border: 1px solid var(--line); border-radius: var(--r-m); }
+.rd-tex-err { margin: 0; padding: 6px 10px; border-radius: var(--r-m); background: var(--danger-soft); color: var(--danger); font-family: "IBM Plex Mono", Consolas, monospace; font-size: var(--fs-m); white-space: pre-wrap; }
+.rd-tex-err .linklike { color: inherit; text-align: start; }
+.rd-tex-none { margin: 6px 0; }
+.rd-tex-open { align-self: flex-start; }
+
+/* What changed: the spans asked about before the one shown - a click shows one again, ✕ takes it off */
+.investigate .inv-wc-new { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 var(--sp-2); }
+.investigate .inv-wc-new svg { width: 14px; height: 14px; }
+.wc-earlier { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-1_5); margin: 0 0 var(--sp-2); font-size: var(--fs-s); }
+.wc-earlier-label { color: var(--muted); font-size: var(--fs-xs); }
+.wc-earlier-row { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: var(--r-round); background: var(--panel); overflow: hidden; }
+.wc-earlier-row:hover { border-color: var(--ink); }
+.wc-earlier-open { font: inherit; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; color: var(--ink); background: none; border: 0; padding: 2px 4px 2px 10px; cursor: pointer; }
+[dir="rtl"] .wc-earlier-open { padding: 2px 10px 2px 4px; }
+.wc-earlier-open:hover { color: var(--ink-strong); }
+.wc-earlier-del { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: var(--r-round); }
+.wc-earlier-del svg { width: 12px; height: 12px; }
+.wc-earlier-del:hover { color: var(--danger); background: var(--danger-soft); }
+.wc-earlier-clear { font-size: var(--fs-xs); color: var(--muted); }

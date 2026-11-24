@@ -1,0 +1,585 @@
+/* the features added one by one (T10 ... P10) - each block names its task.
+   Moved out of index.css as they were (UX5.5) and imported right after it (main.tsx), so the cascade is unchanged. */
+/* T10: segments of a state signal (Inspector) */
+.segments { margin: 0 0 10px; }
+.segments .seg-toggle { font-weight: 600; }
+.seg-totals { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 4px 0; font-size: var(--fs-m); color: var(--muted); }
+.seg-total, .seg-list button { display: inline-flex; align-items: center; gap: var(--sp-1_5); }
+.seg-totals i, .seg-list i { width: 8px; height: 8px; border-radius: var(--r-xs); flex: none; }
+.seg-total b { color: var(--ink); font-weight: 500; }
+.seg-list { list-style: none; margin: 4px 0 0; padding: 0; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-m); }
+.seg-list li.hint { padding: 4px 8px; }
+.seg-list button { width: 100%; padding: 3px 8px; border: 0; background: none; color: var(--ink); cursor: pointer; text-align: start; font-size: var(--fs-m); }
+.seg-list button:hover { background: var(--panel-2); }
+.seg-list .seg-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seg-list .seg-time, .seg-list .seg-dur { color: var(--muted); font-variant-numeric: tabular-nums; direction: ltr; }
+.seg-list .seg-dur { min-width: 64px; text-align: end; }
+
+/* T13: limits */
+.lim-inputs { display: inline-flex; align-items: center; gap: var(--sp-1); flex: 1; }
+.lim-inputs input { width: 0; flex: 1; min-width: 0; }
+.lim-result { margin: 2px 0 6px; font-size: var(--fs-m); }
+.lim-result.pass { color: var(--ok); }
+.lim-result.fail { color: var(--danger); }
+
+/* T14: envelope plot */
+.env-wrap { display: flex; flex-direction: column; }
+.env-canvas { flex: 1; min-height: 0; }
+.env-caption { padding: 2px 10px 4px; font-size: var(--fs-s); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.env-caption .env-out { color: var(--danger); font-weight: 600; }
+
+/* T12 live MAVLink: status pill next to Live, and its section in the Live popover */
+.mav-pill { height: 26px; gap: var(--sp-1_5); padding-inline: 8px; font-size: var(--fs-sm); color: var(--ink); font-variant-numeric: tabular-nums; }
+.mav-pill.quiet .live-dot { background: var(--danger); }
+.mav-section { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 8px; display: flex; flex-direction: column; gap: var(--sp-1_5); }
+.mav-section h3 { margin: 0; }
+.mav-section input:not([type]) , .mav-section input[list] { width: 100%; font-family: inherit; }
+.mav-status { margin: 0; font-weight: 600; color: var(--ink-strong); text-align: start; }
+.mav-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
+.popover .mav-section label.acheck { flex-direction: row; align-items: center; gap: var(--sp-1_5); color: var(--ink); }
+.popover .mav-section .hint { margin: 0; font-size: var(--fs-sm); }
+/* T10b: the same segment of each run (Compare runs) */
+.seg-pick { display: flex; flex-direction: column; gap: var(--sp-0_5); margin-bottom: 6px; }
+.seg-wins { list-style: none; margin: 2px 0 4px; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--fs-sm); }
+.seg-wins li { display: flex; align-items: center; gap: var(--sp-1_5); min-width: 0; }
+.seg-wins .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seg-wins .when { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.seg-wins li.missing .nm, .seg-wins li.missing .when { color: var(--faint); }
+.cmp-seg { margin: 0; padding: 4px 16px 6px; color: var(--muted); font-size: var(--fs-sm); }
+/* T29 start card: floats over the plot area, bottom-left (toasts are bottom-right) */
+.stage { position: relative; }
+.start-card { position: relative; z-index: 40; min-height: 0; flex: 0 1 auto;
+  overflow: auto; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-l);
+  box-shadow: var(--shadow); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: var(--sp-2); }
+.start-head { display: flex; align-items: center; gap: var(--sp-1_5); }
+.start-head h3 { flex: 1; margin: 0; font-size: var(--fs-ml); color: var(--ink-strong); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.start-head .iconbtn { height: 24px; min-width: 24px; padding: 0; }
+.start-tpl p { margin: 0 0 6px; }
+.start-health h4 { margin: 2px 0 4px; font-size: var(--fs-m); color: var(--muted); }
+.start-health .health-list { margin: 0 0 6px; }
+/* T30: conversions suggested by the signal names (Create signals > Frames) */
+.frame-sugs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 0 0 8px; font-size: var(--fs-sm); color: var(--muted); }
+/* T20 / T19: one layout button and one zoom button, their popovers */
+.layout-btn { gap: var(--sp-1_5); font-variant-numeric: tabular-nums; }
+.gridpick-quick { display: flex; flex-wrap: wrap; gap: var(--sp-0_5); padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
+.bar-pop { display: flex; flex-direction: column; gap: var(--sp-1_5); max-width: 260px; }
+.bar-pop .hint { margin: 0; font-size: var(--fs-sm); color: var(--muted); }
+/* T20: dragging a signal to a plot's right / bottom edge splits it - the edge that will open */
+.plot.split-right::after, .plot.split-bottom::after { content: ""; position: absolute; pointer-events: none; z-index: 5;
+  background: var(--amber-soft); border: 2px dashed var(--amber); border-radius: var(--r-m); }
+.plot.split-right::after { top: 4px; bottom: 4px; inset-inline-end: 4px; width: min(48px, 15%); }
+.plot.split-bottom::after { left: 4px; right: 4px; bottom: 4px; height: min(40px, 15%); }
+/* the list selection bar: what is selected, what can be done with it, how to change it */
+.pick-actions { flex-direction: column; align-items: stretch; gap: var(--sp-1_5); }
+.pick-top { display: flex; align-items: center; gap: var(--sp-1_5); }
+.pick-btns { display: flex; flex-wrap: wrap; gap: var(--sp-1_5); }
+.pick-hint { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
+.pick-actions .btn.pick-clear { margin-inline-start: auto; height: 26px; padding-inline: 8px; gap: var(--sp-1); font-size: var(--fs-sm); }
+.grp-pick { flex: none; margin: 0 2px; }
+.msp-top .btn.msp-clear { height: 22px; padding-inline: 6px; gap: var(--sp-1); font-size: var(--fs-s); margin-inline-start: auto; }
+.msp-stale { margin: 0 0 6px; font-size: var(--fs-s); }
+.tf-chips { max-height: 84px; overflow-y: auto; margin-bottom: 12px; }
+/* T22: per signal in the file list - its unit (never cut off), its rate, a small picture */
+.side { container-type: inline-size; }
+.sig .sig-unit { flex: none; color: var(--muted); font-size: var(--fs-xs); direction: ltr; max-width: 64px; overflow: hidden; text-overflow: ellipsis; }
+.sig .sig-rate { flex: none; color: var(--faint); font-size: var(--fs-2xs); font-variant-numeric: tabular-nums; direction: ltr; }
+.sig .sig-spark { flex: none; color: var(--muted); opacity: 0.75; }
+.sig .sig-spark path { fill: currentColor; stroke: currentColor; stroke-width: 0.6; }
+.sig.in .sig-spark { opacity: 1; }
+@container (max-width: 300px) { .sig .sig-rate { display: none; } }
+@container (max-width: 230px) { .sig .sig-spark { display: none; } }
+/* RV3: a narrow list keeps the file's name - its format is in the tooltip and the name's extension */
+@container (max-width: 380px) { .run-head .badge-fmt { display: none; } }
+@container (max-width: 330px) { .side-head .ph-word { display: none; } }
+
+/* T15 video mode */
+.video-view { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.video-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); padding: 4px 8px; font-size: var(--fs-s); color: var(--muted); }
+.video-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%; color: var(--ink); }
+.video-off { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.video-off input { width: 84px; }
+.video-stage { position: relative; flex: 1; min-height: 0; background: var(--letterbox); display: flex; align-items: center; justify-content: center; }
+.video-stage video { width: 100%; height: 100%; object-fit: contain; }
+.video-outside { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.6); color: var(--on-color); font-size: var(--fs-ml); pointer-events: none; }
+.video-sync.on { background: var(--select); color: var(--select-ink); border-color: var(--select); }
+.video-lining { padding: 4px 8px; font-size: var(--fs-xs); background: var(--amber-soft); color: var(--ink); }
+
+/* T31 Python operations */
+.pyops { display: flex; flex-direction: column; gap: var(--sp-1_5); }
+.pyops .hint { font-size: var(--fs-s); margin: 0; }
+.pyops-doc { color: var(--ink); }
+.pyops-errors { font-size: var(--fs-xs); padding: 6px 8px; border-radius: var(--r-m); background: rgba(239, 107, 115, .12); color: var(--ink); }
+.pyops-errors div { margin-top: 3px; overflow-wrap: anywhere; }
+.pyops-folder { display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--fs-xs); color: var(--muted); }
+.pyops-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pyops-btns { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.pyops-push { display: flex; flex-direction: column; gap: var(--sp-1); padding: 6px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: var(--fs-s); }
+.pyops-push pre { margin: 0; padding: 6px 8px; border-radius: var(--r-m); background: var(--raised); font-size: var(--fs-xs); overflow-x: auto; text-align: left; }
+.pyops-push .btn { align-self: flex-start; }
+
+/* T46: a file's tag - in the legend chips, the file list and pickers */
+.file-tag { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--r-s);
+  font-size: var(--fs-3xs); font-weight: 700; line-height: 1; color: var(--on-color); background: var(--tag, var(--muted)); flex: none; letter-spacing: 0; direction: ltr; }
+.run-swatch { position: relative; width: 12px; height: 12px; border-radius: var(--r-s); flex: none; cursor: pointer; background: var(--tag, var(--muted)); box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+.run-tagpick { position: relative; cursor: pointer; }
+.run-tagpick input, .run-swatch input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; border: 0; padding: 0; }
+
+/* T55: the user guide */
+.dialog.guide { width: min(820px, 94vw); max-height: 88vh; display: flex; flex-direction: column; }
+.guide-body { overflow-y: auto; line-height: 1.55; padding: 4px 22px 22px; }
+.guide-body h2 { font-size: var(--fs-2xl); margin: 10px 0 6px; }
+.guide-body h3 { font-size: var(--fs-l); margin: 18px 0 6px; }
+.guide-body ul { padding-inline-start: 20px; margin: 6px 0; }
+.guide-body li { margin: 3px 0; }
+.guide-body code { background: var(--panel-2); border-radius: var(--r-s); padding: 0 4px; font-size: .92em; direction: ltr; unicode-bidi: isolate; }
+.guide-table { border-collapse: collapse; margin: 8px 0; }
+.guide-table th, .guide-table td { border: 1px solid var(--line); padding: 4px 10px; text-align: start; }
+
+/* T18: Settings */
+.dialog.settings { width: min(560px, 94vw); }
+.settings-body { display: flex; flex-direction: column; gap: var(--sp-1); padding: 8px 20px 18px; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); }
+.set-row > span:first-child { display: flex; flex-direction: column; }
+.set-row small { color: var(--muted); font-size: .85em; margin-top: 2px; max-width: 260px; }
+.set-storage { display: flex; flex-direction: column; gap: var(--sp-2); border-top: 1px solid var(--line); padding-top: 12px; }
+.set-row.sub { padding-inline-start: 12px; }
+
+/* T25: error between two signals */
+.err-seg { margin: 10px 0 4px; padding-top: 8px; border-top: 1px solid var(--line); }
+.err-table { width: 100%; border-collapse: collapse; font-size: .9em; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.err-table th, .err-table td { padding: 3px 4px; text-align: start; border-bottom: 1px solid var(--line); }
+.err-table th { color: var(--muted); font-weight: 500; }
+.err-table tr.worst td { background: var(--amber-soft); }
+.err-table tr.total td { font-weight: 600; }
+
+/* a signal typed by name (SignalField): the picker, the unit it is in now, ƒ to change it */
+.sigfield { display: inline-flex; align-items: center; gap: var(--sp-1); min-width: 0; flex: 1; }
+.sigfield .picker { flex: 1; min-width: 0; }
+.sigfield-unit { font-size: .82em; color: var(--muted); border: 1px solid var(--line); border-radius: var(--r-s); padding: 0 4px; white-space: nowrap; }
+.sigfield-edit { font-style: italic; font-weight: 600; min-width: 22px; }
+.sigfield-edit.on { color: var(--amber-ink); background: var(--amber-soft); }
+.sigfield-missing { color: var(--danger); font-weight: 700; }
+.tf-units .afield small { font-weight: 400; }
+
+/* Time axis dialog (another time column, its unit, its offset) */
+.ta-dialog { width: min(640px, 96vw); }
+.ta-dialog .ta-field { display: flex; align-items: center; gap: var(--sp-2); justify-content: space-between; margin: 4px 0; }
+.ta-dialog .ta-field select, .ta-dialog .ta-field input { min-width: 0; flex: 0 1 260px; }
+.ta-dialog .ta-stats { margin: 4px 0 0; }
+.ta-notes { margin: 10px 0; padding-inline-start: 18px; font-size: var(--fs-m); }
+.ta-notes li { margin: 4px 0; }
+.ta-notes li.warn { color: var(--danger); }
+.ta-mixed { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; margin: 6px 0 10px; }
+
+/* Investigation step 2: the conditions list and the selection bar */
+.investigate .inv-body { padding: 8px 12px; overflow: auto; display: flex; flex-direction: column; gap: var(--sp-1_5); }
+.cond-head { display: flex; align-items: center; justify-content: space-between; }
+.cond-head h3 { margin: 0; font-size: var(--fs-m); }
+.cond-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-0_5); }
+.cond-row { border: 1px solid var(--line); border-radius: var(--r-m); padding: 4px 6px; }
+.cond-row.focus { border-color: var(--select); }
+.cond-row.hidden .cond-name, .cond-row.hidden .cond-count { opacity: 0.55; }
+.cond-line { display: grid; grid-template-columns: 22px 10px 1fr auto 24px; gap: var(--sp-1_5); align-items: center; }
+.cond-swatch { width: 10px; height: 10px; border-radius: var(--r-xs); }
+.cond-name { text-align: start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cond-count { font-variant-numeric: tabular-nums; opacity: 0.8; }
+.cond-text { font-family: ui-monospace, "IBM Plex Mono", monospace; font-size: var(--fs-s); opacity: 0.75; padding: 2px 0 0 38px; overflow-wrap: anywhere; direction: ltr; text-align: left; }
+.cond-editor { display: flex; flex-direction: column; gap: var(--sp-1); padding: 6px 0 2px; }
+.cond-actions { display: flex; gap: var(--sp-1_5); justify-content: flex-end; }
+.sel-bar { position: absolute; z-index: 5; display: flex; gap: var(--sp-1); padding: 3px; border-radius: var(--r-m);
+  background: var(--raised); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.sel-bar[hidden] { display: none; }
+
+/* Investigation step 3: the stretches of the condition in focus */
+.occ-section { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 6px; display: flex; flex-direction: column; gap: var(--sp-1_5); }
+.occ-section h3 { margin: 0; font-size: var(--fs-m); }
+.occ-controls { display: flex; gap: var(--sp-1_5); }
+.occ-controls select { flex: 1; min-width: 0; }
+.occ-table-wrap { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-m); }
+.occ-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: var(--fs-s); }
+.occ-table th, .occ-table td { padding: 3px 6px; text-align: end; white-space: nowrap; }
+.occ-table th { position: sticky; top: 0; background: var(--panel); }
+.occ-table tbody tr { cursor: pointer; }
+.occ-table tbody tr:hover, .occ-table tbody tr:focus { background: var(--amber-soft); outline: none; }
+.occ-actions { display: flex; gap: var(--sp-1_5); flex-wrap: wrap; }
+.occ-differ-list ol { margin: 0; padding-inline-start: 20px; font-size: var(--fs-s); }
+.occ-differ-list .up { color: var(--danger); } .occ-differ-list .down { color: var(--focus); }
+.occ-caption .occ-align { margin-inline-end: 6px; }
+.occ-caption .occ-align.on { font-weight: 600; text-decoration: underline; }
+
+/* Investigation step 4: what changed first, lag */
+.wc-section { border: 1px solid var(--amber); border-radius: var(--r-m); padding: 6px 8px; display: flex; flex-direction: column; gap: var(--sp-1_5); }
+.wc-head { display: flex; align-items: center; justify-content: space-between; }
+.wc-head h3 { margin: 0; font-size: var(--fs-m); }
+.wc-warn { margin: 0; padding: 4px 6px; border-radius: var(--r-s); background: var(--warn-soft); font-size: var(--fs-s); }
+.wc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-0_5); }
+/* a row: the name on its own line (names are long: IMU[0].GyrY [rad/s]), its numbers under it */
+.wc-row { display: grid; grid-template-columns: 16px 56px auto auto 1fr 18px; gap: 0 6px; align-items: center; font-size: var(--fs-s); padding: 2px 0; }
+.wc-row > input { grid-column: 1; grid-row: 1; }
+.wc-row > .wc-name { grid-column: 2 / 6; grid-row: 1; }
+.wc-row > .wc-spark { grid-column: 2; grid-row: 2; }
+.wc-row > .up, .wc-row > .down { grid-column: 3; grid-row: 2; white-space: nowrap; }
+.wc-row > .wc-rel { grid-column: 4; grid-row: 2; white-space: nowrap; }
+.wc-row > .wc-rate { grid-column: 5; grid-row: 2; text-align: end; }
+.wc-row .wc-hide { grid-column: 6; grid-row: 1; opacity: 0; } .wc-row:hover .wc-hide, .wc-row .wc-hide:focus-visible { opacity: 0.8; }
+.wc-tools { display: flex; gap: var(--sp-1_5); align-items: center; }
+.wc-filter { flex: 1; min-width: 0; font-size: var(--fs-s); }
+.wc-count { font-size: var(--fs-2xs); white-space: nowrap; }
+.wc-ghead { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-1); font-size: var(--fs-xs); }
+.wc-more, .wc-unhide { align-self: flex-start; font-size: var(--fs-xs); }
+.wc-row.picked { background: var(--select-soft); }
+.wc-row .wc-rate { font-size: var(--fs-2xs); white-space: nowrap; }
+.wc-row .wc-other { grid-column: 2 / -1; justify-self: start; font-size: var(--fs-2xs); color: var(--ink); }
+.wc-row .wc-other.same { color: var(--muted, inherit); font-weight: 600; }
+.wc-other-hint { margin: 0; }
+.wc-other > span { white-space: nowrap; }
+.wc-name { text-align: start; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wc-row .up { color: var(--danger); } .wc-row .down { color: var(--focus); }
+.wc-rel { font-variant-numeric: tabular-nums; }
+.wc-lag-out p { margin: 0 0 4px; font-size: var(--fs-s); }
+
+/* Investigation step 5: runs x conditions */
+.mx-dialog { width: min(1100px, 96vw); max-height: 90vh; display: flex; flex-direction: column; }
+.mx-tools { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; padding: 0 16px; }
+.mx-dialog > .hint { padding: 0 16px; }
+/* FL1: the step a folder of recordings waits on - defined on its first recording */
+.mx-folder-step { margin: 6px 16px 0; padding: var(--sp-1_5) var(--sp-2); border-inline-start: 3px solid var(--select); background: var(--panel-2);
+  border-radius: var(--r-m); font-size: var(--fs-sm); color: var(--ink); }
+/* M1: the measures row and the new measure's fields */
+.mx-measures, .mx-draft { padding-top: 6px; }
+.mx-measure-chip { display: inline-flex; gap: 4px; align-items: center; }
+.mx-pattern { margin-inline-start: auto; display: inline-flex; gap: 6px; align-items: center; }
+.mx-pattern input { width: 14em; }
+.mx-draft .mx-sig { width: 16em; } .mx-draft .mx-where { width: 14em; } .mx-draft .mx-at { width: 6em; }
+.mx-body { overflow: auto; display: flex; flex-direction: column; gap: var(--sp-3); }
+.mx-table td.mx-file { text-align: start; }
+.mx-table td.mx-param { opacity: 0.8; }
+.mx-table td.mx-cell.has { cursor: pointer; }
+.mx-table td.mx-cell.odd { background: var(--amber-soft); font-weight: 600; outline: 1px solid var(--amber); }
+.mx-table .cond-swatch { display: inline-block; vertical-align: middle; }
+.mx-fig { margin: 0; }
+.mx-table { width: auto; min-width: 40%; margin: 0 16px; }
+.mx-table th:first-child { text-align: start; }
+.mx-scatter { padding: 0 16px 12px; }
+
+/* Investigation step 6: findings and the journal */
+.note-status { font-size: var(--fs-xs); max-width: 92px; }
+.note-text.fs-open { border-inline-start: 3px solid var(--amber); padding-inline-start: 4px; }
+.note-text.fs-fault { border-inline-start: 3px solid var(--danger); padding-inline-start: 4px; }
+.note-text.fs-explained { border-inline-start: 3px solid var(--ok); padding-inline-start: 4px; }
+.note-text.fs-rejected { text-decoration: line-through; opacity: 0.7; }
+.journal .jr-toggle h3 { margin: 0; font-size: var(--fs-m); }
+.jr-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--fs-s); }
+.jr-list li { display: grid; grid-template-columns: 16px 1fr 22px; gap: var(--sp-1_5); align-items: start; }
+.jr-list li.off .jr-text { opacity: 0.55; }
+.jr-text { text-align: start; }
+.jr-tools { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: var(--fs-xs); }
+.jr-filter { flex: 1 1 100%; min-width: 0; font-size: var(--fs-s); }
+.jr-group { display: flex; flex-direction: column; gap: var(--sp-1); }
+.jr-ghead { display: grid; grid-template-columns: 16px 1fr 22px; gap: var(--sp-1_5); align-items: center; font-size: var(--fs-s); font-weight: 600;
+  border-top: 1px solid var(--line); padding-top: 4px; }
+.jr-gtoggle { text-align: start; }
+.jr-group .jr-list { padding-inline-start: 10px; }
+
+/* Investigation step 7: the run at a glance - flags, rows (state signals, conditions), a selection */
+.ov-strip { display: flex; flex-direction: column; gap: var(--sp-0_5); padding: 4px 12px 2px; }
+.ov-head { display: flex; gap: var(--sp-2); align-items: center; font-size: var(--fs-xs); white-space: nowrap; }
+.ov-head select { font-size: var(--fs-xs); max-width: 180px; }
+.ov-head .ov-hint { flex: 1; overflow: hidden; text-overflow: ellipsis; font-size: var(--fs-2xs); }
+/* 26.U3: the strip's "+" and "×" while the pointer is on the strip (or the keyboard in it) */
+.ov-head .ov-add, .ov-head .ov-hide { opacity: 0; transition: opacity .12s; }
+.ov-strip:hover .ov-head .ov-add, .ov-strip:hover .ov-head .ov-hide, .ov-strip:focus-within .ov-head .ov-add,
+.ov-strip:focus-within .ov-head .ov-hide { opacity: 1; }
+/* left to right like the plots' time axis (also in Hebrew), so the tracks can sit under it */
+.ov-rows { display: grid; grid-template-columns: minmax(60px, 120px) 1fr; gap: 2px 8px; align-items: center; direction: ltr; }
+.ov-label { font-size: var(--fs-2xs); text-align: end; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-track { position: relative; height: 16px; direction: ltr; background: var(--raised); border-radius: var(--r-s); }
+.ov-track.ov-flags { height: 12px; background: none; }
+.ov-phase { position: absolute; top: 0; height: 100%; border: 0; padding: 0; overflow: hidden; font-size: var(--fs-3xs); cursor: pointer;
+  box-shadow: inset -1px 0 0 var(--panel); }
+.ov-phase:hover { filter: brightness(1.12); }
+.ov-phase.dim { opacity: 0.3; }
+.ov-phase.picked { box-shadow: inset 0 0 0 2px var(--ink-strong), inset 0 0 0 3px var(--panel); }
+.ov-phase span { padding: 0 3px; white-space: nowrap; }
+.ov-view { position: absolute; top: 3px; height: 6px; background: var(--line-strong); border-radius: var(--r-s); }
+/* U7: the app's automatic flags are rings - the log's own events are the ▼ triangles on the plots */
+.ov-flag { position: absolute; top: -1px; width: 12px; height: 12px; margin-left: -6px; padding: 0; cursor: pointer; border-radius: 50%;
+  border: 2px solid var(--muted); background: var(--panel); color: var(--ink); font-size: var(--fs-glyph); line-height: 8px; font-weight: 700; }
+.ov-flag.bad { border-color: var(--danger); }
+/* FR2: the flags on the strip's first lane - one track above the plots. The lane's own buttons stay
+   clickable between the rings; the shown window is a line under the lane. */
+.ov-track.ov-flags.over { position: absolute; inset: 0; height: auto; pointer-events: none; }
+.ov-flags.over .ov-flag { pointer-events: auto; top: 2px; box-shadow: 0 0 0 1px var(--panel); }
+.ov-flags.over .ov-view { top: auto; bottom: -2px; height: 2px; background: var(--ink-strong); pointer-events: none; }
+.ov-strip.with-demo { padding-top: 2px; }
+.ov-sel-label { color: var(--danger); font-weight: 600; }
+.ov-selbar { display: flex; gap: var(--sp-2); align-items: center; font-size: var(--fs-xs); padding-inline-start: 128px; }
+.ov-seltext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-show { font-size: var(--fs-xs); padding: 2px 12px; align-self: flex-start; }
+
+/* Q130-Q133: clusters of changes */
+.wc-clusters { gap: var(--sp-1); }
+.wc-cluster { border-inline-start: 2px solid var(--line); padding-inline-start: 4px; }
+.wc-cluster.open { border-inline-start-color: var(--amber); }
+.wc-cluster.skipped { opacity: 0.8; }
+.wc-chead { text-align: start; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wc-ctop { opacity: 0.75; }
+.wc-score, .wc-why { font-size: var(--fs-2xs); font-variant-numeric: tabular-nums; padding: 0 4px; border-radius: var(--r-s); background: var(--amber-soft); white-space: nowrap; }
+.wc-why.inref { background: transparent; border: 1px solid var(--line); }
+.wc-row > .wc-why { grid-column: 6; grid-row: 2; }
+.wc-row.inref .wc-name { opacity: 0.75; }
+.wc-cplot { margin: 2px 0; }
+.wc-cplot svg { width: 100%; height: auto; max-height: 140px; display: block; }
+.wc-cplot figcaption { font-size: var(--fs-2xs); min-height: 1.2em; }
+.wc-cspan { fill: var(--amber-soft); }
+.wc-czero { stroke: var(--line); stroke-dasharray: 2 2; }
+.wc-chover { stroke: var(--ink); stroke-width: 0.5; }
+.wc-cactions { display: flex; gap: var(--sp-1_5); flex-wrap: wrap; }
+.wc-prefix { padding-inline-start: 6px; }
+.wc-ptoggle { text-align: start; font-size: var(--fs-xs); display: flex; gap: var(--sp-1_5); align-items: center; }
+.wc-skipped, .wc-order { font-size: var(--fs-xs); align-self: flex-start; }
+.wc-skiplist { margin: 0; padding-inline-start: 16px; font-size: var(--fs-xs); }
+.wc-chain { margin: 0; }
+.wc-chain svg { width: 100%; height: auto; max-height: 110px; display: block; }
+.wc-chain-node { cursor: pointer; }
+.wc-chain-node circle { fill: var(--focus); }
+.wc-chain-node circle.event { fill: var(--danger); }
+.wc-chain-edge { stroke: var(--amber); stroke-width: 1.3; }
+.wc-chain-head { fill: var(--amber); }
+.wc-chain-list { margin: 0; padding-inline-start: 16px; font-size: var(--fs-xs); }
+
+/* a map track coloured by a mode or a value: what the colours are (bottom corner of the map) */
+.track-keys { position: absolute; inset-inline-start: 8px; bottom: 22px; z-index: 2; display: flex; flex-direction: column; gap: var(--sp-1); pointer-events: none; max-width: 60%; }
+.track-key { background: color-mix(in srgb, var(--panel) 90%, transparent); border: 1px solid var(--line); border-radius: var(--r-m); padding: 4px 7px; font-size: var(--fs-s); color: var(--ink); }
+.track-key .tk-sig { color: var(--muted); }
+.track-key .tk-items { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 2px; }
+.track-key .tk-items span { display: inline-flex; align-items: center; gap: var(--sp-1); white-space: nowrap; }
+.track-key i { display: inline-block; width: 12px; height: 4px; border-radius: var(--r-xs); }
+.track-key .tk-ramp { display: flex; align-items: center; gap: var(--sp-1_5); margin-top: 2px; }
+.track-key .tk-ramp i { width: 120px; height: 6px; }
+
+
+/* 1.21: Log panel, Hardware */
+.log-tabs { flex-wrap: wrap; }
+.log-hw { padding: 0 14px 14px; overflow: auto; }
+.log-hw h3 { font-size: var(--fs-m); margin: 12px 0 4px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.log-hw dl { margin: 0; }
+.log-hw dl > div { display: flex; gap: var(--sp-2); padding: 2px 0; font-size: var(--fs-ml); border-bottom: 1px solid var(--line); }
+.log-hw dt { flex: 0 0 76px; color: var(--muted); }
+.log-hw dd { margin: 0; overflow-wrap: anywhere; }
+.log-hw dl > div.note dd { color: var(--muted); font-family: var(--mono); font-size: var(--fs-sm); }
+.log-hw .btn { margin-top: 12px; }
+
+/* U3: the tab's state lanes once above its plots, lined up with their time axis (TabBand.tsx).
+   Physical left / right on purpose: the time axis runs left to right in Hebrew too. */
+.tab-band { position: relative; flex: none; direction: ltr; padding: 6px 0 0; }
+.band-row { position: relative; height: 20px; margin-bottom: 2px; }
+.band-label { position: absolute; left: 0; top: 0; height: 100%; width: calc(var(--band-left, 120px) - 6px); text-align: right;
+  font-size: var(--fs-2xs); color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0; }
+.band-track { position: absolute; top: 0; bottom: 0; left: var(--band-left, 120px); width: var(--band-width, calc(100% - 136px));
+  background: var(--panel-2); border-radius: var(--r-s); }
+.band-seg { position: absolute; top: 0; bottom: 0; border: 0; border-left: 1px solid var(--bg); padding: 0 4px; min-width: 1px;
+  font-size: var(--fs-2xs); line-height: 20px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; text-align: center; }
+.band-seg span { pointer-events: none; }
+.band-seg.many { background: repeating-linear-gradient(45deg, var(--grid) 0 2px, transparent 2px 6px); }
+.band-seg.at { box-shadow: inset 0 0 0 2px var(--ink-strong); font-weight: 600; z-index: 1; }
+.band-line { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 1.5px solid var(--amber); pointer-events: none; z-index: 2; }
+.band-line.c2 { border-left-style: dashed; }
+.band-line.hover { border-left: 1px dashed var(--muted); }
+.band-tag { position: absolute; top: 50%; left: 4px; transform: translateY(-50%); padding: 0 5px; border-radius: var(--r-s); white-space: nowrap;
+  font-size: var(--fs-2xs); line-height: 16px; background: var(--raised); color: var(--ink-strong); box-shadow: 0 0 0 1px var(--line-strong); }
+.band-line.c1 .band-tag, .band-line.c2 .band-tag { background: var(--amber); color: var(--amber-ink); box-shadow: none; }
+.band-line.flip .band-tag { left: auto; right: 4px; }
+/* U3: the plots' cursors (and the pointer) on the overview strip too - which part of the run this is */
+.ov-cur { position: absolute; top: -2px; bottom: -2px; width: 0; border-left: 1.5px solid var(--amber); pointer-events: none; z-index: 2; }
+.ov-cur.c2 { border-left-style: dashed; }
+.ov-cur.hover { border-left: 1px dashed var(--muted); }
+.ov-cur-tag { position: absolute; top: 50%; left: 3px; transform: translateY(-50%); padding: 0 4px; border-radius: var(--r-s); white-space: nowrap;
+  font-size: var(--fs-3xs); line-height: 13px; background: var(--raised); color: var(--ink-strong); box-shadow: 0 0 0 1px var(--line-strong); }
+.ov-cur.c1 .ov-cur-tag, .ov-cur.c2 .ov-cur-tag { background: var(--amber); color: var(--amber-ink); box-shadow: none; }
+.ov-cur.flip .ov-cur-tag { left: auto; right: 3px; }
+.ov-phase.at { box-shadow: inset 0 0 0 2px var(--ink-strong); font-weight: 600; }
+
+/* U2: the health check's findings docked beside the timeline, and their marks on it */
+.findings-dock { display: inline-flex; align-items: center; flex: none; border: 1px solid var(--line-strong); border-radius: var(--r-round); background: var(--raised); }
+.findings-btn { display: inline-flex; align-items: center; gap: var(--sp-1_5); height: 24px; padding: 0 4px 0 6px; border: 0; background: none;
+  color: var(--ink); font: inherit; font-size: var(--fs-s); cursor: pointer; white-space: nowrap; }
+.findings-btn .hicon { width: 16px; height: 16px; font-size: var(--fs-3xs); line-height: 16px; }
+.findings-dock .iconbtn.sm { height: 22px; min-width: 22px; padding: 0; color: var(--muted); }
+.tl-finding { position: absolute; bottom: -1px; width: 9px; height: 9px; margin-left: -4.5px; padding: 0; border: 1px solid var(--panel);
+  transform: rotate(45deg); cursor: pointer; background: var(--amber); z-index: 1; }
+.tl-finding.error { background: var(--danger); }
+.tl-finding:hover, .tl-finding:focus-visible { transform: rotate(45deg) scale(1.4); outline: none; }
+
+/* U4: a dashed line's swatch in the legend: the dash in its colour */
+.sw.dashed { width: 14px !important; background: repeating-linear-gradient(90deg, currentColor 0 5px, transparent 5px 8px) !important; }
+.sw.dashed.ls-dot { background: repeating-linear-gradient(90deg, currentColor 0 2px, transparent 2px 4px) !important; }
+.sw.dashed.ls-dashdot { background: repeating-linear-gradient(90deg, currentColor 0 5px, transparent 5px 7px, currentColor 7px 9px, transparent 9px 11px) !important; }
+
+/* U5: the difference over time under the overlay (Compare panel), as the Simulink Data Inspector */
+.diff-chart { margin: 10px 0 4px; }
+.diff-chart figcaption { font-size: var(--fs-s); color: var(--ink); margin-bottom: 4px; display: flex; gap: var(--sp-1_5); flex-wrap: wrap; align-items: baseline; }
+.diff-chart svg { display: block; background: var(--plot-bg); border: 1px solid var(--line); border-radius: var(--r-m); }
+.diff-band { fill: var(--ok); opacity: 0.14; }
+.diff-band-edge { fill: none; stroke: var(--ok); stroke-width: 1; opacity: 0.55; }
+.diff-hover-pt { stroke: var(--plot-bg); stroke-width: 1.5; }
+.diff-readout { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); margin-top: var(--sp-1); font-size: var(--fs-xs);
+  color: var(--muted); font-variant-numeric: tabular-nums; }
+.diff-out { fill: var(--danger); opacity: 0.1; }
+.diff-out-mark { fill: var(--danger); }
+.diff-zero { stroke: var(--line-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.diff-line { fill: none; stroke-width: 1.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.diff-hover { stroke: var(--muted); stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.diff-tick { font-size: var(--fs-2xs); fill: var(--axis); font-variant-numeric: tabular-nums; }
+/* 26.U2: the plots' crosshair - a quiet line in the theme's axis colour (uPlot's own is a fixed grey) */
+.u-cursor-x { border-right: 1px dashed var(--axis) !important; opacity: 0.7; }
+.diff-out-n { color: var(--danger); font-weight: 600; margin-inline-start: auto; }
+.diff-outs { list-style: none; margin: 4px 0 0; padding: 0; font-size: var(--fs-xs); }
+.diff-outs li { padding: 1px 0; }
+
+/* U7: the plot type shows on the plot in use (or under the pointer), or when it is not a time plot */
+.plot:not(.active):not(:hover) .mode-btn.is-time { visibility: hidden; }
+
+/* L8: Compare objects… */
+.dialog.cmpobj { width: min(760px, 96vw); }
+/* the body had no side padding: labels sat on the dialog's edge and the selects ran into the other one */
+.cmpobj .dialog-body { padding: var(--sp-3) 14px; }
+.cmpobj-ref, .simdlg .sim-ref { width: max-content; min-width: 14em; max-width: 100%; }
+.cmpobj-presets .btn { border-color: var(--line-strong); }   /* one-click actions read as buttons, not as words */
+.cmpobj-presets { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); padding-bottom: var(--sp-2); margin-bottom: var(--sp-2); border-bottom: 1px solid var(--line); }
+.cmpobj-grid { display: grid; grid-template-columns: max-content 1fr; gap: var(--sp-2) var(--sp-3); align-items: start; }
+.cmpobj-label { color: var(--muted); font-size: var(--fs-s); display: inline-flex; align-items: center; gap: 4px; padding-top: 2px; }
+.cmpobj-objs { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); }
+.cmpobj-objs label, .cmpobj-q label { display: inline-flex; align-items: center; gap: 4px; }
+.cmpobj-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.cmpobj-qty { display: flex; flex-direction: column; gap: 2px; }
+.cmpobj-q { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2); }
+.cmpobj-why, .cmpobj-frame-hint { font-size: var(--fs-xs); }
+.cmpobj-frame-hint { margin-inline-start: var(--sp-2); }
+.cmpobj-show { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-m); overflow: hidden; width: max-content; }
+.cmpobj-show button { border: 0; background: none; color: var(--ink); padding: 2px var(--sp-2); cursor: pointer; font: inherit; font-size: var(--fs-s); }
+.cmpobj-show button.on { background: var(--select-soft); color: var(--ink-strong); }
+.cmpobj-stats { margin-top: var(--sp-3); }
+.cmpobj-stats h3 { font-size: var(--fs-s); margin: 0 0 var(--sp-1); }
+.cmpobj-stats-scroll { overflow: auto; max-height: 260px; border: 1px solid var(--line); border-radius: var(--r-s); }
+.cmpobj-stats table { border-collapse: collapse; width: 100%; font-size: var(--fs-xs); }
+.cmpobj-stats th, .cmpobj-stats td { padding: 2px var(--sp-1_5); text-align: start; border-bottom: 1px solid var(--line); white-space: nowrap; }
+/* numbers are compared down a column: right-aligned, equal-width digits; one block per object */
+.cmpobj-stats td.num, .cmpobj-stats th.num { text-align: end; font-variant-numeric: tabular-nums; }
+.cmpobj-stats tr.first td { border-top: 1px solid var(--line-strong); }
+.cmpobj-stats td.obj { font-weight: 600; color: var(--ink-strong); }
+.cmpobj-stats .unit { color: var(--muted); margin-inline-start: 4px; }
+.cmpobj-stats th { position: sticky; top: 0; background: var(--panel); color: var(--muted); font-weight: 600; }
+.rel-actions .rel-compare-open { font-weight: 600; }
+
+/* L9: Compare with similar… */
+.sim-list { list-style: none; margin: 0 0 var(--sp-2); padding: 0; max-height: 280px; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-s); }
+.sim-fam { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-2); padding: 3px var(--sp-2); border-bottom: 1px solid var(--line); }
+.sim-fam label { display: inline-flex; align-items: center; gap: 4px; }
+.sim-leaf { font-weight: 600; }
+.sim-members { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.sim-member { font-size: var(--fs-xs); background: var(--panel-2); border-radius: var(--r-xs); padding: 0 var(--sp-1); }
+.sim-member.ref { box-shadow: 0 0 0 1.5px var(--amber); }
+.sim-how { font-size: var(--fs-xs); margin-inline-start: auto; }
+.sim-loose { display: flex; align-items: center; gap: 4px; margin-bottom: var(--sp-2); font-size: var(--fs-s); }
+
+/* L10: a plot dragged by its handle - the tabs it can go to, and the plot its lines can join (Shift) */
+.tab.plot-drop-ok { outline: 1px dashed var(--line-strong); outline-offset: -2px; }
+.tab.plot-drop { outline: 2px solid var(--select); outline-offset: -2px; background: var(--select-soft); }
+.plot.merge-target { outline: 2px dashed var(--select); outline-offset: -3px; }
+.plot.merge-target::after { content: attr(data-merge-hint); position: absolute; inset-block-start: 36px; inset-inline-start: 50%; transform: translateX(-50%);
+  background: var(--panel); border: 1px solid var(--amber); border-radius: var(--r-m); padding: 2px var(--sp-2); font-size: var(--fs-xs); color: var(--ink); pointer-events: none; z-index: 6; }
+
+/* R1: the replay card at the head of the Report panel - the quickest thing to make there */
+.replay-card { border: 1px solid var(--amber); background: var(--amber-soft); border-radius: var(--r-m); padding: 10px 12px; margin: 2px 0 14px; }
+.replay-card h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: var(--fs-ml); font-weight: 600; }
+.replay-card h3 svg { width: 16px; height: 16px; color: var(--amber); }
+.replay-card p { margin: 0 0 8px; font-size: var(--fs-m); color: var(--muted); line-height: 1.45; }
+.replay-card .replay-make { width: 100%; }
+
+/* R3: the timeline as a map of the recording - the active plot's line behind the track, the plots' window on it */
+.tl-env { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: .45; }
+.tl-env path { fill: none; stroke-width: 1; }
+.tl-view { position: absolute; top: 0; bottom: 0; border: 1.5px solid var(--amber); border-radius: var(--r-s); background: var(--amber-soft);
+  cursor: grab; min-width: 6px; box-sizing: border-box; }
+.tl-view:active { cursor: grabbing; }
+.tl-edge { position: absolute; top: -1px; bottom: -1px; width: 7px; cursor: ew-resize; }
+.tl-edge.a { left: -4px; } .tl-edge.b { right: -4px; }
+.tl-edge::after { content: ""; position: absolute; top: 7px; bottom: 7px; left: 2px; width: 3px; border-radius: var(--r-xs); background: var(--amber); }
+
+/* 1.26: the relation box's show / hide - the same button on the 2D map and in the 3D view */
+.rel-toggle { border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: var(--r-s); padding: 1px 8px; font-size: var(--fs-xs); cursor: pointer; }
+.rel-toggle.on { color: var(--ink-strong); border-color: var(--select); }
+.rel-hide { margin-inline-start: auto; }
+/* 1.26: one bar for the map in 2D and in 3D (MapBar.tsx) - the 3D view's look on both */
+.map-bar.geo-bar { position: absolute; right: 8px; left: 8px; top: 8px; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; z-index: 2;
+  padding: 5px 8px; border-radius: var(--r-l); background: var(--overlay-bg); color: var(--overlay-ink); font-size: var(--fs-s); justify-content: flex-end; }
+.map-bar select { max-width: 130px; background: var(--overlay-control-bg); color: var(--overlay-control-ink); border: 0; border-radius: var(--r-s); padding: 1px 4px; }
+.map-bar .map-zoom { display: inline-flex; gap: 2px; }
+.map-bar .map-zoom button, .map-bar .geo-up, .map-bar .geo-back, .map-bar .rel-toggle { border: 1px solid rgba(255,255,255,.35); background: transparent; color: inherit;
+  padding: 1px 7px; min-width: 24px; height: 24px; font: inherit; border-radius: var(--r-m); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.map-bar .rel-toggle.on, .map-bar .geo-up.on { background: var(--select); color: var(--select-ink); border-color: var(--select); }
+.plot-canvas.geo .geo-readout { top: 46px; }
+.rel-tca { width: 100%; border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: start; }
+.rel-tca bdi { color: var(--amber); text-decoration: underline dotted; }
+.rel-tca:hover { background: var(--panel-2); }
+
+/* P7: places - the panel docked in the Map, the place dialog */
+.places-panel { position: absolute; top: 40px; inset-inline-start: var(--sp-2); width: min(300px, 70%); max-height: calc(100% - 80px); display: flex; flex-direction: column;
+  gap: var(--sp-1); background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-m); padding: var(--sp-1_5); font-size: var(--fs-s);
+  color: var(--ink); z-index: 3; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.places-panel .pl-head { display: flex; align-items: center; gap: var(--sp-1); }
+.places-panel .pl-search { width: 100%; }
+.places-panel .pl-actions { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.places-panel .pl-lists { overflow: auto; min-height: 0; }
+.places-panel h4 { margin: var(--sp-1_5) 0 2px; font-size: var(--fs-xs); color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.places-panel .pl-list { list-style: none; margin: 0; padding: 0; }
+.pl-row { display: flex; align-items: center; gap: 2px; border-radius: var(--r-s); }
+.pl-row:hover { background: var(--raised); }
+.pl-row .pl-go { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-1); border: 0; background: none; color: var(--ink); font: inherit; cursor: pointer;
+  padding: 2px 4px; text-align: start; }
+.pl-row .pl-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-row small { color: var(--muted); }
+.pl-row.hidden .pl-name { color: var(--muted); text-decoration: line-through; }
+.pl-row .obj-eye { color: var(--muted); }
+.pl-row .obj-eye.on { color: var(--ink); }
+.pl-kind { width: 16px; text-align: center; font-weight: 700; }
+.place-dialog { width: min(460px, 94vw); }
+.place-form { display: flex; flex-direction: column; gap: var(--sp-2); }
+.place-form > label { display: flex; flex-direction: column; gap: 2px; }
+.place-form > label > span { font-size: var(--fs-xs); color: var(--muted); }
+.place-icons { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; }
+.place-icon { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r-s); padding: 3px; cursor: pointer; line-height: 0; }
+.place-icon.on { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+.place-color input { width: 34px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: var(--r-s); background: none; }
+.place-where { align-self: flex-start; }
+.place-where .seg-label { color: var(--muted); font-size: var(--fs-xs); margin-inline-end: var(--sp-1); }
+.hint.warn { color: var(--danger); }
+/* P8: Settings > Map and objects */
+.set-map { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+.set-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); }
+.set-group-head h3 { margin: 0; font-size: var(--fs-m); }
+.set-icons { display: grid; grid-template-columns: auto auto; gap: 4px 10px; justify-items: end; }
+.set-icons label { display: flex; gap: var(--sp-1); align-items: center; font-size: var(--fs-s); }
+.set-elev, .set-story { display: flex; gap: var(--sp-1); align-items: center; justify-content: flex-end; }
+.set-story { flex-wrap: wrap; }
+.set-elev input { width: 170px; }
+/* P9: the flight display and the mini-map over the 3D view */
+.g3-fd { position: absolute; inset-inline-start: 8px; bottom: 44px; z-index: 2; pointer-events: none; line-height: 0; }
+.g3-mini { position: absolute; inset-inline-end: 8px; top: 50px; z-index: 2; line-height: 0; }
+.g3-mini .mini-map { border: 1px solid var(--line-strong); border-radius: var(--r-m); background: var(--panel); cursor: crosshair; }
+.rel-err { display: flex; align-items: center; gap: var(--sp-1); margin-top: 3px; }
+.rel-err .ramp { display: inline-block; width: 70px; height: 7px; border-radius: var(--r-xs); background: linear-gradient(90deg, var(--err-lo), var(--err-mid), var(--err-hi)); }
+/* P10: the Story's card over the Map */
+.map-story-card { position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); max-width: min(520px, 90%); display: flex; flex-direction: column; gap: 3px;
+  padding: 9px 13px; background: var(--panel); color: var(--ink); border: 1px solid var(--line-strong); border-inline-start: 5px solid var(--amber); border-radius: var(--r-l);
+  box-shadow: 0 6px 22px rgba(0,0,0,.25); z-index: 4; cursor: pointer; }
+.map-story-card.error { border-inline-start-color: var(--danger); } .map-story-card.warning { border-inline-start-color: var(--warn); } .map-story-card.note { border-inline-start-color: var(--focus); }
+.map-story-card b { font-size: var(--fs-m); color: var(--ink-strong); }
+.map-story-nav { display: flex; gap: var(--sp-1); align-items: center; align-self: flex-end; color: var(--muted); font-size: var(--fs-xs); }
+[dir="rtl"] .welcome-back > span { display: inline-block; transform: scaleX(-1); }
+
+/* MSG1 / MSG3: a byte stream's definition, in the Messages panel - what it carries, one choice per line */
+.msgp-edit .msg-carries { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--line); border-radius: var(--r-m); padding: 6px 10px; margin: 8px 0; }
+.msgp-edit .msg-framing { margin: 8px 0; }
+.msgp-edit .cmpobj-grid { margin-top: 6px; }

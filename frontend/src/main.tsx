@@ -3,6 +3,11 @@ import "./polyfills";              // before any code that calls them (old offli
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+// UX5.5: index.css's later parts, in their old order - right after it, so nothing changes in the cascade
+import "./styles/tools.css";
+import "./styles/mapobjects.css";
+import "./styles/features.css";
+import "./styles/messages.css";
 // W0 (2026-11-13): one stylesheet per lane of the round, after the global one - a line each
 // by area, after index.css (the same order as before: welcome, Sweeps' study, app, plots, the review's touches)
 import "./styles/welcome.css";
