@@ -584,4 +584,5 @@
 .sw-steps.page-head { flex-wrap: nowrap; gap: 4px; padding: 8px 10px; align-items: center; }
 .sw-page-title { flex: 0 1 auto; min-width: 0; max-width: 220px; margin-inline: 4px 10px; }
 .sw-page-title .sw-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 1100px) { .sw-page-title { display: none; } }
+/* narrow: the name stays (the only place it is shown), shorter */
+@media (max-width: 1100px) { .sw-page-title { max-width: 140px; margin-inline: 2px 6px; } .sw-page-title svg { display: none; } }

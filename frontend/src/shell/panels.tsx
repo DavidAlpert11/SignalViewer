@@ -70,7 +70,7 @@ export function Rail({ hasFiles, logErrors }: { hasFiles: boolean; logErrors: nu
   const t = useT();
   const panel = useApp((s) => s.panel);
   return (
-    <nav className="rail" aria-label="Panels">
+    <nav className="rail" aria-label={t("railPanels")}>
       {RAIL.map((r) => {
         const I = Icon[r.icon];
         // U9: the Log tool stays in its place, disabled while no file is open (it used to vanish)

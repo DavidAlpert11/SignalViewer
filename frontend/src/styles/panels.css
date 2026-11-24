@@ -139,10 +139,12 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 .side-head .panel-fill { margin-inline-start: auto; color: var(--muted); }
 .side-head .panel-fill:hover, .page-head .panel-fill:hover { color: var(--ink); }
 /* Messages as a page: the stream worked on, its name above its editor */
-.messages .msgp-current-head { display: flex; align-items: baseline; gap: var(--sp-2); margin-bottom: 6px; }
+.messages .msgp-current-head { display: flex; align-items: baseline; gap: var(--sp-2); margin-bottom: 6px; padding: 10px 12px 0; }
 .messages .msgp-current-head h3 { margin: 0; font-size: var(--fs-l); color: var(--ink-strong); }
 .page.messages .msgp-stream.chosen { border-color: var(--accent); }
 .page.messages .msgp-stream-head[aria-current="true"] { background: var(--panel-2); }
+/* the chosen row keeps the card's rounded corner and its border (it was painted over at the inline start) */
+.page.messages .msgp-stream.chosen { overflow: hidden; }
 
 /* the Messages panel's "which signals carry the bytes" (components/AddStream.tsx) */
 .messages .msgp-addform { display: flex; flex-direction: column; gap: var(--sp-2); padding: 10px 12px; margin: 8px 0; }
