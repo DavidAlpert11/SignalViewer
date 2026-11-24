@@ -12,6 +12,7 @@ import { applySyncOffset } from "./sync";
 import { openAutoReport } from "./reportReady";
 import { decodeAsMessages, makeRecording, streamFor } from "./messages";
 import type { MessageStream } from "./store/model";
+import { openWhatChanged } from "./investigation";
 
 export interface DemoGuide { id: ExampleId; runs: string[]; step?: number; done?: boolean }
 
@@ -28,15 +29,30 @@ interface Demo {
 
 const panel = (p: "compare" | "log" | "report" | "investigate") => () => useApp.setState({ panel: p });
 const one = (text: TKey, act?: TKey, go?: Step["go"], done?: TKey): Demo => ({ steps: [{ text, act, go }], done });
+/** UX5.4: the last step of a recordings demo - the report the app writes from the parts that fit what is open */
+const report = (text: TKey): Step => ({ text, act: "demoReport1Act", go: () => openAutoReport() });
 
+/* UX5.4 (owner, 2026-11-23: "load, then lead the user"): each demo opens what its card shows, then two or three steps
+   lead through the work - look (play, align, the cursors), compare or check, then the report written from it. */
 export const DEMOS: Partial<Record<ExampleId, Demo>> = {
-  flight: one("demoFlight", "demoFlightAct", () => { if (!useApp.getState().playing) actions.togglePlay(); }),
-  twoFlights: { ...one("demoTwoFlights", "demoCompareAct", panel("compare")), setup: bothTracksOnOneMap },
-  car: one("demoCar", "demoCompareAct", panel("compare")),
-  bench: one("demoBench", "demoChecksAct", panel("log")),
-  ardupilot: one("demoArdupilot", "demoChecksAct", panel("log")),
-  simVsFlight: one("demoSimVsFlight", "demoAlignAct", alignSecond, "demoSimVsFlightDone"),
-  investigate: one("demoInvestigate", "demoInvestigateAct", cursorsOnFirstBump, "demoInvestigateDone"),
+  flight: { steps: [
+    { text: "demoFlight", act: "demoFlightAct", go: () => { if (!useApp.getState().playing) actions.togglePlay(); } },
+    { text: "demoFlight2", act: "demoChecksAct", go: () => { if (useApp.getState().playing) actions.togglePlay(); useApp.setState({ panel: "log" }); } },
+    report("demoFlight3"),
+  ], done: "demoReportMade" },
+  twoFlights: { steps: [{ text: "demoTwoFlights", act: "demoCompareAct", go: panel("compare") }, report("demoCompared")],
+    done: "demoReportMade", setup: bothTracksOnOneMap },
+  car: { steps: [{ text: "demoCar", act: "demoCompareAct", go: panel("compare") }, report("demoCompared")], done: "demoReportMade" },
+  bench: { steps: [{ text: "demoBench", act: "demoChecksAct", go: panel("log") }, report("demoChecked")], done: "demoReportMade" },
+  ardupilot: { steps: [{ text: "demoArdupilot", act: "demoChecksAct", go: panel("log") }, report("demoChecked")], done: "demoReportMade" },
+  simVsFlight: { steps: [
+    { text: "demoSimVsFlight", act: "demoAlignAct", go: alignSecond },
+    { text: "demoSimVsFlightDone", act: "demoCompareAct", go: panel("compare") },
+  ], done: "demoSimVsFlightDone2" },
+  investigate: { steps: [
+    { text: "demoInvestigate", act: "demoInvestigateAct", go: cursorsOnFirstBump },
+    { text: "demoInvestigateDone", act: "demoInvestigateAct2", go: () => openWhatChanged({ a: 38.4, b: 39.3 }) },
+  ], done: "demoInvestigateDone2" },
   folderOfFlights: { ...one("demoFolder", "demoFolderAct", worstCopterFirst, "demoFolderDone"), area: "sweeps" },
   // the two runs plotted, then the report the app writes from the parts that fit them
   reportDemo: { steps: [{ text: "demoReport1", act: "demoReport1Act", go: () => openAutoReport() }], done: "demoReportDone" },

@@ -1127,4 +1127,10 @@ look like one whole, flowing, coherent app, not sections cut off from each other
     as its `.page-title` (useStudyName; the Navigator's own name head removed - one place for it), hidden under
     1100 px; the left column was already the index (a side panel), the step the main column. Markup and CSS only.
     Tests: e2e test_sweeps_* (6 files), test_folder_of_recordings, test_fresh_user, test_settings.
+  - [x] UX5.4 The one-step demos in two or three steps (demoGuide.ts): each still opens what its card shows (its
+    picture promises it), then leads through the work - flight: Play, Checks, the report; twoFlights / car: Compare,
+    the report; bench / ardupilot: Checks, the report; simVsFlight: Align, Compare; investigate: the cursors, What
+    changed? (openWhatChanged). The report step is openAutoReport (the parts that fit). Tests: e2e
+    test_welcome_cards::test_a_demo_leads_on_to_its_report, test_plot_room (the line moves on), test_welcome_cards,
+    test_cursor_labels, test_file_colours, test_less_clutter, test_tab_band, test_report_parts.
 

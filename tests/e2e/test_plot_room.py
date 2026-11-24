@@ -94,8 +94,11 @@ def test_two_rows_above_the_plots_and_the_demo_line_moves_on(pg):
     assert pg.locator(".demo-guide button", has_text="Open Checks").count() == 1
     pg.locator(".demo-guide button", has_text="Open Checks").click()
     pg.wait_for_function("window.__sv.state().panel === 'log'")
-    pg.wait_for_function("!document.querySelector('.demo-guide')")
+    # UX5.4: the line moves on to the next step (the report) - it never offers again what was just done
+    pg.wait_for_selector(".demo-guide[data-step='2'] .demo-next:has-text('Write the report')")
     assert pg.locator("button", has_text="Open Checks").count() == 0
+    pg.click(".demo-guide button[aria-label='Close']")
+    pg.wait_for_function("!document.querySelector('.demo-guide')")
     pg.wait_for_selector(".ov-strip .ov-head .ov-gl")
     assert pg.evaluate(ROWS) == 2                                        # the glance + one track
     assert settled(pg)["top"] <= TOP_MAX
@@ -107,8 +110,12 @@ def test_a_demo_line_with_a_next_step_changes_to_it(pg):
     before = pg.locator(".demo-guide .demo-text").inner_text()
     pg.click(".demo-guide .btn.primary")
     pg.wait_for_function("window.__sv.state().cursor.dual")
-    assert pg.locator(".demo-guide .btn.primary").count() == 0           # the same click is not offered again
+    pg.wait_for_selector(".demo-guide[data-step='2']")
+    assert pg.locator(".demo-guide .btn.primary").inner_text() == "What changed?"   # not the same click again
     assert pg.locator(".demo-guide .demo-text").inner_text() != before   # ... the line says what comes next
+    pg.click(".demo-guide .btn.primary")                                 # UX5.4: its second step asks the question
+    pg.wait_for_selector(".demo-guide[data-step='done']")
+    pg.wait_for_function("!!window.__sv.state().whatChanged")
 
 
 def test_a_plain_file_and_a_session_with_two_lanes_keep_their_rows(pg):

@@ -206,7 +206,6 @@ export const en = {
   suWrapperSaveFirst: "Save the study first: the wrapper goes into its folder.",
   // --- C7: the navigator
   nvTitle: "The study: the problem and its tables",
-  nvStudy: "The study",
   nvSetupItem: "What varies, how to run",
   nvTogether: "Together",
   nvRemove: "Remove",
@@ -472,7 +471,6 @@ export const he: typeof en = {
   suWrapperSaveFirst: "קודם שמרו את המחקר: המעטפת נכנסת לתיקייה שלו.",
   // --- C7: the navigator
   nvTitle: "המחקר: הבעיה והטבלאות שלה",
-  nvStudy: "המחקר",
   nvSetupItem: "מה משתנה, איך מריצים",
   nvTogether: "ביחד",
   nvRemove: "הסרה",

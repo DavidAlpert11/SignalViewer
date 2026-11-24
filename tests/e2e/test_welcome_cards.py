@@ -142,3 +142,23 @@ def _close_all(pg):
       if (r.format !== 'derived') await fetch('/api/runs/' + r.id, { method: 'DELETE' });
       window.__sv.setState({ runs: [] }); }""")
     pg.wait_for_selector(".ex-card[data-example='ardupilot']")
+
+
+def test_a_demo_leads_on_to_its_report(pg):
+    """UX5.4 (owner, 2026-11-23: load, then lead the user): the car demo's steps - Compare, then the report the app
+    writes from the parts that fit; *Show the result* does what is left, and the line ends on the Report's page."""
+    _open_demo(pg, "car")
+    assert pg.locator(".demo-guide .demo-count").inner_text() == "1/2"
+    pg.click(".demo-guide .demo-next")                                  # Rank the differences
+    pg.wait_for_function("window.__sv.state().panel === 'compare'")
+    pg.wait_for_selector(".demo-guide[data-step='2'] .demo-next")
+    pg.click(".demo-guide .demo-next")                                  # Write the report
+    pg.wait_for_function("window.__sv.state().panel === 'report' && !!window.__sv.state().ws.report?.doc?.text")
+    pg.wait_for_selector(".rd .demo-guide[data-step='done']")
+    pg.evaluate("window.__sv.setState({ panel: null })")
+    _close_all(pg)
+    _open_demo(pg, "flight")
+    assert pg.locator(".demo-guide .demo-count").inner_text() == "1/3"
+    pg.click(".demo-guide .demo-finish")                                # Show the result: every step left
+    pg.wait_for_selector(".rd .demo-guide[data-step='done']", timeout=30000)
+    assert not pg.evaluate("window.__sv.state().playing")

@@ -23,7 +23,10 @@
   line of steps above them: each step says what is on screen and what to do next, its button does it (look for the
   messages, plot them, write the link's report; use the structure files, make the recordings; the track, then speed
   and satellites; write the report). *Show the result* does every step left at once. Opening an example whose files
-  are already open now starts its line too.
+  are already open now starts its line too. The other demos lead on the same way, two or three steps each: the
+  flight (play it, what Checks found, its report), two flights and the car's three runs (rank the differences, then the
+  report), the bench and the ArduPilot log (Checks, then the report), the model against its flight (align the clocks,
+  then rank where they differ) and *Find out what went wrong* (the cursors around the first bump, then *What changed?*).
 
 ## 1.35.0 – 2026-11-23
 
