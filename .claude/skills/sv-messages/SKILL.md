@@ -31,7 +31,7 @@ User docs: `docs/messages.md`. Decisions: `docs/dev/TASKS.md` (MSG1, MSG2, MSG3,
 | the guided view: patterns, frames with roles, values | `backend/svcore/msginspect.py` |
 | routes: suggest, parse, inspect, library, streams | `backend/app/routes/messages.py` |
 | live links (serial / UDP / TCP) -> `.svraw` | `backend/svcore/rawlink.py`, `app/routes/live.py` |
-| report part | `backend/app/reportparts.py` (`messages`), `find_streams` |
+| report part | `backend/app/reportparts_messages.py` (`messages`, `find_streams`), run by `app/reportparts.py` |
 | panel, steps, byte view, structure form | `frontend/src/components/MessagesPanel.tsx`, `StreamEditor.tsx`, `ByteView.tsx`, `StructureEditor.tsx` |
 | actions (decode, make the recording, report, library) | `frontend/src/messages.ts` |
 | strings | `frontend/src/i18n/live.ts` (msg*, msgp*, msgStep*) |

@@ -14,7 +14,7 @@ parsed, so the page, the PDF and Word draw it with no new emitter code.
 1. **Numbers** - a pure function over arrays in `backend/svcore/reportparts.py` (or an existing svcore module:
    `objcompare`, `overview`, `quality`, `firstchange`, `ops.compute_signal_stats`). Every number on **all** the
    samples (CLAUDE.md: no point left out); return plain dicts.
-2. **The part** - a function `def name(p: Part, rids, arg, o)` in `backend/app/reportparts.py`, registered in `RUN`
+2. **The part** - a function `def name(p: Part, rids, arg, o)` in `backend/app/reportparts.py`, registered in `RUN` (its words in `S` and options in `KNOWN`: `app/reportparts_base.py`)
    and `PARTS`, its options in `KNOWN`. Write with `p.say(markdown)`, `table(head, rows)`, `p.plot(title,
    [sig_line(id, label, k, ...)], rng=, caption=)` (a computed series: `p.series(label, t, y)`), `p.map(title,
    objects)`; findings for `[[summary]]` with `p.hl(level, score, text)` (fail / warn / info). Nothing found: one
