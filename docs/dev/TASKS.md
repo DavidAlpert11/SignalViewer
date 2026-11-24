@@ -191,6 +191,15 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-24 · Reviewer (session_0146GPW2guKSxqJE46HkbNSn) batches 1-2, 18 points; answered and fixed forward:
+  897d6da (a page stays a page while playing; e2e), eddf8d4 (demo lines: a step done by hand moves on, reportDemo in
+  two steps, struct label, fields in view, Hebrew buttons in the noun form, texts), 491d428 (Messages head padding,
+  chosen card corner, Sweeps title on narrow windows, rail aria-label i18n), 44c4177 (CHANGELOG wording, the 930 px
+  limitation). #1 (design test) fixed in 16ed922 by reading index.css with its parts, not by moving rules (the
+  cascade). quick_check all green (Vitest 311, backend 1520, mypy); e2e test_welcome_cards, test_report_parts,
+  test_plot_room, test_messages, test_cursor_labels, test_sweeps_flow, _workspace, test_settings. Waiting for its
+  re-check.
+
 - 2026-11-24 · Fix forward: backend test_design_tokens failed after the index.css split (its parts in styles/ counted
   as an area's file, and the token checks read index.css only). The test now reads index.css with its parts and checks
   they are imported right after it, in order. Backend 1520 passed.
