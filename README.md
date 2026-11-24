@@ -64,8 +64,9 @@ simulation engineers, and it runs entirely on your machine: no account, no cloud
 | **From source** | `git clone`, `pip install -r requirements.txt`, `python run.py` – the first start builds the UI (Node.js LTS, about half a minute) |
 
 Then pick an example on the welcome screen – an ArduPilot log, a fault to find, a simulation against its
-flight, the same mission flown twice, a folder of recordings, a smart sweep. Each has a known answer and says
-what to do next; more (a car, a pump on a test bench, a results table, three drones) are in *Help → Examples*.
+flight, the same mission flown twice, a folder of recordings, a smart sweep. Each has a known answer and is built in
+front of you in two or three steps – each step says what is on screen and its button does the next one (*Show the
+result* does the rest); more (a car, a pump on a test bench, a results table, three drones) are in *Help → Examples*.
 The packages are not code-signed yet – [what to do the first time](docs/install.md#first-start-windows-and-macos-warnings).
 
 ## A tour
@@ -216,6 +217,7 @@ Exit codes and JUnit XML for CI; also export, a Sweeps table from a folder of re
 - **בוחרים פרמטרים (Sweeps):** אילו סטים עומדים בכל תרחיש, סט אחד לכמה מערכות, ולולאה שמריצה את הקוד שלכם עד התכנסות.
 - **אף נקודה לא נעלמת:** המספרים תמיד על כל הנתונים, והגרף מוקטן רק כך שכל קפיצה עדיין מצוירת.
 - **מבתים לסיגנלים:** קו תקשורת שהוקלט בית אחר בית, או NMEA גולמי של מקלט: ההודעות נמצאות לבד (כותרת, אורך, סוג, checksum, סיומת), האפליקציה מציעה מבנה – 16 ביט LSB או MSB קודם, עם סימן, 32 ביט, float, double, טקסט – או שמגדירים אותו בארבעה שלבים מודרכים – הבתים כ־hex, מספרים או ASCII, ולחיצה על בית אומרת מה הוא (כותרת, אורך, סוג, ערך), עם נוסחת המרה – כל הודעה נספרת ומוצגת לפי הסדר, והערכים הופכים להקלטה שנשמרת גם ל־CSV. אפשר גם להאזין חי לפורט טורי, UDP או TCP. חלונית *הודעות* אחת מרכזת הכול: זרמי הבתים, סוגי ההודעות של הלוגים (גם MAVLink), הקווים הפעילים וספריית מבנים.
+- **אפליקציה אחת:** חקירה, הודעות, בדיקות והדוח נפתחים כעמודים באותה מסגרת (ראש, עמודת תוכן, ומה שעובדים עליו), וחוזרים לצד הגרפים כשפעולה צריכה אותם; הדוגמאות נבנות מולכם בשניים־שלושה שלבים.
 - **מפה ותלת־ממד:** תצלומי לוויין או מפה לא מקוונת, מעל פני השטח האמיתיים – הרגע של הסמן על המסלול ובכל הגרפים יחד.
 - **שולחים את התשובה:** לחיצה אחת כותבת דוח מוכן מחלקים (פקודה מול ביצוע, שגיאות ניווט בין אובייקטים, התרחיש והרגעים המיוחדים, וההבדלים העיקריים בין קבצים עם האזור המרכזי של השינוי), או כותבים את הדוח כמו Markdown, או ב־LaTeX כמו ב־Overleaf – בלי אינטרנט ובלי להתקין דבר, בעורך עם ביטול והערות משלו – עם גרפים וערכים מהנתונים ותצוגה חיה; דוח HTML אחד שנפתח ב"התהליך בקצרה", וגם PDF ו־Word, או גרף ולשונית שנשלחים חיים ישר לדף Confluence – מדביקים את הקישור לדף וזהו (למקום שבו כתוב בדף <code dir="ltr">[[signalviewer]]</code> או מתחת לכותרת שבוחרים); או גוררים אותם אל מחוץ לחלון – לתיקייה דף אינטראקטיבי, ל־Word תמונה חדה. תיקייה של הקלטות – טבלה אחת, שורה לכל הקלטה.
 

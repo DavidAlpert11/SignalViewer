@@ -608,7 +608,17 @@ what went wrong*, a simulation against its flight, the same mission flown twice,
 smart-sweep demo; **Help → Examples** lists every example (also a drone flight, three car runs, a pump on a test
 bench, a sweep's results table and *One gain set, three drones*). The Sweeps ones open in the Sweeps area (see
 *One parameter set for many systems* and *The smart-sweep demo*); the others open their recordings with the view
-that suits them.
+that suits them. Then a line of two or three steps above the plots leads on: each says what is on screen and what
+to do next, and its button does it - play the flight, see what Checks found, rank where the runs differ, align a
+model with its flight, put the cursors around a fault and ask *What changed?*, and let the app write the report.
+*Show the result* does every step left at once; the line's × closes it.
+
+The workspaces you read and work in - Investigate while *What changed* is shown, Messages, Checks (with the ⤢ in its
+head) and the Report - open as pages in the plots' place, all in one frame: the page's head, a column of what there is
+(streams, conditions, the file's sections, the report's parts) and the thing worked on beside it. Anything they do
+that needs the plots (a new tab, the cursor moved) brings the plots back with the panel beside them; ⤡ / ⤢ in the
+head moves it beside the plots and back, remembered. The Inspector shows the plots' values, so it is not shown beside
+a page and comes back with the plots.
 
 ## The first minute
 

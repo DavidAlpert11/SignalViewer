@@ -31,7 +31,8 @@ Every feature, area by area. Each one is covered by an automated test that drive
 ### Welcome screen
 
 - Recent files and recent sessions, one click to reopen; missing ones are marked and can be forgotten
-- Six examples in one click: an ArduPilot flight log, *Find out what went wrong*, a simulation against its flight, the same mission flown twice, a folder of recordings and the smart-sweep demo (offered only when all their files are there); the others (a drone flight, three car runs, a pump on a bench, a results table, three drones) in *Help → Examples*
+- Six examples in one click: an ArduPilot flight log, *Find out what went wrong*, a simulation against its flight, the same mission flown twice, a folder of recordings and the smart-sweep demo (offered only when all their files are there); the others (a drone flight, three car runs, a pump on a bench, a results table, three drones) in *Help → Examples*. Each is built in front of you (1.36): a line of two or three steps above it says what is on screen, its button does the next step (look, compare or check, the report the app writes; the serial link from raw bytes to its report), *Show the result* does the rest
+- One frame for the workspaces (1.36): Investigate (while *What changed* is shown), Messages, Checks (with its ⤢) and the Report are pages in the plots' place - a head with the page's title, an index column (streams, conditions, the file's sections, the report's parts) and the thing worked on beside it; an action that needs the plots (a new tab, the cursor moved) brings them back with the panel beside them; the ⤢ / ⤡ is remembered. The Inspector belongs to the plots and is not shown beside a page. Sweeps' steps row is its page head, with the study's name
 - An example opens with its view already applied (Undo: an empty plot)
 
 ### Files
