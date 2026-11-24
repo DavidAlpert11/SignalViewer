@@ -191,6 +191,11 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-24 · The whole e2e one file at a time after UX5: 100 files, 539 passed, 2 failed - test_report_doc's LaTeX
+  test (no TeX in this container, as in 1.35.0) and test_map_smooth::test_playback_redraws_the_map_without_the_panels:
+  App rendered on every playback frame since UX2 (usePlotsComeBack read the cursor with a selector; already failing at
+  a638327). Fixed: a store subscription, no render. test_map_smooth 6 / 6, test_messages 16 / 16, test_what_changed.
+
 - 2026-11-24 · UX5.5: five big files split by part (report.py, app/reportparts.py, routes/sweep.py, index.css,
   sweeps/state.ts), each its own commit, made in a separate worktree so the e2e running here were not disturbed; the
   CSS split checked by building before / after (byte for byte the same). Not split, with reasons (ROADMAP): Globe3D,

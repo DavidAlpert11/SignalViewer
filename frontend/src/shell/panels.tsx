@@ -1,7 +1,7 @@
 /* The Recordings area's side panels: each one's view (a Record over PanelId - a new panel does not compile without
    one), the tool rail that opens them, and the ⤢ that moves a panel to the whole stage. Their order, widths and
    places are the table in components/rail.ts. */
-import { useEffect, useRef, type ComponentType } from "react";
+import { useEffect, type ComponentType } from "react";
 import { lazyPreload } from "../lazyPreload";
 import DataPanel from "../components/DataPanel";
 import { RAIL, canFill, isFull, setFull, showPlotsBeside } from "../components/rail";
@@ -33,12 +33,19 @@ export function usePanelPlace(hasFiles: boolean): { panel: PanelId | null; place
 /** A panel on the whole stage gives way to the plots when something it did needs them: the active tab or its plots
  *  changed, or the time cursor moved (a step through occurrences, a row of What changed). */
 export function usePlotsComeBack() {
-  const sig = useApp((s) => {
-    const tb = activeTab(s.ws);
-    return `${tb.id}|${tb.plots.map((p) => p.id + ":" + p.signals.map((x) => x.sig).join(",")).join(";")}|${s.cursor.on ? `${s.cursor.t1}|${s.cursor.t2}` : ""}`;
-  });
-  const first = useRef(true);
-  useEffect(() => { if (first.current) first.current = false; else showPlotsBeside(); }, [sig]);
+  // a subscription, not a selector: App must not render again on every frame of playback (the cursor moves - N6,
+  // e2e test_map_smooth)
+  useEffect(() => {
+    const sigOf = (s: ReturnType<typeof useApp.getState>) => {
+      const tb = activeTab(s.ws);
+      return `${tb.id}|${tb.plots.map((p) => p.id + ":" + p.signals.map((x) => x.sig).join(",")).join(";")}|${s.cursor.on ? `${s.cursor.t1}|${s.cursor.t2}` : ""}`;
+    };
+    let last = sigOf(useApp.getState());
+    return useApp.subscribe((s) => {
+      const sig = sigOf(s);
+      if (sig !== last) { last = sig; showPlotsBeside(); }
+    });
+  }, []);
 }
 
 /** The ⤢ / ⤡ in a side panel's head (nothing for a panel that cannot take the stage). */
