@@ -11,7 +11,7 @@ import numpy as np
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app import report as reports
+from app import report as reports, report_clip, report_office
 from svcore.atomic import write_text as _write_text
 from app.common import atomic_open, atomic_path, atomic_write, fail, heavy
 from app.store import store
@@ -153,9 +153,9 @@ async def make_report(req: ReportRequest):
             if req.format == "html":
                 _write_text(tmp, reports.build_html(store, body))
             elif req.format == "pdf":
-                reports.build_pdf(store, body, tmp)
+                report_office.build_pdf(store, body, tmp)
             else:
-                reports.build_docx(store, body, tmp)
+                report_office.build_docx(store, body, tmp)
     try:
         await asyncio.to_thread(work)
     except KeyError:
@@ -234,13 +234,13 @@ async def export_clip(req: ClipRequest):
     if req.macro == "user" and any(c in os.path.basename(path) for c in "|{}"):
         fail(400, "Confluence's markup cannot carry | { or } in a file name: save the page under another name.")
     try:
-        page = await asyncio.to_thread(reports.build_clip_page, store, body)
-        static = await asyncio.to_thread(reports.build_clip_static, store, body)
+        page = await asyncio.to_thread(report_clip.build_clip_page, store, body)
+        static = await asyncio.to_thread(report_clip.build_clip_static, store, body)
     except KeyError:
         fail(404, "One of the plot's signals is no longer open.")
     await asyncio.to_thread(atomic_write, path, page)
     return {"path": path, "name": os.path.basename(path), "size": len(page.encode("utf-8")),
-            "macro": (reports.build_clip_markup if req.macro == "user" else reports.build_clip_macro)(body, os.path.basename(path)),
+            "macro": (report_clip.build_clip_markup if req.macro == "user" else report_clip.build_clip_macro)(body, os.path.basename(path)),
             "static": static}
 
 
@@ -301,12 +301,12 @@ async def export_confluence(req: ConfluenceSend):
     if not name.lower().endswith(".html"):
         name += ".html"
     try:
-        page = await asyncio.to_thread(reports.build_clip_page, store, body)
+        page = await asyncio.to_thread(report_clip.build_clip_page, store, body)
     except KeyError:
         fail(404, "One of the plot's signals is no longer open.")
     try:
         out = await asyncio.to_thread(confluence.send, req.page, page, name, req.macro,
-                                      reports._clip_height(body), reports.build_clip_macro(body, name), req.where, req.title)
+                                      report_clip._clip_height(body), report_clip.build_clip_macro(body, name), req.where, req.title)
     except confluence.ConfluenceError as e:
         fail(400, str(e))
     _last_page["url"] = out["url"]
@@ -399,7 +399,7 @@ async def export_drag_file(token: str, name: str, view: int = 0):
 @router.get("/api/export/clip/user-macro")
 def clip_user_macro():
     """CP3: the Signal Viewer user macro's template - a Confluence administrator installs it once."""
-    return {"name": reports.USER_MACRO, "template": reports.build_user_macro_template()}
+    return {"name": report_clip.USER_MACRO, "template": report_clip.build_user_macro_template()}
 
 
 class ImageBytes(BaseModel):

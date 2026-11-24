@@ -81,7 +81,7 @@ def test_reports_have_the_flight_in_moments(tmp_path):
 
     import make_live_report_media as media
     import signalviewer as sv
-    from app import report
+    from app import report, report_office
     csv = str(tmp_path / "tabor.csv")
     media.flight_csv(csv)
     rec = sv.load(csv)
@@ -96,5 +96,5 @@ def test_reports_have_the_flight_in_moments(tmp_path):
     secs, pics = report._story_parts(rec._store, {"lang": "en", "tabs": req["tabs"], "notes": []})
     assert secs[0]["title"].startswith("The flight in ") and secs[0]["table"]["rows"] and 1 <= len(pics) <= 4
     pdf = str(tmp_path / "r.pdf")
-    report.build_pdf(rec._store, {**req, "format": "pdf"}, pdf)
+    report_office.build_pdf(rec._store, {**req, "format": "pdf"}, pdf)
     assert os.path.getsize(pdf) > 50_000

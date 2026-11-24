@@ -30,7 +30,7 @@ class Fake:
         import os
         import sys
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-        from app.report import build_user_macro_template
+        from app.report_clip import build_user_macro_template
         tpl = "\n".join(ln for ln in build_user_macro_template().splitlines() if not ln.startswith("##"))
         body = self.page["body"]
         body = re.sub(r'<ac:structured-macro ac:name="html"[^>]*><ac:plain-text-body><!\[CDATA\[(.*?)\]\]></ac:plain-text-body></ac:structured-macro>',

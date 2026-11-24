@@ -97,7 +97,7 @@ def batch_reports(template_ref: str, files: List[str], out_dir: str, fmt: str = 
                   theme: str = "light", title: Optional[str] = None, log=print) -> List[Dict]:
     """One report per file. Returns [{file, report?, tabs, plots, missing, error?}]; a file that
     cannot be read or has nothing the template asks for is reported and skipped, not fatal."""
-    from app import report as reports
+    from app import report as reports, report_office
     from app.store import Store
 
     ext = FORMATS.get(fmt)
@@ -136,9 +136,9 @@ def batch_reports(template_ref: str, files: List[str], out_dir: str, fmt: str = 
                 with open(target, "w", encoding="utf-8") as f:
                     f.write(reports.build_html(store, body))
             elif fmt == "pdf":
-                reports.build_pdf(store, body, target)
+                report_office.build_pdf(store, body, target)
             else:
-                reports.build_docx(store, body, target)
+                report_office.build_docx(store, body, target)
             res["report"] = target
             log(f"{target}: {res['plots']} plots" + (f" ({len(res['missing'])} signals not in the file)" if res["missing"] else ""))
         except Exception as ex:                              # a bad file must not stop the batch

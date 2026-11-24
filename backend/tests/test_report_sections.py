@@ -23,11 +23,11 @@ def test_report_carries_the_sections(tmp_path):
     req = {"title": "T", "lang": "en", "sections": SECS, "notes": [], "tabs": [{"name": "Tab", "plots": [
         {"title": "", "caption": "", "mode": "time", "range": None, "signals": [{"id": f"{rid}/A", "label": "A", "color": "#000", "width": 1, "scale": 1, "offset": 0, "state": False, "tOffset": 0}]}]}]}
     assert "Motor 3 at its limit" in build_html(st, req)
-    from app.report import build_pdf
+    from app.report_office import build_pdf
     build_pdf(st, req, str(tmp_path / "r.pdf"))
     assert (tmp_path / "r.pdf").stat().st_size > 1000
     try:
-        from app.report import build_docx
+        from app.report_office import build_docx
         build_docx(st, req, str(tmp_path / "r.docx"))
     except Exception as e:                       # python-docx is optional
         if "Word" not in str(e):

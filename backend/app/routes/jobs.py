@@ -5,7 +5,7 @@ import os
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app import report as reports
+from app import report as reports, report_office
 from svcore.atomic import write_text as _write_text
 from app.common import atomic_path, fail, open_paths
 from app.jobs import JobCancelled, jobs
@@ -60,9 +60,9 @@ def start_job(req: JobRequest):
                 elif rr.format == "html":
                     _write_text(tmp, reports.build_html(store, body, progress=job.report))
                 elif rr.format == "pdf":
-                    reports.build_pdf(store, body, tmp, progress=job.report)
+                    report_office.build_pdf(store, body, tmp, progress=job.report)
                 else:
-                    reports.build_docx(store, body, tmp, progress=job.report)
+                    report_office.build_docx(store, body, tmp, progress=job.report)
             return {"path": path, "size": os.path.getsize(path)}
     elif req.kind == "reloadAll":
         def work(job):

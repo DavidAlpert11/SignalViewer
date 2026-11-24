@@ -62,7 +62,7 @@ def test_mat73_names_its_extra(tmp_path, monkeypatch):
 
 
 def test_reports_name_their_extra(tmp_path, monkeypatch):
-    from app import report
+    from app import report, report_office
     hide(monkeypatch, "docx", "matplotlib", "matplotlib.pyplot")
     st = Store()
     lr = st.open_file(os.path.join(EX, "run_012.csv"))
@@ -71,9 +71,9 @@ def test_reports_name_their_extra(tmp_path, monkeypatch):
                       "range": None, "signals": [{"id": f"{lr.id}/RPM", "label": "RPM", "color": "#3D8BFD", "width": 1.5,
                                                   "scale": 1, "offset": 0, "state": False, "tOffset": 0}]}]}]}
     with pytest.raises(report.ReportNeedsExtra, match=r'signalviewer-lite\[reports\]'):
-        report.build_docx(st, body, str(tmp_path / "r.docx"))
+        report_office.build_docx(st, body, str(tmp_path / "r.docx"))
     with pytest.raises(report.ReportNeedsExtra, match=r'signalviewer-lite\[reports\]'):
-        report.build_pdf(st, body, str(tmp_path / "r.pdf"))
+        report_office.build_pdf(st, body, str(tmp_path / "r.pdf"))
     assert "<html" in report.build_html(st, body).lower()         # HTML of time plots needs neither
 
 

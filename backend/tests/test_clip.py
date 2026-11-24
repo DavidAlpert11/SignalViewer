@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import app  # noqa: E402
-from app import report  # noqa: E402
+from app import report, report_clip  # noqa: E402
 
 client = TestClient(app)
 
@@ -66,13 +66,13 @@ def test_clip_is_small_keeps_the_needle_and_carries_table_and_notes(tmp_path):
 
 
 def test_clip_macro_words_and_no_closing_script_inside():
-    m = report.build_clip_macro({"lang": "he", "tabs": []}, "a</script>.html")
+    m = report_clip.build_clip_macro({"lang": "he", "tabs": []}, "a</script>.html")
     assert "גררו את הקובץ" in m and m.count("</script>") == 1
 
 
 def test_clip_hebrew_static_is_rtl_and_empty_is_refused():
     assert client.post("/api/export/clip", json={"path": "x", "tabs": [{"plots": []}]}).status_code == 400
-    frag = report.build_clip_static(None, {"lang": "he", "tabs": [], "notes": [{"t": 1, "text": "הערה"}]})
+    frag = report_clip.build_clip_static(None, {"lang": "he", "tabs": [], "notes": [{"t": 1, "text": "הערה"}]})
     assert 'dir="rtl"' in frag and "הערות" in frag
 
 
@@ -143,8 +143,8 @@ def test_copied_pictures_at_high_resolution(tmp_path):
             assert r.status_code == 200 and r.headers["content-type"] == "image/png"
             w[sc] = Image.open(io.BytesIO(r.content)).size[0]
         assert w[2] == pytest.approx(2 * w[1], rel=0.02) and w[3] == pytest.approx(3 * w[1], rel=0.02)
-        s1 = report.build_clip_static(report_store(), {"tabs": [{"plots": [plot]}], "scale": 1})
-        s2 = report.build_clip_static(report_store(), {"tabs": [{"plots": [plot]}], "scale": 2})
+        s1 = report_clip.build_clip_static(report_store(), {"tabs": [{"plots": [plot]}], "scale": 1})
+        s2 = report_clip.build_clip_static(report_store(), {"tabs": [{"plots": [plot]}], "scale": 2})
         assert len(s2) > 1.5 * len(s1) and 'width="800"' in s2           # more pixels, the same size on the page
     finally:
         client.delete(f"/api/runs/{run['id']}")

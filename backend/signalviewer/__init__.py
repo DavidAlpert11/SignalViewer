@@ -405,7 +405,7 @@ def kml(rec: "Recording", objects=None, path: str = "flight.kml", rate: float = 
 def report(rec: "Recording", path: str, compare: Optional[Comparison] = None, map: bool = True, title: str = "", lang: str = "en") -> str:
     """A report as the app makes it (.html / .pdf / .docx by the extension): the map of the objects, and for a
     comparison its error plots (one per quantity, the errors of every object) and its statistics table."""
-    from app import report as reports
+    from app import report as reports, report_office
     fmt = path.rsplit(".", 1)[-1].lower()
     if fmt not in ("html", "pdf", "docx"):
         raise ValueError("A report is .html, .pdf or .docx")
@@ -434,9 +434,9 @@ def report(rec: "Recording", path: str, compare: Optional[Comparison] = None, ma
         with open(path, "w", encoding="utf-8") as f:
             f.write(reports.build_html(rec._store, body))
     elif fmt == "pdf":
-        reports.build_pdf(rec._store, body, path)
+        report_office.build_pdf(rec._store, body, path)
     else:
-        reports.build_docx(rec._store, body, path)
+        report_office.build_docx(rec._store, body, path)
     return path
 
 
