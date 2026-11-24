@@ -43,7 +43,12 @@ export function usePlotsComeBack() {
     let last = sigOf(useApp.getState());
     return useApp.subscribe((s) => {
       const sig = sigOf(s);
-      if (sig !== last) { last = sig; showPlotsBeside(); }
+      if (sig === last) return;
+      last = sig;
+      // the time moving by itself - playback, live mode following the newest data - is not an action that needs the
+      // plots: a page stays a page while it plays (review 2026-11-24)
+      if (s.playing || s.streaming) return;
+      showPlotsBeside();
     });
   }, []);
 }

@@ -483,3 +483,21 @@ def test_the_inspector_is_not_beside_a_page(pg):
     pg.wait_for_selector("aside.inspector")
     assert not pg.locator(".insp-toggle").is_disabled()
     assert S(pg, "s.inspectorOpen") is True
+
+
+def test_a_page_stays_a_page_while_it_plays(pg):
+    """Review 2026-11-24 (#15): playback moves the cursor every frame - that is not an action that needs the plots, so
+    Messages opened while playing stays a page, and its ⤢ is not undone; a cursor moved by hand still brings them."""
+    shutil.copy(os.path.join(DEMO, "link_tx_rx.csv"), os.path.join(pg.env["data"], "link_tx_rx.csv"))
+    open_files(pg, "link_tx_rx.csv")
+    pg.evaluate("window.__sv.setState({ playSpeed: 1, cursor: { ...window.__sv.state().cursor, on: true, t1: 0 } })")
+    pg.evaluate("window.__sv.setState({ playing: true })")
+    pg.wait_for_function("window.__sv.state().cursor.t1 > 0.2")
+    pg.locator(".rail button[aria-label='Messages']").click()
+    pg.wait_for_selector(".page.messages")
+    t0 = S(pg, "s.cursor.t1")
+    pg.wait_for_function(f"window.__sv.state().cursor.t1 > {t0} + 0.5")            # it played on ...
+    assert pg.locator(".page.messages").count() == 1                              # ... and the page stayed
+    pg.evaluate("window.__sv.setState({ playing: false })")
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, t1: 3 } })")   # moved by hand
+    pg.wait_for_selector("aside.messages")
