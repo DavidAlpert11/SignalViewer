@@ -9,6 +9,7 @@ import { fmtNum } from "../i18n";
 import { actions, pickPath, setInspectorByUser, useApp } from "../store";
 import { PLOT_ID_MIME } from "../store/actions/layout";
 import { AREAS, areaDef } from "../areas";
+import { pageOnScreen } from "./rail";
 import { useT } from "../i18n";
 import { BrandMark, Icon } from "../icons";
 import { openSession, saveSession } from "../files";
@@ -138,6 +139,7 @@ function RecordingsTools() {
   const past = useApp((s) => s.past.length);
   const future = useApp((s) => s.future.length);
   const inspectorOpen = useApp((s) => s.inspectorOpen);
+  const onPage = useApp(pageOnScreen);
   const hasRuns = useApp((s) => s.runs.some((r) => r.format !== "derived"));
   const at = menuAt;
   return (
@@ -177,7 +179,9 @@ function RecordingsTools() {
         onClick={(e) => openMenu(at(e, 320), clearMenuItems())}>
         <Icon.Eraser /><span className="hide-narrow">{t("clearMenu")}</span><Icon.Chevron width={12} height={12} />
       </button>
-      <button className="iconbtn" aria-pressed={inspectorOpen} onClick={() => setInspectorByUser(!inspectorOpen)} aria-label={t("inspector")} title={t("inspector")}><Icon.Inspector /></button>
+      {/* UX5.1: off while a page is in the plots' place - the Inspector comes back with them */}
+      <button className="iconbtn insp-toggle" aria-pressed={inspectorOpen && !onPage} disabled={onPage} onClick={() => setInspectorByUser(!inspectorOpen)}
+        aria-label={t("inspector")} title={onPage ? t("inspectorOnPage") : t("inspector")}><Icon.Inspector /></button>
     </span>
   );
 }

@@ -466,3 +466,20 @@ def test_remove_one_field_a_message_and_a_stream(pg):
     assert pg.locator(".msgp-stream.open[data-key$='/rx_byte']").count() == 0
     pg.evaluate("() => window.__sv.state().undo()")
     pg.wait_for_function("(window.__sv.state().ws.messageStreams || []).some(m => m.sources[0].endsWith('/rx_byte'))")
+
+
+def test_the_inspector_is_not_beside_a_page(pg):
+    """UX5.1: the Inspector is the plots' properties - beside the Messages page (in the plots' place) it is hidden and
+    its top-bar button is off; with the page beside the plots (⤡) it is back, as the user had it."""
+    shutil.copy(os.path.join(DEMO, "link_tx_rx.csv"), os.path.join(pg.env["data"], "link_tx_rx.csv"))
+    open_files(pg, "link_tx_rx.csv")
+    pg.evaluate("window.__sv.setState({ inspectorOpen: true })")
+    pg.wait_for_selector("aside.inspector")
+    pg.locator(".rail button[aria-label='Messages']").click()
+    pg.wait_for_selector(".page.messages")
+    pg.wait_for_selector("aside.inspector", state="detached")
+    assert pg.locator(".insp-toggle").is_disabled()
+    pg.locator(".page-head .panel-fill").click()                             # beside the plots
+    pg.wait_for_selector("aside.inspector")
+    assert not pg.locator(".insp-toggle").is_disabled()
+    assert S(pg, "s.inspectorOpen") is True

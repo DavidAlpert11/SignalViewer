@@ -57,6 +57,15 @@ export function isFull(id: PanelId, s: FullState): boolean {
   return p !== null ? p === "true" : typeof d.full === "function" ? d.full(s) : d.full;
 }
 
+/** Is a page on the whole stage in place of the plots now (the Recordings area, an open panel that fills it)? The
+ *  Inspector is the plots' properties (their cursor values, statistics, notes): it is not shown beside a page
+ *  (UX5.1) and comes back with the plots. Checks needs an open file, as usePanelPlace says. */
+export function pageOnScreen(s: FullState & Pick<AppState, "panel" | "area" | "runs">): boolean {
+  if (s.area !== "recordings" || !s.panel) return false;
+  if (s.panel === "log" && !s.runs.length) return false;
+  return isFull(s.panel, s);
+}
+
 /** Something new to read in a panel (What changed opened): the plots that came back beside it are forgotten - where it
  *  goes is again the user's ⤢ choice, else its rule. */
 export function forgetPlotsBeside(id: PanelId) {

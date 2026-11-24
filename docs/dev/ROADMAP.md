@@ -1115,5 +1115,8 @@ look like one whole, flowing, coherent app, not sections cut off from each other
 - [x] UX4 Examples step by step (demoGuide.ts DEMOS: steps, done, setup; DemoGuide: n/N, *Show the result*): serialLink,
   linkStructure, gpsNmea, reportDemo open raw; the line also on pages (PanelFrame, ReportScreen). Tests: e2e
   test_messages (3 examples), test_report_parts::test_the_report_demo_example_opens_the_automatic_report.
-- [ ] UX5 The review's next steps (TASKS.md "UX review 2026-11-23").
+- [ ] UX5 The review's next steps (TASKS.md "UX review 2026-11-23"), one item per commit:
+  - [x] UX5.1 The Inspector beside a page: hidden (it is the plots' cursor values, statistics, notes - a page is in
+    their place), its top-bar button off with a hint; back with the plots, inspectorOpen kept (rail.ts pageOnScreen).
+    Test: e2e test_messages::test_the_inspector_is_not_beside_a_page.
 

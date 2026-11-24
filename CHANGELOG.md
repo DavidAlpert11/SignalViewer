@@ -8,7 +8,8 @@
   page while *What changed* is shown and beside the plots while you place the cursors; anything they do that needs the
   plots (a new tab, the cursor moved) brings the plots back with the panel beside them. The ⤢ / ⤡ in the head moves
   a page beside the plots and back, remembered. The tools that act on the plots (Files, Create, Compare, Checks) stay
-  beside them.
+  beside them. The Inspector belongs to the plots: it is not shown beside a page and comes back with the plots (its
+  top-bar button says so while a page is on screen).
 - New: *Messages* - **one clear place to say which signals carry bytes.** *Add a stream* opens a short form: one signal,
   the two signals of a link (TX and RX), or byte columns with one message per row (the byte_0..byte_N columns of a
   file in one click). It is open by itself while no stream is found. Before, two signals or columns needed a

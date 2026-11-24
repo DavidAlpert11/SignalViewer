@@ -29,7 +29,7 @@ import Tour from "./components/Tour";
 import TabChoiceDialog from "./components/TabChoice";
 import Welcome from "./components/Welcome";
 import PlotGrid from "./components/PlotGrid";
-import { RAIL_W, panelDef } from "./components/rail";
+import { RAIL_W, pageOnScreen, panelDef } from "./components/rail";
 import { useShortcuts } from "./shortcuts";
 import { PANEL_VIEW, Rail, usePanelPlace, usePlotsComeBack } from "./shell/panels";
 import Dialogs from "./shell/Dialogs";
@@ -52,7 +52,8 @@ export default function App() {
   const area = useApp((s) => s.area);
   const runs = useApp((s) => s.runs);
   const startOpen = useApp((s) => s.startOpen);
-  const inspectorOpen = useApp((s) => s.inspectorOpen);
+  // UX5.1: the Inspector is the plots' properties - not beside a page that is in their place
+  const inspectorOpen = useApp((s) => s.inspectorOpen && !pageOnScreen(s));
   const hasFiles = runs.some((r) => r.format !== "derived");      // D7: Checks for any open file
   const logErrors = useLogErrors();
 
