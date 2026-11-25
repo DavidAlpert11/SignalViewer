@@ -194,3 +194,14 @@ export function fitLayout(tab: Tab) {
 export function pickPath(req: Omit<PickerRequest, "resolve">): Promise<string | null> {
   return new Promise((resolve) => useApp.setState({ picker: { ...req, resolve } }));
 }
+
+/** Compare's Similarity tab: marked by its kind, or (made before the mark) named so in either language. */
+export function isSimilarityTab(tab: Tab): boolean {
+  return tab.kind === "similarity" || tab.name === translate("en", "simTabName") || tab.name === translate("he", "simTabName");
+}
+
+/** A tab's name as shown: the user's, or for a tab with a role and its default name, that name in today's language. */
+export function shownTabName(tab: Tab, i: number, lang: "en" | "he"): string {
+  if (tab.kind === "similarity" && [translate("en", "simTabName"), translate("he", "simTabName")].includes(tab.name)) return translate(lang, "simTabName");
+  return tab.name || `${translate(lang, "tab")} ${i + 1}`;
+}

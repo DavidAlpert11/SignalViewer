@@ -1205,3 +1205,10 @@ judge's decision per item there (decision.md). Branch `review-1125`, one commit 
   test_checks_view::test_a_logs_own_findings_come_before_the_automatic_flags (+ the chip's wording in
   test_the_checks_file_beside_a_recording_gives_the_verdict); test_plot_polish, test_overview_strip, test_plot_room,
   test_welcome_cards, test_flat_line_solo.
+- [x] RW11 (critic NEW-1 / NEW-2, round 2) The Similarity tab: an optional `kind: "similarity"` on Tab (saved, backward
+  compatible); a row click with no remembered plot reuses a tab so marked (or named Similarity / דמיון - made before the
+  mark) instead of a second one; PlotTabs shows its default name in today's language (selectors.ts isSimilarityTab,
+  shownTabName; a name the user gave stays). Tests: Vitest similarityTab.test.ts; e2e
+  test_compare_diff::test_a_row_click_never_takes_over_the_users_plot (comparePlot cleared, Hebrew name);
+  test_compare_tolerances (now waits for the detail's end state - it raced), test_compare_params, test_judge_a_run,
+  test_tab_band, test_workflows, test_features -k "P01 or compare or tab".

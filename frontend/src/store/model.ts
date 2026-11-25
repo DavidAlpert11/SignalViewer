@@ -116,6 +116,8 @@ export interface Tab {
   linkY?: boolean;                 // shared value axis across the tab's time plots
   sharedStates?: string[];         // state signals drawn as a lane at the bottom of EVERY time plot of the tab
   rowSizes?: number[]; colSizes?: number[];   // relative sizes (drag the gaps between plots)
+  /** review 2026-11-25: a tab with a role - "similarity": the one Compare's row clicks show their signal in (optional) */
+  kind?: "similarity";
 }
 export interface ReportMeta { title: string; intro: string; summary: string; lang: "en" | "he"; theme: "light" | "dark"; scope: "tab" | "all"; investigation?: boolean;
   /** 26.U4: Compare's verdict (made by "Report…" in Compare) and whether the report includes it (default yes) */

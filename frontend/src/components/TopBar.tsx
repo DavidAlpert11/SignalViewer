@@ -8,6 +8,7 @@ import { api, type LibraryItem } from "../api";
 import { fmtNum } from "../i18n";
 import { actions, pickPath, setInspectorByUser, useApp } from "../store";
 import { PLOT_ID_MIME } from "../store/actions/layout";
+import { shownTabName } from "../store/selectors";
 import { AREAS, areaDef } from "../areas";
 import { pageOnScreen } from "./rail";
 import { useT } from "../i18n";
@@ -208,6 +209,7 @@ export function PlotTabs() {
   const t = useT();
   const ws = useApp((s) => s.ws);
   const plotDrag = useApp((s) => s.plotDrag);
+  const lang = useApp((s) => s.lang);
   const [editing, setEditing] = useState<string | null>(null);
   const at = menuAt;
   // F22: with many tabs the strip scrolls (its scrollbar is hidden): the wheel scrolls it, the active
@@ -235,7 +237,7 @@ export function PlotTabs() {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const rtl = document.documentElement.dir === "rtl";
     openMenu({ clientX: rtl ? Math.max(8, r.right - 240) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent,
-      ws.tabs.map((tab, i) => ({ label: `${tab.id === ws.activeTab ? "✓ " : "\u2003"}${tab.name || `${t("tab")} ${i + 1}`}`,
+      ws.tabs.map((tab, i) => ({ label: `${tab.id === ws.activeTab ? "✓ " : "\u2003"}${shownTabName(tab, i, lang)}`,
         run: () => actions.switchTab(tab.id) })));
   };
   // U1: the tabs a template left out, a click away - one button per template, its files still open
@@ -264,7 +266,7 @@ export function PlotTabs() {
     <nav className="tabs-wrap">
       <div className="tabs" role="tablist" ref={strip} onWheel={onStripWheel}>
         {ws.tabs.map((tab, i) => {
-          const name = tab.name || `${t("tab")} ${i + 1}`;
+          const name = shownTabName(tab, i, lang);
           return (
             <div key={tab.id} role="tab" aria-selected={tab.id === ws.activeTab} tabIndex={0} draggable
               onDragStart={(e) => { e.dataTransfer.setData("application/x-sv-tab", tab.id); e.dataTransfer.effectAllowed = "copyMove"; dragOutStart(e, tab, undefined, name); }}

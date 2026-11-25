@@ -58,5 +58,15 @@ def test_a_row_click_never_takes_over_the_users_plot(pg):
     assert pg.evaluate(f"{tab}.name") == "Similarity" and pg.evaluate(f"{tab}.plots.length") == 1
     assert pg.evaluate(tabs)[:len(before)] == before                         # the user's tabs, plots and layout untouched
     assert pg.evaluate("window.__sv.state().comparePlot") == pg.evaluate(f"{tab}.plots[0].id")
-    pg.keyboard.press("Control+z"); pg.keyboard.press("Control+z")
+    # round 2: after a restart the id is gone (UI state) - the tab is found by its mark, not made twice
+    pg.evaluate("window.__sv.setState({ comparePlot: null })")
+    pg.locator(".sim-row", has_text=names[0]).first.click()
+    pg.wait_for_function(f"{tab}.plots[{tab}.active].title === {names[0]!r}")
+    assert pg.evaluate("window.__sv.state().ws.tabs.length") == len(before) + 1
+    assert pg.evaluate(f"{tab}.kind") == "similarity"
+    pg.evaluate("window.__sv.setState({ lang: 'he' })")                         # its name follows the language
+    pg.wait_for_function("[...document.querySelectorAll('.tabs [role=tab]')].some(x => x.textContent.includes('דמיון'))")
+    pg.evaluate("window.__sv.setState({ lang: 'en' })")
+    for _ in range(3):
+        pg.keyboard.press("Control+z")
     pg.wait_for_function(f"window.__sv.state().ws.tabs.length === {len(before)}")

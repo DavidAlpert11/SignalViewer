@@ -11,6 +11,8 @@ import { Icon } from "../icons";
 import { exactMatch } from "../fuzzy";
 import { showSegmentPlot, type SegmentChoice, type SegWindow } from "../segments";
 import { signalUnit } from "../units";
+import { isSimilarityTab } from "../store/selectors";
+import type { Tab } from "../store/model";
 
 /* ---------------------------------------------------------------------------
    Compare panel. Choosing two or more files immediately lists every shared
@@ -261,9 +263,13 @@ export default function ComparePanel() {
       const signals = runsOf.map((rid) => (styledSignal(sidIn(rid, name), runColor(rid))));
       // review C4: a click flips through Compare's own plot (26.U4: its title follows) - made by the first click in a tab
       // of its own, found again by its id; it never takes over whichever plot of the user's happens to be active
-      const home = !newPlot && mine ? ws.tabs.find((tb) => tb.plots.some((p) => p.id === mine)) : undefined;
+      // round 2: the id lives in UI state only - after a restart the Similarity tab is found by its mark (or, made before
+      // the mark, by its name in either language) and its active plot reused, never a second tab
+      const byId = !newPlot && mine ? ws.tabs.find((tb) => tb.plots.some((p) => p.id === mine)) : undefined;
+      const home = byId ?? (newPlot ? undefined : ws.tabs.find((tb) => isSimilarityTab(tb) && tb.plots.length));
       if (home) {
-        const at = home.plots.findIndex((p) => p.id === mine);
+        const at = byId ? home.plots.findIndex((p) => p.id === mine) : Math.min(home.active, home.plots.length - 1);
+        made = home.plots[at].id;
         home.plots[at] = { ...home.plots[at], signals, title: name };
         home.active = at; ws.activeTab = home.id;
         return ws;
@@ -277,7 +283,7 @@ export default function ComparePanel() {
       }
       // its own tab: the user's tab keeps its plots and their layout (a fifth plot would turn 4 x 1 into 2 x 3)
       const plot = { id: uid("p"), title: name, signals };
-      const tab = { id: uid("t"), name: translate(useApp.getState().lang, "simTabName"), rows: 1, cols: 1, plots: [plot], active: 0, linkX: true };
+      const tab: Tab = { id: uid("t"), name: translate(useApp.getState().lang, "simTabName"), kind: "similarity", rows: 1, cols: 1, plots: [plot], active: 0, linkX: true };
       ws.tabs.push(tab); ws.activeTab = tab.id;
       made = plot.id;
       return ws;
