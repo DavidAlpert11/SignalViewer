@@ -32,7 +32,8 @@ def test_a_signal_has_its_own_tolerance_saved_for_the_cli(pg, tmp_path):
     field.fill("1000")                                                                  # Speed's own: it passes
     pg.wait_for_function("() => { const r = [...document.querySelectorAll('.sim-row')].find(x => x.textContent.includes('Speed'));"
                          " return r && r.querySelector('.sim-own') && r.querySelector('.sim-pass'); }", timeout=30000)
-    assert pg.locator(".cmp2 .pf.bad").count() == 0                                    # the detail follows
+    # the detail follows (asked again 350 ms after typing stops - wait for that end state, not the list's)
+    pg.wait_for_function("document.querySelector('.cmp2 .pf') && !document.querySelector('.cmp2 .pf.bad')", timeout=30000)
     st = pg.evaluate("window.__sv.state().compareTol")
     assert st["default"] == {"abs": 2} and list(st["signals"].values()) == [{"abs": 1000}]
     # leave another out of pass / fail
