@@ -1172,3 +1172,10 @@ judge's decision per item there (decision.md). Branch `review-1125`, one commit 
   recent split stays that list's own add (one app-level Open, the panel's add beside its list). Tests: e2e
   test_file_help_menus; also test_first_minute, test_templates_recent_badfiles, test_tour, test_unsaved_close,
   test_workflows, test_calm_screen, test_messages, test_aligned_plots, test_plot_menus.
+- [x] RW5 (C4) Compare: a row click flips through Compare's own plot (ui slice `comparePlot`, UI-only), made by the
+  first click in a tab of its own ("Similarity", simTabName) - a plot added to the user's tab turned its 4 x 1 into
+  2 x 3; Shift+click still a new plot in the active tab; the hint on screen (simClickHint). Segments keep their own
+  tab as before. The DiffChart still scrolls the detail into view (the click's answer). Tests: e2e
+  test_compare_diff::test_a_row_click_never_takes_over_the_users_plot, test_features (P01 updated: the differences
+  join the Similarity tab), test_compare_params, test_compare_tolerances, test_judge_a_run, test_workflows,
+  test_welcome_cards.

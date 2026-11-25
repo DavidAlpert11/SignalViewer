@@ -32,3 +32,27 @@ def test_where_and_why_a_signal_fails(pg):
     pg.wait_for_function("!document.querySelector('.sim-row .sim-pass')", timeout=30000)
     pg.locator(".sim-row", has_text="Speed").first.click()
     pg.wait_for_function("document.querySelector('.diff-chart') && !document.querySelector('.diff-band')", timeout=20000)
+
+
+def test_a_row_click_never_takes_over_the_users_plot(pg):
+    """Review 2026-11-25 (C4): a click on a ranked signal replaced the signals of whichever plot was active. Now the
+    first click makes Compare's own plot, later clicks flip through that one; the user's plots stay as they were;
+    Undo takes it all back; Shift+click is said on screen."""
+    open_example(pg, "car")
+    pg.wait_for_function("document.querySelectorAll('.run-head').length === 3")
+    pg.click("[aria-label='Compare runs']")
+    pg.wait_for_selector(".sim-row", timeout=30000)
+    assert "Shift+click" in pg.inner_text(".sim-click-hint")
+    tab = "window.__sv.state().ws.tabs.find(t => t.id === window.__sv.state().ws.activeTab)"
+    tabs = "window.__sv.state().ws.tabs.map(t => t.id + '|' + t.rows + 'x' + t.cols + '|' + t.plots.map(p => p.id + ':' + p.signals.map(s => s.sig).join(',')).join(';'))"
+    before = pg.evaluate(tabs)
+    names = [x.split("\n")[0] for x in pg.locator(".sim-row .sim-name").all_inner_texts()][:2]
+    for name in names:
+        pg.locator(".sim-row", has_text=name).first.click()
+        pg.wait_for_function(f"{tab}.plots[{tab}.active].title === {name!r}")
+        assert pg.evaluate("window.__sv.state().ws.tabs.length") == len(before) + 1    # one tab of its own, the second click too
+    assert pg.evaluate(f"{tab}.name") == "Similarity" and pg.evaluate(f"{tab}.plots.length") == 1
+    assert pg.evaluate(tabs)[:len(before)] == before                         # the user's tabs, plots and layout untouched
+    assert pg.evaluate("window.__sv.state().comparePlot") == pg.evaluate(f"{tab}.plots[0].id")
+    pg.keyboard.press("Control+z"); pg.keyboard.press("Control+z")
+    pg.wait_for_function(f"window.__sv.state().ws.tabs.length === {len(before)}")

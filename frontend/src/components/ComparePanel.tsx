@@ -254,20 +254,34 @@ export default function ComparePanel() {
   };
   const showInPlot = (name: string, runsOf: string[], newPlot: boolean) => {
     if (segment) { showSegmentPlot(name, runsOf, segment, newPlot, runColor, sim?.find((x) => x.name === name)?.sigs); return; }
-    let full = false;
+    let full = false, made: string | null = null;
+    const mine = useApp.getState().comparePlot;
     useApp.getState().commit((ws) => {
-      const tab = activeTab(ws);
       const signals = runsOf.map((rid) => (styledSignal(sidIn(rid, name), runColor(rid))));
+      // review C4: a click flips through Compare's own plot (26.U4: its title follows) - made by the first click in a tab
+      // of its own, found again by its id; it never takes over whichever plot of the user's happens to be active
+      const home = !newPlot && mine ? ws.tabs.find((tb) => tb.plots.some((p) => p.id === mine)) : undefined;
+      if (home) {
+        const at = home.plots.findIndex((p) => p.id === mine);
+        home.plots[at] = { ...home.plots[at], signals, title: name };
+        home.active = at; ws.activeTab = home.id;
+        return ws;
+      }
       if (newPlot) {
+        const tab = activeTab(ws);
         const at = placePlot(tab, { id: uid("p"), title: name, signals });
         if (at < 0) { full = true; return ws; }
         tab.active = at;
-      } else {
-        const p = tab.plots[tab.active];
-        if (p) { p.signals = signals; p.title = name; }     // flip through signals in the same plot (26.U4: its title follows)
+        return ws;
       }
+      // its own tab: the user's tab keeps its plots and their layout (a fifth plot would turn 4 x 1 into 2 x 3)
+      const plot = { id: uid("p"), title: name, signals };
+      const tab = { id: uid("t"), name: translate(useApp.getState().lang, "simTabName"), rows: 1, cols: 1, plots: [plot], active: 0, linkX: true };
+      ws.tabs.push(tab); ws.activeTab = tab.id;
+      made = plot.id;
       return ws;
     });
+    if (made) useApp.setState({ comparePlot: made });
     if (full) tabFullMessage();
   };
   const pick = (x: CompareAllRow, e: React.MouseEvent) => {
@@ -537,6 +551,7 @@ export default function ComparePanel() {
               <label className="filter sim-filter"><Icon.Search />
                 <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE); }} placeholder={t("searchSignals")} aria-label={t("searchSignals")} /></label>
             )}
+            <p className="hint sim-click-hint">{t("simClickHint")}</p>
             <div className="sim-list" role="list">
               {list.slice(0, limit).map((x) => {
                 const b = bucketOf(x.matchPct);

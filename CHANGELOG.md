@@ -24,6 +24,10 @@
   "open a file" - and there was no way to open a data file from the top bar. *Open ▾* now offers *Open files…*
   (Ctrl+O), *Open session…* (Ctrl+Shift+O) and the recent files; its label folds away on a narrow window like the
   others.
+- Fixed: **a click in Compare's similarity list no longer replaces your plot.** It put the signal into whichever plot
+  happened to be active, silently. The first click now opens a *Similarity* tab of its own, and later clicks flip
+  through that one plot - your tabs, plots and layout stay as they were (one Undo takes it back). The list says so,
+  with *Shift+click: a new plot here*.
 
 ## 1.36.0 – 2026-11-24
 

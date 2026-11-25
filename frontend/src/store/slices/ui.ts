@@ -146,6 +146,8 @@ export interface UiSlice {
   /** O1: SV_OFFLINE=1 for the app - the same, and the setting is locked on (from /api/settings; UI only) */
   offlineForced: boolean;
   /** U1: the "which tabs?" dialog (UI only) */
+  /** Review C4: the plot Compare's row clicks flip through (made by the first click; never the user's other plots) */
+  comparePlot: string | null;
   tabChoice: { tpl: import("../../api").Template; all: import("../../api").Template[]; bind: Record<string, string> } | null;
   /** F24: each plot's room left / right of its plot area (px), so a column of plots shares one -
    *  the time axes line up. Reported by the charts; UI only. */
@@ -255,6 +257,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   offlineOnly: false,
   offlineForced: false,
   tabChoice: null,
+  comparePlot: null,
   gutters: {},
   xViews: {},
   stripLanes: [],

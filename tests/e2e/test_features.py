@@ -770,7 +770,9 @@ def test_P01_to_P08_compare(pg):
     pg.locator("table.cmp2 tbody").nth(1).locator("button").click()     # P-06 auto shift
     pg.wait_for_selector(".toast:has-text('shifted')")
     pg.click("text=Plot differences")                                    # P-05, P-07
-    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.filter(p => p.signals.length).length >= 2")
+    # review C4: the row click showed Speed in the Similarity tab (the user's tab untouched); the differences join it
+    pg.wait_for_function("(() => { const w = window.__sv.state().ws; return w.tabs.length === 2 && "
+                         "w.tabs.find(t => t.id === w.activeTab).plots.filter(p => p.signals.length).length >= 2; })()")
     pg.click(".cmp-panel .btn:has-text('Export CSV')"); save_as(pg, "cmp.csv")   # P-08
     pg.wait_for_selector(".toast:has-text('cmp.csv')")
     pg.click("text=Table of all signals")
