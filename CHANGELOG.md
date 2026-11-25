@@ -14,6 +14,12 @@
   counts only what there is, in its number ("1 analysis step recorded", no "0 faults"). *What to look at* puts the
   recording's flags first (a signal flat at its limit before a gap or a spike); a change of state - a log's boot
   messages, a mode change - is a moment in its table, no longer a warning at the top.
+- Fixed: ***What changed?* counts that add up.** One line under the answer now accounts for every signal asked about,
+  each once - "13 signals: 6 changed · 5 did not change · 2 left out as telling nothing"; the headline and the filter
+  count the same way (before: "5 signals changed", "6 of 6" and a total of 14 for a file of 13). The first change is
+  given on the plots' clock and from the span's start ("Wind at 38.02 s (-0.38 s from the span's start)"), and the
+  span line says what the relative times count from. One name for the action everywhere: *What changed?* ("1 signal",
+  not "1 signals"). The caveats ("likely is not proof of cause") and the usual-level line are unchanged.
 
 ## 1.36.0 – 2026-11-24
 

@@ -294,3 +294,25 @@ def test_another_span_keeps_the_first_one_to_open_again_or_remove(pg):
     assert pg.locator(".wc-earlier").count() == 0
     pg.locator(".wc-head .iconbtn").click()
     pg.wait_for_function("window.__sv.state().whatChanged === null")
+
+
+def test_the_counts_add_up_and_the_first_change_has_its_time(pg):
+    """Review 2026-11-25 (C5): "5 signals changed", the filter "6 of 6", "7 did not change", "2 left out" for a file
+    of 13 - the counts did not add up. Now one line: every signal asked about in exactly one group, the headline and
+    the filter counting the same; the first change at its time on the plots' clock and from the span's start."""
+    open_files(pg, "heavy_payload.csv")
+    pg.locator(".sig").filter(has=pg.get_by_text("Roll", exact=True)).first.click()
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 38.46, t2: 39.24, active: 1 } })")
+    pg.wait_for_selector(".sel-bar:not([hidden])")
+    pg.click(".sel-changed")
+    pg.wait_for_selector(".wc-section .wc-tally")
+    assert pg.inner_text(".wc-head h3") == "What changed?"                         # one name for the action
+    tally = pg.locator(".wc-tally")
+    n = {k: int(tally.get_attribute(f"data-{k}")) for k in ("total", "changed", "same", "left", "nodata")}
+    assert n["total"] == n["changed"] + n["same"] + n["left"] + n["nodata"]
+    assert n["total"] == S(pg, "s.runs.find(r => r.name === 'heavy_payload.csv').signals.length")   # the scope's (13)
+    assert tally.inner_text().startswith(f"{n['total']} signals: {n['changed']} changed")
+    summary = pg.inner_text(".wc-sum")
+    assert summary.startswith(f"{n['changed']} signals changed") and "Wind at 38.0" in summary and "from the span's start" in summary
+    assert pg.inner_text(".wc-count") == f"{n['changed']} of {n['changed']}"
+    assert not any(" 1 signals" in h for h in pg.locator(".wc-chead").all_inner_texts())

@@ -1160,3 +1160,10 @@ judge's decision per item there (decision.md). Branch `review-1125`, one commit 
   a change of state is "info", flags weigh by kind (FLAG_WEIGHT) in [[summary]]. Tests: backend
   test_report_parts::test_what_to_look_at_puts_a_flag_before_changes_of_state; e2e
   test_findings_report::test_journal_and_report_sections.
+- [x] RW3 (C5) What changed?: changed / same / no data exclude the left-out (skip) ones, so the four groups add up to
+  the signals asked about; a tally line (wcTally, data-total / -changed / -same / -left / -nodata); the headline's n =
+  the changed ones (the event's own too) = the filter's m; the first change's absolute time beside the relative one
+  (wcSummary {abs}), wcSpan says what the times count from; "What changed?" for the title, the Investigate button,
+  the journal (jChanged, jk_changed); singulars (wcClusterOne, wcSummaryOne); the event alone in its cluster named.
+  The wording pass on the long hints: later. Tests: e2e test_what_changed::test_the_counts_add_up_and_the_first_change_has_its_time,
+  test_what_changed, test_features -k investigat, test_welcome_cards, test_plot_room, test_findings_report, test_conditions.

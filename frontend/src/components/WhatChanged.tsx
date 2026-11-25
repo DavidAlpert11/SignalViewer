@@ -106,9 +106,11 @@ export default function WhatChanged() {
   useEffect(() => () => useApp.setState({ changeMarks: null }), []);      // the dashed lines go with the section
 
   const close = () => useApp.setState({ whatChanged: null, changeMarks: null });
-  const changed = (items ?? []).filter((x) => x.status === "changed");
-  const same = (items ?? []).filter((x) => x.status === "same");
-  const nodata = (items ?? []).filter((x) => x.status === "nodata");
+  // review C5: four groups that do not overlap and add up to every signal asked about - what tells nothing (constant, a
+  // counter, a heartbeat) is left out whatever its status, so it is counted there only
+  const changed = (items ?? []).filter((x) => x.status === "changed" && !x.skip);
+  const same = (items ?? []).filter((x) => x.status === "same" && !x.skip);
+  const nodata = (items ?? []).filter((x) => x.status === "nodata" && !x.skip);
   // the filter: every word in the name (or the file's), in any case
   const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
   const visible = (x: FirstChange) => !hidden.includes(x.id) && words.every((w) => signalName(runs, x.id).toLowerCase().includes(w));
@@ -222,7 +224,9 @@ export default function WhatChanged() {
                     <button className="iconbtn sm wc-hide" aria-label={t("wcHide")} title={t("wcHide")} onClick={() => hide([x.id])}><Icon.X /></button>
                   </div>
                 );
-  const summary = shown.length ? onsetSummary(t, lang, runs, shown, span) : null;
+  const summary = shown.length ? onsetSummary(t, lang, runs, shown, span, changed.length) : null;
+  const tally = items ? ([[changed.length, "wcTallyChanged"], [same.length, "wcTallySame"], [leftOut.length, "wcTallyLeftOut"], [nodata.length, "wcTallyNoData"]] as const)
+    .filter(([n]) => n > 0).map(([n, k]) => t(k, { n })).join(" · ") : "";
   return (
     <section className="wc-section">
       <div className="wc-head">
@@ -244,6 +248,8 @@ export default function WhatChanged() {
           {/* D5: the verdict first, as one tinted card; the caveat stays in it, the how-to-read folded */}
           <div className={`card wc-verdict${summary ? " warn" : ""}`}>
             {summary && <p className="card-title wc-sum">{summary}</p>}
+            {tally && !noRoom && <p className="card-meta wc-tally" data-total={items.length} data-changed={changed.length} data-same={same.length}
+              data-left={leftOut.length} data-nodata={nodata.length}>{t(items.length === 1 ? "wcTallyOne" : "wcTally", { n: items.length, list: tally })}</p>}
             <details className="wc-how">
               <summary>{t("wcHowRead")}</summary>
               <p className="wc-warn">{t(order === "likely" ? "wcNotCauseLikely" : "wcNotCause")}{coarse > 0.02 ? ` ${t("wcResolution", { ms: fmtNum(coarse * 1000, lang, 3) })}` : ""}</p>
@@ -272,7 +278,8 @@ export default function WhatChanged() {
               const k = c.first, open = openC.includes(k);
               const xs = c.ids.map((id) => byId.get(id)!);
               const rel = (v: number) => (v - span.a >= 0 ? "+" : "") + fmtNum(v - span.a, lang, 3);
-              const top = xs.filter((x) => !x.isEvent).slice(0, 3).map((x) => x.name);
+              // the event's own signal alone in its cluster: named, not "…"
+              const top = (xs.some((x) => !x.isEvent) ? xs.filter((x) => !x.isEvent) : xs).slice(0, 3).map((x) => x.name);
               // Q133: names grouped by their message / prefix (ATT.Roll, ATT.Pitch...) when two or more share it
               const pre = (x: FirstChange) => (x.name.includes(".") ? x.name.slice(0, x.name.indexOf(".")) : "");
               const counts = new Map<string, number>();
@@ -290,7 +297,7 @@ export default function WhatChanged() {
                 <div className="wc-ghead">
                   <button className="linklike wc-chead" aria-expanded={open} onClick={() => toggleC(k)}
                     title={c.t1 > c.t0 ? t("wcClusterSpan", { a: rel(c.t0), b: rel(c.t1) }) : undefined}>
-                    {open ? "▾" : "▸"} <bdi dir="ltr">{rel(c.t0)}</bdi> {t("seconds")} · {k === "skipped" ? t("wcLeftOutGroup", { n: xs.length }) : t("wcClusterN", { n: xs.length })}
+                    {open ? "▾" : "▸"} <bdi dir="ltr">{rel(c.t0)}</bdi> {t("seconds")} · {k === "skipped" ? t("wcLeftOutGroup", { n: xs.length }) : t(xs.length === 1 ? "wcClusterOne" : "wcClusterN", { n: xs.length })}
                     {k !== "skipped" && <span className="wc-ctop" dir="ltr"> {top.join(", ")}{xs.length > top.length ? " …" : ""}</span>}
                   </button>
                   {k !== "skipped" && <span className="wc-score" title={t("wcScoreHint")}>{Math.round(c.best * 100)}</span>}
@@ -305,7 +312,7 @@ export default function WhatChanged() {
                   {rows.map((part) => "prefix" in part ? (
                     <div key={part.prefix} className="wc-prefix">
                       <button className="linklike wc-ptoggle" aria-expanded={openP.includes(`${k}|${part.prefix}`)} onClick={() => toggleP(`${k}|${part.prefix}`)}>
-                        {openP.includes(`${k}|${part.prefix}`) ? "▾" : "▸"} <bdi dir="ltr">{part.prefix}.*</bdi> · {t("wcClusterN", { n: part.members.length })}
+                        {openP.includes(`${k}|${part.prefix}`) ? "▾" : "▸"} <bdi dir="ltr">{part.prefix}.*</bdi> · {t(part.members.length === 1 ? "wcClusterOne" : "wcClusterN", { n: part.members.length })}
                         <span className="wc-score">{Math.round(Math.max(...part.members.map((m) => m.score ?? 0)) * 100)}</span>
                       </button>
                       {openP.includes(`${k}|${part.prefix}`) && part.members.map(ROW)}
@@ -365,13 +372,15 @@ function onsetLabels(runs: RunInfo[], xs: FirstChange[]) {
 }
 
 /** D5: the answer in one sentence - the verdict card's title (the first change, the most likely one). */
-function onsetSummary(t: ReturnType<typeof useT>, lang: Lang, runs: RunInfo[], xs: FirstChange[], span: { a: number }) {
+function onsetSummary(t: ReturnType<typeof useT>, lang: Lang, runs: RunInfo[], xs: FirstChange[], span: { a: number }, n: number) {
   const { timed, label } = onsetLabels(runs, xs);
   if (!timed.length) return null;
   const first = [...timed].sort((a, b) => a.t! - b.t!)[0];
   const likely = [...timed].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
   const at = (first.t! - span.a >= 0 ? "+" : "") + fmtNum(first.t! - span.a, lang, 3);
-  return t("wcSummary", { n: timed.length, first: label(first), at, likely: label(likely) });
+  // n: every signal that changed (the event's own too), as the tally and the filter count them (review C5); the time
+  // both on the plots' clock and from the span's start
+  return t(n === 1 ? "wcSummaryOne" : "wcSummary", { n, first: label(first), abs: fmtNum(first.t!, lang, 6), at, likely: label(likely) });
 }
 
 function Onsets({ t, lang, xs, span, order, onRow }: { t: ReturnType<typeof useT>; lang: Lang; xs: FirstChange[];
