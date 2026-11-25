@@ -14,7 +14,7 @@ compare. Everything runs on your computer; nothing is sent anywhere.
 
 ## 2. Open your files
 
-- **+ Open files** in the file list (Ctrl+O), or drop files on the window. CSV and text tables, MATLAB `.mat`,
+- **+ Open files** in the file list or *Open ▾* in the top bar (Ctrl+O), or drop files on the window. CSV and text tables, MATLAB `.mat`,
   ArduPilot `.bin`, PX4 `.ulg`, MAVLink `.tlog`, ROS 2 `.mcap`, HDF5 and Parquet are read directly.
 - From Windows Explorer: right-click a file → **Open with → Signal Viewer**. If the app is already
   open, the file opens in it.
@@ -389,7 +389,7 @@ shown change together – on the axis, in the list, in the legend – and it can
 
 ## 9. Keep and share your work
 
-- **Save session** (the disk icon at the top left, Ctrl+S; opening one: the folder icon next to it, Ctrl+Shift+O) keeps everything – files, tabs, plots, zoom, notes. The app also
+- **Save session** (the disk icon at the top left, Ctrl+S; opening one: *Open ▾ → Open session…* beside it, Ctrl+Shift+O) keeps everything – files, tabs, plots, zoom, notes. The app also
   restores your last work by itself when it starts.
 - **Templates** (the top bar): save a tab or a whole set of tabs as a template, and open it later on
   other files with the same signals.

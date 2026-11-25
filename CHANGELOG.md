@@ -2,6 +2,10 @@
 
 ## Next – unreleased
 
+## 1.37.0 – 2026-11-26
+
+**Highlights:** **The app says what it checked - and only that.** Green in Checks and Sweeps means checked and fine; with nothing to judge it says so, and the automatic flags are counted. *What changed?* counts that add up, with times on the plots' clock. A report that names files, not your folders. A labelled *Open* in the top bar, and Compare's similarity list that no longer replaces your plot.
+
 - Fixed: **Checks no longer says "all good" when nothing was checked.** With no limits, no checks file and no log health
   check, the verdict was a green *Nothing outside its limits, no data problems found* - even above a motor the app
   itself had flagged flat at its limit. Now that verdict is grey and says that nothing was judged yet; the automatic
