@@ -33,6 +33,7 @@ def test_file_and_help_menus(pg):
     opener = pg.locator(".area-tools .open-menu-btn")
     assert opener.inner_text().strip().startswith("Open")
     opener.click()
+    pg.locator(".menu.ctx button", has_text="Recent files").wait_for()   # the END state: the whole menu is open
     items = [x.strip() for x in pg.locator(".menu.ctx button").all_inner_texts()]
     assert items[0].startswith("Open files…") and items[1].startswith("Open session…") and items[2].startswith("Recent files"), items
     pg.locator(".menu.ctx button", has_text="Open files…").click()
