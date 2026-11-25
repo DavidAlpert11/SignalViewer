@@ -12,7 +12,7 @@ import { AREAS, areaDef } from "../areas";
 import { pageOnScreen } from "./rail";
 import { useT } from "../i18n";
 import { BrandMark, Icon } from "../icons";
-import { openSession, saveSession } from "../files";
+import { openPaths, openSession, recentToOpen, refreshRecent, saveSession } from "../files";
 import { copyErrorDetails, reportProblem } from "../errorReport";
 import type { MenuItem, MoreTabs } from "../store";
 import { openMenu } from "./Overlays";
@@ -144,7 +144,23 @@ function RecordingsTools() {
   const at = menuAt;
   return (
     <span className="area-tools" role="toolbar" aria-label={t(areaDef("recordings").label)}>
-      <button className="iconbtn" onClick={() => openSession()} title={`${t("openSession")}… (Ctrl+Shift+O)`} aria-label={t("openSession")}><Icon.Open /></button>
+      {/* review C3: a folder means "open a file" everywhere else - the bare folder here opened a *session*. One labelled
+          Open: data files, a session, a recent file (the Files panel's + stays that list's own add) */}
+      <button className="btn open-menu-btn" aria-haspopup="menu" aria-label={t("openMenu")} title={t("openMenuHint")}
+        onClick={async (e) => {
+          const pos = at(e, 300);
+          await refreshRecent();
+          const recent = recentToOpen(8);
+          openMenu(pos, [
+            { label: `${t("openFiles")}…`, keys: "Ctrl+O", run: () => useApp.setState({ browserOpen: true }) },
+            { label: `${t("openSession")}…`, keys: "Ctrl+Shift+O", run: () => { void openSession(); } },
+            { label: t("recentFiles"), run: () => {}, disabled: !recent.length,
+              items: recent.map((x) => ({ label: x.exists ? `${x.name}  ·  ${x.folder}` : `${x.name}  ·  ${t("notFound")}`,
+                run: () => { void openPaths([x.path]); }, disabled: !x.exists })) },
+          ]);
+        }}>
+        <Icon.Folder /><span className="hide-compact">{t("openMenu")}</span> <Icon.Chevron width={12} height={12} />
+      </button>
       <button className="iconbtn" onClick={saveSession} title={`${t("saveSession")} (Ctrl+S)`} aria-label={t("saveSession")}><Icon.Save /></button>
       {/* E1: a part of a recording as a new file - a file action, beside Save */}
       {hasRuns && <button className="iconbtn export-rec-btn" onClick={() => useApp.setState({ exportRecOpen: true })} title={t("xrMenu")} aria-label={t("xrMenu")}><Icon.Download /></button>}

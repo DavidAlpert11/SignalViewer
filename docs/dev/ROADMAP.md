@@ -1167,3 +1167,8 @@ judge's decision per item there (decision.md). Branch `review-1125`, one commit 
   the journal (jChanged, jk_changed); singulars (wcClusterOne, wcSummaryOne); the event alone in its cluster named.
   The wording pass on the long hints: later. Tests: e2e test_what_changed::test_the_counts_add_up_and_the_first_change_has_its_time,
   test_what_changed, test_features -k investigat, test_welcome_cards, test_plot_room, test_findings_report, test_conditions.
+- [x] RW4 (C3) TopBar: the bare folder (Open session) is a labelled *Open ▾* (.open-menu-btn): Open files… (browserOpen),
+  Open session… (openSession), Recent files (recentToOpen, a submenu); the label hide-compact. The Files panel's + /
+  recent split stays that list's own add (one app-level Open, the panel's add beside its list). Tests: e2e
+  test_file_help_menus; also test_first_minute, test_templates_recent_badfiles, test_tour, test_unsaved_close,
+  test_workflows, test_calm_screen, test_messages, test_aligned_plots, test_plot_menus.

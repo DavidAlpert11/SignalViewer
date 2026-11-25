@@ -27,8 +27,17 @@ def test_file_and_help_menus(pg):
     # group (.area-tools) - session and Clear are the Recordings area's
     for label in ("Settings", "Theme"):
         assert pg.locator(f".topbar [aria-label='{label}']").count() == 1, label
-    for label in ("Open session", "Save session", "Clear", "Live mode settings"):
+    for label in ("Open", "Save session", "Clear", "Live mode settings"):
         assert pg.locator(f".area-tools [aria-label='{label}']").count() == 1, label
+    # review C3: the folder is a labelled Open - data files first, then a session, then the recent files
+    opener = pg.locator(".area-tools .open-menu-btn")
+    assert opener.inner_text().strip().startswith("Open")
+    opener.click()
+    items = [x.strip() for x in pg.locator(".menu.ctx button").all_inner_texts()]
+    assert items[0].startswith("Open files…") and items[1].startswith("Open session…") and items[2].startswith("Recent files"), items
+    pg.locator(".menu.ctx button", has_text="Open files…").click()
+    pg.wait_for_function("window.__sv.state().browserOpen === true")
+    close_dialog(pg)
     # Live follows the open files: it is the Recordings area's (owner, 2026-11-02) - in its tools, gone in another area
     assert pg.locator(".topbar .live-btn").count() == 1 and pg.locator(".area-tools .live-btn").count() == 1
     pg.evaluate("window.__sv.setState({ area: 'sweeps' })")
