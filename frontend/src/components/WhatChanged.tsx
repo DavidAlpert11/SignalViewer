@@ -419,6 +419,8 @@ function Onsets({ t, lang, xs, span, order, onRow }: { t: ReturnType<typeof useT
       </ol>
       <div className="wc-oaxis" dir="ltr"><span style={{ insetInlineStart: pct(span.a) }}>0</span><span>{rel(hi)} s</span></div>
       {timed.length > top.length && <p className="hint">{t("wcOnsetsMore", { n: top.length, m: timed.length })}</p>}
+      {/* round 2: the headline counts the event's own signal too - say why it has no bar here */}
+      {xs.some((x) => x.isEvent) && <p className="hint wc-onsets-event">{t("wcOnsetsEvent", { name: xs.filter((x) => x.isEvent).map((x) => x.name).join(", ") })}</p>}
     </figure>
   );
 }

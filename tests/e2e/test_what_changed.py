@@ -316,3 +316,7 @@ def test_the_counts_add_up_and_the_first_change_has_its_time(pg):
     assert summary.startswith(f"{n['changed']} signals changed") and "Wind at 38.0" in summary and "from the span's start" in summary
     assert pg.inner_text(".wc-count") == f"{n['changed']} of {n['changed']}"
     assert not any(" 1 signals" in h for h in pg.locator(".wc-chead").all_inner_texts())
+    # round 2: the chart has a bar per changed signal but the event's own, and says so
+    bars = int(pg.locator(".wc-onsets").get_attribute("data-rows"))
+    if bars < n["changed"]:
+        assert "the event's own signal" in pg.inner_text(".wc-onsets-event")

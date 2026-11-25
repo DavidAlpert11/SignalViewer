@@ -23,7 +23,8 @@
   count the same way (before: "5 signals changed", "6 of 6" and a total of 14 for a file of 13). The first change is
   given on the plots' clock and from the span's start ("Wind at 38.02 s (-0.38 s from the span's start)"), and the
   span line says what the relative times count from. One name for the action everywhere: *What changed?* ("1 signal",
-  not "1 signals"). The caveats ("likely is not proof of cause") and the usual-level line are unchanged.
+  not "1 signals"). The caveats ("likely is not proof of cause") and the usual-level line are unchanged. The timeline
+  says why the event's own signal has no bar of its own (it is counted in the headline).
 - Changed: **the top bar's folder is a labelled *Open*.** It opened a *session*, while a folder everywhere else means
   "open a file" - and there was no way to open a data file from the top bar. *Open ▾* now offers *Open files…*
   (Ctrl+O), *Open session…* (Ctrl+Shift+O) and the recent files; its label folds away on a narrow window like the

@@ -1212,3 +1212,5 @@ judge's decision per item there (decision.md). Branch `review-1125`, one commit 
   test_compare_diff::test_a_row_click_never_takes_over_the_users_plot (comparePlot cleared, Hebrew name);
   test_compare_tolerances (now waits for the detail's end state - it raced), test_compare_params, test_judge_a_run,
   test_tab_band, test_workflows, test_features -k "P01 or compare or tab".
+- [x] RW12 (C5 residual, round 2) What changed?'s timeline: a line naming the event's own signal, counted in the
+  headline but not drawn (wcOnsetsEvent, .wc-onsets-event). Test: e2e test_what_changed (13).
