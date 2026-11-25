@@ -86,9 +86,12 @@ export async function investigationSections(lang: "en" | "he") {
     const extra = [s.time_column ? `${t("taColumn")}: ${s.time_column}` : "", s.time_scale ? `× ${s.time_scale}` : "", f.timeOffset ? `${t("taOffset")}: ${f.timeOffset} s` : ""].filter(Boolean).join(", ");
     // review C11: a report sent outside does not carry this computer's folders - the file's name, its samples and when
     // it was saved say which file it is; the full path only when chosen in Settings
-    const at = f.fileTime ? new Date(f.fileTime * 1000).toISOString().slice(0, 16).replace("T", " ") : "–";
-    const which = st.reportPaths ? f.path : t("rFileLine", { name: f.name, n: f.samples.toLocaleString("en-US"), when: at });
-    items.push(`${fileLabel(st.runs, f.id)}: ${which}${extra ? ` (${extra})` : ""}`);
+    const d = f.fileTime ? new Date(f.fileTime * 1000) : null, two = (n: number) => String(n).padStart(2, "0");
+    const at = d ? `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}:${two(d.getMinutes())}` : "–";
+    const label = fileLabel(st.runs, f.id);
+    const which = st.reportPaths ? `${label}: ${f.path}`
+      : `${label === f.name ? "" : `${label}: `}${t("rFileLine", { name: f.name, n: f.samples.toLocaleString("en-US"), when: at })}`;
+    items.push(`${which}${extra ? ` (${extra})` : ""}`);
   }
   for (const c of conds.filter((x) => !x.combine)) {
     items.push(`${c.name}: ${c.text}${c.exit ? `; ${t("condExit")} ${c.exit}` : ""}${c.minDur ? `; ≥ ${c.minDur} s` : ""}${c.mergeGap ? `; ${t("condMergeGap")} ${c.mergeGap}` : ""}`);
