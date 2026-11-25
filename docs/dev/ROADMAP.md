@@ -1184,3 +1184,8 @@ judge's decision per item there (decision.md). Branch `review-1125`, one commit 
   changes or another file opens; no timer (the advocate's A1). Tests: e2e
   test_plot_room::test_a_demo_line_with_a_next_step_changes_to_it; also test_messages, test_report_parts,
   test_welcome_cards, test_cursor_labels, test_file_colours, test_less_clutter, test_folder_of_recordings, test_tab_band.
+- [x] RW7 (C8, small part) Compare: simPctHint on the % (the formula of svcore/compare.py matchPct), the detail's RMS Δ /
+  Max |Δ| heads with the signal's unit (signalUnit; .th-unit keeps its case), its % of range in the RMS cell's tooltip,
+  corr "Correlation". Ranking unchanged (A4). Left: the unit on the difference plot, a noise-ratio note. Tests: e2e
+  test_compare_diff::test_where_and_why_a_signal_fails; test_compare_tolerances, test_judge_a_run,
+  test_compare_params, test_features -k "P01 or compare or table".

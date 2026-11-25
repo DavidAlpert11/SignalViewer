@@ -32,6 +32,10 @@
   panel - over the Report editor, the Messages steps, Checks - taking two or three lines on a small window. It now
   stays while its answer is on screen (no timer: it is there to be read) and goes when you open another panel or
   another file; *Help -> Examples* opens the example again.
+- Changed: **Compare says what its numbers are.** The similarity % has a definition where it is shown (100 % minus the
+  RMS difference as a share of the signal's range - why signals in different units can be ranked together); the
+  selected signal's RMS Δ and Max |Δ| carry the signal's unit, and *Correlation* is written out. The ranking is
+  unchanged.
 
 ## 1.36.0 – 2026-11-24
 

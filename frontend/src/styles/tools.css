@@ -286,3 +286,6 @@ input.fx-input { width: 100%; }
 .tl-window { display: inline-flex; align-items: center; gap: var(--sp-1); flex: none; }
 .tl-window input { width: 58px; }
 @media (max-width: 760px) { .tl-clock .hint { display: none; } .tl-clock { min-width: 0; } }
+
+/* review C8: a unit in an upper-case table head keeps its own case (km/h is not KM/H) */
+th .th-unit { text-transform: none; letter-spacing: 0; }

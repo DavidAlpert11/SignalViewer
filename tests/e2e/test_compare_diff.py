@@ -23,6 +23,10 @@ def test_where_and_why_a_signal_fails(pg):
     pg.locator(".sim-row", has_text="Speed").first.click()
     chart = pg.locator(".diff-chart")
     chart.wait_for(timeout=20000)
+    # review C8: the differences in the signal's unit, correlation written out, the match % defined where it is shown
+    head = pg.locator("table.cmp2 thead").inner_text()
+    assert "[km/h]" in head and head.count("[km/h]") == 2 and "CORRELATION" in head.upper()
+    assert "share of the signal's range" in pg.locator(".sim-row .sim-pct").first.get_attribute("title")
     assert chart.locator(".diff-band").count() == 1 and chart.locator(".diff-line").count() == 2
     assert chart.locator(".diff-out").count() >= 1 and "outside" in chart.locator("figcaption").inner_text()
     chart.locator(".diff-outs button").first.click()                         # to the first stretch outside

@@ -10,6 +10,7 @@ import { startJob } from "../files";
 import { Icon } from "../icons";
 import { exactMatch } from "../fuzzy";
 import { showSegmentPlot, type SegmentChoice, type SegWindow } from "../segments";
+import { signalUnit } from "../units";
 
 /* ---------------------------------------------------------------------------
    Compare panel. Choosing two or more files immediately lists every shared
@@ -290,6 +291,7 @@ export default function ComparePanel() {
     detail(x.name, rs);
   };
   const current = sim?.find((x) => x.name === signal);
+  const detailUnit = rows?.length ? signalUnit(allRuns, rows[0].id) : null;
   const detailRuns = current?.runs ?? active;
   // 26.U5: a changed tolerance judges the signal on screen again (after typing stops)
   const firstTol = useRef(true);
@@ -564,7 +566,7 @@ export default function ComparePanel() {
                       {x.pass === true && <span className="sim-pass" aria-label={t("pass")} title={t("pass")}>✓</span>}
                       {x.skipped && <span className="sim-skip">{t("tolSkipped")}</span>}
                       {x.tolKey && !x.skipped && <span className="sim-own" title={t("tolOwn")} aria-label={t("tolOwn")}>±</span>}</span>
-                    <span className={`sim-pct ${b}`}>{fmtNum(x.matchPct ?? 0, lang, 3)}%</span>
+                    <span className={`sim-pct ${b}`} title={t("simPctHint")}>{fmtNum(x.matchPct ?? 0, lang, 3)}%</span>
                     <span className="sim-bar"><span className={b} style={{ width: `${Math.max(2, x.matchPct ?? 0)}%` }} /></span>
                     <Spark values={x.profile} bucket={b} />
                   </button>
@@ -585,7 +587,10 @@ export default function ComparePanel() {
           <div className="cmp-block" ref={blockRef}>
             <h3 className="card-title">{signal} <span className="muted">· {baseline === "mean" ? t("meanOfRuns") : runName(baseline)}</span></h3>
             <table className="data cmp2">
-              <thead><tr><th className="num">{t("rmsDiff")}</th><th className="num">{t("maxDiff")}</th><th className="num">{t("corr")}</th>{tolSet && <th className="num">{t("inTol")}</th>}</tr></thead>
+              {/* review C8: the differences in the signal's own unit (the % - of its range - in the RMS cell's tooltip) */}
+              <thead><tr><th className="num">{t("rmsDiff")}{detailUnit && <span className="th-unit"> [{detailUnit}]</span>}</th>
+                <th className="num">{t("maxDiff")}{detailUnit && <span className="th-unit"> [{detailUnit}]</span>}</th>
+                <th className="num">{t("corr")}</th>{tolSet && <th className="num">{t("inTol")}</th>}</tr></thead>
               {rows.map((r) => (
                 <tbody key={r.id}>
                   <tr className="name-row"><td colSpan={tolSet ? 4 : 3}>
@@ -594,7 +599,7 @@ export default function ComparePanel() {
                     {baseline !== "mean" && !segment && <button className="iconbtn sm act" title={t("alignInTime")} aria-label={t("alignInTime")} onClick={() => align(r.id)}><Icon.Link /></button>}
                   </td></tr>
                   <tr>
-                    <td className="num" title={r.rmsPct !== undefined ? `${fmtNum(r.rmsPct, lang, 3)} %` : ""}>{fmtNum(r.rmsDiff, lang, 3)}</td>
+                    <td className="num" title={r.rmsPct !== undefined ? t("rmsPctOfRange", { p: fmtNum(r.rmsPct, lang, 3) }) : ""}>{fmtNum(r.rmsDiff, lang, 3)}</td>
                     <td className="num">{fmtNum(r.maxAbsDiff, lang, 3)}</td>
                     <td className="num">{fmtNum(r.correlation, lang, 4)}</td>
                     {tolSet && <td className="num">{r.pass === undefined ? <span className="muted">—</span>
