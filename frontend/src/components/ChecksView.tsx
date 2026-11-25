@@ -111,8 +111,31 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
   const verdict = tone === "ok" ? t("chkVerdictOk") : tone === "none" ? t("chkVerdictNone")
     : [...parts, ...(judged ? [] : [t("chkNotJudged")])].join(" · ");
 
+  // review R1 (round 2): where the file has a judge of its own (a log's health check, a checks file) its findings come
+  // first - the automatic flags (often a log's spikes, symptoms of what the health check found) after them, three
+  // shown; a file with neither keeps them where they are its only findings
+  const flagsLast = !!hRep || !!cfile?.file;
+  const flagCards = flagsLast ? 3 : FLAG_CARDS;
+  const flagsSec = nFlags > 0 && (
+        <section className="checks-sec" aria-label={t("chkFlagsTitle")}>
+          <h3 className="eyebrow" title={t("ovFlagsHint")}>{t("chkFlagsTitle")}</h3>
+          <ul className="card-list">
+            {flags!.slice(0, flagCards).map((f, k) => (
+              <li key={k} className="card warn" data-flag={f.kind} data-flag-signal={f.signal}>
+                <p className="card-title">{flagText(t, lang, f)}</p>
+                <div className="card-next"><button className="pchange span" title={t("healthSpan")}
+                  onClick={() => actions.showSpan(f.a, f.b)}>
+                  <bdi dir="ltr">{f.b > f.a ? `${fmtTime(f.a, lang)}–${fmtTime(f.b, lang)}` : fmtTime(f.a, lang)}</bdi></button></div>
+              </li>
+            ))}
+            {nFlags > flagCards && <li className="card-meta">{t("chkFlagsMore", { n: nFlags - flagCards })}</li>}
+          </ul>
+          <p className="hint log-note">{t("chkFlagsNote")}</p>
+        </section>
+  );
+
   return (
-    <div className="checks" data-checks-ready={ready ? "1" : "0"} data-bad={bad} data-warn={warn} data-flags={nFlags} data-judged={judged ? "1" : "0"}>
+    <div className="checks" data-checks-ready={ready ? "1" : "0"} data-bad={bad} data-warn={warn} data-flags={nFlags} data-judged={judged ? "1" : "0"} data-flags-last={flagsLast ? "1" : "0"}>
       {ready && <p className={`health-sum ${tone}`} data-testid="checks-verdict" data-tone={tone}>{verdict}</p>}
 
       {cfile?.file && (
@@ -182,23 +205,7 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
         )}
       </section>
 
-      {nFlags > 0 && (
-        <section className="checks-sec" aria-label={t("chkFlagsTitle")}>
-          <h3 className="eyebrow" title={t("ovFlagsHint")}>{t("chkFlagsTitle")}</h3>
-          <ul className="card-list">
-            {flags!.slice(0, FLAG_CARDS).map((f, k) => (
-              <li key={k} className="card warn" data-flag={f.kind} data-flag-signal={f.signal}>
-                <p className="card-title">{flagText(t, lang, f)}</p>
-                <div className="card-next"><button className="pchange span" title={t("healthSpan")}
-                  onClick={() => actions.showSpan(f.a, f.b)}>
-                  <bdi dir="ltr">{f.b > f.a ? `${fmtTime(f.a, lang)}–${fmtTime(f.b, lang)}` : fmtTime(f.a, lang)}</bdi></button></div>
-              </li>
-            ))}
-            {nFlags > FLAG_CARDS && <li className="card-meta">{t("chkFlagsMore", { n: nFlags - FLAG_CARDS })}</li>}
-          </ul>
-          <p className="hint log-note">{t("chkFlagsNote")}</p>
-        </section>
-      )}
+      {!flagsLast && flagsSec}
 
       {isLog && (
         <section className="checks-sec" aria-label={t("chkHealth")}>
@@ -215,6 +222,7 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
           )}
         </section>
       )}
+      {flagsLast && flagsSec}
     </div>
   );
 }

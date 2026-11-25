@@ -124,6 +124,7 @@ export default function OverviewStrip() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rid, dataVersion, hidden, glanceKey]);
   const checks = useCheckCounts(rid, !!run?.log, hidden);
+  const nFlags = ov?.flags.length ?? 0;
   const stateNames = rows.filter((r): r is { kind: "state"; name: string } => r.kind === "state").map((r) => r.name);
 
   useEffect(() => {
@@ -336,10 +337,13 @@ export default function OverviewStrip() {
             })}
           </span>
         )}
-        {checks && (checks.bad > 0 || checks.warn > 0) && (
-          <button className={`chipbtn ov-checks ${checks.bad ? "bad" : "warn"}`} data-bad={checks.bad} data-warn={checks.warn}
+        {/* review R2 (round 2): the same parts as the Checks panel's verdict - the automatic flags counted too */}
+        {checks && (checks.bad > 0 || checks.warn > 0 || nFlags > 0) && (
+          <button className={`chipbtn ov-checks ${checks.bad ? "bad" : "warn"}`} data-bad={checks.bad} data-warn={checks.warn} data-flags={nFlags}
             title={t("ovChecksHint")} onClick={() => useApp.setState({ panel: "log", checksRun: rid ?? null })}>
-            {t(checks.bad ? "ovChecks" : checks.checked ? "ovChecksPassed" : "ovChecksNone", { bad: checks.bad, warn: checks.warn })}</button>
+            {t("ovChecksLine", { list: [checks.bad ? t("chkBad", { n: checks.bad }) : t(checks.checked ? "ovNoneFailed" : "chkNotJudged"),
+              ...(checks.warn ? [t("chkWarn", { n: checks.warn })] : []),
+              ...(nFlags ? [t(nFlags === 1 ? "chkFlagsOne" : "chkFlags", { n: nFlags })] : [])].join(" · ") })}</button>
         )}
         {hintShown && <span className="ov-hint muted">{t("ovPickHint")}</span>}
         <button className="iconbtn sm ov-add" aria-label={t("ovAdd")} title={t("ovAdd")} onClick={addMenu}>+</button>

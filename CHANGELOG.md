@@ -9,6 +9,9 @@
   cards, each a click from its moment. Green keeps one meaning: checked, and fine. *Sweeps* in the same way: with no
   limit in the goal it says that every set is shown and none judged, instead of "45 of 45 sets hold" - its groups
   *Hold every condition* / *Fail* and the table's holds column read "–", and the table shows every set.
+  Where a file has a judge of its own - a log's health check, a checks file - its findings come first and the
+  automatic flags after them (three shown, "+N more"); the *Checks* chip on the strip counts the same parts as the
+  panel ("Checks: none failed · 3 to look at · 19 automatic flags").
 - Fixed: **the report you send says what it should and nothing more.** *How to reproduce* names each file by its name,
   its samples and when it was saved - not by the folders of your computer (Settings -> *Files in a report: Full path*
   brings the full path back); a derived signal's parameters read `window=5, kind=mean`, not JSON; the process line

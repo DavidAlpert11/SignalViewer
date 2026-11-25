@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, open_files, pg  # noqa: E402,F401
+from test_features import S, env, open_example, open_files, pg  # noqa: E402,F401
 
 
 def _write(d, name, gain, gap=False):
@@ -73,7 +73,7 @@ def test_the_checks_file_beside_a_recording_gives_the_verdict(pg):
     _write(d, "plain_run.csv", 0.5, gap=True)
     open_files(pg, "plain_run.csv")
     pg.wait_for_selector(".ov-head .ov-checks")
-    assert pg.locator(".ov-head .ov-checks").inner_text().startswith("No limits set")   # not "0 failed"
+    assert pg.locator(".ov-head .ov-checks").inner_text().startswith("Checks: no limits set")   # not "0 failed"
     open_files(pg, "pump.parquet")
     rid = S(pg, "s.runs.find(r => r.name === 'pump.parquet').id")
     pg.locator(".rail button[aria-label='Checks']").click()
@@ -130,3 +130,26 @@ def test_no_green_verdict_when_nothing_was_judged(pg):
     assert flag.count() >= 1 and "flat at its limit" in flag.first.inner_text()
     flag.first.locator(".pchange.span").click()                                   # to its moment
     pg.wait_for_function("window.__sv.state().cursor.on && window.__sv.state().cursor.t1 > 1")
+
+
+def test_a_logs_own_findings_come_before_the_automatic_flags(pg):
+    """Review 2026-11-25 (R1, round 2): on the ArduPilot example 19 automatic-flag cards ("a glitch?") came before the
+    health check's 3 findings. With a health check (or a checks file) the flags come after it, three shown and "+N
+    more"; the strip's chip counts the same parts as the panel."""
+    open_example(pg, "ardupilot")
+    pg.wait_for_function("window.__sv.state().runs.some(r => r.log)", timeout=60000)
+    pg.locator(".rail button[aria-label='Checks']").click()
+    pg.wait_for_selector("aside.log-panel .checks[data-checks-ready='1'], .page.log-panel .checks[data-checks-ready='1']", timeout=60000)
+    checks = pg.locator(".checks[data-checks-ready='1']").first
+    assert checks.get_attribute("data-flags-last") == "1"
+    n = int(checks.get_attribute("data-flags"))
+    order = checks.locator("section.checks-sec").evaluate_all("xs => xs.map(x => x.getAttribute('aria-label'))")
+    assert order.index("Health check") < order.index("Automatic flags"), order
+    assert checks.locator(".card[data-flag]").count() == min(3, n)
+    if n > 3:
+        assert f"+{n - 3} more" in checks.inner_text()
+    verdict = pg.inner_text("[data-testid=checks-verdict]")
+    pg.evaluate("window.__sv.setState({ demoGuide: null, panel: 'data' })")      # the strip's head, not the demo's line
+    chip = pg.locator(".ov-head .ov-checks")
+    chip.wait_for()
+    assert f"{n} automatic flags" in chip.inner_text() and f"{n} automatic flags" in verdict

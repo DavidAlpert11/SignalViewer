@@ -1198,3 +1198,10 @@ judge's decision per item there (decision.md). Branch `review-1125`, one commit 
   "–" and disabled (sweeps/view.ts noGoal, showKeyOf - also for showMask, the plot bar and the report dialog). Test: e2e
   test_sweeps_flow::test_no_limit_in_the_goal_nothing_holds_or_fails; all test_sweeps_*, test_needle,
   test_folder_of_recordings, test_welcome_cards.
+- [x] RW10 (advocate R1 / R2, round 2) ChecksView: with a health check or a checks file the Automatic flags section
+  comes after the health check, 3 cards + "+N more" (8 without one - the payload case, where they are the findings);
+  OverviewStrip's chip built from the panel's parts (ovChecksLine, ovNoneFailed; chkBad / chkWarn / chkFlags /
+  chkNotJudged), shown also when there are only flags. Tests: e2e
+  test_checks_view::test_a_logs_own_findings_come_before_the_automatic_flags (+ the chip's wording in
+  test_the_checks_file_beside_a_recording_gives_the_verdict); test_plot_polish, test_overview_strip, test_plot_room,
+  test_welcome_cards, test_flat_line_solo.
