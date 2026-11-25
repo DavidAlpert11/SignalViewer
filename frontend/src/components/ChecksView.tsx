@@ -152,7 +152,7 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
                   <div className="card-next">
                     {r!.spans.slice(0, 4).map(([a, b], k) => (
                       <button key={k} className="pchange span" onClick={() => actions.showSpan(a - (b - a) * 0.5, b + (b - a) * 0.5)}
-                        title={t("healthSpan")}>{fmtTime(a, lang)}–{fmtTime(b, lang)}</button>))}
+                        title={t("healthSpan")}><bdi dir="ltr">{fmtTime(a, lang)}–{fmtTime(b, lang)}</bdi></button>))}
                   </div>
                 )}
               </li>
@@ -191,7 +191,7 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
                 <p className="card-title">{flagText(t, lang, f)}</p>
                 <div className="card-next"><button className="pchange span" title={t("healthSpan")}
                   onClick={() => actions.showSpan(f.a, f.b)}>
-                  {f.b > f.a ? `${fmtTime(f.a, lang)}–${fmtTime(f.b, lang)}` : fmtTime(f.a, lang)}</button></div>
+                  <bdi dir="ltr">{f.b > f.a ? `${fmtTime(f.a, lang)}–${fmtTime(f.b, lang)}` : fmtTime(f.a, lang)}</bdi></button></div>
               </li>
             ))}
             {nFlags > FLAG_CARDS && <li className="card-meta">{t("chkFlagsMore", { n: nFlags - FLAG_CARDS })}</li>}
