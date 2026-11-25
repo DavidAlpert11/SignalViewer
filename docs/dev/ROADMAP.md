@@ -1179,3 +1179,8 @@ judge's decision per item there (decision.md). Branch `review-1125`, one commit 
   test_compare_diff::test_a_row_click_never_takes_over_the_users_plot, test_features (P01 updated: the differences
   join the Similarity tab), test_compare_params, test_compare_tolerances, test_judge_a_run, test_workflows,
   test_welcome_cards.
+- [x] RW6 (C6) The demo's done line: demoGuide.ts keeps the panel and the files open when the last line came
+  (donePanel, doneRuns - the files a demo made itself count as its own); the watcher ends the line when the panel
+  changes or another file opens; no timer (the advocate's A1). Tests: e2e
+  test_plot_room::test_a_demo_line_with_a_next_step_changes_to_it; also test_messages, test_report_parts,
+  test_welcome_cards, test_cursor_labels, test_file_colours, test_less_clutter, test_folder_of_recordings, test_tab_band.

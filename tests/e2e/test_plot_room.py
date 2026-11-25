@@ -116,6 +116,11 @@ def test_a_demo_line_with_a_next_step_changes_to_it(pg):
     pg.click(".demo-guide .btn.primary")                                 # UX5.4: its second step asks the question
     pg.wait_for_selector(".demo-guide[data-step='done']")
     pg.wait_for_function("!!window.__sv.state().whatChanged")
+    # review C6: the last line stays while its answer is on screen (no timer), and goes once the user leaves it
+    pg.wait_for_timeout(1500)
+    assert pg.locator(".demo-guide[data-step='done']").count() == 1
+    pg.click("nav.rail button[aria-label='Report']")
+    pg.wait_for_function("!window.__sv.state().demoGuide && !document.querySelector('.demo-guide')")
 
 
 def test_a_plain_file_and_a_session_with_two_lanes_keep_their_rows(pg):

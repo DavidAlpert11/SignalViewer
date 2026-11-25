@@ -14,7 +14,10 @@ import { decodeAsMessages, makeRecording, streamFor } from "./messages";
 import type { MessageStream } from "./store/model";
 import { openWhatChanged } from "./investigation";
 
-export interface DemoGuide { id: ExampleId; runs: string[]; step?: number; done?: boolean }
+export interface DemoGuide { id: ExampleId; runs: string[]; step?: number; done?: boolean;
+  /** review C6: the panel on screen and the files open when the demo's last line came - leaving the panel or opening
+   *  another file ends the line (the files the demo itself made, a recording of messages, are among them) */
+  donePanel?: string | null; doneRuns?: string[] }
 
 export interface Step {
   text: TKey; act?: TKey; go?: (runs: string[]) => Promise<void> | void;
@@ -125,20 +128,29 @@ export async function demoNext(g: DemoGuide) {
   const next = i + 1;
   // FR2: once its button was pressed the line says what happened (the next step, or the "done" text) or goes -
   // it never keeps offering what was just done
-  useApp.setState({ demoGuide: next < d.steps.length ? { ...g, step: next } : d.done ? { ...g, step: next, done: true } : null });
+  useApp.setState({ demoGuide: next < d.steps.length ? { ...g, step: next } : d.done ? { ...g, step: next, ...doneAt() } : null });
 }
+
+const doneAt = () => { const s = useApp.getState(); return { done: true, donePanel: s.panel, doneRuns: s.runs.map((r) => r.id) }; };
 
 /** The current step's result already holds (done by hand): the next step, without running this one's action. */
 function demoSkip(g: DemoGuide) {
   const d = DEMOS[g.id];
   if (!d) return;
   const next = (g.step ?? 0) + 1;
-  useApp.setState({ demoGuide: next < d.steps.length ? { ...g, step: next } : d.done ? { ...g, step: next, done: true } : null });
+  useApp.setState({ demoGuide: next < d.steps.length ? { ...g, step: next } : d.done ? { ...g, step: next, ...doneAt() } : null });
 }
 // one watcher for every place the line is shown (above the plots, on a page, in the Report)
 useApp.subscribe((s) => {
   const g = s.demoGuide;
-  if (!g || g.done) return;
+  if (!g) return;
+  if (g.done) {
+    // review C6: the last line explains what is on screen - once the user leaves it (another panel, another file) it
+    // goes; never on a timer (it is read). Help -> Examples opens the demo again.
+    const other = s.runs.some((r) => r.format !== "derived" && !g.runs.includes(r.id) && !(g.doneRuns ?? []).includes(r.id));
+    if ((g.donePanel !== undefined && s.panel !== g.donePanel) || other) useApp.setState({ demoGuide: null });
+    return;
+  }
   if (currentStep(g)?.done?.(s)) demoSkip(g);
 });
 

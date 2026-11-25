@@ -28,6 +28,10 @@
   happened to be active, silently. The first click now opens a *Similarity* tab of its own, and later clicks flip
   through that one plot - your tabs, plots and layout stay as they were (one Undo takes it back). The list says so,
   with *Shift+click: a new plot here*.
+- Fixed: **an example's last line goes once you move on.** After its last step an example's line stayed above every
+  panel - over the Report editor, the Messages steps, Checks - taking two or three lines on a small window. It now
+  stays while its answer is on screen (no timer: it is there to be read) and goes when you open another panel or
+  another file; *Help -> Examples* opens the example again.
 
 ## 1.36.0 – 2026-11-24
 
