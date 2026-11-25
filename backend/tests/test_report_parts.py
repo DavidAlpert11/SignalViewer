@@ -188,3 +188,20 @@ def test_the_overview_fits_any_recording(tmp_path):
     assert "Temp (missing values)" in md and "Valve (2)" in md
     assert "data-quality problems" in md                                     # in What to look at
     assert sum(1 for it in items if it.get("kind") == "plots") == 2         # Pressure and Temp, one plot each
+
+
+def test_what_to_look_at_puts_a_flag_before_changes_of_state(tmp_path):
+    # review 2026-11-25 (C11): a log's boot messages (changes of a text state) filled What to look at, ahead of the
+    # recording's own flags; a change of state is a moment, a signal flat at its limit is something to look at
+    t = np.arange(0, 60, 0.01)
+    motor = 1500 + 300 * np.sin(t)
+    motor[2000:2600] = 2000.0                                                   # flat at its limit for 6 s
+    msgs = np.array(["boot %d" % min(int(x // 5), 9) for x in t])            # ten changes of a text state
+    pd.DataFrame({"Time": t, "Motor": motor, "Message": msgs}).to_csv(tmp_path / "run.csv", index=False)
+    s = Store()
+    rid = s.open_file(str(tmp_path / "run.csv")).id
+    md, _, _ = parts(s, [rid], "moments", "summary")
+    look = md[md.index("What to look at"):].split("\n\n")[1]
+    assert "Motor" in look.splitlines()[0]                                     # the flag first
+    assert "boot" not in look                                                  # the changes of state: not "to look at"
+    assert "boot 3" in md                                                      # but still moments in the table

@@ -56,5 +56,12 @@ def test_journal_and_report_sections(pg):
     html = S(pg, "s.reportPreviewHtml")
     for part in ("Findings", "the cause", "Hypotheses checked and rejected", "an idea", "Analysis steps", "How to reproduce", "Speed &gt; 30"):
         assert part in html, part
+    # review C11: the process line counts only what there is, in its number; the file by name, not this computer's folders
+    assert "1 still open, 1 hypothesis ruled out" in html and "0 faults" not in html, html[:3000]
+    path = S(pg, "s.runs.find(r => r.name === 'run_a.csv').path")
+    assert path not in html and "run_a.csv (" in html and " samples, saved " in html
+    pg.evaluate("window.__sv.setState({ reportPaths: true })")                   # Settings: Full path
+    pg.locator(".rd-text").fill(pg.locator(".rd-text").input_value() + "\n")
+    pg.wait_for_function(f"(window.__sv.state().reportPreviewHtml || '').includes({path!r})", timeout=30000)
     pg.locator(".rd-text").fill(pg.locator(".rd-text").input_value().replace("[[investigation]]", ""))   # taken out: gone from the report
     pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').length > 1000 && !window.__sv.state().reportPreviewHtml.includes('How to reproduce')", timeout=30000)

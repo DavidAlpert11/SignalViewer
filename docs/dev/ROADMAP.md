@@ -1154,3 +1154,9 @@ judge's decision per item there (decision.md). Branch `review-1125`, one commit 
   cards (flagText shared with OverviewStrip). Sweeps with no limit in the goal: "No limits yet - all N sets shown, none
   judged" (ResultsSide, GoalsStep, FlowNav, SweepsStatus; rcNoGoalYet for recordings). Tests: e2e
   test_checks_view::test_no_green_verdict_when_nothing_was_judged, test_sweeps_flow (the four-steps test).
+- [x] RW2 (C11) The report: How to reproduce by file name, samples and save time (rFileLine; Settings `reportPaths`
+  "Files in a report: Name only / Full path", default name); parameters and transforms as name=value
+  (investigation.ts nameValues); the process line only non-zero counts with singulars (rpInv*); reportparts.py moments:
+  a change of state is "info", flags weigh by kind (FLAG_WEIGHT) in [[summary]]. Tests: backend
+  test_report_parts::test_what_to_look_at_puts_a_flag_before_changes_of_state; e2e
+  test_findings_report::test_journal_and_report_sections.

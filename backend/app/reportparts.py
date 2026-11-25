@@ -393,6 +393,10 @@ def overview(p: Part, rids: List[str], arg: str, o: Dict):
 
 # ------------------------------------------------------------------------------------------------ moments
 
+# how much a flag of the recording weighs in What to look at: a signal at its limit or frozen before a gap or a spike
+FLAG_WEIGHT = {"saturated": 3.0, "stuck": 2.5, "gap": 2.0, "spike": 1.5}
+
+
 def moments(p: Part, rids: List[str], arg: str, o: Dict):
     """The moments of each file worth a look, as one time line: the scenario's phases, every change of another
     state (a receiver LOST and back), leaving and returning to the ground, the highest and the farthest points, the
@@ -402,7 +406,7 @@ def moments(p: Part, rids: List[str], arg: str, o: Dict):
     M, D = S_["mo"], S_["mo_det"]
     any_found = False
     for rid in rids:
-        rows: List[Tuple[float, str, str, str]] = []           # (t, moment, detail, level)
+        rows: List[Tuple] = []           # (t, moment, detail, level[, weight in What to look at])
         ov = st.overview(rid)
         ph = ov.get("phaseSignal")
         for s_ in (ov.get("phases") or [])[1:]:
@@ -414,7 +418,9 @@ def moments(p: Part, rids: List[str], arg: str, o: Dict):
             t, y = _sig(st, sid)
             tl = rp.timeline(t, y, st.labels(sid))
             for a, b in list(zip(tl, tl[1:]))[:40]:
-                rows.append((b["a"], M["state"].format(name=name, a=a["label"], b=b["label"]), "", "warn"))
+                # a change of state is a moment, not a problem (review 2026-11-25: a log's boot messages filled What to
+                # look at, ahead of a saturated motor)
+                rows.append((b["a"], M["state"].format(name=name, a=a["label"], b=b["label"]), "", "info"))
         tr = _track_of(st, rid)
         if tr is not None and tr.get("alt") is not None:
             alt = np.asarray(tr["alt"], dtype=np.float64)
@@ -448,7 +454,7 @@ def moments(p: Part, rids: List[str], arg: str, o: Dict):
             dur = secs(fl["b"] - fl["a"])
             title = M[k].format(sig=fl.get("signal", ""), edge=S_["edge"].get(fl.get("edge", ""), ""))
             det = D[k].format(v=fmt(fl.get("value")), d=dur)
-            rows.append((fl["a"], title, det, "warn"))
+            rows.append((fl["a"], title, det, "warn", FLAG_WEIGHT.get(k, 1.0)))
         if arg.strip():
             rows = [r for r in rows if arg.strip().lower() in (r[1] + " " + r[2]).lower()]
         if not rows:
@@ -460,7 +466,7 @@ def moments(p: Part, rids: List[str], arg: str, o: Dict):
         p.say(table(S_["mo_head"], [[secs(r[0]), r[1], r[2]] for r in rows[:o.get("top", 60)]]))
         for r in rows:
             if r[3] == "warn":
-                p.hl("warn", 1.0, S_["mo_hl"].format(f=f_name, what=r[1], t=secs(r[0])))
+                p.hl("warn", r[4] if len(r) > 4 else 1.0, S_["mo_hl"].format(f=f_name, what=r[1], t=secs(r[0])))
     if not any_found:
         p.say("*%s*" % S_["mo_none"])
 

@@ -139,6 +139,8 @@ export interface UiSlice {
   byteShow: "hex" | "dec" | "ascii" | "both";
   /** CP7: pictures copied (Copy image, Copy for Confluence): 1 = as on the screen, 2 = high, 3 = print */
   copyScale: 1 | 2 | 3;
+  /** Review C11: a report's How to reproduce names each file by its name (false) or its full path (true) */
+  reportPaths: boolean;
   /** O1: "Never use the network" (a setting): online map layers fall back to the offline map */
   offlineOnly: boolean;
   /** O1: SV_OFFLINE=1 for the app - the same, and the setting is locked on (from /api/settings; UI only) */
@@ -249,6 +251,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   confluenceMacro: "html",
   byteShow: "hex",
   copyScale: 2,
+  reportPaths: false,
   offlineOnly: false,
   offlineForced: false,
   tabChoice: null,

@@ -8,6 +8,12 @@
   flags (a signal frozen or flat at its limit, a gap, a spike) are counted in the verdict and listed as their own
   cards, each a click from its moment. Green keeps one meaning: checked, and fine. *Sweeps* in the same way: with no
   limit in the goal it says that every set is shown and none judged, instead of "45 of 45 sets hold".
+- Fixed: **the report you send says what it should and nothing more.** *How to reproduce* names each file by its name,
+  its samples and when it was saved - not by the folders of your computer (Settings -> *Files in a report: Full path*
+  brings the full path back); a derived signal's parameters read `window=5, kind=mean`, not JSON; the process line
+  counts only what there is, in its number ("1 analysis step recorded", no "0 faults"). *What to look at* puts the
+  recording's flags first (a signal flat at its limit before a gap or a spike); a change of state - a log's boot
+  messages, a mode change - is a moment in its table, no longer a warning at the top.
 
 ## 1.36.0 – 2026-11-24
 

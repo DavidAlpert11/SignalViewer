@@ -50,6 +50,10 @@ export function setFindingStatus(id: string, status: FindingStatus | "") {
   if (status) record(translate(st.lang, "jFinding", { text: n.text, status: translate(st.lang, `fs_${status}` as TKey) }), true, "finding");
 }
 
+/** Parameters as a reader writes them - `window=5, kind=mean` - not as JSON (review C11). */
+export const nameValues = (p: Record<string, unknown>) => Object.entries(p).filter(([, v]) => v !== undefined && v !== null && v !== "")
+  .map(([k, v]) => `${k}=${typeof v === "object" ? (Array.isArray(v) ? v.join(" ") : JSON.stringify(v)) : String(v)}`).join(", ");
+
 const when = (t: number, t2?: number) => (t2 !== undefined ? `${t.toPrecision(6)} – ${t2.toPrecision(6)} s` : `${t.toPrecision(6)} s`);
 const ORDER: Record<string, number> = { open: 0, fault: 1, explained: 2 };
 
@@ -80,13 +84,17 @@ export async function investigationSections(lang: "en" | "he") {
   for (const f of files) {
     const s = f.importSettings ?? {};
     const extra = [s.time_column ? `${t("taColumn")}: ${s.time_column}` : "", s.time_scale ? `× ${s.time_scale}` : "", f.timeOffset ? `${t("taOffset")}: ${f.timeOffset} s` : ""].filter(Boolean).join(", ");
-    items.push(`${fileLabel(st.runs, f.id)}: ${f.path}${extra ? ` (${extra})` : ""}`);
+    // review C11: a report sent outside does not carry this computer's folders - the file's name, its samples and when
+    // it was saved say which file it is; the full path only when chosen in Settings
+    const at = f.fileTime ? new Date(f.fileTime * 1000).toISOString().slice(0, 16).replace("T", " ") : "–";
+    const which = st.reportPaths ? f.path : t("rFileLine", { name: f.name, n: f.samples.toLocaleString("en-US"), when: at });
+    items.push(`${fileLabel(st.runs, f.id)}: ${which}${extra ? ` (${extra})` : ""}`);
   }
   for (const c of conds.filter((x) => !x.combine)) {
     items.push(`${c.name}: ${c.text}${c.exit ? `; ${t("condExit")} ${c.exit}` : ""}${c.minDur ? `; ≥ ${c.minDur} s` : ""}${c.mergeGap ? `; ${t("condMergeGap")} ${c.mergeGap}` : ""}`);
   }
-  for (const s of st.runs.find((r) => r.format === "derived")?.signals ?? []) items.push(`${s.name} = ${s.op ?? ""}(${(s.sources ?? []).join(", ")}) ${s.params ? JSON.stringify(s.params) : ""}`.trim());
-  for (const f of files) for (const s of f.signals) if (s.transform) items.push(`ƒ ${s.name}: ${JSON.stringify(s.transform)}`);
+  for (const s of st.runs.find((r) => r.format === "derived")?.signals ?? []) items.push(`${s.name} = ${s.op ?? ""}(${(s.sources ?? []).join(", ")}) ${s.params ? nameValues(s.params) : ""}`.trim());
+  for (const f of files) for (const s of f.signals) if (s.transform) items.push(`ƒ ${s.name}: ${nameValues(s.transform as unknown as Record<string, unknown>)}`);
   if (version) items.push(`Signal Viewer ${version}`);
   if (items.length) out.push({ title: t("rReproduce"), items });
   return out;

@@ -110,6 +110,7 @@ export default function SettingsDialog() {
   const tplTabChoice = useApp((s) => s.tplTabChoice);
   const confluenceMacro = useApp((s) => s.confluenceMacro);
   const copyScale = useApp((s) => s.copyScale);
+  const reportPaths = useApp((s) => s.reportPaths);
   const offlineOnly = useApp((s) => s.offlineOnly);
   const offlineForced = useApp((s) => s.offlineForced);
   const sweepLines = useApp((s) => s.sweepLines);
@@ -163,6 +164,8 @@ export default function SettingsDialog() {
               (v) => useApp.setState({ sweepLines: v }), t("setSweepLines"))}</div>
           <div className="set-row set-sweep-over"><span>{t("setSweepOver")}<small>{t(sweepOver === "density" ? "setSweepOverDensityHint" : "setSweepOverSampleHint")}</small></span>
             {seg(sweepOver, [["density", t("setSweepOverDensity")], ["sample", t("setSweepOverSample")]], (v) => useApp.setState({ sweepOver: v }), t("setSweepOver"))}</div>
+          <div className="set-row set-report-paths"><span>{t("setReportPaths")}<small>{t("setReportPathsHint")}</small></span>
+            {seg(reportPaths ? "full" : "name", [["name", t("setReportPathsName")], ["full", t("setReportPathsFull")]], (v) => useApp.setState({ reportPaths: v === "full" }), t("setReportPaths"))}</div>
           <h3 className="set-group-title">{t("cfGroup")}</h3>
           <ConfluenceSection />
           {/* CP3: how Copy for Confluence shows the page - the HTML macro, or the user macro an administrator installs once */}

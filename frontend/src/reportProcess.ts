@@ -25,7 +25,10 @@ export function processSection(lang: "en" | "he", meta: ReportMeta, shown: { nam
     const notes = st.ws.notes ?? [];
     const n = (s: string) => notes.filter((x) => x.status === s).length;
     const steps = st.journal.filter((j) => j.include).length;
-    items.push(t("rpInvestigated", { faults: n("fault"), explained: n("explained"), open: n("open"), rejected: n("rejected"), steps }));
+    // only what there is, each in its number (review C11: "0 faults, 0 explained ... 1 analysis steps")
+    const list = ([[n("fault"), "rpInvFault"], [n("explained"), "rpInvExplained"], [n("open"), "rpInvOpen"], [n("rejected"), "rpInvRejected"], [steps, "rpInvSteps"]] as const)
+      .filter(([k]) => k > 0).map(([k, key]) => t(k === 1 ? `${key}One` : key, { n: k }));
+    if (list.length) items.push(t("rpInvestigated", { list: list.join(", ") }));
   }
   // 3. what the report shows
   const plots = shown.reduce((a, x) => a + x.plots.length, 0);
