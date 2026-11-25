@@ -121,7 +121,12 @@ def _the_goal(pg):
 
 
 def _holding(pg):
-    pg.wait_for_selector(".sw-answer .sw-answer-n")
+    """How many sets hold - with no limit in the goal nothing is judged (review C1): then every set, as the no-goal
+    line says it (its data-n)."""
+    pg.wait_for_selector(".sw-answer .sw-answer-n, .sw-answer .sw-no-goal")
+    nogoal = pg.locator(".sw-answer .sw-no-goal")
+    if nogoal.count():
+        return int(nogoal.first.get_attribute("data-n"))
     return int(pg.locator(".sw-answer-n").inner_text().split()[0].replace(",", ""))
 
 
@@ -1017,7 +1022,10 @@ def test_four_steps_five_tabs_and_the_goal_as_one_table(pg):
     assert pg.locator(".sw-step-btn").all_inner_texts()[0].startswith("1\nData")
     assert pg.locator(".sw-step-btn").count() == 5 and pg.locator(".sw-area-btn").count() == 0
     _step(pg, "goals")
-    assert _holding(pg) == 45
+    # review C1: no limit yet - not "45 of 45 hold" but every set shown, none judged
+    pg.wait_for_selector(".sw-goal-count .sw-no-goal")
+    assert "none judged" in pg.locator(".sw-goal-count").inner_text() and _holding(pg) == 45
+    assert pg.locator(".sw-step-btn[data-step='results']").inner_text().endswith("No limits yet · 45 sets")
     _condition(pg, "kp_roll", "<=", 0.2)                          # a parameter: 3 of its 5 values
     pg.wait_for_function("document.querySelector('.sw-answer-n').innerText.startsWith('27 ')")
     _condition(pg, "roll_error_deg", "<=", 4)

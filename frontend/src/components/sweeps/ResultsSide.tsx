@@ -26,7 +26,9 @@ export default function ResultsSide({ study }: { study: Study }) {
       <div className="sw-answer" aria-live="polite">
         {study.evalError ? <p className="sw-error">{study.evalError}</p> : a ? (
           <>
-            <div className="sw-answer-n">{a.counts.holding.toLocaleString()} <span>{t("swOfSetsHold", { n: a.counts.sets.toLocaleString() })}</span></div>
+            {/* review C1: with no limit nothing was judged - "45 of 45 hold" read as a pass */}
+            {q.conditions.length ? <div className="sw-answer-n">{a.counts.holding.toLocaleString()} <span>{t("swOfSetsHold", { n: a.counts.sets.toLocaleString() })}</span></div>
+              : <p className="sw-no-goal hint" data-testid="sw-no-goal" data-n={a.counts.sets}>{t("swNoGoalYet", { n: a.counts.sets.toLocaleString() })}</p>}
             <div className="hint">{t("swCombosEach", { n: a.counts.combos })}</div>
             {a.counts.complete < a.counts.sets && <div className="hint">{t("swIncomplete", { n: (a.counts.sets - a.counts.complete).toLocaleString() })}</div>}
             {a.conditions.map((c, i) => <div key={i} className="hint">{c.label}: {t("swMetBy", { n: c.met })}</div>)}

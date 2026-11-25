@@ -56,7 +56,8 @@ function status(t: TFn, lang: "en" | "he", s: Study | undefined, c: StudyPanelSt
       return s ? t("swStGoal", { c: s.question.conditions.length, o: (s.question.goals[s.question.active]?.optimize ?? []).length }) : t("flNeedsTable");
     case "results":
       if (s && rec) return t(s.question.conditions.length && s.answer ? "rcStResults" : "swStRecordings", { n: s.answer?.counts.holding ?? 0, of: s.answer?.counts.sets ?? s.rows });
-      if (s) return s.answer ? t("swStResults", { n: s.answer.counts.holding, of: s.answer.counts.sets }) : "…";
+      if (s) return !s.answer ? "…" : s.question.conditions.length ? t("swStResults", { n: s.answer.counts.holding, of: s.answer.counts.sets })
+        : t("swStNoGoal", { of: s.answer.counts.sets });
       return cs && cs.tables.length > 1 ? t("flSystems", { n: cs.tables.length }) : t("flNeedsTable");
     case "next": {
       const k = c.loopProgress?.round ?? c.demoProgress?.round ?? cs?.history?.length ?? 0;

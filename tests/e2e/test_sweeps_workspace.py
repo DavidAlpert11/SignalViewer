@@ -233,7 +233,8 @@ def test_a_study_round_reads_as_its_table_and_its_goal_undoes(pg):
     _idle(pg)
     assert _holding(pg) < before or before == 0
     pg.keyboard.press("Control+z")
-    pg.wait_for_function(f"document.querySelector('.sw-answer-n') && parseInt(document.querySelector('.sw-answer-n').innerText.replace(/,/g, '')) === {before}")
+    pg.wait_for_function(f"(() => {{ const ng = document.querySelector('.sw-answer .sw-no-goal'), n = document.querySelector('.sw-answer-n'); "
+                         f"return ng ? +ng.dataset.n === {before} : !!n && parseInt(n.innerText.replace(/,/g, '')) === {before}; }})()")
     _flow(pg, "next")                                                           # the demo's loop, beside this table's proposal
     pg.wait_for_selector(".sw-run .dm-next")
 

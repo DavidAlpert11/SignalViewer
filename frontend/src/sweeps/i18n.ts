@@ -544,6 +544,9 @@ export const swEn = {
   swNoAxes: "No axes: add some above, or in Columns.",
   swNoResult: "no result (the run gave no output)",
   swOfColumn: "Of the column",
+  swNoGoalYet: "No limits in the goal yet - all {n} parameter sets are shown, none judged.",
+  rcNoGoalYet: "No limits yet - all {n} recordings are shown, none judged.",
+  swStNoGoal: "No limits yet · {of} sets",
   swOfSetsHold: "of {n} parameter sets hold",
   swOnlyIn: "in every combination of…",
   swOnlyMissing: "only what is missing or failed",
@@ -1355,6 +1358,9 @@ export const swHe: typeof swEn = {
   swNoAxes: "אין צירים: הוסיפו למעלה או בעמודות.",
   swNoResult: "בלי תוצאה (הריצה לא החזירה פלט)",
   swOfColumn: "של העמודה",
+  swNoGoalYet: "עדיין אין מגבלות ביעד - כל {n} סטי הפרמטרים מוצגים, אף אחד לא נשפט.",
+  rcNoGoalYet: "עדיין אין גבולות - כל {n} ההקלטות מוצגות, אף אחת לא נשפטה.",
+  swStNoGoal: "עדיין אין מגבלות · {of} סטים",
   swOfSetsHold: "מתוך {n} סטים עומדים",
   swOnlyIn: "בכל הצירופים של…",
   swOnlyMissing: "רק מה שחסר או נכשל",
@@ -1626,7 +1632,7 @@ export const swHe: typeof swEn = {
 /** FR5: a table of recordings (a folder summed up, the Runs matrix) - its words where a sweep's speak of parameter sets
  *  (i18n Words, given by the Sweeps area while such a table is shown). */
 export const RECORDING_WORDS = {
-  swOfSetsHold: "rcOfSetsHold", swPerSetHint: "rcPerSetHint", swRepNothing: "rcRepNothing", swCombosEach: "rcCombosEach",
+  swOfSetsHold: "rcOfSetsHold", swNoGoalYet: "rcNoGoalYet", swPerSetHint: "rcPerSetHint", swRepNothing: "rcRepNothing", swCombosEach: "rcCombosEach",
   swOptimizeNone: "rcOptimizeNone", swGoalIntro2: "rcGoalIntro2", swCompareSetsHint: "rcCompareSetsHint", swRepTop: "rcRepTop",
   swSetsInTable: "rcSetsInTable", swSets: "rcSets", swTabSets: "rcTabSets", swLimitMetHint: "rcLimitMetHint", swRepHolding: "rcRepHolding",
   swGrpHolds: "rcGrpHolds", swGoalMore: "rcMoreOptions", swGoalTableHint: "rcLimitIsFilter", swStResults: "rcStResults", swStepGoal: "swStepLimits",

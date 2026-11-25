@@ -2,6 +2,13 @@
 
 ## Next – unreleased
 
+- Fixed: **Checks no longer says "all good" when nothing was checked.** With no limits, no checks file and no log health
+  check, the verdict was a green *Nothing outside its limits, no data problems found* - even above a motor the app
+  itself had flagged flat at its limit. Now that verdict is grey and says that nothing was judged yet; the automatic
+  flags (a signal frozen or flat at its limit, a gap, a spike) are counted in the verdict and listed as their own
+  cards, each a click from its moment. Green keeps one meaning: checked, and fine. *Sweeps* in the same way: with no
+  limit in the goal it says that every set is shown and none judged, instead of "45 of 45 sets hold".
+
 ## 1.36.0 – 2026-11-24
 
 **Highlights:** **One app, not separate sections.** Investigate, Messages, Checks and the Report open as pages in the plots' place, all in the same frame - a list on one side, the thing you work on beside it - and step back beside the plots when an action needs them; Sweeps reads the same way. *Messages* has one clear form to say which signals carry bytes. And every example is built in front of you, two or three steps each, from the raw file to its report.

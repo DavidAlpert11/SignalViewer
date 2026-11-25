@@ -2,9 +2,9 @@
    log, its health check, as tinted cards under one verdict - plus F1 *The file* (its structure) and F3 the
    run's parameters for files that are not flight logs. Shown in the Log panel's place. */
 import { useEffect, useMemo, useState } from "react";
-import { api, type ChecksFile, type FileStructure, type HealthReport, type LimitResult, type ParamDiff, type RunParam } from "../api";
+import { api, type ChecksFile, type FileStructure, type HealthReport, type LimitResult, type ParamDiff, type RunOverview, type RunParam } from "../api";
 import { actions, useApp } from "../store";
-import { fmtNum, useT } from "../i18n";
+import { fmtNum, useT, type Lang, type TFn } from "../i18n";
 import { Icon } from "../icons";
 import { runLabels } from "../names";
 import { signalLines } from "../quality";
@@ -46,6 +46,12 @@ export function useChecksFile(runId: string | undefined, key: unknown): ChecksFi
 export const checksFileCounts = (cf: ChecksFile | null) => ({
   bad: cf?.results.filter((r) => r.status === "fail").length ?? 0, ok: cf?.results.filter((r) => r.status === "pass").length ?? 0 });
 
+/** An automatic flag (svcore/overview.py: stuck, saturated, gap, spike) in words - the strip's tooltip and the
+ *  Checks list say it the same way. */
+export const flagText = (t: TFn, lang: Lang, f: RunOverview["flags"][0]) => t(`ovFlag_${f.kind}` as "ovFlag_stuck", {
+  signal: f.signal, a: fmtNum(f.a, lang, 5), b: fmtNum(f.b, lang, 5), s: fmtNum(f.b - f.a, lang, 3), v: f.value !== undefined ? fmtNum(f.value, lang, 5) : "" });
+const FLAG_CARDS = 8;
+
 /** The Checks tab: a verdict, then Limits · Data quality · Health check (logs only). */
 export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean; runKey: string }) {
   const t = useT();
@@ -54,6 +60,9 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
   const items = useLimitItems(runId);
   const [lim, setLim] = useState<Record<string, LimitResult> | null>(null);
   const [health, setHealth] = useState<HealthReport | null | "none">(isLog ? null : "none");
+  // review 2026-11-25 (C1): the automatic flags the strip shows (Motor3 flat at its limit) are findings too - a
+  // verdict that left them out read "no problems" above a saturated motor
+  const [flags, setFlags] = useState<RunOverview["flags"] | null>(null);
 
   useEffect(() => {
     if (q) return;
@@ -72,6 +81,13 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
     return () => { gone = true; };
   }, [runId, runKey, isLog]);
 
+  useEffect(() => {
+    let gone = false;
+    setFlags(null);
+    api.overview(runId).then((r) => { if (!gone) setFlags(r.flags); }).catch(() => { if (!gone) setFlags([]); });
+    return () => { gone = true; };
+  }, [runId, runKey]);
+
   const cfile = useChecksFile(runId, runKey);
   const cf = checksFileCounts(cfile);
   const fileName = (p: string) => p.slice(Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\")) + 1);
@@ -84,13 +100,20 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
   const bad = badLim + (hRep?.errors ?? 0) + cf.bad;
   const warn = qIssues.length + (hRep?.warnings ?? 0);
   const ok = limRows.length - badLim + cf.ok + (q && !qIssues.length ? 1 : 0) + (hRep ? hRep.findings.filter((f) => f.level === "ok").length : 0);
-  const ready = lim !== null && !!q && health !== null && cfile !== null;
+  const nFlags = flags?.length ?? 0;
+  const ready = lim !== null && !!q && health !== null && cfile !== null && flags !== null;
+  // green only means "checked and fine": with no limits, no checks file and no health check nothing was judged -
+  // the verdict says so in grey (data quality alone is not a pass)
+  const judged = items.length > 0 || !!hRep || cf.bad + cf.ok > 0;
+  const tone = bad ? "error" : warn || nFlags ? "warning" : judged ? "ok" : "none";
+  const parts = ([[bad, "chkBad"], [warn, "chkWarn"], [nFlags, nFlags === 1 ? "chkFlagsOne" : "chkFlags"], [ok, "chkFine"]] as const)
+    .filter(([n]) => n > 0).map(([n, k]) => t(k, { n }));
+  const verdict = tone === "ok" ? t("chkVerdictOk") : tone === "none" ? t("chkVerdictNone")
+    : [...parts, ...(judged ? [] : [t("chkNotJudged")])].join(" · ");
 
   return (
-    <div className="checks" data-checks-ready={ready ? "1" : "0"} data-bad={bad} data-warn={warn}>
-      {ready && <p className={`health-sum ${bad ? "error" : warn ? "warning" : "ok"}`} data-testid="checks-verdict">
-        {bad || warn ? ([[bad, "chkBad"], [warn, "chkWarn"], [ok, "chkFine"]] as const).filter(([n]) => n > 0)
-          .map(([n, k]) => t(k, { n })).join(" · ") : t("chkVerdictOk")}</p>}
+    <div className="checks" data-checks-ready={ready ? "1" : "0"} data-bad={bad} data-warn={warn} data-flags={nFlags} data-judged={judged ? "1" : "0"}>
+      {ready && <p className={`health-sum ${tone}`} data-testid="checks-verdict" data-tone={tone}>{verdict}</p>}
 
       {cfile?.file && (
         <section className="checks-sec" aria-label={t("chkFile")} data-checks-file={fileName(cfile.file)}>
@@ -158,6 +181,24 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
           </ul>
         )}
       </section>
+
+      {nFlags > 0 && (
+        <section className="checks-sec" aria-label={t("chkFlagsTitle")}>
+          <h3 className="eyebrow" title={t("ovFlagsHint")}>{t("chkFlagsTitle")}</h3>
+          <ul className="card-list">
+            {flags!.slice(0, FLAG_CARDS).map((f, k) => (
+              <li key={k} className="card warn" data-flag={f.kind} data-flag-signal={f.signal}>
+                <p className="card-title">{flagText(t, lang, f)}</p>
+                <div className="card-next"><button className="pchange span" title={t("healthSpan")}
+                  onClick={() => actions.showSpan(f.a, f.b)}>
+                  {f.b > f.a ? `${fmtTime(f.a, lang)}–${fmtTime(f.b, lang)}` : fmtTime(f.a, lang)}</button></div>
+              </li>
+            ))}
+            {nFlags > FLAG_CARDS && <li className="card-meta">{t("chkFlagsMore", { n: nFlags - FLAG_CARDS })}</li>}
+          </ul>
+          <p className="hint log-note">{t("chkFlagsNote")}</p>
+        </section>
+      )}
 
       {isLog && (
         <section className="checks-sec" aria-label={t("chkHealth")}>

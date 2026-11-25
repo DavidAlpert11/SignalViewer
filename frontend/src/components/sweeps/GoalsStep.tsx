@@ -75,7 +75,9 @@ export function GoalsSide({ study }: { study: Study }) {
         <button className="linklike" onClick={() => st.addGoal(true)} title={t("swGoalCopyHint")}>{t("swGoalCopy")}</button>
         <button className="linklike" onClick={() => st.addGoal(false)}>{t("swGoalNew")}</button>
       </div>
-      {a && <div className="sw-answer sw-goal-count" aria-live="polite"><div className="sw-answer-n">{a.counts.holding.toLocaleString()} <span>{t("swOfSetsHold", { n: a.counts.sets.toLocaleString() })}</span></div></div>}
+      {a && <div className="sw-answer sw-goal-count" aria-live="polite">{q.conditions.length
+        ? <div className="sw-answer-n">{a.counts.holding.toLocaleString()} <span>{t("swOfSetsHold", { n: a.counts.sets.toLocaleString() })}</span></div>
+        : <p className="sw-no-goal hint" data-testid="sw-no-goal" data-n={a.counts.sets}>{t("swNoGoalYet", { n: a.counts.sets.toLocaleString() })}</p>}</div>}
       {a && <BestSet study={study} />}
       <details className="sw-more" open={more} onToggle={(e) => setMore((e.target as HTMLDetailsElement).open)}>
       <summary>{t("swGoalMore")}</summary>

@@ -104,3 +104,29 @@ def test_checks_as_a_page_and_back_beside_the_plots(pg):
     assert S(pg, "s.panelFull.log") is True
     pg.locator(".page-head .panel-fill").click()                            # beside the plots again
     pg.wait_for_selector("aside.log-panel")
+
+
+def test_no_green_verdict_when_nothing_was_judged(pg):
+    """Review 2026-11-25 (C1): with no limits, no checks file and no health check the verdict was the green "Nothing
+    outside its limits" - above a motor the app itself flagged flat at its limit. Now: grey "nothing judged" for a
+    clean file; the automatic flags counted and listed when there are some."""
+    import shutil
+    d = pg.env["data"]
+    _write(d, "clean_run.csv", 0.5)
+    shutil.copy(os.path.join(os.path.dirname(__file__), "..", "..", "examples", "investigate", "heavy_payload.csv"), os.path.join(d, "heavy.csv"))
+    open_files(pg, "clean_run.csv", "heavy.csv")
+    pg.locator(".rail button[aria-label='Checks']").click()
+    panel = pg.locator("aside.log-panel")
+    for name, tone in (("clean_run.csv", "none"), ("heavy.csv", "warning")):
+        rid = S(pg, f"s.runs.find(r => r.name === '{name}').id")
+        panel.locator("select").first.select_option(rid)
+        pg.wait_for_function(f"(() => {{ const c = document.querySelector('aside.log-panel .checks[data-checks-ready=\"1\"]'); "
+                             f"return c && document.querySelector('aside.log-panel [data-testid=checks-verdict]')?.dataset.tone === '{tone}'; }})()",
+                             timeout=20000)
+        verdict = panel.locator("[data-testid=checks-verdict]").inner_text()
+        assert "Nothing outside its limits" not in verdict
+    assert "automatic flag" in verdict and "no limits set" in verdict
+    flag = panel.locator(".card.warn[data-flag=saturated][data-flag-signal^='Motor3']")
+    assert flag.count() >= 1 and "flat at its limit" in flag.first.inner_text()
+    flag.first.locator(".pchange.span").click()                                   # to its moment
+    pg.wait_for_function("window.__sv.state().cursor.on && window.__sv.state().cursor.t1 > 1")

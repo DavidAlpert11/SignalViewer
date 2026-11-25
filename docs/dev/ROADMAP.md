@@ -1146,3 +1146,11 @@ look like one whole, flowing, coherent app, not sections cut off from each other
   - [x] UX5.6 Media: pictures 09 10 23 25 26 30 38-43 48-56 made again (make_readme_media.py), the narrated training
     film made again (make_training_video.py; ffmpeg for Playwright under /opt/pw-browsers/ffmpeg-1013).
 
+## RW - the three-agent review of 1.36.0 (critic, advocate, judge; 2026-11-25)
+The critic's items C1-C19 and the advocate's "must protect" list in `/home/claude/review/` (outside the repo); the
+judge's decision per item there (decision.md). Branch `review-1125`, one commit per fix.
+- [x] RW1 (C1) No green verdict when nothing was judged: ChecksView's verdict grey ("none") with no limits / checks
+  file / health check; the automatic flags (svcore/overview.py, the strip's) counted as their own phrase and listed as
+  cards (flagText shared with OverviewStrip). Sweeps with no limit in the goal: "No limits yet - all N sets shown, none
+  judged" (ResultsSide, GoalsStep, FlowNav, SweepsStatus; rcNoGoalYet for recordings). Tests: e2e
+  test_checks_view::test_no_green_verdict_when_nothing_was_judged, test_sweeps_flow (the four-steps test).

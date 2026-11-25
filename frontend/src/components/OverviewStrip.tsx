@@ -1,4 +1,4 @@
-import { checksFileCounts, useChecksFile } from "./ChecksView";
+import { checksFileCounts, flagText as flagWords, useChecksFile } from "./ChecksView";
 import { demoLineUp } from "../demoGuide";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type GlanceValue, type HealthReport, type LimitResult, type RunOverview } from "../api";
@@ -224,8 +224,7 @@ export default function OverviewStrip() {
   const pct = (x: number) => `${Math.max(0, Math.min(100, ((x - (ov?.start ?? 0)) / span) * 100))}%`;
   const width = (a: number, b: number) => `${Math.max(0.2, ((Math.min(b, ov!.end) - Math.max(a, ov!.start)) / span) * 100)}%`;
   const view = plot ? ranges[rangeKey(tab, plot)] : null;
-  const flagText = (f: RunOverview["flags"][0]) => t(`ovFlag_${f.kind}` as "ovFlag_stuck", { signal: f.signal, a: fmtNum(f.a, lang, 5),
-    b: fmtNum(f.b, lang, 5), s: fmtNum(f.b - f.a, lang, 3), v: f.value !== undefined ? fmtNum(f.value, lang, 5) : "" });
+  const flagText = (f: RunOverview["flags"][0]) => flagWords(t, lang, f);
   const go = (a: number, b: number) => {
     const pad = Math.max((b - a) * 0.5, 1);
     actions.showSpan(a - pad, b + pad);
