@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| RW - the three-agent review of 1.36.0 (critic, advocate, judge; 2026-11-25): C1 no green verdict with nothing judged, C11 the report's paths / counts / What to look at, C5 What changed's counts, C3 a labelled Open, C4 Compare's own tab, C6 the demo's last line, C8 the similarity % and units, C10 the flag's target | built 2026-11-25 on the local branch `review-1125` (not pushed: the reviewers re-check it first); ROADMAP "RW"; quick_check, the e2e files of each change (see the Log) | the critic and the advocate re-review the branch; then the orchestrator pushes; later: C2 (panel widths, the Inspector on the first cursors), C7, C9, C12-C19 |
 | Release 1.36.0 - UX1-UX5: one coherent app (pages in one frame: Investigate, Messages, Checks, Report; Sweeps' page head), Add a stream, examples built step by step, the big files split (owner, 2026-11-23/24) | READY 2026-11-24: the reviewer session (session_0146GPW2guKSxqJE46HkbNSn) said "APPROVED FOR RELEASE" after 18 points answered / fixed; version in the five files + install.md, CITATION date, CHANGELOG 1.36.0 with highlights, README (English + Hebrew), GUIDE + GUIDE.he, features, limitations, validation page, pictures 09 10 23 25 26 30 38-43 48-56 and the training film; the whole e2e one file at a time - 100 files, 550 passed, test_report_doc's LaTeX test failed for want of a TeX, test_file_browser_edit failed once under load and passed alone twice; quick_check, mkdocs --strict | the owner tags v1.36.0 and publishes the Release |
 | UX1-UX4 - one coherent app: App.tsx split into shell/, workspaces as pages (PanelFrame), Messages *Add a stream* form, examples step by step (owner, 2026-11-23) | on main 2026-11-24 (owner: "approved, continue"; v1.35.0 was tagged first); quick_check, Vitest panelPlace, e2e test_messages, test_report_parts, test_features, the views that gain / lose room | UX5 below, item by item; then a reviewer session challenges the round until it approves a release (owner, 2026-11-24) |
 | UX5 - the review's next steps 1-6 ("UX review 2026-11-23" in Open specs) | approved by the owner 2026-11-24 ("approved, continue"); 1-3 on main (the Inspector hidden beside a page; Checks in the one frame, a page with its ⤢; Sweeps' steps row as the page head; the demos in 2-3 steps; 5 the big files split - five of ten, the rest with reasons in ROADMAP) | 1-6 on main 2026-11-24 (6: pictures and the training film made again), the whole e2e green (but LaTeX, no TeX here). Reviewer session session_0146GPW2guKSxqJE46HkbNSn opened 2026-11-24 (builder: session_0146GPW2jrfxNS8wsEvtdLkF): answer its points, fix forward, until "APPROVED FOR RELEASE"; then release 1.36.0 prepared (the owner tags) |
@@ -191,6 +192,21 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
   docs/index.md and the welcome screen's groups.
 
 ## Log
+
+- 2026-11-25 · RW (the three-agent review, judge's round 1) on branch review-1125, one commit per fix: RW1 Checks /
+  Sweeps never green with nothing judged (the automatic flags counted and listed), RW2 the report (file names not
+  paths - Settings *Files in a report*, name=value parameters, non-zero counts, flags first in What to look at), RW3
+  What changed? counts that add up + the first change's time + one name, RW4 the top bar's *Open ▾*, RW5 a Compare row
+  click in a Similarity tab of its own, RW6 the demo's last line goes when the user leaves it, RW7 the similarity %
+  defined and the units, RW8 the flag's 24 px target. Checks: quick_check (tsc, Vitest 311, backend pytest, mypy);
+  backend test_report_parts; e2e test_checks_view, test_sweeps_flow, test_sweeps_workspace, test_sweeps_groups,
+  test_sweeps_data_columns, test_folder_of_recordings, test_welcome_cards, test_plot_polish, test_findings_report,
+  test_report_parts, test_report_doc, test_live_report, test_settings, test_confluence_copy, test_what_changed,
+  test_features (whole), test_plot_room, test_conditions, test_file_help_menus, test_first_minute,
+  test_templates_recent_badfiles, test_tour, test_unsaved_close, test_workflows, test_calm_screen, test_messages,
+  test_aligned_plots, test_plot_menus, test_compare_diff, test_compare_params, test_compare_tolerances,
+  test_judge_a_run, test_cursor_labels, test_file_colours, test_less_clutter, test_tab_band, test_overview_strip,
+  test_flat_line_solo - all green. Not the whole suite (end of the round, after the reviewers).
 
 - 2026-11-24 · The build of v1.36.0 failed on Windows (owner pasted the log): backend test_rawlink - a UDP link's
   bytes went back in time. time.time() on Windows moves in ~16 ms steps; chunks of one step had one stamp, and each
