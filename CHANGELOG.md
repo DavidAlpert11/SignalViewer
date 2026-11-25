@@ -36,6 +36,8 @@
   RMS difference as a share of the signal's range - why signals in different units can be ranked together); the
   selected signal's RMS Δ and Max |Δ| carry the signal's unit, and *Correlation* is written out. The ranking is
   unchanged.
+- Changed: **the automatic flags on the run-at-a-glance strip are easier to hit** - the ring stays 12 px, its click
+  target is 24 px.
 
 ## 1.36.0 – 2026-11-24
 

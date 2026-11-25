@@ -307,6 +307,8 @@
 .ov-flag { position: absolute; top: -1px; width: 12px; height: 12px; margin-left: -6px; padding: 0; cursor: pointer; border-radius: 50%;
   border: 2px solid var(--muted); background: var(--panel); color: var(--ink); font-size: var(--fs-glyph); line-height: 8px; font-weight: 700; }
 .ov-flag.bad { border-color: var(--danger); }
+/* review C10: the ring stays 12 px, its click target is 24 px (the finding it carries was the smallest target on screen) */
+.ov-flag::before { content: ""; position: absolute; inset: -7px; border-radius: 50%; }
 /* FR2: the flags on the strip's first lane - one track above the plots. The lane's own buttons stay
    clickable between the rings; the shown window is a line under the lane. */
 .ov-track.ov-flags.over { position: absolute; inset: 0; height: auto; pointer-events: none; }

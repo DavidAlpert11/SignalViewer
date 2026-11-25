@@ -1189,3 +1189,7 @@ judge's decision per item there (decision.md). Branch `review-1125`, one commit 
   corr "Correlation". Ranking unchanged (A4). Left: the unit on the difference plot, a noise-ratio note. Tests: e2e
   test_compare_diff::test_where_and_why_a_signal_fails; test_compare_tolerances, test_judge_a_run,
   test_compare_params, test_features -k "P01 or compare or table".
+- [x] RW8 (C10, the flag only) .ov-flag::before: a 24 px target around the 12 px ring (padding, not a bigger glyph -
+  A10's density). The other small targets (×, close tab, drag handle): later. Tests: e2e
+  test_overview_strip::test_phases_flags_and_going_there (a click 10 px beside the centre); test_flat_line_solo,
+  test_less_clutter, test_plot_room.

@@ -29,7 +29,10 @@ def test_phases_flags_and_going_there(pg):
     assert "3 flags" in pg.inner_text(".ov-head")
     flags = pg.locator(".ov-flag")
     assert flags.count() == 3 and "Motor3 flat at its limit" in flags.first.get_attribute("title")
-    flags.first.click()
+    # review C10: the 12 px ring is a 24 px target - a click 10 px beside its centre still reaches it
+    bb = flags.first.bounding_box()
+    assert bb["width"] == 12
+    pg.mouse.click(bb["x"] + bb["width"] / 2 + 10, bb["y"] + bb["height"] / 2)
     pg.wait_for_function("window.__sv.state().cursor.dual && Math.abs(window.__sv.state().cursor.t1 - 38.3) < 0.2")
     pg.locator(".ov-phase", has_text="LOITER").dblclick()                 # double-click: zoom there
     pg.wait_for_function("window.__sv.state().cursor.t1 === 100")
