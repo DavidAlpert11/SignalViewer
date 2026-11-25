@@ -300,9 +300,13 @@ export function tableOptions(t: TFn, s: Study): { id: string; label: string; gro
 
 /** Which sets the results show (Show: Holds ▾): all, those that hold, those that fail, a group. */
 export const showKey = (v: View): string => v.show ?? (v.onlyHolding === false ? "all" : "holds");
+/** Is the active goal without any limit: nothing judged, so no set "holds" or "fails" (review C1) */
+export const noGoal = (s: Study): boolean => !s.question.conditions.length;
+/** showKey for a study: with no limit in the goal "holds" / "fail" mean nothing - every set is shown */
+export const showKeyOf = (s: Study): string => { const k = showKey(s.view); return noGoal(s) && (k === "holds" || k === "fail") ? "all" : k; };
 /** The sets shown, as a mask over the answer's sets (null: every one). */
 export function showMask(s: Study): Uint8Array | null {
-  const a = s.answer, k = showKey(s.view);
+  const a = s.answer, k = showKeyOf(s);
   if (!a || k === "all") return null;
   return maskOfKey(a, s.view.groups ?? [], k === "fail" ? "fails" : k, s.view.rerun) ?? null;
 }

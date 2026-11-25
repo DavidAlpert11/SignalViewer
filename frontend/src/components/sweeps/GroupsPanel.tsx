@@ -8,6 +8,7 @@ import { category } from "../../sweeps/colors";
 import { hasFilter } from "../../sweeps/filters";
 import { autoMasks, combine, count, groupMask, maskOfKey, setIds, type AutoGroup, type GroupOp } from "../../sweeps/groups";
 import { useSweeps, type Study } from "../../sweeps/state";
+import { noGoal } from "../../sweeps/view";
 import { saveBrushGroup } from "../../sweeps/selection";
 import { notifyError } from "../../sweeps/notify";
 import { openMenu } from "../Overlays";
@@ -22,6 +23,7 @@ export default function GroupsPanel({ study }: { study: Study }) {
   const st = useSweeps.getState();
   const a = study.answer!;
   const v = study.view;
+  const unjudged = noGoal(study);
   const groups = useMemo(() => v.groups ?? [], [v.groups]);
   const ids = useMemo(() => setIds(a), [a]);
   const auto = useMemo(() => autoMasks(a, [], ids), [a, ids]);
@@ -65,7 +67,8 @@ export default function GroupsPanel({ study }: { study: Study }) {
               onClick={() => st.setView({ activeGroup: k === "all" ? undefined : k })}>
               <span className="sw-group-sw auto" />
               <span className="sw-group-name">{t(AUTO_KEYS[k])}</span>
-              <span className="sw-group-n">{count(m).toLocaleString()}</span>
+              {/* review C1: with no limit nothing was judged - no "45 hold / 0 fail" */}
+              <span className="sw-group-n">{unjudged && (k === "holds" || k === "fails") ? "–" : count(m).toLocaleString()}</span>
               {k === "marked" && <button className="iconbtn" title={t("swGrpFromMarked")} aria-label={t("swGrpFromMarked")}
                 onClick={(e) => { e.stopPropagation(); st.addFrozenGroup(nextName(), m); }}>+</button>}
             </li>

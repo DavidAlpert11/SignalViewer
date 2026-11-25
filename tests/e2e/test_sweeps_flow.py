@@ -1090,3 +1090,22 @@ def test_sweeps_runs_tab_pareto_and_clear(pg):
     pg.wait_for_selector(".sw-welcome")
     pg.locator(".toast button:has-text('Undo')").click()
     pg.wait_for_selector(".sw-steps")
+
+
+def test_no_limit_in_the_goal_nothing_holds_or_fails(pg):
+    """Review 2026-11-25 (C1, round 2): with no limit the results said "none judged" beside "Hold every condition 45 /
+    Fail 0", "Show: Holds (45)" and a green ✓ on every row. Now "–" there, every set shown; a limit brings them back."""
+    _fresh(pg)
+    _step(pg, "results")
+    pg.wait_for_selector(".sw-groups .sw-group[data-group='holds']")
+    assert pg.inner_text(".sw-group[data-group='holds'] .sw-group-n") == "–"
+    assert pg.inner_text(".sw-group[data-group='fails'] .sw-group-n") == "–"
+    assert pg.locator(".sw-show select").input_value() == "all"
+    pg.wait_for_selector(".sw-sets-table td.st-2")
+    assert pg.locator(".sw-sets-table td.st-2.ok").count() == 0 and pg.locator(".sw-sets-table td.st-2", has_text="✓").count() == 0
+    _step(pg, "goals")
+    _condition(pg, "roll_error_deg", "<=", 5)
+    _step(pg, "results")
+    pg.wait_for_function("document.querySelector(\".sw-group[data-group='holds'] .sw-group-n\").innerText !== '–'")
+    assert pg.locator(".sw-show select").input_value() == "holds"
+    assert pg.locator(".sw-sets-table td.st-2.ok").count() > 0

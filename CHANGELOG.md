@@ -7,7 +7,8 @@
   itself had flagged flat at its limit. Now that verdict is grey and says that nothing was judged yet; the automatic
   flags (a signal frozen or flat at its limit, a gap, a spike) are counted in the verdict and listed as their own
   cards, each a click from its moment. Green keeps one meaning: checked, and fine. *Sweeps* in the same way: with no
-  limit in the goal it says that every set is shown and none judged, instead of "45 of 45 sets hold".
+  limit in the goal it says that every set is shown and none judged, instead of "45 of 45 sets hold" - its groups
+  *Hold every condition* / *Fail* and the table's holds column read "–", and the table shows every set.
 - Fixed: **the report you send says what it should and nothing more.** *How to reproduce* names each file by its name,
   its samples and when it was saved - not by the folders of your computer (Settings -> *Files in a report: Full path*
   brings the full path back); a derived signal's parameters read `window=5, kind=mean`, not JSON; the process line

@@ -13,7 +13,7 @@ import { sweepApi } from "../../sweeps/api";
 import { labelOf } from "../../sweeps/scales";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
 import { notify, notifyError } from "../../sweeps/notify";
-import { colLabel, setColumns, showKey, tableColumns, tableOptions, tableRows, TABLE_FIXED } from "../../sweeps/view";
+import { colLabel, noGoal, setColumns, showKeyOf, tableColumns, tableOptions, tableRows, TABLE_FIXED } from "../../sweeps/view";
 import { openMenu } from "../Overlays";
 import ColumnPicker from "./ColumnPicker";
 import { exportPlot } from "./ReportStep";
@@ -38,6 +38,7 @@ export default function SetsTable({ study, draft = false }: { study: Study; draf
   const page = Math.min(pageWanted, pages - 1);              // fewer rows now (a filter): the last page
   const rows = order.slice(page * PAGE, (page + 1) * PAGE);
   const holds = cols.get("#holds")!.values;
+  const unjudged = noGoal(study);
   const holding = useMemo(() => { let k = 0; for (let i = 0; i < holds.length; i++) k += holds[i] === 1 ? 1 : 0; return k; }, [holds]);
   const sort = v.tableSort && cols.has(v.tableSort.column) ? v.tableSort : null;
   const sortBy = (c: string) => setView({ tableSort: sort?.column !== c ? { column: c, desc: false } : !sort.desc ? { column: c, desc: true } : null });
@@ -49,6 +50,7 @@ export default function SetsTable({ study, draft = false }: { study: Study; draf
   const groups = useMemo(() => v.groups ?? [], [v.groups]);
   const masks = useMemo(() => groups.map((g) => groupMask(g, a, ids)), [groups, a, ids]);
   const why = (i: number) => {
+    if (unjudged) return t("swNoGoalCell");
     if (status[i] === "holds") return t("swStatusHolds");
     if (status[i] === "error") return t("swStatusError");
     if (status[i] === "virtual") return t("swStatusVirtual");
@@ -90,10 +92,11 @@ export default function SetsTable({ study, draft = false }: { study: Study; draf
     <div className="sw-sets">
       <div className="sw-sets-bar">
         {!draft && <label className="sw-show" title={t("swShowHint")}>{t("swShow")}
-          <select value={showKey(v)} onChange={(e) => setView({ show: e.target.value })} aria-label={t("swShow")}>
+          <select value={showKeyOf(study)} onChange={(e) => setView({ show: e.target.value })} aria-label={t("swShow")}>
             <option value="all">{t("swShowAllSets", { n: a.counts.sets.toLocaleString() })}</option>
-            <option value="holds">{t("swShowHolds", { n: holding.toLocaleString() })}</option>
-            <option value="fail">{t("swShowFail", { n: (a.counts.sets - holding).toLocaleString() })}</option>
+            {/* review C1: with no limit nothing holds or fails - "–", not "Holds (45)" */}
+            <option value="holds" disabled={unjudged}>{t("swShowHolds", { n: unjudged ? "–" : holding.toLocaleString() })}</option>
+            <option value="fail" disabled={unjudged}>{t("swShowFail", { n: unjudged ? "–" : (a.counts.sets - holding).toLocaleString() })}</option>
             {(v.groups ?? []).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select></label>}
         <ColumnPicker options={tableOptions(t, study)} value={show} onChange={(ids) => setView({ tableColumns: ids })}
@@ -120,13 +123,13 @@ export default function SetsTable({ study, draft = false }: { study: Study; draf
           </tr></thead>
           <tbody>
             {rows.map((i) => (
-              <tr key={i} className={`${v.pinned === i ? "pinned" : ""}${holds[i] === 1 ? " holds" : ""} status-${status[i]}`} data-status={status[i]} onClick={() => setView({ pinned: i })}>
+              <tr key={i} className={`${v.pinned === i ? "pinned" : ""}${holds[i] === 1 && !unjudged ? " holds" : ""} status-${unjudged ? "none" : status[i]}`} data-status={status[i]} onClick={() => setView({ pinned: i })}>
                 <td className="st st-0" onClick={(e) => e.stopPropagation()}>
                   <input type="checkbox" aria-label={t("swRerunThis")} checked={inRerunNow(study, i)}
                     onChange={(e) => { useSweeps.getState().toggleRerun(i); if (e.target.checked) addedToNext(t); }} />
                 </td>
                 <td className="st st-1 num">{labelOf(cols.get("#rank")!, cols.get("#rank")!.values[i])}</td>
-                <td className={`st st-2 ${holds[i] === 1 ? "ok" : "bad"}`} title={why(i)}>{status[i] === "virtual" ? "≈" : holds[i] === 1 ? "✓" : "✗"}</td>
+                <td className={`st st-2 ${unjudged ? "muted" : holds[i] === 1 ? "ok" : "bad"}`} title={why(i)}>{status[i] === "virtual" ? "≈" : unjudged ? "–" : holds[i] === 1 ? "✓" : "✗"}</td>
                 {groups.length > 0 && <td className="sw-chips">{groups.map((g, k) => masks[k][i]
                   ? <span key={g.id} className="sw-chip" style={{ background: category(g.color) }} title={g.name}>{g.name}</span> : null)}</td>}
                 {show.map((c) => {

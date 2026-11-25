@@ -12,7 +12,7 @@ import { filterParts, setKeep } from "../../sweeps/tabs";
 import { filterText, fmtValue } from "../../sweeps/scales";
 import { sweepApi } from "../../sweeps/api";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
-import { activeColumns, activeParams, colLabel, showKey, mapAxes, mapList, mapSpec, scopeKey, scopeMask, setColumns, shownAxes, tableColumns, tableRows } from "../../sweeps/view";
+import { activeColumns, activeParams, colLabel, showKeyOf, mapAxes, mapList, mapSpec, scopeKey, scopeMask, setColumns, shownAxes, tableColumns, tableRows } from "../../sweeps/view";
 import { useEscape } from "../Overlays";
 import { goalName } from "./GoalsStep";
 import { KINDS } from "../../sweeps/next";
@@ -62,7 +62,7 @@ function processLines(t: TFn, s: Study): string[] {
     const per = name in runs;
     out.push(t(per ? "swRepFilterRuns" : "swRepFilter", { c: colLabel(t, s, name), what: filterText(f, (per ? runCols : cols).get(name) ?? cols.get(name)) }));
   }
-  const k = showKey(v);
+  const k = showKeyOf(s);
   if (k !== "all") out.push(t("swRepShown", { what: k === "holds" ? t("swShowHoldsWord") : k === "fail" ? t("swShowFailWord") : (v.groups ?? []).find((g) => g.id === k)?.name ?? k }));
   if (v.tableSort && setColumns(s).has(v.tableSort.column))
     out.push(t(v.tableSort.desc ? "swRepSortedDesc" : "swRepSorted", { c: colLabel(t, s, v.tableSort.column) }));

@@ -1193,3 +1193,8 @@ judge's decision per item there (decision.md). Branch `review-1125`, one commit 
   A10's density). The other small targets (×, close tab, drag handle): later. Tests: e2e
   test_overview_strip::test_phases_flags_and_going_there (a click 10 px beside the centre); test_flat_line_solo,
   test_less_clutter, test_plot_room.
+- [x] RW9 (C1, round 2) Sweeps with no limit in the goal: GroupsPanel's Hold every condition / Fail "–", SetsTable's
+  holds column "–" (no ✓, no holds stripe; its tooltip says why), Show defaults to All and its Holds / Fail options are
+  "–" and disabled (sweeps/view.ts noGoal, showKeyOf - also for showMask, the plot bar and the report dialog). Test: e2e
+  test_sweeps_flow::test_no_limit_in_the_goal_nothing_holds_or_fails; all test_sweeps_*, test_needle,
+  test_folder_of_recordings, test_welcome_cards.
