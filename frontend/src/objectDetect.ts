@@ -274,7 +274,7 @@ export function classify(prefix: string): { cls: ObjClass; word?: string; known?
   const segs = prefix.split(/[./_]/).map((s) => s.replace(/\[[^\]]*\]$/, "").toLowerCase()).filter(Boolean);
   for (let i = segs.length - 1; i >= 0; i--) {
     const m = /^([a-z]+?)(\d+)?$/.exec(segs[i]);
-    const c = m && CLASS_OF.get(m[1]);
+    const c = CLASS_OF.get(segs[i]) ?? (m ? CLASS_OF.get(m[1]) : undefined);     // AU2: "6dof" is a word as it is
     if (c) return { cls: c, word: segs[i] };
   }
   return { cls: "other" };

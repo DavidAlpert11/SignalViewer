@@ -78,6 +78,11 @@ def _simulation(root: str) -> None:
     make_simulation_examples.main(os.path.join(root, "simulation"))
 
 
+def _automations(root: str) -> None:
+    from . import make_automations_example
+    make_automations_example.main(root)
+
+
 _MC = [f"simulation/montecarlo/mc_m{m}_f{f}_s{s}.csv" for m in ("0.8", "1", "1.3") for f in ("0.6", "1") for s in range(1, 5)]
 
 _FOLDER = [f"folder_of_flights/X8-{v}_2026-{d}.bin" for v, d in (
@@ -102,6 +107,8 @@ GENERATORS: List[Tuple[Sequence[str], Sequence[str], Callable[[str], None]]] = [
     # CC16: simulations of any kind - a Simulink servo, an HDF5 process, a Monte-Carlo folder, a model against its test
     (["simulation/servo_step.mat", "simulation/process_plant.h5", "simulation/cruise_sim.csv", "simulation/cruise_test.csv",
       *_MC], ["scipy", "h5py"], _simulation),
+    # AU4: one platform named the way the app recognises by itself - every *Found in this file* find
+    (["automations/platform_run.csv"], [], _automations),
 ]
 GENERATED: Dict[str, int] = {f: i for i, (files, _, _) in enumerate(GENERATORS) for f in files}
 

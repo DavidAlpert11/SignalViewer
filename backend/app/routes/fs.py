@@ -87,6 +87,8 @@ EXAMPLE_SETS = [
                                                             "serial_link/link_rx.svmsg.json"]},
     # MSG2: a GPS receiver's raw NMEA - opened as a recording at once; and its serial port byte by byte
     {"id": "gpsNmea", "open": "map", "files": ["gps_nmea/receiver.nmea", "gps_nmea/receiver_uart.csv"]},
+    # AU4: one platform named the way the app recognises by itself - the *Found in this file* line lights up
+    {"id": "automations", "files": ["automations/platform_run.csv"]},
     {"id": "investigate", "files": ["investigate/heavy_payload.csv",                  # the Investigate tools,
                                     "investigate/light_payload.csv"]},                # with a known answer
     # FL1: "open": "summary" = the folder of the first file summed up with its measures.json, one row per recording in Sweeps

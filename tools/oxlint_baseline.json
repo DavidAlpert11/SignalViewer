@@ -56,9 +56,6 @@
  "src/components/ObjectDialog.tsx": {
   "react(set-state-in-effect)": 2
  },
- "src/components/ObjectSuggestBar.tsx": {
-  "react(preserve-manual-memoization)": 1
- },
  "src/components/Overlays.tsx": {
   "react(only-export-components)": 6,
   "react(set-state-in-effect)": 3

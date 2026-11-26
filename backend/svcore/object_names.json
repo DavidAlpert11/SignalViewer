@@ -142,6 +142,9 @@
  "class_words": {
   "truth": [
    "phys",
+   "physics",
+   "6dof",
+   "groundtruth",
    "truth",
    "true",
    "sim",
@@ -151,6 +154,7 @@
   ],
   "navigation": [
    "nav",
+   "navigation",
    "ins",
    "ekf",
    "ahrs",

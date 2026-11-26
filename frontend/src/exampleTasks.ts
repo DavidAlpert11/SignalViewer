@@ -7,7 +7,7 @@ export const EXAMPLE_TASKS: { label: TKey; ids: ExampleId[] }[] = [
   { label: "exTaskVerify", ids: ["servoStep", "processPlant", "bench"] },
   { label: "exTaskSimVsTest", ids: ["cruiseSimVsTest", "simVsFlight"] },
   { label: "exTaskManyRuns", ids: ["monteCarlo", "sweepTable", "commonGains", "smartSweepDemo", "folderOfFlights"] },
-  { label: "exTaskLook", ids: ["car", "investigate", "reportDemo"] },
+  { label: "exTaskLook", ids: ["automations", "car", "investigate", "reportDemo"] },
   { label: "exTaskBytes", ids: ["serialLink", "linkStructure", "gpsNmea"] },
   { label: "exTaskFlight", ids: ["ardupilot", "flight", "twoFlights"] },
 ];

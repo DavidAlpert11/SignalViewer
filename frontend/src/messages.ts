@@ -15,6 +15,8 @@ import { confirmAsk, prompt } from "./components/Overlays";
    the checksum, unless given) become derived signals of the op "messages" - type, length, interval, checksum good -
    and a tab with one plot per quantity, the bytes first, one line per direction. */
 
+/** One message per row, its bytes in columns: byte_0 … byte_N, b[0] …, data0 … (AddStream, found.ts). */
+export const BYTE_COL = /^(byte|b|data|d)[_[]?\d+\]?$/i;
 export const DIR_NAME = /^(.*[._ ])?(dir|direction|rxtx|tx_rx|rx_tx|txrx|port|channel|src|source)$/i;
 const WHATS = [["type", "msgType"], ["length", "msgLen"], ["interval", "msgInterval"], ["ok", "msgOk"]] as const;
 const bare = (id: string) => id.slice(id.indexOf("/") + 1);

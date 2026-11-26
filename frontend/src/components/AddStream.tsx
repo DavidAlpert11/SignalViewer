@@ -4,6 +4,7 @@
    while the panel lists no stream. The signal's right-click (Decode as messages…) stays as the shortcut. */
 import { useMemo, useState } from "react";
 import type { RunInfo } from "../api";
+import { BYTE_COL } from "../messages";
 import { useT } from "../i18n";
 import { Icon } from "../icons";
 import MultiSignalPicker from "./MultiSignalPicker";
@@ -35,7 +36,7 @@ export default function AddStream({ files, listed, open, onOpen, onAdd }: {
   const rxId = rx || first((o) => o.byte && RX.test(o.label) && o.id !== txId);
   // byte columns of one file (byte_0..byte_N, b[0]..., data0...): offered as one click
   const colGroups = useMemo(() => files.map((r) => ({ label: t("msgpAddColsOf", { file: r.name }),
-    ids: r.signals.filter((x) => /^(byte|b|data|d)[_[]?\d+\]?$/i.test(x.name)).map((x) => x.id) })).filter((g) => g.ids.length >= 2), [files, t]);
+    ids: r.signals.filter((x) => BYTE_COL.test(x.name)).map((x) => x.id) })).filter((g) => g.ids.length >= 2), [files, t]);
   const ok = kind === "one" ? !!oneId : kind === "pair" ? !!txId && !!rxId && txId !== rxId : cols.length >= 2;
   const add = () => {
     if (!ok) return;

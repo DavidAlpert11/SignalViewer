@@ -32,7 +32,7 @@ export type TKey = keyof typeof en;
  *  right after it - only these words, so nothing else is cut. */
 const PLURALS: Record<string, string> = { files: "file", plots: "plot", runs: "run", signals: "signal", tabs: "tab", sets: "set",
   recordings: "recording", requirements: "requirement", streams: "stream", messages: "message", samples: "sample",
-  stretches: "stretch", changes: "change", times: "time", steps: "step", rows: "row", columns: "column", conditions: "condition" };
+  stretches: "stretch", changes: "change", times: "time", steps: "step", rows: "row", columns: "column", conditions: "condition", pairs: "pair", objects: "object" };
 
 export function translate(lang: Lang, key: TKey, vars?: Record<string, string | number>): string {
   let s = dictionaries[lang][key] ?? dictionaries.en[key] ?? key;

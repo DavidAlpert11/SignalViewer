@@ -7,6 +7,7 @@ import { useApp } from "../store";
 const ImportDialog = lazyPreload(() => import("../components/ImportDialog"));
 const Help = lazyPreload(() => import("../components/Help"));
 const GuideDialog = lazyPreload(() => import("../components/GuideDialog"));
+const NamingDialog = lazyPreload(() => import("../components/NamingDialog"));
 const SettingsDialog = lazyPreload(() => import("../components/SettingsDialog"));
 const CompareTable = lazyPreload(() => import("../components/CompareTable"));
 const TemplateLibrary = lazyPreload(() => import("../components/TemplateLibrary"));
@@ -29,6 +30,7 @@ export default function Dialogs() {
   const importPaths = useApp((s) => s.importPaths);
   const helpOpen = useApp((s) => s.helpOpen);
   const guideOpen = useApp((s) => s.guideOpen);
+  const namingOpen = useApp((s) => s.namingOpen);
   const settingsOpen = useApp((s) => s.settingsOpen);
   const compareTable = useApp((s) => !!s.compareTable);
   const templatesOpen = useApp((s) => s.templatesOpen);
@@ -51,6 +53,7 @@ export default function Dialogs() {
       {importPaths && <ImportDialog />}
       {helpOpen && <Help />}
       {guideOpen && <GuideDialog />}
+      {namingOpen && <NamingDialog />}
       {settingsOpen && <SettingsDialog />}
       {compareTable && <CompareTable />}
       {templatesOpen && <TemplateLibrary />}

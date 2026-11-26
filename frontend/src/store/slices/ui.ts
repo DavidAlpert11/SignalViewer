@@ -56,7 +56,11 @@ export interface UiSlice {
   /** P7: the place dialog - a new place (its position filled in) or an existing one (`id`) */
   placeEdit: { plotId: string | null; place: Partial<import("../model").Place>; id?: string; where?: "session" | "mine" } | null;
   mapFlat: boolean;                // P4: draw the Map flat (the light drawing) - P8's setting "Map drawing: Always flat"         // P2: map objects whose track has no position (always 0, 0) - chips say so
-  objSuggestHidden: string[];      // N5: files whose "objects found" bar was dismissed (this run of the app only)
+  objSuggestHidden: string[];      // N5 / AU1: files whose *Found in this file* line was dismissed (by run id; the name is remembered in prefs)
+  /** AU1: finds used ("<runId>:<find>") - their chips go for this run of the app */
+  foundDone: string[];
+  /** AU4: Help -> Name your signals */
+  namingOpen: boolean;
   /** L8: Compare objects… open for this map / 3D plot */
   compareDialog: { plotId: string } | null;
   /** L9: Compare with similar… - a file and the signals it was asked for (a signal, a group's; [] = all) */
@@ -200,6 +204,8 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   placeEdit: null,
   mapFlat: false,
   objSuggestHidden: [],
+  foundDone: [],
+  namingOpen: false,
   compareDialog: null,
   similarDialog: null,
   msgFocus: null,

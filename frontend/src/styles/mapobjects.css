@@ -57,7 +57,6 @@
 .rel-actions { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-top: var(--sp-1); align-items: center; }
 .rel-actions select { font-size: var(--fs-xs); }
 /* N5: the objects found in a recording */
-.obj-suggest { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1); padding: var(--sp-1) var(--sp-2); border-top: 1px solid var(--line); background: var(--panel-2); font-size: var(--fs-xs); }
 .obj-suggest-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
 .obj-suggest-btns { display: inline-flex; align-items: center; gap: var(--sp-1_5); }
 .obj-found { width: min(720px, 96vw); }
@@ -132,3 +131,26 @@
 .g3-measure { position: absolute; left: 50%; transform: translateX(-50%); top: 52px; padding: 5px 12px; border-radius: var(--r-l);
   background: rgba(242, 210, 59, .95); color: var(--amber-ink); font-size: var(--fs-m); font-weight: 600; }
 .globe3d.own-time .g3-measure { top: 52px; }
+/* AU1: the *Found in this file* line (it took over N5's objects line) - one quiet line, chips that wrap */
+.found-bar { display: flex; flex-direction: column; gap: var(--sp-1); padding: var(--sp-1) var(--sp-2); border-top: 1px solid var(--line); background: var(--panel-2); font-size: var(--fs-xs); }
+.found-line { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1); min-width: 0; }
+.found-head { color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.found-group { display: inline-flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1_5); min-width: 0; }
+.found-group .obj-suggest-text { flex: 0 1 auto; }
+.found-bar .found-chip { height: 22px; font-size: var(--fs-xs); color: var(--ink); }
+.found-end { display: inline-flex; align-items: center; gap: var(--sp-1); margin-inline-start: auto; }
+.found-why-list { display: flex; flex-direction: column; gap: 2px; color: var(--muted); max-height: 10em; overflow: auto; }
+.found-why-row b { color: var(--ink); font-weight: 600; }
+.found-why-row span { unicode-bidi: isolate; }
+.found-names { align-self: flex-start; }
+/* AU4: Help -> Name your signals */
+.dialog.naming { width: min(920px, 96vw); }
+.naming-body { display: flex; flex-direction: column; gap: var(--sp-2); }
+.naming-intro { margin: 0; color: var(--ink); }
+.naming-table { border-collapse: collapse; font-size: var(--fs-s); }
+.naming-table th, .naming-table td { text-align: start; vertical-align: top; padding: var(--sp-1) var(--sp-1_5); border-bottom: 1px solid var(--line); }
+.naming-table th { color: var(--muted); font-weight: 600; }
+.naming-table td:first-child { white-space: nowrap; color: var(--ink); font-weight: 600; }
+.naming-table code { unicode-bidi: isolate; font-size: var(--fs-xs); }
+.naming-head-label { margin: 0; color: var(--muted); }
+.naming-header { margin: 0; padding: var(--sp-1_5); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-s); white-space: pre-wrap; word-break: break-all; font-size: var(--fs-xs); }

@@ -9,10 +9,10 @@ const bare = (sig: string) => sig.slice(sig.indexOf("/") + 1).replace(/ \[[^\]]*
 
 // P (owner, 2026-11-16): the words that make a name a setpoint - a prefix or a suffix, after a separator or in
 // camel case. Longest first, so "Commanded" is not read as "Command" + "ed".
-const WORDS = ["commanded", "reference", "setpoint", "command", "desired", "demand", "target", "des", "dem", "cmd", "tgt", "ref", "set", "sp"];
+export const SETPOINT_WORDS = ["commanded", "reference", "setpoint", "command", "desired", "demand", "target", "des", "dem", "cmd", "tgt", "ref", "set", "sp"];
 const cap = (w: string) => w[0].toUpperCase() + w.slice(1);
-const ALT = WORDS.join("|");
-const CAMEL = [...WORDS.map(cap), "SetPoint", "SP"].sort((a, b) => b.length - a.length).join("|");
+const ALT = SETPOINT_WORDS.join("|");
+const CAMEL = [...SETPOINT_WORDS.map(cap), "SetPoint", "SP"].sort((a, b) => b.length - a.length).join("|");
 const SEP_SUFFIX = new RegExp(`^(.+?)[_\\-. ](?:${ALT})$`, "i");          // roll_sp, Roll_CMD, roll.target
 const SEP_PREFIX = new RegExp(`^(?:${ALT})[_\\-. ](.+)$`, "i");           // sp_roll, cmd.roll
 const CAMEL_PREFIX = new RegExp(`^(?:${CAMEL}|${ALT})([A-Z].*)$`);        // DesRoll, cmdRoll, TargetAlt

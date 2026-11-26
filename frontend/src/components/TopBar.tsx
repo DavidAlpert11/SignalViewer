@@ -56,6 +56,7 @@ export default function TopBar() {
       { label: t("menuGuide"), keys: "F1", run: () => useApp.setState({ guideOpen: true }) },
       { label: t("shortcuts"), keys: "?", run: () => useApp.setState({ helpOpen: true }) },
       { label: t("menuTour"), run: startTour },
+      { label: t("nmTitle"), run: () => useApp.setState({ namingOpen: true }) },     // AU4
       // CC16: by task - verify, against a test, many runs, a look, bytes, flight logs (generic first)
       ...(ex.length ? [{ label: t("menuExamples"), run: () => {},
         items: EXAMPLE_TASKS.flatMap((g, k) => {

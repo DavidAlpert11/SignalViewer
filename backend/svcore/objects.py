@@ -84,6 +84,8 @@ def class_of_segment(seg: str) -> Optional[str]:
 
 _UNIT_TAIL = re.compile(r"\s*[\[(][^\[\]()]*[\])]\s*$")
 _SEGMENT = re.compile(r"^[^\W\d](?:[\w\- ]*[\w\-])?(?:\[[^\]]*\])*$")
+# AU2: the first group may start with digits when a letter follows ("6dof.lat"); "bus_1.5V" stays no path
+_FIRST = re.compile(r"^(?:\d+(?=[^\W\d]))?" + _SEGMENT.pattern[1:])
 
 
 def path_cuts(name: str) -> Optional[Tuple[int, List[int]]]:
@@ -97,7 +99,7 @@ def path_cuts(name: str) -> Optional[Tuple[int, List[int]]]:
     for i in range(start, end):
         if name[i] not in "./":
             continue
-        if not _SEGMENT.match(name[frm:i]):
+        if not (_FIRST if frm == start else _SEGMENT).match(name[frm:i]):
             return None
         cuts.append(i + 1)
         frm = i + 1
@@ -269,7 +271,7 @@ def classify(prefix: str) -> Dict:
     segs = [_INST.sub("", s).lower() for s in re.split(r"[./_]", prefix) if s]
     for s in reversed(segs):
         m = re.fullmatch(r"([a-z]+?)(\d+)?", s)
-        c = m and CLASS_OF.get(m.group(1))
+        c = CLASS_OF.get(s) or (m and CLASS_OF.get(m.group(1)))     # AU2: "6dof" is a word as it is
         if c:
             return {"cls": c, "word": s}
     return {"cls": "other"}

@@ -75,6 +75,8 @@ const UNIT_TAIL = /\s*[[(][^[\]()]*[\])]\s*$/;
  *  spaces, optionally indexed ("IMU[0]", "q[2]"). "5V" (from "bus_1.5V") or "1" (from "v2.1") is not one,
  *  so a number with a decimal point is never split. */
 const SEGMENT = /^[\p{L}_](?:[\p{L}\p{N}_\- ]*[\p{L}\p{N}_\-])?(?:\[[^\]]*\])*$/u;
+/** AU2: the first group may start with digits when a letter follows ("6dof.lat"); "bus_1.5V" stays no path. */
+const FIRST = new RegExp(`^(?:\\p{N}+(?=[\\p{L}_]))?${SEGMENT.source.slice(1)}`, "u");
 
 /** Where each segment after the first starts in `name` (the index just after its separator), or null
  *  when the name is not an explicit path of two or more segments. A leading "/" (ROS topics) is skipped. */
@@ -88,7 +90,7 @@ export function pathCuts(name: string): { start: number; cuts: number[] } | null
   for (let i = start; i < end; i++) {
     const c = name[i];
     if (c !== "." && c !== "/") continue;
-    if (!SEGMENT.test(name.slice(from, i))) return null;
+    if (!(from === start ? FIRST : SEGMENT).test(name.slice(from, i))) return null;
     cuts.push(i + 1); from = i + 1;
   }
   if (!cuts.length || !SEGMENT.test(name.slice(from, end))) return null;

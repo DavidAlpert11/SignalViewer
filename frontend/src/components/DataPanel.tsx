@@ -17,7 +17,8 @@ import { openPaths, recentToOpen, refreshRecent, reloadRun, removeRun } from "..
 import { fileTimeLines, shortClock } from "../fileTimes";
 import TemplateStrip from "./TemplateStrip";
 import { tx } from "../templates";
-import ObjectSuggestBar from "./ObjectSuggestBar";
+import FoundBar from "./FoundBar";
+import { FIND_LABEL, findIn, onSomeMap, runFind } from "../found";
 import { refreshAll } from "../live";
 import { applySyncOffset } from "../sync";
 import { openMenu, prompt } from "./Overlays";
@@ -145,7 +146,12 @@ export default function DataPanel() {
           ? [{ label: t("syncCursorMenu", { s: (c.t1 - c.t2).toFixed(3) }), run: () => { applySyncOffset(run.id, (run.timeOffset ?? 0) + (c.t1! - c.t2!)); } }]
           : [];
       })()),
-      { label: t("spPairs"), run: () => { actions.plotSetpointPairs(run.id); } },
+      // AU1: what the app can do by itself with this file (the same finds as the panel's *Found in this file* line)
+      { label: t("fndMenu"), run: () => {}, items: (() => {
+        const fs = findIn(run, runs, onSomeMap);
+        return fs.length ? fs.map((f) => ({ label: t(FIND_LABEL[f.id], { n: f.n }), run: () => { void runFind(f.id, run); } }))
+          : [{ label: t("fndNone"), run: () => {}, disabled: true }];
+      })() },
       { label: "", run: () => {}, sep: true },
       { label: t("dqMenu"), run: () => useApp.setState({ qualityFor: run.id }) },
       { label: t("sameWorkMenu"), run: () => useApp.setState({ sameWorkFor: run.id }) },
@@ -787,7 +793,7 @@ export default function DataPanel() {
           })}
         </div>
       </div>
-      <ObjectSuggestBar />
+      <FoundBar />
       <TemplateStrip />
       {picked.length > 0 && (
         <div className="pick-actions" role="region" aria-label={t("nChosen", { n: picked.length })}>

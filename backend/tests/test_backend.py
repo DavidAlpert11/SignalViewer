@@ -559,7 +559,7 @@ def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
     from app.routes import fs as m
     r = client.get("/api/examples").json()
     assert [x["id"] for x in r] == ["servoStep", "processPlant", "monteCarlo", "cruiseSimVsTest",           # CC16: simulations first
-                                    "flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "reportDemo", "serialLink", "linkStructure", "gpsNmea", "investigate",
+                                    "flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "reportDemo", "serialLink", "linkStructure", "gpsNmea", "automations", "investigate",
                                     "folderOfFlights", "sweepTable", "commonGains", "smartSweepDemo"] and len(r[6]["paths"]) == 3
     assert [x.get("open") for x in r[-3:]] == ["sweep", "study", "study"] and r[-1]["paths"][-1].endswith("demo.svstudy.json")
     assert all(os.path.isfile(p) for x in r for p in x["paths"])
@@ -570,9 +570,23 @@ def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
     # owner, 2026-11-18: a recording the app can write counts as there (svcore/example_data); a set with a file
     # that is neither shipped nor written by code (the sweeps' tables, a folder's measures.json) is left out
     assert [x["id"] for x in r] == ["cruiseSimVsTest", "flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "reportDemo",
-                                    "serialLink", "linkStructure", "gpsNmea", "investigate"]
+                                    "serialLink", "linkStructure", "gpsNmea", "automations", "investigate"]
     assert r[1]["paths"] == [str(tmp_path / "uav_flight.csv")]                      # all shipped: as they are
     assert r[2]["paths"][1] == str(tmp_path / "made" / "uav_flight_windy.csv")      # else where they will be written
+
+
+def test_automations_example_names_every_find():
+    """AU4: the *Name your signals* example - a truth (6dof) and a navigation system (ins) of one platform, commands with
+    their responses, a mode column of text, an accelerometer in two copies, actuators."""
+    from app.store import Store
+    from svcore.objects import addable, detect
+    from svcore.reportparts import setpoint_pairs
+    lr = Store().open_file(os.path.join(os.path.dirname(__file__), "..", "..", "examples", "automations", "platform_run.csv"))
+    names = list(lr.run.signals)
+    cands = [c for c in detect([(f"r/{n}", n) for n in names], "r", "platform_run")["candidates"] if addable(c)]
+    assert {c["prefix"]: c["cls"] for c in cands} == {"6dof": "truth", "ins": "navigation"}
+    assert len(setpoint_pairs([f"r/{n}" for n in names])) == 3
+    assert {"mode", "imu[0].ax", "imu[1].ax", "act.throttle"} <= {n.split(" [")[0] for n in names}
 
 
 def test_two_flights_example_is_ready_to_compare():

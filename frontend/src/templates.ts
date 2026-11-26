@@ -261,7 +261,7 @@ function pairsTabs(run: RunInfo | undefined, slot: string, lang: "en" | "he"): T
  *  (u, effort), an actuator, a motor, a servo, a valve, a throttle, a PWM / duty, a torque, an output - each in a plot of
  *  its own, so a saturation (flat at a limit) or a chatter shows; Checks' automatic flags name the saturated ones. */
 const EFFORT = /^(u|u\d|u_.*|.*[._](u|effort|out|output|cmd_out))$|effort|actuat|motor|servo|valve|throttle|pwm|duty|torque|^rc_?out/i;
-function effortNames(run: RunInfo | undefined): string[] {
+export function effortNames(run: RunInfo | undefined): string[] {
   if (!run) return [];
   const pairs = pairsOf(run);
   const commands = new Set(pairs.map((p) => p.setpoint));         // a commanded value is not an effort
@@ -270,8 +270,8 @@ function effortNames(run: RunInfo | undefined): string[] {
 const effortFit = (runs: RunInfo[]) => (dataRuns(runs).some((r) => effortNames(r).length > 0) ? 1 : 0);
 /** CC15 "Many runs as an envelope": the signals three or more open files share, each as an envelope (min…max, the
  *  percentile band, the median) of every run - a Monte-Carlo folder or repeated tests. */
-const ENVELOPE_MIN_RUNS = 3;
-function sharedNames(runs: RunInfo[], least: number): string[] {
+export const ENVELOPE_MIN_RUNS = 3;
+export function sharedNames(runs: RunInfo[], least: number): string[] {
   const count = new Map<string, number>();
   dataRuns(runs).forEach((r) => new Set(r.signals.filter((s) => !s.labels).map((s) => bare(s.name))).forEach((n) => count.set(n, (count.get(n) ?? 0) + 1)));
   return Array.from(count).filter(([, c]) => c >= least).map(([n]) => n);

@@ -5,6 +5,7 @@ import { refreshAll, toggleLive } from "../live";
 import { mavlinkDisconnect } from "../mavlink";
 import { actions, activeTab, useApp } from "../store";
 import { pairOf } from "../relation";
+import { FIND_LABEL, findIn, onSomeMap, runFind } from "../found";
 import { isMapPlot } from "../mapObjects";
 import { useT } from "../i18n";
 import { newCollection, openTemplates, saveAsTemplate } from "../templateMenu";
@@ -179,6 +180,11 @@ export default function CommandPalette() {
           ...(pr.secondary ? [{ id: "relswap", label: t("relCmdSwap"), group: t("objects"), keys: "X", run: () => actions.setObjectPair(pl.id, pr.secondary, pr.primary) }] : []),
         ];
       })(),
+      // AU1: what the app can do by itself with each open file (the file panel's *Found in this file* line)
+      ...st().runs.filter((r) => r.format !== "derived").flatMap((r, _i, all) => findIn(r, st().runs, onSomeMap).map((f) => ({
+        id: `found-${r.id}-${f.id}`, label: `${t(FIND_LABEL[f.id], { n: f.n })}${all.length > 1 ? ` · ${r.name}` : ""}`, group: t("fndPalette"),
+        run: () => { void runFind(f.id, r); } }))),
+      { id: "naming", label: t("nmTitle"), group: t("fndPalette"), run: () => useApp.setState({ namingOpen: true }) },
       ...st().ws.tabs.map((tb, i) => ({ id: `goto-${tb.id}`, label: t("goToTab", { name: tb.name || `${t("tab")} ${i + 1}` }), group: t("tab"),
         icon: <Icon.Layout />, run: () => actions.switchTab(tb.id) })),
       { id: "cursor", label: t("cursor"), group: t("cursor"), icon: <Icon.Cursor />, run: actions.toggleCursor, keys: "Space" },
