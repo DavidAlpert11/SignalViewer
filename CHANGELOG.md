@@ -2,6 +2,22 @@
 
 ## Next – unreleased
 
+- **Found in this file (AU1).** What the app can do by itself with a file, found from its signal names, is now said
+  as soon as it opens - one quiet line below the file list: command / response pairs, objects with a position, truth
+  vs navigation errors, modes, sensors in several copies, actuators, byte columns, an envelope of several runs. Each is
+  one click; *Why?* names the signals it matched; × hides the line for that file and is remembered. The file's
+  right-click menu (*Found in this file ▸*) and Ctrl+K list the same finds (before, plotting the command against the
+  response was found only by searching the palette).
+- **Truth vs navigation in one click (AU2).** A truth (`truth`, `6dof`, `physics`, `sim`…) and a navigation system
+  (`nav`, `ins`, `ekf`…) of the same platform are paired by their names; one click puts both on a map and opens
+  *Compare objects…* on them - position, velocity and attitude errors with their statistics. A group name may start
+  with digits (`6dof.lat`).
+- **Sensors in several copies (AU3).** `IMU[0]` / `IMU[1]`, `imu1` / `imu2`: a plot per field with every copy, so the
+  copy that disagrees shows.
+- **Name your signals (AU4).** *Help → Name your signals* lists every automatic find, the names it recognises, a CSV
+  header to copy and a new example recording that triggers all of them (*Help → Examples → what the app finds by
+  itself*); also in the docs (`naming.md`, Hebrew too).
+
 ## 1.38.0 – 2026-11-26
 
 **Highlights:** calm, clear, any data. A calmer screen - one *File ▾*, language and theme in Settings, fewer words and frames, each action in one place; a workbench for any simulation or test data, not only flight logs - requirements in a checks file (settle, overshoot, rise, steady-state error, rate, tracking, order) judged in *Checks*, in a verification report, per run in a folder's table and by `signalviewer-cli check`; an automatic look at every file; templates and examples for simulations first (a Simulink servo, an HDF5 process, a Monte-Carlo folder, a model against its test).

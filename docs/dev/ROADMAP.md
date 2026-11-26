@@ -1355,11 +1355,11 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
   test_report_doc, test_welcome_cards, test_judge_a_run, test_features (126).
 
 ## AU - automatic finds made visible (owner, 2026-11-26). Plan: TASKS.md Open specs "AU".
-- [ ] AU1 - one *Found in this file* line in the file panel (found.ts + FoundBar), the file menu's *Found in this file ▸*, the palette.
-- [ ] AU2 - truth vs navigation of the same platform paired by names; one click to Compare objects.
-- [ ] AU3 - more finds: sensors in several copies, mode signals as lanes, effort, envelope, byte columns.
-- [ ] AU4 - *Name your signals* (Help, every Why?) and the example recording that triggers every find.
-- [ ] AU5 - docs (naming.md + .he, GUIDE, features), e2e test_found.py, CHANGELOG.
+- [x] AU1 - one *Found in this file* line in the file panel (found.ts + FoundBar), the file menu's *Found in this file ▸*, the palette.
+- [x] AU2 - truth vs navigation of the same platform paired by names; one click to Compare objects.
+- [x] AU3 - more finds: sensors in several copies, mode signals as lanes, effort, envelope, byte columns.
+- [x] AU4 - *Name your signals* (Help, every Why?) and the example recording that triggers every find.
+- [x] AU5 - docs (naming.md + .he, GUIDE, features), e2e test_found.py, CHANGELOG.
 
 ## CH - a communication channel: patterns, anomalies, compare files (owner, 2026-11-26). Plan: TASKS.md Open specs "CH".
 - [ ] CH1 - separate TX + RX made one request / reply channel in one click (the Messages list offers it), kept in the session at once.

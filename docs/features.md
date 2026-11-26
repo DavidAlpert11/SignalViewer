@@ -68,6 +68,19 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - While searching, files and groups of the results can still be closed and opened, or all at once (*Collapse all* / *Expand all*)
 - A flight log with more than 40 signals lists its groups closed, except those with signals on the tab's plots (more than 200 signals: all closed); the template suggestions fold away once something is plotted (*▸ Templates (3)* opens them)
 
+### Found in this file { #found }
+
+- **What the app does by itself, said at once (AU1).** Below the file list one quiet line names what was found in the
+  newest file from its signal names - command / response pairs, objects with a position, truth vs navigation of the
+  same platform, modes (text columns), sensors in several copies (`IMU[0]` / `IMU[1]`), actuators, byte columns, an
+  envelope of three or more runs - each one click (a pairs tab; the objects on a map; *Compare objects…* opened on the
+  truth and the navigation system with position, velocity and attitude errors; the modes as bands; a plot per field
+  with every copy; the effort template; Messages; the envelope template). *Why?* names the matched signals; a used
+  chip goes; × hides the line for that file, remembered by its name. The file's right-click menu (*Found in this file
+  ▸*) and Ctrl+K list the same finds.
+- **Help → Name your signals (AU4):** every find, the names it recognises (read from the tables the finders use), a
+  CSV header that unlocks them all and an example recording made that way - see [Name your signals](naming.md).
+
 ### Import settings
 
 - Settings chosen in *Import options* are remembered for that folder. Auto-detection still comes first; the remembered settings are used only when auto-detection does not recognise a file (so other files in the folder are never misread). A note says when they were used, with *Forget*

@@ -29,6 +29,13 @@ compare. Everything runs on your computer; nothing is sent anywhere.
   first what changes: a column that goes up and down, repeated or missing values, new signals computed
   against time (derivative, integral, filters), plots that show the column. One Undo puts it all back.
 
+**Found in this file.** Below the file list, one quiet line says what the app can do by itself with the newest file,
+found from its signal names - *3 command / response pairs*, *2 objects found* (Add all / Choose… / Why?), *Truth vs
+navigation: errors*, *Modes*, *Sensors in copies*, *Actuators*, *Byte columns → Messages*, *Envelope of N runs*. Each
+chip is one click and goes once used; *Why?* names the matched signals; × hides the line for that file (remembered).
+The file's right-click menu (*Found in this file ▸*) and Ctrl+K list the same. Which names unlock what: **Help → Name
+your signals** ([naming.md](naming.md)).
+
 Each file gets a **colour and a short tag** (A, B, C…). Signals of the same name from several files
 are told apart by them.
 
