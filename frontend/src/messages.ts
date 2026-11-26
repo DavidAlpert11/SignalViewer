@@ -58,6 +58,42 @@ export function streamFor(ids: string[]): MessageStream {
     dir: dir?.id ?? null, txValue: tx === null ? null : Number(tx) };
 }
 
+/* CH1 (owner, 2026-11-26: "separate TX and RX - an option to define that they are one general channel of request and
+   reply"): two streams of one file, one named like what is sent and one like what is received, are offered as one
+   channel; one click keeps the pair in the session. */
+const TX_NAME = /(^|[^a-z])(tx|send|sent|transmit|out|up|uplink|cmd|command|request|req)([^a-z]|$)/i;
+const RX_NAME = /(^|[^a-z])(rx|recv|receive|received|in|down|downlink|tlm|telemetry|reply|resp|response)([^a-z]|$)/i;
+
+/** Per file, the (TX, RX) pairs of single-signal streams found by themselves that no definition holds yet: exactly
+ *  one TX-like and one RX-like name each (several of a kind: ambiguous - Add a stream → TX and RX says which). */
+export function linkCandidates(rows: { key: string; rid: string; ids: string[]; params: Record<string, unknown>; error?: string }[],
+  defs: MessageStream[]): { rid: string; tx: string; rx: string }[] {
+  const held = new Set((defs ?? []).flatMap((d) => d.sources));
+  const by = new Map<string, string[]>();
+  for (const r of rows) {
+    if (r.error || r.ids.length !== 1 || r.params.dir != null || held.has(r.ids[0]) || r.key !== r.ids[0]) continue;
+    by.set(r.rid, [...(by.get(r.rid) ?? []).filter((x) => x !== r.ids[0]), r.ids[0]]);
+  }
+  const out: { rid: string; tx: string; rx: string }[] = [];
+  for (const [rid, ids] of by) {
+    const rx = ids.filter((i) => RX_NAME.test(bare(i)) && !TX_NAME.test(bare(i)));
+    const tx = ids.filter((i) => TX_NAME.test(bare(i)) && !RX_NAME.test(bare(i)));
+    if (tx.length === 1 && rx.length === 1) out.push({ rid, tx: tx[0], rx: rx[0] });
+  }
+  return out;
+}
+
+/** CH1: TX and RX kept as one channel of requests and replies (one Undo step), its header / checksum as found. */
+export function keepChannel(tx: string, rx: string): MessageStream {
+  const st = useApp.getState();
+  const key = [tx, rx].join(",");
+  const old = (st.ws.messageStreams ?? []).find((m) => m.sources.join(",") === key);
+  if (old) return old;
+  const def: MessageStream = { id: uid(), sources: [tx, rx], carries: "pair" };
+  st.commit((ws) => { ws.messageStreams = [...(ws.messageStreams ?? []).filter((m) => !m.sources.some((x) => x === tx || x === rx) || m.sources.length > 1), def]; return ws; });
+  return def;
+}
+
 /** The streams of a definition: (label, sources, params) - both ways: one per direction value. */
 export function streamsOf(def: MessageStream): { label: string; sources: string[]; params: Record<string, unknown> }[] {
   const prm: Record<string, unknown> = {};

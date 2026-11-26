@@ -2,6 +2,10 @@
 
 ## Next – unreleased
 
+- **One channel from separate TX and RX (CH1).** When a file holds the bytes sent and the bytes received in two
+  signals (`tx_byte`, `rx_byte`; uplink / downlink...), the Messages page says they look like the two directions of one
+  link: **Make one channel** keeps them as one channel of requests and replies in the session at once (one Undo).
+  *Add a stream → TX and RX* keeps the pair at once too.
 - **Found in this file (AU1).** What the app can do by itself with a file, found from its signal names, is now said
   as soon as it opens - one quiet line below the file list: command / response pairs, objects with a position, truth
   vs navigation errors, modes, sensors in several copies, actuators, byte columns, an envelope of several runs. Each is

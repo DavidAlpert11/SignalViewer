@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { actions, useApp } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { api, type LibraryItem, type StreamRow } from "../api";
-import { forgetStream, isMessageLog, messageTypes } from "../messages";
+import { forgetStream, isMessageLog, keepChannel, linkCandidates, messageTypes } from "../messages";
 import { Icon } from "../icons";
 import { confirmAsk, openMenu } from "./Overlays";
 import StreamEditor from "./StreamEditor";
@@ -75,6 +75,14 @@ export default function MessagesPanel() {
   const toast = (text: string, undo: boolean) => useApp.getState().toast({ kind: "info", text, ...(undo ? { undoesWs: true, action: { label: t("undo"), run: () => useApp.getState().undo() } } : {}) });
 
   const listed = new Set(groups.flatMap(([k]) => k.split(",")));
+  // CH1: a file's TX-like and RX-like streams - one channel of requests and replies in one click (kept at once)
+  const links = linkCandidates(rows ?? [], defs ?? []);
+  const oneChannel = (tx: string, rx: string) => {
+    keepChannel(tx, rx);
+    setAdded((a) => a.filter((k) => k !== tx && k !== rx));
+    useApp.setState({ msgFocus: { ids: [tx, rx], carries: "pair" } });
+    toast(t("chMade", { tx: bare(tx), rx: bare(rx) }), true);
+  };
   const formOpen = adding ?? (rows !== null && !groups.length);
   const streamMenu = (e: React.MouseEvent, key: string, ids: string[], title: string) => {
     const isDef = defined.has(key), isFound = found.has(key);
@@ -133,7 +141,7 @@ export default function MessagesPanel() {
     </section>
   );
   const addForm = <AddStream files={files} listed={listed} open={formOpen && files.length > 0} onOpen={setAdding}
-    onAdd={(ids, c) => useApp.setState({ msgFocus: { ids, ...(c ? { carries: c } : {}) } })} />;
+    onAdd={(ids, c) => { if (c === "pair") keepChannel(ids[0], ids[1]); useApp.setState({ msgFocus: { ids, ...(c ? { carries: c } : {}) } }); }} />;
 
   const streams = (
     <section className="msgp-sec msgp-streams">
@@ -145,6 +153,11 @@ export default function MessagesPanel() {
       {rows === null && !groups.length && <p className="hint">{t("msgpLooking")}</p>}
       {rows !== null && !groups.length && <p className="hint msgp-none">{t("msgpNoStreams")}</p>}
       {!page && addForm}
+      {links.map((l) => (
+        <div key={l.tx} className="card info ch-offer" data-tx={l.tx} data-rx={l.rx}>
+          <span>{t("chOffer", { tx: bare(l.tx), rx: bare(l.rx) })}</span>
+          <button className="btn primary sm ch-make" onClick={() => oneChannel(l.tx, l.rx)}>{t("chMake")}</button>
+        </div>))}
       {groups.map(([key, rs]) => {
         const ids = key.split(",");
         const on = page ? current?.[0] === key && !formOpen : open.includes(key);
