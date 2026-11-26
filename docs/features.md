@@ -92,7 +92,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Start over
 
-- Clear ▾ (the Recordings bar; Ctrl+K; the ⋯ above the plots: *Clear all plots* of this tab, and *Back* to the previous zoom): this tab's plots
+- *File ▾ → Clear ▸* (Ctrl+K; the ⋯ above the plots: *Clear all plots* of this tab, and *Back* to the previous zoom): this tab's plots
 - The other tabs
 - All tabs (one empty tab)
 - All tabs + notes + derived signals + in-place edits, the files stay open - each undone by the toast's Undo or Ctrl+Z
@@ -100,29 +100,15 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ## File formats { #formats }
 
-![An ArduPilot log: attitude with the flight modes under each plot](images/07_ardupilot_attitude.png){ .sv-shot loading=lazy }
+### MATLAB / Simulink (.mat)
 
-### ArduPilot logs (.bin)
-
-- DataFlash logs read directly (no pymavlink): about 50 MB/s
-- Very large logs: one pass over the file on several cores without copying it into memory; above 64 MB the values stay in the file until a signal is used (a 16 M-sample signal is read in about 0.3 s) within a memory budget, and fields the log keeps as float32 stay float32 - a 1.2 GB log opens in about 7 s with under 0.5 GB of memory. Its index (time vectors and message positions) is kept in the cache: the same log opens again in a moment (about 0.03 s), only while it is unchanged
-- Every message type keeps its own time (TimeUS), so IMU at 400 Hz and GPS at 5 Hz are not resampled onto each other
-- Sensors with several instances split (`IMU[0].AccX`, `IMU[1].AccX`)
-- Units and multipliers from the log's FMTU/UNIT/MULT (`GPS[0].Alt [m]`, cm → m)
-- Flight modes by name (Copter / Plane / Rover / Sub, detected from the log) and EV events by name
-- Text fields (MSG…) as state signals
-- PARM values and MSG texts in the load report
-- Damaged blocks skipped (resync); what the damage made look like data is left out and counted in the note after opening - the message just before a damaged block, and an instance only the damage had (`IMU[149]` next to `IMU[0]` / `IMU[1]`)
-- A faulty firmware's message type (1.26) - written with another length than its FMT, an FMT listing more or fewer column names than values, or no FMT at all - is found from the chain of messages, left out by name in the note, and everything else is read; only a log that is mostly damage (under 20 % readable) is refused
-- Live mode reads only the newly written messages. Checked value-by-value against pymavlink. Test log generator: `python tools/make_test_bin.py out.bin [--live 30]`
-
-### MAVLink telemetry (.tlog)
-
-- What Mission Planner / QGroundControl / MAVProxy record from the radio link. Message definitions from pymavlink (ArduPilot dialect), decoded per message type with numpy (a 3.5 MB log in about 0.4 s; values identical to pymavlink). Units converted (degE7 → deg, mV → V, cm → m, cdeg → deg…), enums by name, flight mode by name (ArduPilot per vehicle type; PX4 main/sub modes), HEARTBEAT.armed; arrays per element, unused battery cells → empty; the ground station's own messages left out, other components / vehicles tagged (`ATTITUDE[c154].roll`). Messages that carry the autopilot's clock (time_boot_ms, or time_usec when it is boot time) are placed at their own time, not at their receive time - no radio delay in them. Checks: STATUSTEXT with its real severity, mode changes, arm / disarm, PARAM_VALUE. Live mode reads only new packets
-
-### PX4 logs (.ulg)
-
-- Read with pyulog: one signal per topic field (`vehicle_attitude.q[0]`, `sensor_gps[1].…` when a topic has several instances), each topic with its own time; navigation state and arming by name; topics without time stamps skipped (reported); a damaged log opens with what can be read - samples with a time stamp only damage can make (after the log's end, a lone one far out of step), damaged parameters and messages are left out and counted; Checks: logged messages by level, parameters with changes and defaults
+- v4, v5, v7 and v7.3 (HDF5 inside); every numeric vector, struct fields as `parent.field`, matrices a signal per column
+- Simulink's *Structure with time* (To Workspace, scopes): each signal on its own time (multi-rate kept), named as the
+  model names it - `plant.pos` from its `signals.label` (or the block's name), not `plant.signals.values` (1.38)
+- A variable with a time of its own by name (`Speed` + `Speed_time`), else the shared `tout` / `time` / `t`
+- MATLAB objects only MATLAB can open (a Simulink `Dataset` - `logsout`, a `SimulationOutput`, `timeseries`) are
+  named in the note after opening; `tools/matlab/sv_export.m` saves them as a plain struct the app reads
+- Scalars and short texts (gains, a mass, a case name) are the run's parameters (*Checks ▸ Parameters*)
 
 ### ROS 2 / Foxglove (.mcap)
 
@@ -156,6 +142,34 @@ Every feature, area by area. Each one is covered by an automated test that drive
 ### Text values
 
 - A CSV column of text (`IDLE` / `ARMED` / `FLYING`…) becomes a state signal with its texts (up to 1000 different; more → skipped, e.g. IDs). Shown as text everywhere: cursor, legend, hover, value axis. Live mode adds new texts as they appear. Sparse columns (blank cells) keep the last value. The cursor shows the value in force for states (never an interpolation)
+
+### Flight logs (ArduPilot, MAVLink, PX4)
+
+One kind of recording among the others - with its own ready views, its health check (a profile) and its events.
+
+![An ArduPilot log: attitude with the flight modes under each plot](images/07_ardupilot_attitude.png){ .sv-shot loading=lazy }
+
+#### ArduPilot logs (.bin)
+
+- DataFlash logs read directly (no pymavlink): about 50 MB/s
+- Very large logs: one pass over the file on several cores without copying it into memory; above 64 MB the values stay in the file until a signal is used (a 16 M-sample signal is read in about 0.3 s) within a memory budget, and fields the log keeps as float32 stay float32 - a 1.2 GB log opens in about 7 s with under 0.5 GB of memory. Its index (time vectors and message positions) is kept in the cache: the same log opens again in a moment (about 0.03 s), only while it is unchanged
+- Every message type keeps its own time (TimeUS), so IMU at 400 Hz and GPS at 5 Hz are not resampled onto each other
+- Sensors with several instances split (`IMU[0].AccX`, `IMU[1].AccX`)
+- Units and multipliers from the log's FMTU/UNIT/MULT (`GPS[0].Alt [m]`, cm → m)
+- Flight modes by name (Copter / Plane / Rover / Sub, detected from the log) and EV events by name
+- Text fields (MSG…) as state signals
+- PARM values and MSG texts in the load report
+- Damaged blocks skipped (resync); what the damage made look like data is left out and counted in the note after opening - the message just before a damaged block, and an instance only the damage had (`IMU[149]` next to `IMU[0]` / `IMU[1]`)
+- A faulty firmware's message type (1.26) - written with another length than its FMT, an FMT listing more or fewer column names than values, or no FMT at all - is found from the chain of messages, left out by name in the note, and everything else is read; only a log that is mostly damage (under 20 % readable) is refused
+- Live mode reads only the newly written messages. Checked value-by-value against pymavlink. Test log generator: `python tools/make_test_bin.py out.bin [--live 30]`
+
+#### MAVLink telemetry (.tlog)
+
+- What Mission Planner / QGroundControl / MAVProxy record from the radio link. Message definitions from pymavlink (ArduPilot dialect), decoded per message type with numpy (a 3.5 MB log in about 0.4 s; values identical to pymavlink). Units converted (degE7 → deg, mV → V, cm → m, cdeg → deg…), enums by name, flight mode by name (ArduPilot per vehicle type; PX4 main/sub modes), HEARTBEAT.armed; arrays per element, unused battery cells → empty; the ground station's own messages left out, other components / vehicles tagged (`ATTITUDE[c154].roll`). Messages that carry the autopilot's clock (time_boot_ms, or time_usec when it is boot time) are placed at their own time, not at their receive time - no radio delay in them. Checks: STATUSTEXT with its real severity, mode changes, arm / disarm, PARAM_VALUE. Live mode reads only new packets
+
+#### PX4 logs (.ulg)
+
+- Read with pyulog: one signal per topic field (`vehicle_attitude.q[0]`, `sensor_gps[1].…` when a topic has several instances), each topic with its own time; navigation state and arming by name; topics without time stamps skipped (reported); a damaged log opens with what can be read - samples with a time stamp only damage can make (after the log's end, a lone one far out of step), damaged parameters and messages are left out and counted; Checks: logged messages by level, parameters with changes and defaults
 
 ## Plots and the screen { #plots }
 
@@ -231,7 +245,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Top bar
 
-- One top row, the same in every work area: the areas as one switch (*Recordings · Sweeps*), then the Recordings tools (no File menu, F35): **Open ▾** (1.37: *Open files…* Ctrl+O, *Open session…* Ctrl+Shift+O, the recent files) and save session, Templates ▾ (save a template, a new collection), **Live ▾** (it follows the open files and MAVLink, so it is the Recordings area's), undo / redo, Clear ▾ (what to clear, see *Start over*) and the Inspector; Ctrl+K, Settings, day / night (one click), language and the Help menu. The plot tabs, with **+** (a new tab) and **▾** (the views menu: a new tab, a template or collection, the tabs a template left out), are in the stage bar above the plots (1.27: the plots gained 40 pixels of height) - opening files also in the file list (Ctrl+O), recent files Ctrl+P; Settings (theme, text size, time as seconds or a clock; kept between starts, not changed by sessions; the disk space the app uses for speed - CSV cache and log indexes, copies of files dropped into a browser, map tiles - each with its size and *Clear*; and the results kept in memory to be fast - changed and derived signals, spectra, plot summaries, statistics - with its limit, `SV_MEMCACHE_MB`, default 1024) and Help menu (keyboard shortcuts, the examples, copy error details, about)
+- One top row, the same in every work area (1.38, owner: calm and clear): the areas as one switch (*Recordings · Sweeps*), Ctrl+K, then the area's own - **File ▾** (*Open files…* Ctrl+O, *Open session…* Ctrl+Shift+O, the recent files; *Save session* Ctrl+S, *Export recording…*, *Live mode settings…* - the MAVLink and byte links -, **Clear ▸**; in Sweeps: a new study, a table, a folder, a saved study, saving the study, its template and report, reload / follow its file, Clear ▸), Templates ▾ and **Live** once files are open, undo / redo - then ⚙ Settings and Help. The language and the theme are in Settings (its first group) and Ctrl+K; the Inspector's switch is at the end of the plots' bar. The plot tabs, with **+** (a new tab) and **▾** (the views menu: a new tab, a template or collection, the tabs a template left out), are in the stage bar above the plots (1.27: the plots gained 40 pixels of height) - opening files also in the file list (Ctrl+O), recent files Ctrl+P; Settings (theme, text size, time as seconds or a clock; kept between starts, not changed by sessions; the disk space the app uses for speed - CSV cache and log indexes, copies of files dropped into a browser, map tiles - each with its size and *Clear*; and the results kept in memory to be fast - changed and derived signals, spectra, plot summaries, statistics - with its limit, `SV_MEMCACHE_MB`, default 1024) and Help menu (keyboard shortcuts, the examples, copy error details, about)
 
 ### Zoom
 
@@ -449,9 +463,31 @@ For any recording, not only flight logs (1.27: the Log panel became *Checks*).
 - Green means checked and fine (1.37): with no limits, no checks file and no health check the verdict is grey and says nothing was judged yet. The automatic flags (a signal frozen or flat at its limit, a gap, a spike) are counted in the verdict and listed as cards, each a click from its moment - after a log's own health check or a checks file when there is one (three shown, "+N more"). Sweeps the same way: with no limit in the goal every set is shown and none judged (the hold / fail counts read "–")
 - *The run at a glance* shows a *Checks: n failed · m to look at · k automatic flags* chip that opens Checks on that run
 
+### Requirements (1.38)
+
+- A checks file (`<name>.checks.json` beside the recording, or `checks.json` in its folder) holds ranges (`lo` / `hi`,
+  `during` a state, `t0` / `t1`) and requirements of other kinds: `settle` (in a band - units or % of the step - by a
+  time), `overshoot` (% of the step), `rise` (10 → 90 % within a time), `sserror` (the mean of the last seconds
+  against the target), `rate` (the fastest change per second), `track` (every sample within `abs` / `pct` of a
+  reference signal) and `order` (one moment before another). A target is a number or a reference signal's final
+  value in the window; the worst window decides
+- The same verdict in *Checks* and `signalviewer-cli check` (exit code, JUnit XML); each failure says what was
+  measured, against what and when - a click goes there
+
+### What the app finds by itself - profiles (1.38)
+
+- Every file: the *any data* profile - numbers that are not numbers (NaN / Inf) inside the run, a signal whose one
+  frequency carries most of its movement for many cycles (an oscillation), and every commanded / measured pair
+  (`Pos_cmd` / `Pos`, `ctrl.alt_cmd` / `ctrl.alt`, `DesRoll` / `Roll`): its RMS and worst error and lasting offset, its
+  steps' overshoot and settling (within 5 % of the step or the signal's own noise)
+- A flight log adds its own profile (the health check below); its loops are judged by the vehicle's rules
+- Your own profiles: `~/.signalviewer/profiles/*.json` - `{"name", "match": ["regex", ...], "checks": [...]}`, the
+  checks file's entries applied to every file whose signals match; one that cannot be read is named, not dropped
+- The section names the profiles that looked; a file where nothing was found shows no empty section
+
 ### The file
 
-- The structure of any recording: a log's message types, a ROS bag's topics, a MATLAB file's structs, a table's column groups - each with its rate, samples, units and gaps, the time base and the values at the cursor; a live link's file as it grows; a click on a column plots it
+- The structure of any recording: a log's message types, a ROS bag's topics, a MATLAB file's structs, a table's column groups - each with its rate, samples, units and gaps, the time base and the values at the cursor; a live link's file as it grows; a click on a column plots it. Under it, folded (1.38): the live instruments and a log's hardware
 
 ### Parameters of a run
 
@@ -465,7 +501,19 @@ For any recording, not only flight logs (1.27: the Log panel became *Checks*).
 
 ### Live instruments
 
-- *Checks ▸ Instruments*: big readouts of each chosen signal's latest value at the time (while live: the newest data from a MAVLink link, data sent from Python or a file being written) and the attitude indicator with heading, altitude and ground speed; a reading that stopped arriving says how old it is; tiles added and removed with Undo; a template brings its own
+- *Checks ▸ The file ▸ Instruments*: big readouts of each chosen signal's latest value at the time (while live: the newest data from a MAVLink link, data sent from Python or a file being written) and the attitude indicator with heading, altitude and ground speed; a reading that stopped arriving says how old it is; tiles added and removed with Undo; a template brings its own
+
+### Simulation examples (1.38)
+
+- *A simulation and its requirements*: a Simulink servo (`examples/simulation/servo_step.mat`, multi-rate) with its
+  `servo_step.checks.json` - Checks opens on the verdict: it settles, rises and holds, the drive's current stays in
+  its 60 A, and it overshoots 11 % against 8 % (one requirement fails, on purpose)
+- *A process simulation (HDF5)*: a heated tank, the plant at 10 Hz and the controller at 1 Hz in groups of their
+  own; a set-point change, then a disturbance the loop is slow to reject (its tracking requirement fails there)
+- *Many runs*: 24 runs of the servo with mass, friction and noise varied (`examples/simulation/montecarlo`, with
+  `measures.json` and `checks.json`) - a row per run in Sweeps; the heavy, low-friction ones overshoot
+- *A model against its test*: a car's cruise control, the simulation beside the test drive (a hill and sensor noise
+  in the test only)
 
 ### Test-bench example
 
@@ -504,7 +552,7 @@ For any recording, not only flight logs (1.27: the Log panel became *Checks*).
 
 ### A folder of recordings
 
-- **Sweeps ▸ Data ▸ *From a folder of recordings…*** (also Sweeps' *Open ▾*, Ctrl+K and *Investigate ▸ Runs matrix ▸ Summarize a folder*): one row per recording of a folder - the same measures in each (max / min / mean / rms / final… of a signal, optionally only *where* a condition holds) and parameters from the file name (`{vehicle}_{date}`); read one file at a time (memory: one file's), any format, sub-folders not included
+- **Sweeps ▸ Data ▸ *From a folder of recordings…*** (also *File ▾* in Sweeps, Ctrl+K and *Investigate ▸ Runs matrix ▸ Summarize a folder*): one row per recording of a folder - the same measures in each (max / min / mean / rms / final… of a signal, optionally only *where* a condition holds) and parameters from the file name (`{vehicle}_{date}`); read one file at a time (memory: one file's), any format, sub-folders not included
 - A `measures.json` beside the recordings (the Runs matrix's *Save measures*: `{"measures": [...], "pattern": "..."}`) is used at once; without one, the folder's first recording opens with the Runs matrix to define the measures on it, and its *Summarize a folder* remembers the folder. The same file runs from the command line: `signalviewer-cli summarize <folder> --measures measures.json`
 - The table opens in Sweeps with a *recording* column: tick rows and *Open in Recordings* opens them together (Compare-ready); a set's detail opens its runs' recordings
 - A table of recordings reads as one (2026-11-17): steps *Data → Columns → Limits → Results*, counted in recordings - no *Send runs*, no *Next runs*
@@ -569,16 +617,16 @@ overshoot, energy...), with a second, finer sweep to merge. The same answer on t
 ### Studies, templates and undo
 
 - The empty Sweeps screen (2026-11-17): three equal starts - **I have results** (a table of runs), **Start from nothing** (*Send runs*) and **A folder of recordings** - each one click, with their examples under them; when the loop converges its page writes the answer in words (*Kp = …, Ki = …, Kd = …* and its value)
-- One *Open ▾*: *New study…*, a table, a folder and *Open a saved study* (a table's `.svsweep` or a study file, `.svstudy.json`). *New study…*: **I have results** (a table of runs; its columns fill the study's set-up and the answer shows at once) or **Start from nothing** (*Send runs*: what varies - ranges, steps and how many values in the first round -, the scenarios and how to run - this PC, a wrapper or the farm's launcher; no outputs, no goal; *Send round 1* runs that grid and its results open as a regular table, each next round is aimed)
+- One *File ▾* (the top row): *New study…*, a table, a folder and *Open a saved study* (a table's `.svsweep` or a study file, `.svstudy.json`). *New study…*: **I have results** (a table of runs; its columns fill the study's set-up and the answer shows at once) or **Start from nothing** (*Send runs*: what varies - ranges, steps and how many values in the first round -, the scenarios and how to run - this PC, a wrapper or the farm's launcher; no outputs, no goal; *Send round 1* runs that grid and its results open as a regular table, each next round is aimed)
 - Data's column: *Send runs* (what varies, scenarios, how to run - how many of the three are filled), the *Tables* - each table, the tables merged into it and each round the loop has run (new ones marked; a round opens as its table, with the study's roles and goal) - and *About this study*
 - Results › *All systems together* (two systems or more, ranked together; a study with one table is ranked on its own)
 - **5 Next runs**: the sets proposed from the results (re-run list, suggestions, export to run outside) and *Run from the app*: what the next round will run (sets × scenarios = runs) or what is still missing, *The goal of the loop* (asked for here, not before), **Run them**, *Only write the files* (for a launcher of your own), *Next round*, *Run until converged*, *Stop*, the progress and the convergence; a table opened alone gets *Run from the app…* (it makes the study file)
-- *Study ▾ → Report of the study…*: one offline HTML page of the whole study (what varies, each table's goal and limits, the shared answer with each table's verdict, the rounds run), in the app's language
+- *File ▾ → Report of the study…*: one offline HTML page of the whole study (what varies, each table's goal and limits, the shared answer with each table's verdict, the rounds run), in the app's language
 - One Undo for all of Sweeps: Ctrl+Z undoes the last change, in a table's question or in the study's set-up
 
 - Every change is undone with Ctrl+Z (Ctrl+Y redoes); the open studies are kept and open again where they were; a study is saved as `.svsweep`; *Follow the file* reads a table again when it changes.
-- *Clear ▾* (beside *Study ▾*): groups, charts, filters and the re-run list; the goal and the results (the columns stay); start the study over; everything (every study closed after asking - the notice's *Undo* opens them again).
-- Templates (*Study ▾ → Templates…*): the roles, goals, maps, table columns, robustness and next runs' choices, applied to another table with the same columns (offered when one fits), exported to a file and imported.
+- *File ▾ → Clear ▸*: groups, charts, filters and the re-run list; the goal and the results (the columns stay); start the study over; everything (every study closed after asking - the notice's *Undo* opens them again).
+- Templates (*File ▾ → Templates…*): the roles, goals, maps, table columns, robustness and next runs' choices, applied to another table with the same columns (offered when one fits), exported to a file and imported.
 
 ## Reports, sessions and templates { #reports }
 

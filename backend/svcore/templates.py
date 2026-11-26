@@ -191,7 +191,8 @@ def fit(t: dict, all_: List[dict], runs: List[dict]) -> Optional[float]:
         return 0.0
     e = expand(t, all_)
     if e["generators"] and not e["tabs"]:
-        return None if all(g.get("generator") == "objects" for g in e["generators"]) else 1.0
+        # objects / pairs (CC15): the UI decides - it knows the position roles and the commanded / measured pairs
+        return None if all(g.get("generator") in ("objects", "pairs") for g in e["generators"]) else 1.0
     found = total = 0
     bind = auto_bind(e, runs)
     for s in e["slots"]:

@@ -615,7 +615,7 @@ export default function ComparePanel() {
               ))}
             </table>
             {/* U5: where and why it fails - the difference over time with the tolerance band */}
-            <DiffChart segment={!!segment} traces={rows.filter((r) => r.trace).map((r) => ({ id: r.id, color: runColor(r.id.split("/")[0]),
+            <DiffChart segment={!!segment} unit={detailUnit} traces={rows.filter((r) => r.trace).map((r) => ({ id: r.id, color: runColor(r.id.split("/")[0]),
               name: runName(r.id.split("/")[0]), trace: r.trace! }))} />
             <div className="arow wrap">
               {!segment && <button className="btn outline" disabled={busy} onClick={plotDiffs}>{t("plotDiffs")}</button>}

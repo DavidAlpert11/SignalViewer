@@ -9,12 +9,13 @@ compare. Everything runs on your computer; nothing is sent anywhere.
 - **Windows:** install `SignalViewer-Setup-X.Y.Z.exe` (for you only, no administrator rights), or
   extract the portable `.zip` and double-click *Signal Viewer.bat*.
 - **Linux / macOS:** extract the `-portable.7z` and run `SignalViewer/SignalViewer`.
-- The first screen offers **examples** (a drone flight, the same mission flown twice, three car runs,
-  an ArduPilot log, a pump on a test bench…). One click opens one ready to look at – the quickest way to learn the app.
+- The first screen offers **examples** (a simulation and its requirements, a model against its test, many runs of
+  a simulation, a fault to find, a smart sweep, a flight log…). One click opens one ready to look at – the quickest
+  way to learn the app.
 
 ## 2. Open your files
 
-- **+ Open files** in the file list or *Open ▾* in the top bar (Ctrl+O), or drop files on the window. CSV and text tables, MATLAB `.mat`,
+- **Open files** on the welcome screen, **+** in the file list or *File ▾* in the top bar (Ctrl+O), or drop files on the window. CSV and text tables, MATLAB `.mat`,
   ArduPilot `.bin`, PX4 `.ulg`, MAVLink `.tlog`, ROS 2 `.mcap`, HDF5 and Parquet are read directly.
 - From Windows Explorer: right-click a file → **Open with → Signal Viewer**. If the app is already
   open, the file opens in it.
@@ -34,8 +35,9 @@ are told apart by them.
 ## 3. The screen
 
 - **Top:** one row - the work areas as one switch (*Recordings* - your files and plots, *Sweeps* - a run
-  envelope's results table), then the Recordings tools (open /
-  save, templates, live, undo / redo, clear, Inspector), Ctrl+K, Settings, the theme, the language and Help.
+  envelope's results table), Ctrl+K, then the area's own: **File ▾** (open files, a session, recent files; save the
+  session, export a recording, the live links, *Clear ▸*), *Templates* and *Live* (once files are open), undo / redo -
+  and ⚙ Settings and Help. The language and the theme are chosen in Settings (and Ctrl+K).
 - **Left:** the panels – *Data* (the open files and their signals), *Create signals*, *Compare runs*,
   *Investigate*, *Report* and *Checks* (the verdict, structure and parameters of any file - section 10).
 - **Middle:** the plots of the current tab. The plot tabs are in the bar above the plots: **+** makes one, **▾** opens a
@@ -47,8 +49,9 @@ are told apart by them.
   modes as colour along its track.
 - **Bottom:** the timeline – play, the time shown, the cursor. Time is written in seconds as
   recorded, like the axes; *Settings* (the gear, Ctrl+,) can show a clock from the start instead,
-  and holds the theme and the text size.
-- **Right:** the Inspector – values at the cursor, statistics, the selected signal's settings.
+  and holds the language, the theme and the text size.
+- **Right:** the Inspector – values at the cursor, statistics, the selected signal's settings; its switch is at the
+  end of the plots' bar.
 
 ## 4. Plot
 
@@ -389,7 +392,7 @@ shown change together – on the axis, in the list, in the legend – and it can
 
 ## 9. Keep and share your work
 
-- **Save session** (the disk icon at the top left, Ctrl+S; opening one: *Open ▾ → Open session…* beside it, Ctrl+Shift+O) keeps everything – files, tabs, plots, zoom, notes. The app also
+- **Save session** (*File ▾ → Save session*, Ctrl+S; opening one: *File ▾ → Open session…*, Ctrl+Shift+O) keeps everything – files, tabs, plots, zoom, notes. The app also
   restores your last work by itself when it starts.
 - **Templates** (the top bar): save a tab or a whole set of tabs as a template, and open it later on
   other files with the same signals.
@@ -416,7 +419,7 @@ shown change together – on the axis, in the list, in the legend – and it can
   lines on and off, values under the pointer). *Copy image* is a line of its own in the menu. The 3D view's **⋯** saves its image at
   the screen's size or at twice it, and removes the 3D view. A map whose object already draws the track
   shows no Lon / Lat pickers; **⋯ ▸ Lat / lon track** brings them back.
-- **Clear ▾** (the top bar): this tab's plots, the other tabs, all
+- **Clear** (*File ▾ → Clear ▸*): this tab's plots, the other tabs, all
   tabs, or all the work on the data - tabs, notes, derived signals and edits - while the files stay
   open. Each is undone with **Undo** in the message or Ctrl+Z. *Everything* also closes the files
   (it asks first).
@@ -425,9 +428,12 @@ shown change together – on the axis, in the list, in the legend – and it can
 
 **Checks** (the left rail) works with every recording, not only flight logs. Its tabs:
 
-- **Checks** – one verdict first, then tinted cards (green / yellow / red edge): your limits, the data
-  quality (gaps, repeated or backwards time, missing values) and, for a flight log, the log's own health
-  check. A card's signals plot with one click.
+- **Checks** – one verdict first, then tinted cards (green / yellow / red edge): the requirements kept with the
+  file (its checks file), your limits, the data quality (gaps, repeated or backwards time, missing values) and what
+  the app found by itself - for a flight log its health check; for **any** file the numbers that are not numbers,
+  a signal that oscillates, and each commanded / measured pair (`Pos_cmd` / `Pos`, `DesRoll` / `Roll`): how far it
+  stays from its command, how its steps overshoot and settle. The line under them names the profiles that looked.
+  A card's signals plot with one click.
 - **Events** (flight logs) – the modes, log events, errors, messages, findings, conditions and limit
   violations in one list, in time order.
 - **Parameters** – the parameters of the run, for every format, in one list: a flight log's parameters, a
@@ -437,12 +443,20 @@ shown change together – on the axis, in the list, in the legend – and it can
   Runs × conditions* shows the same settings when they differ between the runs.
 - **The file** – the structure of any recording: a log's message types, a ROS bag's topics, a MATLAB
   file's structs, a table's column groups - each with its rate, samples, units and gaps, the time base and
-  the values at the cursor; a live file as it grows. Click a column to plot it.
+  the values at the cursor; a live file as it grows. Click a column to plot it. Under it, folded:
 - **Instruments** – big readouts of each chosen signal's latest value at the time, and the attitude
   indicator with heading, altitude and ground speed. While live (a MAVLink link, data sent from Python, a
   file being written) they show the newest data; a reading that stopped arriving says how old it is.
   *Add an instrument…* adds a tile, ✕ removes one (Undo works); a template brings its own.
 - **Hardware** (flight logs) – the board, firmware and sensors decoded from the log.
+
+**Requirements, not only limits.** A checks file beside the recording (`<name>.checks.json`, or `checks.json` in
+its folder) holds ranges and requirements of other kinds - `settle` (in a band by a time), `overshoot` (% of the
+step), `rise` (10 → 90 %), `sserror`, `rate`, `track` (within a tolerance of a reference signal) and `order` (one
+moment before another). Checks shows the same verdict as `signalviewer-cli check` in CI, each failure with what was
+measured and a click to its moment. *A simulation and its requirements* (the welcome screen) is a Simulink servo
+judged this way. Your own automatic rules for every file whose signals match: a JSON file in
+`~/.signalviewer/profiles` - `{"name": "Rig", "match": ["^Pos$"], "checks": [ … ]}`, the checks file's entries.
 
 **The run at a glance** (above the plots) names each run with up to four numbers – max altitude, battery
 used, lowest voltage… – in mono beside its name: a click goes to its time, ⋯ unpins it, and a number the
@@ -476,7 +490,7 @@ log's estimated wind.
 ### A folder of recordings { #folder }
 
 Many recordings of the same kind - every flight of two copters, a test run a day - are summed up one row per
-recording: **Sweeps ▸ Data ▸ *From a folder of recordings…*** (also under Sweeps' *Open ▾*; or *Investigate ▸ Runs matrix ▸ Summarize a
+recording: **Sweeps ▸ Data ▸ *From a folder of recordings…*** (also under *File ▾* in Sweeps; or *Investigate ▸ Runs matrix ▸ Summarize a
 folder*). Each recording gets the same **measures** (the highest `VIBE[0].VibeZ`, the lowest `BAT[0].Volt`,
 the last `BAT[0].CurrTot`…) and parameters read from its name (`{vehicle}_{date}` reads `X8-A_2026-09-02.bin`
 as vehicle X8-A, date 2026-09-02). The folder is read one file at a time, so hundreds of files of any format
@@ -490,7 +504,7 @@ X8-B's battery drops on its last flight.
 
 ## 12. Live data
 
-**Live** (the top bar, beside undo) follows files that are still being written – a CSV growing, a MATLAB file saved
+**Live** (the top bar, beside undo, once a file is open; the links - MAVLink, a serial port, UDP / TCP - in *File ▾ → Live mode settings…*) follows files that are still being written – a CSV growing, a MATLAB file saved
 again and again – and can connect to a MAVLink stream. From Python, `signalviewer_push.show(...)`
 sends arrays straight into the running app.
 
@@ -535,7 +549,7 @@ Four steps, left to right:
    as in HiPlot; Keep, Exclude, undo; zoom), *Why it fails* for any set, **Charts** (as many as you
    like, each exported as PNG or HTML, in the report or not), **Next runs** (where to run more, the
    budget shared equally, in proportion or by hand; and the re-run list you collect) and the
-   **Report** (HTML, Word or PDF with the whole process). *Clear ▾* empties the charts and lists, the
+   **Report** (HTML, Word or PDF with the whole process). *File ▾ → Clear ▸* empties the charts and lists, the
    goal, the whole study, or closes every study.
 
    **A big table.** The plot draws every run as a line up to *Settings → Sweeps: most lines to draw*
@@ -550,10 +564,10 @@ conditions with it (the same goal). *Best set per value* puts them side by side;
 value* colours the sets that hold for each. A set added to the re-run list then runs with that
 value only.
 
-Ctrl+Z undoes any step, the study is kept when the app closes, and *Study ▾* saves it or makes a
+Ctrl+Z undoes any step, the study is kept when the app closes, and *File ▾* saves it or makes a
 template for the next table. In CI: `signalviewer-cli sweep results.csv --question study.svsweep`.
 
-**Studies: many tables, the next runs, the loop.** *Open ▾* holds *New study…*, a table, a folder and
+**Studies: many tables, the next runs, the loop.** *File ▾* holds *New study…*, a table, a folder and
 *Open a saved study* (a table's `.svsweep` or a study file, `.svstudy.json`). *New study…* asks how to
 begin:
 
@@ -575,9 +589,9 @@ sets: the sets proposed from the results so far (export them to run outside the 
 app* – what the next round will run or what is still missing, **The goal of the loop** (the loop ranks the
 sets, so it asks for a goal here, not before: the table's Goal step, or what to rank by), **Run them**, *Only
 write the files* (for a launcher of your own), the loop's *Next round*, *Run until converged* and *Stop*, its
-progress and how it converges. *Clear ▾ › Everything* closes the tables and the study file (the notice's Undo
+progress and how it converges. *File ▾ → Clear ▸ → Everything* closes the tables and the study file (the notice's Undo
 opens them again).
-Finished rounds come back as new tables in Data. *Study ▾* saves, undoes and closes the study, and
+Finished rounds come back as new tables in Data. *File ▾* saves the study (undo / redo beside it in the top row), and
 *Report of the study…* writes one HTML page of the whole study. One Ctrl+Z undoes the last change anywhere
 in Sweeps.
 
@@ -603,10 +617,11 @@ both back. A single table opened with *I have results* is saved as its own `.svs
 
 ## Start from an example
 
-The welcome screen shows six examples as cards with a picture of what each opens - an ArduPilot log, *Find out
-what went wrong*, a simulation against its flight, the same mission flown twice, a folder of recordings and the
-smart-sweep demo; **Help → Examples** lists every example (also a drone flight, three car runs, a pump on a test
-bench, a sweep's results table and *One gain set, three drones*). The Sweeps ones open in the Sweeps area (see
+The welcome screen shows six examples as cards with a picture of what each opens - a simulation and its
+requirements (a Simulink servo, Checks on its verdict), a model against its test (a car's cruise control), many runs
+(a Monte-Carlo folder, a row per run in Sweeps), *Find out what went wrong*, the smart-sweep demo and an ArduPilot
+log; **Help → Examples** lists every example by task - verify against requirements, a simulation against a test,
+many runs, look / compare / find what went wrong, bytes and messages, flight logs. The Sweeps ones open in the Sweeps area (see
 *One parameter set for many systems* and *The smart-sweep demo*); the others open their recordings with the view
 that suits them. Then a line of two or three steps above the plots leads on: each says what is on screen and what
 to do next, and its button does it - play the flight, see what Checks found, rank where the runs differ, align a
@@ -632,7 +647,7 @@ for the numbers.
 
 ## One parameter set for many systems, the next runs, the farm, the demo
 
-*Sweeps → Open ▾ → New study…*: a study of one or several sweep tables, saved as a `.svstudy.json`
+*Sweeps → File ▾ → New study…*: a study of one or several sweep tables, saved as a `.svstudy.json`
 (section 13). The values ranked together, why a value fails, the next runs and *Run them*
 (in Next runs) are explained in
 [One parameter set for many systems](common-gains.md) and [Launcher mode](launcher.md); the welcome screen's
@@ -650,6 +665,9 @@ each with its shortcut.
 
 ## Where things are
 
-The plot bar keeps what you use with the plots: layout, link the time axes, zoom, the cursors; rarer things
-(zoom back, link the value axes, clear the plots) are in its ⋯ menu. The keyboard shortcuts are in Help and on
+The top row's *File ▾* holds what is done with files (and, in Sweeps, with the study); Settings the choices made
+once (language, theme, text size, defaults). The plot bar keeps what you use with the plots: layout, link the time
+axes, zoom, the cursors, and the Inspector's switch at its end; rarer things (zoom back, link the value axes, clear
+the plots) are in its ⋯ menu. The Report's head: Write / Both / Preview, one export button, every format in
+*Export ▾*, the report's options in its ⚙. *Create signals* starts with *What to make* - one list. The keyboard shortcuts are in Help and on
 the ? key. Every command is in the command search (Ctrl+K). Help → *Tour* shows the 30-second tour again.

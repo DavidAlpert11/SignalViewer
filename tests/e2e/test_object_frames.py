@@ -100,8 +100,8 @@ def test_vector_smoothing_in_create_signals(pg):
     for n in ("N", "E", "D"):
         sig(pg, n).click()
     pg.click("[aria-label='Create signals']")
-    pg.click(".seg.wide button:has-text('Several')")
-    pg.locator(".analysis .afield select").first.select_option("vecsmooth")
+    pg.locator(".analysis select.kind-select").select_option("many")
+    pg.locator(".analysis .afield:not(.kind-field) select").first.select_option("vecsmooth")
     pg.click(".msp-top .linklike:has-text('From the active plot')")
     pg.fill(".vs-window", "1")
     pg.get_by_role("button", name="Create signal", exact=True).click()

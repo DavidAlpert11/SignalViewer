@@ -81,7 +81,7 @@ export default function ReportParts({ block, ready, text, selected }: { block: (
       ))}
       <details className="rd-cat rd-cat-mine" open>
         <summary><b>{t("rpMyParts")}</b>{own.length > 0 && <span className="hint"> · {own.length}</span>}</summary>
-        {own.length === 0 && <p className="hint">{t("rpMyPartsEmpty")}</p>}
+        {own.length === 0 && <p className="hint" title={t("rpMyPartsEmpty")}>{t("rpMyPartsEmptyShort")}</p>}
         <div className="rd-lib-tab">
           {own.map((m) => (
             <span key={m.name} className="rd-mine">

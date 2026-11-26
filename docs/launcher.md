@@ -64,7 +64,7 @@ The smart-sweep demo runs its rounds this way; its folder's README says how to r
 
 ## In the app and on the command line
 
-Open the study (*Sweeps → Open ▾ → Open a saved study*): the **Run** column on its right says what the next round
+Open the study (*Sweeps → File ▾ → Open a saved study*): the **Run** column on its right says what the next round
 will run. **Run them** shows the exact command once per session, runs it, and shows each run under it as
 *submitted / done / failed / missing*. *Only write the files* writes the round's parameter files
 (`next/round_<k>/`) and runs nothing - for a launcher you start yourself.

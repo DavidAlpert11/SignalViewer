@@ -325,7 +325,7 @@ def img_11_formula_editor(b, app):
     ctx, pg = page(b, app); open_api(pg, app, "run_012.csv")
     sig(pg, "Speed").click(); sig(pg, "RPM").click()
     pg.click("[aria-label='Create signals']")
-    pg.locator(".analysis .seg.wide button", has_text="Formula").click()
+    pg.locator(".analysis select.kind-select").select_option("fx")
     box = pg.locator(".analysis .fx-input textarea, .analysis .fx-input input, .analysis textarea").first
     box.click(); box.type("2*Speed - RP", delay=40)
     pg.wait_for_timeout(900)
@@ -449,7 +449,7 @@ def img_18_frames(b, app):
     pg.get_by_placeholder("Search signals").fill("GPS.Alt")          # D2: the list groups by prefix
     sig(pg, "Alt").click()
     pg.click("[aria-label='Create signals']")
-    pg.locator(".analysis .seg.wide button", has_text="Frames").click(); pg.wait_for_timeout(400)
+    pg.locator(".analysis select.kind-select").select_option("frame"); pg.wait_for_timeout(400)
     pg.locator(".seg.wide button", has_text="A plot per axis").click()
     pg.get_by_role("button", name="Preview", exact=True).click()
     pg.wait_for_selector(".pv-plot canvas", timeout=20000); pg.wait_for_timeout(1200)
@@ -1098,7 +1098,8 @@ def img_57_report_latex(b, app):
     computer's TeX made - the plots as figures, the parts as sections and tables. Needs a LaTeX installed."""
     ctx, pg = page(b, app)
     _report_parts(pg, app)
-    pg.locator(".rd-format").select_option("tex")
+    pg.locator(".rd-options").click(); pg.locator(".menu.ctx button", has_text="Written in").hover()   # CC8: in ⚙
+    pg.locator(".menu.ctx.sub button", has_text="LaTeX").click()
     pg.wait_for_function("(window.__sv.state().ws.report?.doc?.text || '').includes('\\\\documentclass')", timeout=30000)
     pg.wait_for_selector(".rd-pdf-frame", timeout=180000)
     # the text from \\begin{document} (the parts as references), beside the PDF (a Chromium with its PDF view: SV_CHROMIUM)

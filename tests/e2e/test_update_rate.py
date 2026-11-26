@@ -25,7 +25,7 @@ def test_derivative_of_the_updates(pg, mode):
     open_files(pg, "slow_signal.csv")
     sig(pg, "Slow").click()
     pg.click("[aria-label='Create signals']")
-    pg.locator(".analysis .afield select").first.select_option("derivative")
+    pg.locator(".analysis .afield:not(.kind-field) select").first.select_option("derivative")
     box = pg.locator(".upd-field")
     box.locator("select[aria-label='Updates of the signal']").select_option(mode)
     if mode == "hz":

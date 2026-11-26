@@ -94,7 +94,7 @@ export default function InvestigatePanel() {
     </div>
     {!files.length && <p className="empty-state">{t("condNoFiles")}</p>}
     {edit?.id === "new" && <CondEditor key="new" />}
-    {!conds.length && edit?.id !== "new" && files.length > 0 && <p className="empty-state">{t("condEmpty")}</p>}
+    {!conds.length && edit?.id !== "new" && files.length > 0 && <p className="empty-state" title={t("condEmpty")}>{t("condEmptyShort")}</p>}
     <ul className="cond-list">
       {conds.map((c) => {
         const k = count(c.id);

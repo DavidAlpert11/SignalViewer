@@ -91,7 +91,7 @@ export default function GroupsPanel({ study }: { study: Study }) {
           </li>
         ))}
       </ul>
-      {!groups.length && <p className="hint">{t("swGrpEmptyHint")}</p>}
+      {!groups.length && <p className="hint" title={t("swGrpEmptyHint")}>{t("swGrpEmptyShort")}</p>}
     </div>
   );
 }

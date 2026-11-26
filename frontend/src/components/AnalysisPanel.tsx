@@ -25,6 +25,8 @@ import { parenProblem, VAR_E, VAR_PI, VAR_T, VAR_X } from "../formulaHelp";
 const X_VARS = [VAR_X, VAR_T, VAR_PI, VAR_E];
 
 type Kind = "one" | "two" | "many" | "fx" | "frame" | "py";   // py: the user's own Python operations (T31)
+const KIND_LABEL = { one: "kindOne", two: "kindTwo", many: "kindMany", fx: "formula", frame: "kindFrame", py: "kindOne" } as const;
+const KIND_DESC = { one: "kindOneDesc", two: "kindTwoDesc", many: "kindManyDesc", fx: "kindFxDesc", frame: "kindFrameDesc", py: "kindPyDesc" } as const;
 const UNARY: [string, TKey][] = [
   ["derivative", "opDerivative"], ["integral", "opIntegral"], ["abs", "opAbs"], ["negate", "opNegate"],
   ["normalize", "opNormalize"], ["affine", "opAffine"], ["smooth", "opSmooth"], ["rms", "opRms"], ["lowpass", "opLowpass"], ["highpass", "opHighpass"],
@@ -369,14 +371,12 @@ export default function AnalysisPanel() {
       <div className="side-head"><h2>{t("analysis")}</h2></div>
       {!options.length ? <p className="empty-note">{t("noFilesHint")}</p> : (
         <div className="tree analysis">
-          <div className="seg wide kinds" role="tablist">
-            <button role="tab" aria-selected={kind === "one"} className={kind === "one" ? "on" : ""} onClick={() => switchKind("one")}>{t("kindOne")}</button>
-            <button role="tab" aria-selected={kind === "two"} className={kind === "two" ? "on" : ""} onClick={() => switchKind("two")}>{t("kindTwo")}</button>
-            <button role="tab" aria-selected={kind === "many"} className={kind === "many" ? "on" : ""} onClick={() => switchKind("many")}>{t("kindMany")}</button>
-            <button role="tab" aria-selected={kind === "fx"} className={kind === "fx" ? "on" : ""} onClick={() => switchKind("fx")}>{t("formula")}</button>
-            <button role="tab" aria-selected={kind === "frame"} className={kind === "frame" ? "on" : ""} onClick={() => switchKind("frame")}>{t("kindFrame")}</button>
-            <button role="tab" aria-selected={kind === "py"} className={kind === "py" ? "on" : ""} onClick={() => switchKind("py")} title={t("pyIntro")}>Python</button>
-          </div>
+          {/* CC6 (owner, 2026-11-26: not overloaded): what to make - one list with a line each (was six tabs) - then its fields */}
+          <label className="afield kind-field"><span>{t("createWhat")}</span>
+            <select className="kind-select" value={kind} onChange={(e) => switchKind(e.target.value as Kind)} title={t(KIND_DESC[kind])}>
+              {(["one", "two", "many", "fx", "frame", "py"] as Kind[]).map((k) => (
+                <option key={k} value={k}>{k === "py" ? "Python" : t(KIND_LABEL[k])} – {t(KIND_DESC[k])}</option>))}
+            </select></label>
 
           {kind === "fx" && <FormulaInput value={fx} onChange={setFx} runs={runs} error={fxRes?.error} />}
           {kind === "py" && <>
@@ -399,7 +399,6 @@ export default function AnalysisPanel() {
                 <button className={output === "new" ? "on" : ""} onClick={() => setOutput("new")} title={t("resultNewHint")}>{t("resultNew")}</button>
                 <button className={output === "edit" ? "on" : ""} onClick={() => setOutput("edit")} title={t("resultEditHint")}>{t("resultEdit")}</button>
               </div>
-              <p className="hint" style={{ fontSize: "var(--fs-s)", margin: "4px 0 0" }}>{output === "edit" ? t("resultEditHint") : t("resultNewHint")}</p>
             </div>
             <div className="seg wide small" role="group">
               <button className={!batch ? "on" : ""} onClick={() => setBatch(false)}>{t("applyToThis")}</button>
@@ -570,7 +569,7 @@ export default function AnalysisPanel() {
             </div>
           )}
           <h3 className="alist-head">{t("derivedSignals")}{!!derivedRun?.signals.length && <> <span className="ph-count">{derivedRun.signals.length}</span></>}</h3>
-          {!derivedRun?.signals.length && <div className="empty-state"><p>{t("noDerived")}</p></div>}
+          {!derivedRun?.signals.length && <div className="empty-state" title={t("noDerived")}><p>{t("noDerivedShort")}</p></div>}
           {groupDerived(derivedRun?.signals ?? []).map((g) => {
             const row = (s: NonNullable<typeof derivedRun>["signals"][number], deep: boolean) => (
               <div key={s.id} className={`dsig${deep ? " deep" : ""}${s.valid === false ? " broken" : ""}`}>

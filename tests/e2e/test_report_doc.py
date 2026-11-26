@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 pw = pytest.importorskip("playwright.sync_api")
-from test_features import S, env, open_clear_menu, open_files, pg, save_as, sig  # noqa: E402,F401
+from test_features import S, env, open_clear_menu, open_files, pg, report_format, save_as, sig  # noqa: E402,F401
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
 from svcore.docfields import format_value  # noqa: E402
@@ -146,12 +146,12 @@ def test_clear_and_the_report(pg):
     # the Report screen: ↺ > Empty
     pg.locator(".rail button[aria-label='Report']").click()
     pg.wait_for_selector(".rd .rd-text")
-    pg.locator(".rd-reset").click()
+    pg.locator(".rd-options").click()                                  # CC8: in the report's ⚙
     pg.locator(".menu.ctx button", has_text="Empty").click()
     pg.click(".dialog-foot .btn.primary")
     pg.wait_for_function("window.__sv.state().ws.report.doc.text === '' && document.querySelector('.rd-text').value === ''")
     # ↺ > Back to the report made from the open tabs
-    pg.locator(".rd-reset").click()
+    pg.locator(".rd-options").click()                                  # CC8: in the report's ⚙
     pg.locator(".menu.ctx button", has_text="Back to the report").click()
     pg.click(".dialog-foot .btn.primary")
     pg.wait_for_function("document.querySelector('.rd-text').value.includes('[[Drive]]')")
@@ -170,7 +170,7 @@ def test_latex_report_written_in_latex_typeset_offline(pg):
     from svcore import latex as TX
     if TX.status()["snippets"]:                     # a ```latex block drawn by TeX in the page (the computer's TeX only:
         preview_has(pg, 'class="math tex')          # the built-in Tectonic typesets documents, not snippets - RE4)
-    pg.locator(".rd-format").select_option("tex")
+    report_format(pg, "tex")
     pg.wait_for_function("(window.__sv.state().ws.report?.doc?.text || '').startsWith('% Made by Signal Viewer')", timeout=15000)
     text = S(pg, "s.ws.report.doc.text")
     assert "\\begin{document}" in text and "{{ max(Speed) }}" in text and "[[Drive.Speed]]" in text and "\\begin{align}" in text
@@ -191,7 +191,8 @@ def test_latex_report_written_in_latex_typeset_offline(pg):
     write(pg, text)
     pg.wait_for_function("!document.querySelector('.rd-tex-err')", timeout=60000)
     # the project for Overleaf, and the PDF typeset here
-    pg.locator(".rd-texzip").click()
+    pg.locator(".rd-export").click()                                # CC8: every format in Export ▾
+    pg.locator(".menu.ctx button", has_text="LaTeX (.zip)").click()
     save_as(pg, "drive.zip")
     pg.locator(".rd-texpdf").click()
     save_as(pg, "drive.pdf")

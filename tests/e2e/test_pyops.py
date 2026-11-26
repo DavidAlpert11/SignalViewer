@@ -11,7 +11,7 @@ from test_features import env, open_files, pg  # noqa: E402,F401
 def test_python_operation_from_the_example(pg):
     open_files(pg, "run_a.csv")
     pg.click("[aria-label='Create signals']")
-    pg.click(".seg.wide button:has-text('Python')")
+    pg.locator(".analysis select.kind-select").select_option("py")
     pg.wait_for_selector(".pyops .empty-note")                                # a fresh folder: nothing yet
     pg.click(".pyops-btns button:has-text('Make an example')")
     pg.wait_for_selector(".pyops select option:has-text('Despike')", state="attached")

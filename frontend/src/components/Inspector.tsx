@@ -470,7 +470,7 @@ export default function Inspector() {
         <h3><span className="eyebrow">{t("notes")}</span>
           <button className="iconbtn sm" style={{ marginInlineStart: "auto" }} onClick={() => actions.addNoteAtCursor()}
             title={`${t("noteAdd")} (N)`} aria-label={t("noteAdd")}><Icon.Plus /></button></h3>
-        {!(ws.notes ?? []).length ? <p className="hint">{t("notesEmpty")}</p> : (
+        {!(ws.notes ?? []).length ? <p className="hint" title={t("notesEmpty")}>{t("notesEmptyShort")}</p> : (
           <ol className="notes-list">
             {[...(ws.notes ?? [])].sort((a, b) => a.t - b.t).map((n) => (
               <li key={n.id}>

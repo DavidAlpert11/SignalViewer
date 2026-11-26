@@ -27,9 +27,9 @@ def test_sum_propagate_then_skip_is_marked(pg):
     open_files(pg, "holes.csv")
     sig(pg, "A").click(); sig(pg, "B").click()
     pg.click("[aria-label='Create signals']")
-    pg.click(".seg.wide button:has-text('Several')")
+    pg.locator(".analysis select.kind-select").select_option("many")
     pg.click(".msp-top .linklike:has-text('From the active plot')")
-    pg.locator(".analysis .afield select").first.select_option("sum")
+    pg.locator(".analysis .afield:not(.kind-field) select").first.select_option("sum")
     box = pg.locator(".nan-field")
     assert box.locator("select").input_value() == "propagate"           # the default: nothing left out
     pg.get_by_role("button", name="Create signal", exact=True).click()
@@ -52,7 +52,7 @@ def test_integral_choice_only_where_it_applies(pg):
     open_files(pg, "holes.csv")
     sig(pg, "B").click()
     pg.click("[aria-label='Create signals']")
-    op = pg.locator(".analysis .afield select").first
+    op = pg.locator(".analysis .afield:not(.kind-field) select").first
     op.select_option("derivative")
     assert pg.locator(".nan-field").count() == 0                      # a derivative has no choice
     op.select_option("integral")

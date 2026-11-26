@@ -17,6 +17,22 @@
  },
  {
   "version": 2,
+  "id": "bi-pairs",
+  "group": "general",
+  "builtin": true,
+  "name": "Command and response",
+  "description": "@tplPairsDesc",
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotFile"
+   }
+  ],
+  "tabs": [],
+  "generator": "pairs"
+ },
+ {
+  "version": 2,
   "id": "bi-compare-files",
   "group": "general",
   "builtin": true,

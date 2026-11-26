@@ -10,7 +10,8 @@ const H = 132, PADL = 40, PADR = 8, PADT = 6, PADB = 18;
  *  from the baseline over time, the tolerance band shaded around zero and the stretches outside it
  *  in red - where and by how much a signal fails. A click puts the cursor there (the overlay plot
  *  follows); off in a segment comparison, whose times are since each segment's start. */
-export default function DiffChart({ traces, segment }: { traces: { id: string; color: string; name: string; trace: DiffTrace }[]; segment: boolean }) {
+export default function DiffChart({ traces, segment, unit }: { traces: { id: string; color: string; name: string; trace: DiffTrace }[]; segment: boolean;
+  /** CC20 (RW7 leftover): the signal's unit - the difference is in it */ unit?: string | null }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const theme = useApp((s) => s.theme);
@@ -51,7 +52,7 @@ export default function DiffChart({ traces, segment }: { traces: { id: string; c
   const outs = all.flatMap((x) => x.trace.out.map((o) => ({ ...x, o })));
   return (
     <div className="diff-wrap" ref={box}><figure className="diff-chart">
-      <figcaption>{t("diffTitle")}{band ? <span className="muted"> · {t("diffBand")}</span> : null}
+      <figcaption>{t("diffTitle")}{unit ? <span className="muted"> [{unit}]</span> : null}{band ? <span className="muted"> · {t("diffBand")}</span> : null}
         {outs.length > 0 && <span className="diff-out-n">{t("diffOutN", { n: outs.length })}</span>}</figcaption>
       <svg ref={ref} viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-label={t("diffTitle")}
         onMouseMove={(e) => setHx(timeAt(e.clientX))} onMouseLeave={() => setHx(null)}
@@ -72,7 +73,7 @@ export default function DiffChart({ traces, segment }: { traces: { id: string; c
           return v === null || v === undefined || !Number.isFinite(v) ? null
             : <circle key={`h${x.id}`} className="diff-hover-pt" cx={X(x.trace.t[i])} cy={Y(v)} r={3} style={{ fill: x.color }} />;
         })}
-        <text className="diff-tick" x={PADL - 4} y={Y(y1 - pad) + 3} textAnchor="end">{fmtNum(y1 - pad, lang, 3)}</text>
+        <text className="diff-tick" x={PADL - 4} y={Y(y1 - pad) + 3} textAnchor="end">{fmtNum(y1 - pad, lang, 3)}{unit ? ` ${unit}` : ""}</text>
         <text className="diff-tick" x={PADL - 4} y={Y(0) + 3} textAnchor="end">0</text>
         <text className="diff-tick" x={PADL - 4} y={Y(y0 + pad) + 3} textAnchor="end">{fmtNum(y0 + pad, lang, 3)}</text>
         <text className="diff-tick" x={PADL} y={H - 4} textAnchor="start">{fmtNum(t0, lang, 5)}</text>

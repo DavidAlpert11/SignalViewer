@@ -1262,3 +1262,27 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
 - [x] CC21 (part) What every loader shares - progress / cancel, text codes, the content fingerprint - in
   svcore/load_common.py (csv_loader re-exports the names): the .bin, MCAP and flight-log readers no longer reach into
   the CSV reader. Tests: backend all, mypy.
+- [x] CC3 Words on screen: the long empty states are one short line with the explanation as its tooltip (Inspector
+  notes, Investigate's conditions, Create's derived signals, Checks' limits, the Report's My parts, Sweeps' groups).
+  Kept: the plots' "Click: pick…" line (shown once, then a tooltip - OverviewStrip's ovHintSeen; the audit's screens
+  were a first start). Tests: e2e test_features, test_conditions, test_report_parts, test_sweeps_groups.
+- [x] CC5 The Inspector already starts closed (test_inspector_starts_closed_and_respects_the_user); its empty notes one
+  line. Kept: the status bar's T1 / T2 / ΔT - with the Inspector closed it is the one place for ΔT.
+- [x] CC6 Create: *What to make* - one list (one / two / several / formula / frames / Python, a line each) instead of
+  six tabs; the result's always-on hint line gone (in its buttons' tooltips). Tests: e2e test_features,
+  test_error_segments, test_object_frames, test_missing_choice, test_pyops (select.kind-select).
+- [x] CC8 The Report's head: one primary export (HTML, or PDF via LaTeX), every format in *Export ▾* (.rd-export), the
+  report's language / Markdown or LaTeX / theme / Empty / Start again in its ⚙ (.rd-options). Tests: e2e test_features
+  (exports), test_report_doc (report_format, Export ▾, ⚙).
+- [x] CC10 (part) 24 px targets for a chip's ×, a list row's ×, a tab's close, a plot's drag handle (::after hit areas,
+  the glyphs unchanged). Left for Phase 3 with the counts: fewer boxes / outlines.
+- [x] CC15 (part) *Command and response* (bi-pairs, generator "pairs" in templates.ts): each commanded / measured pair
+  in a plot of its own, offered on the empty plot when a file has pairs. The verification report: the checks file's
+  verdict is in the automatic report through Checks (no separate template yet - noted for the push session).
+- [x] CC19 Sweeps "1 limit" (swStLimit1 / swStGoal1); the neighbours-hold column "–" with no limit; a finding's time
+  range in a bdi (Hebrew). Tests: e2e test_sweeps_flow, test_checks_view.
+- [x] CC20 Compare's difference plot names its unit (DiffChart unit); a derived signal named by a long formula is cut
+  to 48 characters (app/store.py AUTO_NAME_MAX), its formula whole. Tests: backend test_derived_name; e2e
+  test_compare_diff, test_compare_tolerances. Not done: the "noise-ratio note" (RW7's wording - no spec beyond that).
+- [x] CC23 The bundle: react / uplot / zustand and the two i18n tables (core, areas) in chunks of their own
+  (vite.config.ts manualChunks) - index 698 -> 440 kB, no chunk over 500 kB, Vite's warning gone.

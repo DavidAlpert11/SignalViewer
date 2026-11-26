@@ -173,7 +173,7 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
       <section className="checks-sec" aria-label={t("chkLimits")}>
         <h3 className="eyebrow">{t("chkLimits")}</h3>
         {!items.length ? (
-          <p className="empty-state"><span>{t("chkNoLimits")}</span> <span className="muted">{t("chkNoLimitsHow")}</span></p>
+          <p className="empty-state" title={t("chkNoLimitsHow")}><span>{t("chkNoLimits")}</span></p>
         ) : (
           <ul className="card-list">
             {limRows.map(({ it, r }) => (

@@ -1,3 +1,4 @@
+import { setpointPairs } from "./desired";
 import { api, type RunInfo, type Template, type TplObject, type TplObjectRole, type TplPlot, type TplSlot, type TplTab } from "./api";
 import { activeTab, colorAllocator, colorByFile, fileLabel, fileMark, TRACE_COLORS, uid, useApp, type Condition, type GlanceItem, type MapObject, type MoreTabs, type ObjectKind, type Plot, type Tab } from "./store";
 import { translate } from "./i18n";
@@ -197,7 +198,7 @@ export const baseName = (p: string) => p.split(/[\\/]/).pop() || p;
 /** How well the open files fit each template (0..1; null: decide here - the objects generator). */
 export async function fits(all: Template[], runs: RunInfo[]): Promise<Map<string, number>> {
   const r = await api.templateFits(all);
-  return new Map(all.map((t) => [t.id, r.fits[t.id] ?? objectsFit(t, runs)]));
+  return new Map(all.map((t) => [t.id, r.fits[t.id] ?? (t.generator === "pairs" ? pairsFit(runs) : objectsFit(t, runs))]));
 }
 /** Templates best first for the open files: how well they fit, a template made for the file's
  *  format (preferFmt) first, and a collection ahead of its parts. Shared by the library (its first
@@ -234,6 +235,25 @@ function objectTabs(files: { run: RunInfo; slot: string }[], lang: "en" | "he", 
   // one map: its cameras (From above … Cockpit) cover both views; the plot's kind menu turns it into the 3D globe
   return [{ name: translate(lang, "tplObjTab"), rows: 1, cols: 1, linkX: false, plots: [
     { title: translate(lang, "modeGeo"), mode: "geo", signals: [], objects: objs }] }];
+}
+
+/** CC15 "Command and response" (any file, not a vehicle's names): each commanded / measured pair (desired.ts - Pos_cmd /
+ *  Pos, DesRoll / Roll, alt_cmd / alt) in a plot of its own, the command first, four plots a tab. */
+function pairsOf(run: RunInfo): { setpoint: string; measured: string }[] {
+  return setpointPairs(run.signals.filter((s) => !s.labels).map((s) => s.id));
+}
+const pairsFit = (runs: RunInfo[]) => (dataRuns(runs).some((r) => pairsOf(r).length > 0) ? 1 : 0);
+function pairsTabs(run: RunInfo | undefined, slot: string, lang: "en" | "he"): TplTab[] {
+  if (!run) return [];
+  const bare = (id: string) => id.slice(id.indexOf("/") + 1);
+  const pairs = pairsOf(run);
+  const tabs: TplTab[] = [];
+  for (let i = 0; i < Math.min(pairs.length, PER_TAB * 6); i += PER_TAB) {
+    const part = pairs.slice(i, i + PER_TAB);
+    tabs.push({ name: `${translate(lang, "tplPairsTab")}${pairs.length > PER_TAB ? ` ${tabs.length + 1}` : ""}`, rows: part.length, cols: 1, linkX: true,
+      plots: part.map((p) => ({ title: bare(p.measured), signals: [{ name: bare(p.setpoint), slot }, { name: bare(p.measured), slot }] })) });
+  }
+  return tabs;
 }
 
 function quickLookTabs(run: RunInfo | undefined, slot: string, lang: "en" | "he"): TplTab[] {
@@ -307,6 +327,7 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
       continue;
     }
     extraTabs.push(...(g.generator === "quicklook" ? quickLookTabs(st.runs.find((r) => r.id === bind[slot]), slot, L)
+      : g.generator === "pairs" ? pairsTabs(st.runs.find((r) => r.id === bind[slot]), slot, L)
       : compareTabs(st.runs, slot, L)));
   }
   const r = await api.resolveTemplate(t, all, rbind, chosen ?? null, extraTabs);

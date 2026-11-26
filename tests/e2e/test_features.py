@@ -136,6 +136,13 @@ def S(pg, expr):
     return pg.evaluate(f"(() => {{ const s = window.__sv.state(); return {expr}; }})()")
 
 
+def report_format(pg, fmt):
+    """CC8: the report's Markdown / LaTeX is in its ⚙ (Written in ▸)."""
+    pg.locator(".rd-options").click()
+    pg.locator(".menu.ctx button", has_text="Written in").hover()
+    pg.locator(".menu.ctx.sub button", has_text="LaTeX" if fmt == "tex" else "Markdown").click()
+
+
 def set_language(pg, lang):
     """CC1: the language is chosen in Settings (no top-row button): open it, pick, close - the END state is the app
     in that language."""
@@ -759,7 +766,7 @@ def test_O01_O04_unary_filter_preview(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
     pg.click("[aria-label='Create signals']")
-    pg.locator(".analysis .afield select").first.select_option("lowpass")
+    pg.locator(".analysis .afield:not(.kind-field) select").first.select_option("lowpass")
     pg.click("text=Preview")
     pg.wait_for_function("window.__sv.state().preview !== null")
     pg.get_by_role("button", name="Create signal", exact=True).click()
@@ -771,8 +778,8 @@ def test_O02_O03_O05_binary_multi_delete(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click(); sig(pg, "RPM").click()
     pg.click("[aria-label='Create signals']")
-    pg.click(".seg.wide button:has-text('Two signals')"); pg.get_by_role("button", name="Create signal", exact=True).click()
-    pg.click(".seg.wide button:has-text('Several')")
+    pg.locator(".analysis select.kind-select").select_option("two"); pg.get_by_role("button", name="Create signal", exact=True).click()
+    pg.locator(".analysis select.kind-select").select_option("many")
     pg.click(".msp-top .linklike:has-text('From the active plot')")       # an explicit choice, never implicit
     pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.wait_for_function("document.querySelectorAll('.dsig').length === 2")
@@ -836,7 +843,7 @@ def test_similarity_list_filters_and_cache(pg):
 def test_bulk_pick_without_plotting(pg):
     open_files(pg, "wide.csv")
     assert chips(pg) == []
-    pg.click("[aria-label='Create signals']"); pg.click(".seg.wide button:has-text('Several')")
+    pg.click("[aria-label='Create signals']"); pg.locator(".analysis select.kind-select").select_option("many")
     pg.fill(".msp-filter input", "g2.")
     pg.click(".msp-actions .btn:has-text('Choose these')")
     assert pg.locator(".msp-count").inner_text().startswith("30")
@@ -856,8 +863,13 @@ def test_R01_to_R06_reports(pg):
     pg.locator(".rd-text").fill("# Run report\n\n[[tab1]]")
     pg.wait_for_selector("iframe.rd-frame")                             # the live preview
     pg.wait_for_function("(window.__sv.state().reportPreviewHtml || '').includes('Run report')", timeout=30000)
-    for sel, name in ((".replay-make", "r.html"), (".rd-pdf", "r.pdf"), (".rd-docx", "r.docx")):
-        pg.locator(sel).click(); save_as(pg, name)
+    for item, name in ((None, "r.html"), ("PDF", "r.pdf"), ("Word", "r.docx")):       # CC8: HTML the primary, the rest in Export ▾
+        if item is None:
+            pg.locator(".replay-make").click()
+        else:
+            pg.locator(".rd-export").click()
+            pg.locator(".menu.ctx button", has_text=item).first.click()
+        save_as(pg, name)
         pg.wait_for_function(f"[...document.querySelectorAll('.toast')].some(t => t.innerText.includes('{name}'))", timeout=40000)
     html = open(os.path.join(pg.env["out"], "r.html"), encoding="utf-8").read()
     assert "Run report" in html and "sv-data" in html
@@ -991,7 +1003,7 @@ def test_batch_edit_selected_signals(pg):
     pg.click("[aria-label='Create signals']")
     pg.locator(".seg.wide button", has_text="Each of several").click()
     pg.click(".msp-top .linklike:has-text('From the legend selection')")
-    pg.locator(".analysis .afield select").first.select_option("affine")
+    pg.locator(".analysis .afield:not(.kind-field) select").first.select_option("affine")
     pg.locator(".analysis .afield input[type=number]").nth(0).fill("2")
     pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.wait_for_function("document.querySelectorAll('.dsig').length === 2")
@@ -1030,7 +1042,7 @@ def test_legend_names_follow_file_rule(pg):
 
 def test_formula_editor(pg):
     open_files(pg, "run_a.csv")
-    pg.click("[aria-label='Create signals']"); pg.click(".seg.wide button:has-text('Formula')")
+    pg.click("[aria-label='Create signals']"); pg.locator(".analysis select.kind-select").select_option("fx")
     pg.click(".fx-input"); pg.keyboard.type("2*Spe"); pg.keyboard.press("Tab")        # autocomplete
     assert pg.locator(".fx-input").input_value() == "2*Speed"
     pg.keyboard.type(" - RPMM/95")
@@ -1046,7 +1058,7 @@ def test_frame_conversion(pg):
     open_files(pg, "run_a.csv")
     for n in ("Speed", "RPM", "Gear"):
         sig(pg, n).click()
-    pg.click("[aria-label='Create signals']"); pg.click(".seg.wide button:has-text('Frames')")
+    pg.click("[aria-label='Create signals']"); pg.locator(".analysis select.kind-select").select_option("frame")
     assert pg.locator(".analysis .picker-btn").count() == 6                  # X Y Z + roll pitch yaw
     pg.locator(".seg.wide button", has_text="Quaternion").click()
     assert pg.locator(".analysis .picker-btn").count() == 7
@@ -1104,7 +1116,7 @@ def test_frames_suggested_from_names(pg):
                    check=True, capture_output=True)
     open_files(pg, "frames.bin")
     pg.click("[aria-label='Create signals']")
-    pg.locator(".analysis .seg.wide button", has_text="Frames").click()
+    pg.locator(".analysis select.kind-select").select_option("frame")
     chips = pg.locator(".frame-sugs .chipbtn")
     chips.first.wait_for()
     assert chips.all_inner_texts()[:2] == ["GPS[0]: LLA → NED", "IMU[0]: Body → NED"]
@@ -1609,10 +1621,10 @@ def test_edit_original_steps_and_undo_all(pg):
     sig(pg, "Speed").click()
     pg.click("[aria-label='Create signals']")
     pg.locator(".seg.wide button", has_text="Change this signal").click()
-    pg.locator(".analysis .afield select").first.select_option("abs")
+    pg.locator(".analysis .afield:not(.kind-field) select").first.select_option("abs")
     pg.click("text=Apply the change")
     pg.wait_for_function("window.__sv.state().runs[0].signals.find(x => x.name === 'Speed').transform?.expr === 'abs(x)'")
-    pg.locator(".analysis .afield select").first.select_option("smooth")
+    pg.locator(".analysis .afield:not(.kind-field) select").first.select_option("smooth")
     pg.click("text=Apply the change")                     # steps add up
     pg.wait_for_function("window.__sv.state().runs[0].signals.find(x => x.name === 'Speed').transform?.expr === 'smooth_s(abs(x), 0.1)'")   # 26.A3: seconds (10 samples at 100 Hz)
     assert S(pg, "s.runs[0].signals.filter(x => !x.transform).length") == 2   # nothing else touched
@@ -1836,7 +1848,7 @@ def test_open_with_new_files(pg):
     rid = S(pg, "s.runs[0].id")
     post = lambda url, body: json.loads(urllib.request.urlopen(urllib.request.Request(pg.env["url"] + url, json.dumps(body).encode(), {"Content-Type": "application/json"})).read())
     post("/api/transforms", {"signals": [f"{rid}/RPM"], "transform": {"scale": 10}})
-    pg.click("[aria-label='Create signals']"); pg.click(".seg.wide button:has-text('Formula')")
+    pg.click("[aria-label='Create signals']"); pg.locator(".analysis select.kind-select").select_option("fx")
     pg.fill(".fx-input", "2*Speed"); pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.wait_for_function("document.querySelectorAll('.dsig').length === 1")
     pg.click("[aria-label='Data']")
@@ -2553,7 +2565,7 @@ def test_expression_of_x_with_other_signals(pg):
     sig(pg, "RPM", 1).click(modifiers=["Control"]); sig(pg, "Gear", 1).click(modifiers=["Control"])
     sig(pg, "Gear", 1).click(button="right")
     pg.locator(".menu.ctx button", has_text="New signals from the 2 selected").click(); menu_item(pg, "Other operations")
-    pg.locator(".analysis .afield select").first.select_option("exprx")
+    pg.locator(".analysis .afield:not(.kind-field) select").first.select_option("exprx")
     pg.locator(".analysis [aria-label='Expression in x (and t)']").fill("x - Speed")
     pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.wait_for_function("(window.__sv.state().runs.find(r => r.format === 'derived')?.signals ?? []).length === 2")
@@ -2622,7 +2634,7 @@ def test_signals_of_two_files_copied_to_a_new_run(pg):
     pg.click("[aria-label='Data']")
     sig(pg, "RPM", 0).click(button="right")
     pg.locator(".menu.ctx button", has_text="Create signal").click(); menu_item(pg, "Other operations")
-    pg.locator(".analysis .afield select").first.select_option("exprx")
+    pg.locator(".analysis .afield:not(.kind-field) select").first.select_option("exprx")
     pg.locator(".analysis [aria-label='Expression in x (and t)']").fill("x - {run_b.csv:Speed}")
     pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.wait_for_function("(window.__sv.state().runs.find(r => r.format === 'derived')?.signals ?? []).some(x => x.op === 'expr')")

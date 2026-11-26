@@ -51,9 +51,10 @@ function status(t: TFn, lang: "en" | "he", s: Study | undefined, c: StudyPanelSt
       return cs ? t("flDefined", { n: setupDone(cs, !!c.guess).filter(Boolean).length }) : "";
     // FR6: a study with tables, none open yet, is not "needs a table": it says to open one of them
     case "columns": return s ? t("swStRoles", { p: s.summary.params.length, h: s.summary.holds.length, o: s.summary.outputs.length }) : noTable(t, cs);
-    case "goal": if (rec && s) return t("swStLimits", { c: s.question.conditions.length });
+    case "goal": if (rec && s) return t(s.question.conditions.length === 1 ? "swStLimit1" : "swStLimits", { c: s.question.conditions.length });
       if (!s) return noTable(t, cs);
-      return s ? t("swStGoal", { c: s.question.conditions.length, o: (s.question.goals[s.question.active]?.optimize ?? []).length }) : t("flNeedsTable");
+      // CC19: "1 limit", not "1 limits"
+      return s ? t(s.question.conditions.length === 1 ? "swStGoal1" : "swStGoal", { c: s.question.conditions.length, o: (s.question.goals[s.question.active]?.optimize ?? []).length }) : t("flNeedsTable");
     case "results":
       if (s && rec) return t(s.question.conditions.length && s.answer ? "rcStResults" : "swStRecordings", { n: s.answer?.counts.holding ?? 0, of: s.answer?.counts.sets ?? s.rows });
       if (s) return !s.answer ? "…" : s.question.conditions.length ? t("swStResults", { n: s.answer.counts.holding, of: s.answer.counts.sets })

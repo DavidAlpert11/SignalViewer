@@ -22,7 +22,7 @@ def test_error_per_stretch_of_a_state(pg):
     open_files(pg, "es_sim.csv", "es_flight.csv")
     sig(pg, "Alt", 0).click(); sig(pg, "Alt", 1).click()
     pg.click("[aria-label='Create signals']")
-    pg.click(".seg.wide button:has-text('Two signals')")
+    pg.locator(".analysis select.kind-select").select_option("two")
     box = pg.locator(".err-seg")
     box.wait_for()
     box.locator(".picker-btn").click(); pg.keyboard.type("Mode"); pg.keyboard.press("Enter")   # typed, like the search

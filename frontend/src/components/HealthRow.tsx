@@ -33,10 +33,11 @@ export default function HealthRow({ f, runId, maxSpans = 4 }: { f: HealthFinding
       <div className="hbody">
         <div className="htext">{t(`h_${f.code}_${f.level}` as "h_vibration_ok", vals)}</div>
         <div className="hlinks">
-          {f.t !== null && <button className="pchange" onClick={() => actions.goToTime(f.t!)} title={t("logGoTo")}>@ {fmtT(f.t)}</button>}
+          {f.t !== null && <button className="pchange" onClick={() => actions.goToTime(f.t!)} title={t("logGoTo")}><bdi dir="ltr">@ {fmtT(f.t)}</bdi></button>}
+          {/* CC19: a time range reads left to right in Hebrew too (bdi) */}
           {f.spans.slice(0, maxSpans).map(([a, b], k) => b > a && (
             <button key={k} className="pchange span" onClick={() => actions.showSpan(a, b)} title={t("healthSpan")}>
-              {fmtT(a)}–{fmtT(b)}</button>
+              <bdi dir="ltr">{fmtT(a)}–{fmtT(b)}</bdi></button>
           ))}
           {f.spans.length > maxSpans && <span className="at">+{f.spans.length - maxSpans}</span>}
           {ids.length > 0 && (

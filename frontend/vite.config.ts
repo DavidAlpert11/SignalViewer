@@ -33,7 +33,17 @@ export default defineConfig({
   // Chromium 87 (late 2020) is the floor - run.py checks the same number (MIN_CHROMIUM) and
   // polyfills.ts adds the few newer functions the code and CesiumJS call.
   build: { target: ["es2020", "chrome87", "edge88", "firefox78", "safari14"],
-    cssTarget: ["chrome87", "edge88", "firefox78", "safari14"] },
+    cssTarget: ["chrome87", "edge88", "firefox78", "safari14"],
+    // CC23: the libraries in chunks of their own (cached across versions, the app's own code smaller), and the
+    // i18n tables apart from the API code they were bundled with - no chunk over Vite's 500 kB warning
+    rollupOptions: { output: { manualChunks(id: string) {
+      if (/node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return "react";
+      if (/node_modules[\\/]uplot[\\/]/.test(id)) return "uplot";
+      if (/node_modules[\\/]zustand[\\/]/.test(id)) return "react";
+      const lang = /[\\/]src[\\/]i18n[\\/](\w+)\.ts$/.exec(id);
+      if (lang) return /^(app|common|files|plots|signals|welcome|templates|index)$/.test(lang[1]) ? "i18n-core" : "i18n-areas";
+      return undefined;
+    } } } },
   // CesiumJS: its ready-built bundle (its ES sources re-export internals the bundler cannot resolve)
   // (SV_CESIUM_UNMINIFIED=1: its readable build, for profiling)
   resolve: { alias: [{ find: /^cesium$/, replacement: join(process.cwd(), process.env.SV_CESIUM_UNMINIFIED

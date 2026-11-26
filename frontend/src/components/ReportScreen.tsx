@@ -362,32 +362,41 @@ export default function ReportScreen() {
             <button key={v} className={view === v ? "on" : ""} aria-pressed={view === v} onClick={() => setView(v)}>{t(v === "write" ? "rdWrite" : v === "both" ? "rdBoth" : "rdShow")}</button>
           ))}
         </div>
-        <label className="rd-sel"><span>{t("reportLang")}</span>
-          <select value={meta.lang} onChange={(e) => setMeta({ lang: e.target.value as "en" | "he" })}>
-            <option value="he">עברית</option><option value="en">English</option></select></label>
-        <label className="rd-sel"><span>{t("rdFormat")}</span>
-          <select className="rd-format" value={latex ? "tex" : "md"} onChange={(e) => void setFormat(e.target.value as "md" | "tex")}>
-            <option value="md">Markdown</option><option value="tex">LaTeX</option></select></label>
-        <label className="rd-sel"><span>{t("theme")}</span>
-          <select value={meta.theme} onChange={(e) => setMeta({ theme: e.target.value as "light" | "dark" })}>
-            <option value="light">{t("light")}</option><option value="dark">{t("dark")}</option></select></label>
         <span className="spacer" />
         <span className="rd-status" role="status">
           {updating ? t("rdUpdating") : problems.length ? <span className="rd-problems" title={problems.join("\n")}>⚠ {t("rdProblems", { n: problems.length })}</span> : null}
         </span>
-        {!latex && <>
-          <button className="btn primary replay-make" disabled={!!busy} onClick={() => make("html")}>{busy === "html" ? t("loading") : "HTML"}</button>
-          <button className="btn outline rd-pdf" disabled={!!busy} onClick={() => make("pdf")}>{busy === "pdf" ? t("loading") : "PDF"}</button>
-          <button className="btn outline rd-docx" disabled={!!busy} onClick={() => make("docx")}>{busy === "docx" ? t("loading") : "Word"}</button>
-        </>}
-        <button className={`btn ${latex ? "primary" : "outline"} rd-texpdf`} disabled={!!busy || !tex?.best} title={tex?.best === "tectonic" ? t("rdTexPdfBuiltin") : tex?.best ? t("rdTexPdfHint", { e: tex.best }) : tex?.hint ?? ""}
-          onClick={() => make("texpdf")}>{busy === "texpdf" ? t("loading") : t("rdTexPdf")}</button>
-        <button className="btn outline rd-texzip" disabled={!!busy} title={t("rdTexZipHint")} onClick={() => make("tex")}>{busy === "tex" ? t("loading") : t("rdTexZip")}</button>
-        <button className="iconbtn rd-reset" title={t("rdResetMenu")} aria-label={t("rdResetMenu")} aria-haspopup="menu"
+        {/* CC8 (owner, 2026-11-26: not overloaded): one primary export - the page (Markdown) or the PDF (LaTeX) - and every
+            format in Export ▾; the report's options (its language, Markdown / LaTeX, its theme, empty / automatic) in ⚙ */}
+        {!latex ? <button className="btn primary replay-make" disabled={!!busy} onClick={() => make("html")}>{busy === "html" ? t("loading") : "HTML"}</button>
+          : <button className="btn primary rd-texpdf" disabled={!!busy || !tex?.best} title={tex?.best === "tectonic" ? t("rdTexPdfBuiltin") : tex?.best ? t("rdTexPdfHint", { e: tex.best }) : tex?.hint ?? ""}
+            onClick={() => make("texpdf")}>{busy === "texpdf" ? t("loading") : t("rdTexPdf")}</button>}
+        <button className="btn outline rd-export" disabled={!!busy} aria-haspopup="menu" title={t("rdExportHint")}
           onClick={(e) => openMenu(e, [
+            ...(!latex ? [
+              { label: "HTML", run: () => make("html") },
+              { label: "PDF", run: () => make("pdf") },
+              { label: "Word", run: () => make("docx") },
+              { label: "", sep: true, run: () => {} },
+            ] : []),
+            { label: t("rdTexPdf"), disabled: !tex?.best, run: () => make("texpdf") },
+            { label: t("rdTexZip"), run: () => make("tex") },
+          ])}>{busy ? t("loading") : t("rdExport")} <Icon.Chevron width={12} height={12} /></button>
+        <button className="iconbtn rd-options" title={t("rdOptions")} aria-label={t("rdOptions")} aria-haspopup="menu"
+          onClick={(e) => openMenu(e, [
+            { label: t("reportLang"), run: () => {}, items: [
+              { label: "עברית", checked: meta.lang === "he", run: () => setMeta({ lang: "he" }) },
+              { label: "English", checked: meta.lang === "en", run: () => setMeta({ lang: "en" }) }] },
+            { label: t("rdFormat"), run: () => {}, items: [
+              { label: "Markdown", checked: !latex, run: () => { void setFormat("md"); } },
+              { label: "LaTeX", checked: latex, run: () => { void setFormat("tex"); } }] },
+            { label: t("theme"), run: () => {}, items: [
+              { label: t("light"), checked: meta.theme === "light", run: () => setMeta({ theme: "light" }) },
+              { label: t("dark"), checked: meta.theme === "dark", run: () => setMeta({ theme: "dark" }) }] },
+            { label: "", sep: true, run: () => {} },
             { label: t("rdEmpty"), run: () => { commitText(text); typing.current = false; void clearReport(); } },
             { label: t("rdReset"), run: () => { void reset(); } },
-          ])}><Icon.Reset /></button>
+          ])}><Icon.Settings /></button>
       </div>
       <DemoGuide />
       <div className={`rd-body rd-${view}`}>

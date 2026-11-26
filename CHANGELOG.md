@@ -26,6 +26,20 @@
   shows six cards, generic first; *Help → Examples* lists every example by task, the flight logs last.
 - *Checks* is lighter (CC7): at most four tabs (*Checks*, a log's *Events*, *Parameters*, *The file* - with the
   instruments and a log's hardware as its sections, no tabs of their own), and a failed limit in plain words (*above 85 – 30 times*).
+- **Fewer words on screen (CC3).** Empty places say one short line - *No notes yet*, *No conditions yet*, *None
+  yet* - with the explanation in its tooltip.
+- **Create starts with *What to make* (CC6)**: one list (one signal, two, several, a formula, frames, Python) with a
+  line each, instead of six tabs; its fields follow.
+- **The Report's head (CC8)**: one export button (the page, or the PDF through LaTeX), every format in **Export ▾**,
+  the report's language, Markdown / LaTeX, theme, *Empty* and *Start again* in its ⚙.
+- **Command and response (CC15)** - a new built-in view for any file: each commanded / measured pair (`Pos_cmd` /
+  `Pos`, `DesRoll` / `Roll`) in a plot of its own; offered on the empty plot when a file has pairs.
+- Small targets (a legend chip's ×, a list's ×, a tab's close, a plot's drag handle) take a click within 24 px
+  (CC10). Sweeps says *1 limit* (not *1 limits*), and its *neighbours hold* column shows – while the goal has no limit
+  (CC19); a finding's time range reads left to right in Hebrew. Compare's difference plot names its unit (CC20).
+- A derived signal named by a long formula gets a short name (48 characters, ending in …); the whole formula stays its
+  formula (CC20). A name you give is kept as given.
+- The app's code is loaded in parts - React, uPlot and the two language tables apart - none over 500 kB (CC23).
 - The frontend's lint (oxlint) runs in the quick check and in CI against a baseline: a new warning fails, the old
   ones are fixed over time (CC18).
 - Fixed: **a derived signal's formula (and a Sweeps column or condition) with a number past about 1.8e308, or nested

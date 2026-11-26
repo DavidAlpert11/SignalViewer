@@ -266,7 +266,7 @@ export interface Template {
   /** RE2: the written report (Markdown, signals by name - the same text fits the next recording) - set when the
    *  template opens on a session that has no written report yet */
   report?: { v: 1; text: string; assets?: Record<string, import("./store").ReportAsset> };
-  generator?: "quicklook" | "compare" | "objects";   // built-in templates whose tabs are made from the files themselves
+  generator?: "quicklook" | "compare" | "objects" | "pairs";   // built-in templates whose tabs are made from the files themselves
   builtin?: boolean; saved?: number; file?: string; broken?: boolean;
 }
 

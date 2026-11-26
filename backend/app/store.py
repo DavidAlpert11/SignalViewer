@@ -65,6 +65,9 @@ def _tags():
         n += 1
 
 
+AUTO_NAME_MAX = 48     # CC20: a derived signal named by its formula - at most this many characters
+
+
 @dataclass
 class LoadedRun:
     id: str
@@ -767,7 +770,11 @@ class Store:
         if op in SAMPLING_OPS and "sampling" not in params:
             params["sampling"] = "samples" if legacy else "time"   # 26.A3: likewise
         d = DerivedDef(name="", op=op, sources=list(sources), params=params)
-        base = (name or "").strip() or d.formula(self.short_name)
+        base = (name or "").strip()
+        if not base:                       # CC20 (advocate N4): a long formula is not a name - cut, the whole formula
+            base = d.formula(self.short_name)          # stays the signal's formula (its tooltip, the Inspector)
+            if len(base) > AUTO_NAME_MAX:
+                base = base[:AUTO_NAME_MAX - 1].rstrip() + "…"
         base = base.replace("/", "∕")  # "/" separates run id and name in signal ids
         # the name chosen and held under the lock: two signals made at once took the same free name, and the
         # second replaced the first (a stress test, 2026-11-18); the computing itself runs outside the lock

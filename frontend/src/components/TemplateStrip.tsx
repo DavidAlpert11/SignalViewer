@@ -33,7 +33,8 @@ export function useTemplatePicks(): Template[] {
     const fitting = all.filter((x) => !x.generator && !x.broken && f(x) > 0.15).sort((a, b) => f(b) - f(a));
     // the automatic ones: the position on the map when a file has one (first: it is the more telling),
     // the quick look, and comparing when several files are open
-    const auto = [...all.filter((x) => x.generator === "objects" && f(x) > 0),
+    // (CC15: a file with commanded / measured pairs - a simulation, a control loop - is offered them side by side)
+    const auto = [...all.filter((x) => (x.generator === "objects" || x.generator === "pairs") && f(x) > 0),
       ...all.filter((x) => x.generator === "quicklook" || (x.generator === "compare" && data.length > 1))];
     return [...fitting, ...auto].slice(0, 3);
   }, [all, fitOf, data.length]);

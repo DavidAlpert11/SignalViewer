@@ -47,7 +47,11 @@ simulation engineers, and it runs entirely on your machine: no account, no cloud
   and the values become a recording you can save as CSV; or listen live to a serial port, UDP or TCP.
 - **Runs side by side** – different clocks and rates aligned; every shared signal ranked by how much it differs.
 - **What changed?** – the signals that left their usual range, in time order, and which one led which.
-- **Pass / fail you can defend** – limits, a golden run with tolerances, data quality; the same checks headless in CI.
+- **Pass / fail you can defend** – limits and requirements (settling, overshoot, rise time, tracking a reference,
+  rate, order of events), a golden run with tolerances, data quality; the same checks headless in CI.
+- **It looks by itself** – every file is searched for numbers that are not numbers, oscillations and every
+  commanded / measured pair (how far it stays from its command, how its steps settle); a flight log adds its health
+  check; your own rules apply to every file they match.
 - **Sweeps** – the parameter sets that hold in every scenario, and a loop that runs your simulation until the best
   stops changing.
 - **No point left out** – numbers always use all the data; plots are reduced only so that every spike is still drawn.
@@ -63,10 +67,11 @@ simulation engineers, and it runs entirely on your machine: no account, no cloud
 | **Python 3.9+** | `pip install signalviewer`, then `signalviewer` (the app) or `signalviewer-cli` (the command line) |
 | **From source** | `git clone`, `pip install -r requirements.txt`, `python run.py` – the first start builds the UI (Node.js LTS, about half a minute) |
 
-Then pick an example on the welcome screen – an ArduPilot log, a fault to find, a simulation against its
-flight, the same mission flown twice, a folder of recordings, a smart sweep. Each has a known answer and is built in
-front of you in two or three steps – each step says what is on screen and its button does the next one (*Show the
-result* does the rest); more (a car, a pump on a test bench, a results table, three drones) are in *Help → Examples*.
+Then pick an example on the welcome screen – a Simulink model judged by its requirements, a model against its
+test, many runs of a simulation, a fault to find, a smart sweep, an ArduPilot log. Each has a known answer and is
+built in front of you in two or three steps – each step says what is on screen and its button does the next one
+(*Show the result* does the rest); every example (a process simulation in HDF5, a pump on a test bench, byte
+streams, flight logs, sweeps…) is in *Help → Examples*, by task.
 The packages are not code-signed yet – [what to do the first time](docs/install.md#first-start-windows-and-macos-warnings).
 
 ## A tour
@@ -81,7 +86,7 @@ Two cursors around the moment, then <i>What changed?</i> – who moved first and
 </td>
 <td width="50%" valign="top">
 <b>One verdict per file</b><br>
-Your limits per phase or mode, the data's quality and a log's health check – each a click from its moment.
+Your requirements and limits per phase or mode, the data's quality and what the app finds by itself – each a click from its moment.
 <a href="https://davidalpert11.github.io/SignalViewer/sim-vs-flight/">Sim vs. flight</a><br><br>
 <a href="docs/images/09_health_check.png"><img src="docs/images/09_health_check.png" alt="Checks: one verdict for the file, the data quality and the log's health findings as tinted cards, each a click from its moment"></a>
 </td>
@@ -149,9 +154,9 @@ the message types of the logs (MAVLink included), the links running now and a li
 | Data | Files | Notes |
 |---|---|---|
 | Tables | `.csv` / text, `.parquet`, `.h5` / `.hdf5` | the time column found by itself; in CSV and Parquet you can choose another |
-| MATLAB / Simulink | `.mat` (v5 and v7.3) | |
+| MATLAB / Simulink | `.mat` (v5 and v7.3) | Simulink's *Structure with time* by its signals' names, each on its own rate |
 | CAN | candump, Vector `.asc`, CAN tables in CSV + `.dbc` | |
-| Flight logs | ArduPilot `.bin`, MAVLink `.tlog`, PX4 `.ulg` | automatic health check; live MAVLink |
+| Flight logs | ArduPilot `.bin`, MAVLink `.tlog`, PX4 `.ulg` | ready views and a health check; live MAVLink |
 | Robotics | ROS 2 / Foxglove `.mcap` | no ROS installation needed |
 | Binary packets | a layout (ICD) you describe | |
 | Byte streams | a signal of bytes, byte columns, `.svraw` link recordings, raw NMEA `.nmea` | messages found by themselves; a structure (proposed or yours, `.svmsg.json`) makes them signals; live from serial / UDP / TCP |
@@ -170,7 +175,7 @@ df = rec.to_dataframe(["Pressure", "MotorTemp"], t0=100, t1=500)
 ```
 
 ```bash
-signalviewer-cli check   runs/*.parquet --checks checks.json --junit results.xml   # limits, per phase
+signalviewer-cli check   runs/*.parquet --checks checks.json --junit results.xml   # limits and requirements
 signalviewer-cli compare golden.csv runs/*.csv --tol-pct 2                          # against a golden run
 signalviewer-cli validate                                                           # 29 passed, 0 failed
 ```
@@ -213,7 +218,8 @@ Exit codes and JUnit XML for CI; also export, a Sweeps table from a folder of re
 **Signal Viewer** – סביבת עבודה הנדסית לניתוח ואימות של נתוני מדידה וסדרות זמן מכל מקור: ניסויי טיסה, רכב וספסל, פלט סימולציות, ROS 2 ו־CAN, וסריקות פרמטרים. הכול על המחשב שלכם, בלי חשבון ובלי אינטרנט.
 
 - **מוצאים מה השתבש:** שני סמנים סביב הרגע ו*מה השתנה?* – מה זז ראשון ומי הוביל את מי.
-- **שופטים ריצה:** מגבלות, טולרנסים מול ריצת ייחוס ואיכות נתונים – פסיקה אחת לכל קובץ, ואותן בדיקות גם ב־CI.
+- **שופטים ריצה:** מגבלות ודרישות (התייצבות, חריגה, זמן עלייה, מעקב אחרי ייחוס, קצב, סדר אירועים), טולרנסים מול ריצת ייחוס ואיכות נתונים – פסיקה אחת לכל קובץ, ואותן בדיקות גם ב־CI.
+- **מסתכלת בעצמה:** בכל קובץ האפליקציה מחפשת ערכים שאינם מספרים, תנודות וכל זוג של פקודה ומדידה (כמה רחוק מהפקודה, איך המדרגות מתייצבות); ללוג טיסה יש גם בדיקת תקינות; כללים משלכם חלים על כל קובץ שמתאים להם.
 - **בוחרים פרמטרים (Sweeps):** אילו סטים עומדים בכל תרחיש, סט אחד לכמה מערכות, ולולאה שמריצה את הקוד שלכם עד התכנסות.
 - **אף נקודה לא נעלמת:** המספרים תמיד על כל הנתונים, והגרף מוקטן רק כך שכל קפיצה עדיין מצוירת.
 - **מבתים לסיגנלים:** קו תקשורת שהוקלט בית אחר בית, או NMEA גולמי של מקלט: ההודעות נמצאות לבד (כותרת, אורך, סוג, checksum, סיומת), האפליקציה מציעה מבנה – 16 ביט LSB או MSB קודם, עם סימן, 32 ביט, float, double, טקסט – או שמגדירים אותו בארבעה שלבים מודרכים – הבתים כ־hex, מספרים או ASCII, ולחיצה על בית אומרת מה הוא (כותרת, אורך, סוג, ערך), עם נוסחת המרה – כל הודעה נספרת ומוצגת לפי הסדר, והערכים הופכים להקלטה שנשמרת גם ל־CSV. אפשר גם להאזין חי לפורט טורי, UDP או TCP. חלונית *הודעות* אחת מרכזת הכול: זרמי הבתים, סוגי ההודעות של הלוגים (גם MAVLink), הקווים הפעילים וספריית מבנים.

@@ -1010,3 +1010,10 @@ table.cmp-sub tr.base td { color: var(--muted); }
 .resizer::after { content: ""; position: absolute; top: 0; bottom: 0; inset-inline-start: 3px; width: 1px; background: transparent; transition: background .12s, width .12s; }
 .resizer:hover::after, .resizer:focus-visible::after, body.resizing .resizer::after { background: var(--focus); width: 3px; inset-inline-start: 2px; }
 body.resizing { cursor: col-resize; user-select: none; }
+
+/* CC10 (RW8's leftover): the small controls keep their look and get a 24 px target - the hit area grows, not the
+   glyph (a legend chip's ×, a list row's ×, a tab's close, a plot's drag handle) */
+.chip .rm, .lrow .rm, .tab .x, .plot-grip { position: relative; }
+.chip .rm::after, .lrow .rm::after { content: ""; position: absolute; inset: -4px; }
+.tab .x::after { content: ""; position: absolute; inset: -3px; }
+.plot-grip::after { content: ""; position: absolute; inset: -6px -6px; }
