@@ -59,7 +59,7 @@ export default function FoundBar() {
   return (
     <div className={`found-bar${objects ? " obj-suggest" : ""}`} role="region" aria-label={t("fndMenu")} data-run={run.id}>
       <div className="found-line">
-        <span className="found-head" title={run.name}>{t("fndIn", { file: run.name })}</span>
+        <span className="found-head" title={run.name}>{(() => { const [a, b] = t("fndIn", { file: "\u0001" }).split("\u0001"); return <>{a}<bdi dir="ltr">{run.name}</bdi>{b}</>; })()}</span>
         {objects && (
           <span className="found-group found-objects">
             <span className="obj-suggest-text" title={names.join(", ")}>
