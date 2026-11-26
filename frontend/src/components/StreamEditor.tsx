@@ -111,7 +111,7 @@ export default function StreamEditor({ ids, carries, library, onLibrary }: {
     if (!structure || !info?.frames[fi]) return;
     setStructure(applyRole(structure, info.frames[fi], role));
   };
-  const usePattern = (e: React.MouseEvent, hex: string, bytes: number) => openMenu(e, [
+  const patternMenu = (e: React.MouseEvent, hex: string, bytes: number) => openMenu(e, [
     { label: t("msgUseHeader"), run: () => {
       if (bytes === 2) { set({ header: hex.replace(/ /g, "") }); setStructure(null); }       // proposed again around it
       else if (structure) setStructure({ ...structure, header: hex.replace(/ /g, "") });
@@ -207,7 +207,7 @@ export default function StreamEditor({ ids, carries, library, onLibrary }: {
                   <button key={p.hex} className={`chip-s msg-pat${p.role ? ` role-${p.role === "start" ? "header" : p.role}` : ""}`} dir="ltr"
                     title={t("msgPatternTitle", { n: p.count, every: p.every, pc: Math.round(p.regular * 100) })
                       + (p.afterPause != null ? "\n" + t("msgPatPauses", { a: Math.round(p.afterPause * 100), b: Math.round((p.beforePause ?? 0) * 100) }) : "")}
-                    onClick={(e) => usePattern(e, p.hex, p.bytes)}>
+                    onClick={(e) => patternMenu(e, p.hex, p.bytes)}>
                     {p.hex}{p.role ? ` · ${t(p.role === "header" ? "msgRole_header" : p.role === "footer" ? "msgRole_footer" : "msgPatStart")}`
                       : p.time ? ` · ${t(p.time === "start" ? "msgPatTimeStart" : "msgPatTimeEnd")}` : ""} <span className="msg-pat-n">×{fmtNum(p.count, lang, 6)}</span>
                   </button>

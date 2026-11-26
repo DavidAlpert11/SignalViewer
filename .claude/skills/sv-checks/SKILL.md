@@ -18,7 +18,7 @@ export SV_CHROMIUM=/opt/pw-browsers/chromium        # the pre-installed Chromium
 ## 2. Always
 
 ```bash
-python tools/quick_check.py          # tsc, Vitest, backend pytest, mypy - stops at the first failure (~4 min)
+python tools/quick_check.py          # tsc, oxlint baseline, Vitest, backend pytest, mypy - stops at the first failure (~4 min)
 ```
 It runs long: start it in the background and read its log; mypy must say `Success`.
 

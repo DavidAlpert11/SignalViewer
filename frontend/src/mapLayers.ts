@@ -33,10 +33,16 @@ export async function loadMyMaps(): Promise<MyMap[]> {
   return maps;
 }
 
+/** the first view that asks for the maps loads them - on subscribe, not while rendering (a side effect there) */
+function subscribe(f: () => void): () => void {
+  subs.add(f);
+  if (!loaded) { loaded = true; void loadMyMaps(); }
+  return () => { subs.delete(f); };
+}
+
 /** My maps (loaded once, then kept current by add / remove). */
 export function useMyMaps(): MyMap[] {
-  if (!loaded) { loaded = true; void loadMyMaps(); }
-  return useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, () => maps);
+  return useSyncExternalStore(subscribe, () => maps);
 }
 
 export const myMapsLoaded = (): boolean => loaded && maps !== INITIAL;

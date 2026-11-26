@@ -46,7 +46,7 @@ describe("tickValues", () => {
   test("small and large ticks keep their digits, neighbours stay distinct", () => {
     expect(f([0, 2.5e-4, 5e-4, 7.5e-4])).toEqual(["0", "2.5e-4", "5e-4", "7.5e-4"]);
     expect(f([1e-4, 1.5e-4, 2e-4])).toEqual(["1e-4", "1.5e-4", "2e-4"]);
-    expect(f([-2.5e-7, 3.0000000000000004e-4, 1.25e6])).toEqual(["-2.5e-7", "3e-4", "1.25e6"]);
+    expect(f([-2.5e-7, 0.1 * 0.003, 1.25e6])).toEqual(["-2.5e-7", "3e-4", "1.25e6"]);   // 0.1 * 0.003: 3e-4 with float noise
     expect(f([0.5, 1, 2.5])).toEqual(["0.5", "1", "2.5"]);
   });
 });

@@ -1,0 +1,184 @@
+{
+ "src/components/AddStream.tsx": {
+  "react(only-export-components)": 1
+ },
+ "src/components/ByteView.tsx": {
+  "react(only-export-components)": 3
+ },
+ "src/components/ChecksView.tsx": {
+  "react(only-export-components)": 3,
+  "react(set-state-in-effect)": 4
+ },
+ "src/components/CommandPalette.tsx": {
+  "react(only-export-components)": 2
+ },
+ "src/components/EnvelopeChart.tsx": {
+  "react-hooks(exhaustive-deps)": 3
+ },
+ "src/components/ExportRecordingDialog.tsx": {
+  "react(preserve-manual-memoization)": 1,
+  "react-hooks(exhaustive-deps)": 1
+ },
+ "src/components/FFTChart.tsx": {
+  "react-hooks(exhaustive-deps)": 3
+ },
+ "src/components/GeoChart.tsx": {
+  "react-hooks(exhaustive-deps)": 2
+ },
+ "src/components/GuideDialog.tsx": {
+  "react(only-export-components)": 1
+ },
+ "src/components/HealthRow.tsx": {
+  "react(only-export-components)": 2
+ },
+ "src/components/Inspector.tsx": {
+  "react(set-state-in-effect)": 4,
+  "react-hooks(exhaustive-deps)": 3
+ },
+ "src/components/Instruments.tsx": {
+  "react(preserve-manual-memoization)": 1,
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/InvestigatePanel.tsx": {
+  "react(set-state-in-effect)": 2
+ },
+ "src/components/LogPanel.tsx": {
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/MapStory.tsx": {
+  "react(immutability)": 1,
+  "react(refs)": 14,
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/MessagesPanel.tsx": {
+  "react(set-state-in-effect)": 2
+ },
+ "src/components/ObjectDialog.tsx": {
+  "react(set-state-in-effect)": 2
+ },
+ "src/components/ObjectSuggestBar.tsx": {
+  "react(preserve-manual-memoization)": 1
+ },
+ "src/components/Overlays.tsx": {
+  "react(only-export-components)": 6,
+  "react(set-state-in-effect)": 3
+ },
+ "src/components/OverviewStrip.tsx": {
+  "react(set-state-in-effect)": 2
+ },
+ "src/components/PlotView.tsx": {
+  "react(refs)": 2,
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/ReportScreen.tsx": {
+  "react(immutability)": 7,
+  "react(only-export-components)": 1,
+  "react(refs)": 26
+ },
+ "src/components/SignalPicker.tsx": {
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/SpecChart.tsx": {
+  "react-hooks(exhaustive-deps)": 3
+ },
+ "src/components/StartCard.tsx": {
+  "react(only-export-components)": 1
+ },
+ "src/components/StructureEditor.tsx": {
+  "react(refs)": 1
+ },
+ "src/components/TabBand.tsx": {
+  "react-hooks(exhaustive-deps)": 2
+ },
+ "src/components/TemplateLibrary.tsx": {
+  "react-hooks(exhaustive-deps)": 1
+ },
+ "src/components/TemplateStrip.tsx": {
+  "react(only-export-components)": 1
+ },
+ "src/components/TimeChart.tsx": {
+  "react-hooks(exhaustive-deps)": 6
+ },
+ "src/components/Timeline.tsx": {
+  "react(set-state-in-effect)": 2
+ },
+ "src/components/TolFields.tsx": {
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/Tour.tsx": {
+  "react(only-export-components)": 2,
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/TransformDialog.tsx": {
+  "react-hooks(exhaustive-deps)": 1
+ },
+ "src/components/TrustBadge.tsx": {
+  "react(only-export-components)": 1,
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/VideoView.tsx": {
+  "react(refs)": 2
+ },
+ "src/components/Welcome.tsx": {
+  "react(only-export-components)": 3
+ },
+ "src/components/sweeps/DemoView.tsx": {
+  "react(only-export-components)": 1
+ },
+ "src/components/sweeps/Desk.tsx": {
+  "react(only-export-components)": 2,
+  "react(use-memo)": 1
+ },
+ "src/components/sweeps/FlowNav.tsx": {
+  "react(only-export-components)": 4
+ },
+ "src/components/sweeps/GoalsStep.tsx": {
+  "react(only-export-components)": 3
+ },
+ "src/components/sweeps/Navigator.tsx": {
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/sweeps/ParallelPlot.tsx": {
+  "react-hooks(exhaustive-deps)": 2
+ },
+ "src/components/sweeps/PlotToolbar.tsx": {
+  "react(only-export-components)": 1
+ },
+ "src/components/sweeps/RawStep.tsx": {
+  "react(only-export-components)": 1,
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/sweeps/ReportStep.tsx": {
+  "react(only-export-components)": 1
+ },
+ "src/components/sweeps/RunPanel.tsx": {
+  "react(only-export-components)": 1
+ },
+ "src/components/sweeps/ScatterView.tsx": {
+  "react-hooks(exhaustive-deps)": 1
+ },
+ "src/components/sweeps/SetDetail.tsx": {
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/sweeps/StudyPanel.tsx": {
+  "react(only-export-components)": 2
+ },
+ "src/components/sweeps/SweepsArea.tsx": {
+  "react(only-export-components)": 1
+ },
+ "src/icons.tsx": {
+  "react(only-export-components)": 1
+ },
+ "src/shell/PanelFrame.tsx": {
+  "react(only-export-components)": 2
+ },
+ "src/shell/panels.tsx": {
+  "react(only-export-components)": 3
+ },
+ "src/signalGroups.ts": {
+  "eslint(no-useless-escape)": 1
+ },
+ "src/sparks.ts": {
+  "react(set-state-in-effect)": 1
+ }
+}

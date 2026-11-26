@@ -1222,3 +1222,8 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
   check() refuses an int past float64's range; a RecursionError in evaluate() / parse() / parse_rows() and in
   svcore/sweep/derived.py row_formula() becomes a readable error (400). Test: backend test_formula_limits (5).
   (judge JR2, advocate I3) e2e test_file_browser_edit waits for the END state (8 / 8 alone, 12 / 12 four at a time).
+- [x] CC18 (advocate I4) The frontend's lint gate: tools/lint_baseline.py runs oxlint and fails only on a NEW warning
+  (counted per file and rule against tools/oxlint_baseline.json - 169 today) or any error; in tools/quick_check.py
+  (after tsc) and ci.yml's frontend job. Fixed: no-loss-of-precision (chartUtil.test.ts), globals (mapLayers.ts -
+  my maps load on subscribe, not while rendering), and two rules-of-hooks errors on plain functions named use*
+  (demoGuide applyStructureFiles, StreamEditor patternMenu). Tests: quick_check; e2e test_messages (17).

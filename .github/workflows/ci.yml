@@ -76,6 +76,8 @@ jobs:
         run: |
           npm ci
           npm run build
+      - name: Lint (oxlint - no new warning against tools/oxlint_baseline.json, CC18)
+        run: python3 tools/lint_baseline.py
       - name: Unit tests (Vitest, T1)
         working-directory: frontend
         run: npm test

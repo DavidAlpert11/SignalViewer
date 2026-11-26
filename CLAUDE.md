@@ -57,7 +57,8 @@ when you stop in the middle of a task.
 - Lazy-loaded heavy parts (Cesium 3D, map data) must stay out of the main bundle.
 
 ## After every change
-- `python tools/quick_check.py` — tsc, Vitest, backend pytest, mypy in one go, stopping at the first failure (W11).
+- `python tools/quick_check.py` — tsc, oxlint (no NEW warning: `tools/lint_baseline.py`, CC18), Vitest, backend pytest,
+  mypy in one go, stopping at the first failure (W11). Fixed some old warnings? `python tools/lint_baseline.py --update`.
 - `cd backend && python -m pytest -q` — all green.
 - `cd backend && mypy --config-file ../pyproject.toml app svcore signalviewer` — clean (T36; no per-module
   overrides since T36b - narrow the Optional, do not silence the module).

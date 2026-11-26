@@ -86,7 +86,7 @@ export const DEMOS: Partial<Record<ExampleId, Demo>> = {
     setup: (runs) => plotRaw(runs[0], ["tx_byte", "rx_byte"]),
     steps: [
       { text: "demoStruct1", act: "demoStruct1Act", go: (runs) => openLink(runs[0]) },
-      { text: "demoStruct2", act: "demoStruct2Act", go: (runs) => useStructureFiles(runs[0]) },
+      { text: "demoStruct2", act: "demoStruct2Act", go: (runs) => applyStructureFiles(runs[0]) },
       { text: "demoStruct3", act: "demoStruct3Act", go: (runs) => makeBothRecordings(runs[0]) },
     ],
     done: "demoStructDone",
@@ -231,7 +231,7 @@ function openLink(run: string) {
 
 /** The link's two structure files (beside it in the example's folder) as the structures of TX and RX - one Undo step;
  *  the stream's editor shows them. */
-async function useStructureFiles(run: string) {
+async function applyStructureFiles(run: string) {
   const path = useApp.getState().runs.find((r) => r.id === run)?.path ?? "";
   const dir = path.replace(/[\\/][^\\/]*$/, ""), sep = path.includes("\\") ? "\\" : "/";
   const [tx, rx] = await Promise.all(["link_tx", "link_rx"].map((n) => api.messagesStructure(`${dir}${sep}${n}.svmsg.json`).then((r) => r.structure)));

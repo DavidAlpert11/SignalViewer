@@ -1,6 +1,6 @@
 # 1.38.0 spec - calm, clear, any data (Phase 1 of the plan in TASKS.md "Open specs")
 
-Made 2026-11-26 from the app itself (1.37.0 + the judge's two fixes): 19 screens, dark / light, English / Hebrew,
+Approved by the owner 2026-11-26 ("build it all"; I5: CI stays manual). Made 2026-11-26 from the app itself (1.37.0 + the judge's two fixes): 19 screens, dark / light, English / Hebrew,
 taken by `/home/claude/audit/audit.py` (Playwright on make_readme_media's App) with a count of what is on screen.
 Each item: what is there now -> what it becomes, and why. IDs are the ROADMAP "CC" task IDs.
 

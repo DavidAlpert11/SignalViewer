@@ -1,7 +1,8 @@
-"""The quick check after every change (W11): tsc, Vitest, the backend tests, mypy - in that order,
+"""The quick check after every change (W11): tsc, oxlint (no new warning - tools/lint_baseline.py, CC18), Vitest,
+the backend tests, mypy - in that order,
 stopping at the first failure. Cross-platform (Windows, macOS, Linux); no e2e (which e2e to run: CLAUDE.md, "After every change").
 
-    python tools/quick_check.py            # all four
+    python tools/quick_check.py            # all five
     python tools/quick_check.py --skip mypy,vitest
 
 Exit code 0 = all green, otherwise the failing step's code."""
@@ -16,6 +17,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NPX = shutil.which("npx") or shutil.which("npx.cmd") or "npx"
 STEPS = [
     ("tsc", [NPX, "tsc", "-b"], os.path.join(ROOT, "frontend")),
+    ("lint", [sys.executable, os.path.join(ROOT, "tools", "lint_baseline.py")], ROOT),
     ("vitest", [NPX, "vitest", "run"], os.path.join(ROOT, "frontend")),
     ("pytest", [sys.executable, "-m", "pytest", "-q", "-x"], os.path.join(ROOT, "backend")),
     ("mypy", [sys.executable, "-m", "mypy", "--config-file", "../pyproject.toml", "app", "svcore", "signalviewer"],
