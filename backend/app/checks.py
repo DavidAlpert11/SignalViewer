@@ -14,6 +14,13 @@ A checks file:
        "scale": 1, "offset": 0}
     ]}
 `during.occurrence`: 1 = the first stretch, 2 = the second..., -1 = the last; left out = all.
+CC11 - requirements of other kinds (`"kind"`; without one a check is a range, as always - old files read the same):
+      {"kind": "settle", "signal": "Pos", "target": 10, "band_pct": 2, "by": 1.5, "t0": 5},
+      {"kind": "overshoot", "signal": "Pos", "ref": "Pos_cmd", "max_pct": 20},
+      {"kind": "rise", ...  "within": 0.4}, {"kind": "sserror", ... "max": 0.05, "last": 1},
+      {"kind": "rate", "signal": "Valve", "max": 40}, {"kind": "track", "signal": "Pos", "ref": "Pos_cmd", "abs": 0.5},
+      {"kind": "order", "first": {"signal": "Cmd", "above": 0.5}, "then": {"signal": "Pos", "above": 0.1}}
+(svcore/requirements.py says what each measures.)
 Signal names as in the API (the unit may be left out). The values checked are scale * y + offset,
 as plotted in the app.
 
@@ -31,6 +38,7 @@ import numpy as np
 
 from svcore.limits import check_limits
 from svcore.naming import SignalNameError, resolve_signal_name
+from svcore import requirements as req
 
 
 class ChecksError(ValueError):
@@ -62,10 +70,11 @@ def load_checks(path: str) -> List[dict]:
     if not isinstance(items, list) or not items:
         raise ChecksError(f'{path}: expected {{"checks": [ ... ]}} with at least one check.')
     for i, c in enumerate(items, 1):
-        if not isinstance(c, dict) or not c.get("signal"):
+        if not isinstance(c, dict) or (not c.get("signal") and c.get("kind") != "order"):
             raise ChecksError(f"{path}: check {i} has no \"signal\".")
-        if c.get("lo") is None and c.get("hi") is None:
-            raise ChecksError(f"{path}: check {i} ({c['signal']}) has neither \"lo\" nor \"hi\".")
+        bad = req.validate(c)                            # CC11: a range (lo / hi) or a requirement of another kind
+        if bad:
+            raise ChecksError(f"{path}: check {i} ({c.get('name') or c.get('signal') or c.get('kind')}): {bad}.")
         dur = c.get("during")
         if dur is not None and (not isinstance(dur, dict) or not dur.get("state") or "value" not in dur):
             raise ChecksError(f"{path}: check {i}: \"during\" needs \"state\" and \"value\".")
@@ -158,6 +167,9 @@ def run_checks(path: str, checks: List[dict], store: Any = None, run_id: Optiona
             return out
     names = list(lr.run.signals.keys())
     for c in checks:
+        if c.get("kind", "range") != "range":            # CC11: settle, overshoot, rise, sserror, rate, track, order
+            out["results"].append(_requirement(store, lr.id, names, c, where))
+            continue
         res: Dict[str, Any] = {"name": c.get("name") or c["signal"], "lo": c.get("lo"), "hi": c.get("hi")}
         try:
             full = resolve_signal_name(names, str(c["signal"]), where)
@@ -195,6 +207,59 @@ def run_checks(path: str, checks: List[dict], store: Any = None, run_id: Optiona
             res.update(status="error", message=str(e))
         out["results"].append(res)
     return out
+
+
+def _requirement(store, run_id: str, names: List[str], c: dict, where: str) -> Dict[str, Any]:
+    """CC11: one requirement of a kind other than a range, on every window it covers (the worst one decides)."""
+    kind = c["kind"]
+    res: Dict[str, Any] = {"name": c.get("name") or f"{c.get('signal') or ''} {kind}".strip(), "kind": kind}
+    try:
+        def samples(name: str):
+            full = resolve_signal_name(names, str(name), where)
+            t, y = store.signal(f"{run_id}/{full}")
+            return full, np.asarray(t, dtype=np.float64), np.asarray(y, dtype=np.float64)
+
+        def cut(t, y, a, b):
+            k = np.ones(len(t), bool) if a is None and b is None else \
+                (t >= (-np.inf if a is None else a)) & (t <= (np.inf if b is None else b))
+            return t[k], y[k]
+
+        if kind == "order":
+            (fa, ta, ya), (fb, tb, yb) = samples(c["first"]["signal"]), samples(c["then"]["signal"])
+            a, b = c.get("t0"), c.get("t1")
+            (ta, ya), (tb, yb) = cut(ta, ya, a, b), cut(tb, yb, a, b)
+            v = req.order(req.moment(ta, ya, c["first"]), req.moment(tb, yb, c["then"]), fa, fb)
+            res["signal"] = fa
+        else:
+            full, t, y = samples(c["signal"])
+            y = y * float(c.get("scale", 1) or 1) + float(c.get("offset", 0) or 0)
+            res["signal"] = full
+            wins, say = _windows(store, run_id, names, c, where)
+            res["window"] = say
+            if not wins:
+                res.update(status="skipped", message=f"no stretch {say} in {where}")
+                return res
+            ref = samples(c["ref"]) if c.get("ref") else None
+            verdicts = []
+            for a, b in wins:
+                tw, yw = cut(t, y, a, b)
+                target = c.get("target")
+                if target is None and ref is not None:      # the reference's final value in this window
+                    rt, ry = cut(ref[1], ref[2], a, b)
+                    if not len(ry):
+                        raise req.RequirementError(f"{ref[0]} has no samples {say or 'in the window'}")
+                    target = float(ry[-1])
+                verdicts.append(req.judge(c, tw, yw, None if target is None else float(target),
+                                          (ref[1], ref[2]) if ref is not None else None))
+            v = next((x for x in verdicts if not x["pass"]), verdicts[0])
+        res.update(status="pass" if v["pass"] else "fail", value=v["value"], limit=v["limit"], message=f"{res['signal']}: {v['message']}")
+        if v["at"] is not None:
+            res["first"] = v["at"]                     # where the app takes the cursor
+    except req.RequirementError as e:
+        res.update(status="skipped", message=f"{c.get('signal') or kind}: {e}")
+    except (KeyError, ValueError) as e:                # a signal / state / value not in this file
+        res.update(status="error", message=str(e))
+    return res
 
 
 def junit_xml(files: List[Dict[str, Any]]) -> str:

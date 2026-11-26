@@ -75,6 +75,33 @@ A checks file ([example](https://github.com/DavidAlpert11/SignalViewer/blob/main
 ```
 
 `during.occurrence`: 1 = the first stretch of the state, 2 = the second…, -1 = the last, left out = all.
+
+**Requirements beyond a range** (1.38): a check with a `"kind"` judges how a signal behaves - what a simulation or a
+control loop is verified by. Every kind takes the same `t0` / `t1` / `during` window; the target is a number
+(`"target"`) or another signal whose final value in the window is the target (`"ref"`). A check without `"kind"` is a
+range, as before.
+
+| `kind` | What it measures | Its fields |
+|---|---|---|
+| `settle` | the time until the signal stays within a band around its target | `band` (units) or `band_pct` (% of the step), `by` (s) |
+| `overshoot` | how far it goes past its target, as % of the step | `max_pct` |
+| `rise` | 10 % → 90 % of the step | `within` (s) |
+| `sserror` | the mean of the last seconds against the target | `max`, `last` (s, default 1) |
+| `rate` | the fastest change, per second | `max` |
+| `track` | every sample against a reference signal | `ref`, `abs` and / or `pct` |
+| `order` | one moment before another | `first`, `then`: `{"signal", "above" / "below" / "equals"}` |
+
+```json
+{"checks": [
+  {"name": "Settles within 2 % in 1.5 s", "kind": "settle", "signal": "Pos", "target": 10, "band_pct": 2, "by": 1.5, "t0": 5},
+  {"name": "Overshoot at most 20 %", "kind": "overshoot", "signal": "Pos", "ref": "Pos_cmd", "max_pct": 20, "t0": 5},
+  {"name": "Follows its command", "kind": "track", "signal": "Pos", "ref": "Pos_cmd", "abs": 0.5, "t0": 6},
+  {"name": "Valve slew", "kind": "rate", "signal": "Valve", "max": 40},
+  {"name": "Command before motion", "kind": "order",
+   "first": {"signal": "Pos_cmd", "above": 0.5}, "then": {"signal": "Pos", "above": 0.1}}
+]}
+```
+
 Each failure says how many times the signal left its limits, when first, and the worst point.
 Exit code **0** all passed, **1** a check failed, **2** a check could not be made (a missing file,
 signal or state value - never a silent pass). `--junit` writes results CI systems show as tests.

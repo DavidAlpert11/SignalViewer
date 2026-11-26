@@ -339,14 +339,44 @@ async def reload_run(run_id: str):
 
 @router.get("/api/runs/{run_id}/health")
 def run_health(run_id: str):
-    """Automatic checks of a flight log (vibration, GPS, battery, EKF, motors, board power, errors)."""
+    """The automatic research of a file, by profile (CC12): the flight-log profile for ArduPilot / MAVLink / PX4 logs
+    (vibration, GPS, battery, EKF, motors, board power, errors), the "Any data" profile for every file (holes in the
+    numbers, oscillation, commanded / measured pairs and their steps - svcore/autocheck.py), and the user's own
+    profiles (JSON files in the profiles folder whose signals match). {findings, errors, warnings, profiles}."""
+    from app.checks import run_checks
+    from svcore import autocheck
     lr = store.runs.get(run_id)
     if lr is None:
         fail(404, "This file is no longer open.")
+    found, profiles = [], []
     res = log_health(lr.run)
-    if res is None:
+    if res is not None:
+        found += res["findings"]
+        profiles.append({"id": "flightlog"})
+    generic = autocheck.scan(lr.run, pairs=res is None)
+    found += generic
+    profiles.append({"id": "any"})
+    names = list(lr.run.signals.keys())
+    for p in autocheck.user_profiles():
+        if p.get("error"):
+            profiles.append({"id": "user", "name": p["name"], "error": p["error"]})
+            continue
+        if not autocheck.matches(p, names):
+            continue
+        profiles.append({"id": "user", "name": p["name"]})
+        out = run_checks(lr.run.file_path or lr.name, p["checks"], store=store, run_id=run_id)
+        for r in out["results"]:
+            lvl = {"pass": "ok", "fail": "error"}.get(r["status"], "warning")
+            found.append({"code": "rule", "level": lvl, "vals": {"profile": p["name"], "name": r["name"],
+                          "msg": r.get("message") or ""}, "t": r.get("first"), "spans": [],
+                          "signals": [r["signal"]] if r.get("signal") else []})
+    if not found:
         fail(404, "Nothing to check in this file.")
-    return res              # times already include the file's time offset (as on the plots)
+    rank = {"error": 0, "warning": 1, "ok": 2}
+    found.sort(key=lambda r: rank[r["level"]])
+    return {"findings": found, "errors": sum(r["level"] == "error" for r in found),
+            "warnings": sum(r["level"] == "warning" for r in found), "profiles": profiles}
+    # (times already include the file's time offset, as on the plots)
 
 
 
