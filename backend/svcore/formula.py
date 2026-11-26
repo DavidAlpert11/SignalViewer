@@ -185,6 +185,10 @@ def _dunder(name: str) -> bool:
     return name.startswith("__") or name.endswith("__")
 
 
+_MAX_INT = int(np.finfo(np.float64).max)
+_TOO_DEEP = "The formula is nested too deeply for this computer - split it into simpler parts (a derived signal of a derived signal)."
+
+
 def check(tree: ast.AST, *, rows: bool, names: Optional[set] = None, funcs: Optional[dict] = None) -> None:
     """The whitelist. Raises FormulaError for anything else - attributes, subscripts, lambdas, keyword arguments,
     any name with __ - whichever formula it is.
@@ -211,6 +215,8 @@ def check(tree: ast.AST, *, rows: bool, names: Optional[set] = None, funcs: Opti
                 continue
             if not isinstance(node.value, (int, float)) or isinstance(node.value, bool):
                 raise FormulaError("Only numbers are allowed as constants." if not rows else "Only numbers and \"text\" are allowed as values.")
+            if isinstance(node.value, int) and abs(node.value) > _MAX_INT:     # float() of it would overflow
+                raise FormulaError(f"The number {str(node.value)[:12]}… is too large (at most about 1.8e308).")
             continue
         if isinstance(node, ast.Name):
             if rows:
@@ -247,6 +253,8 @@ def parse(expr: str, n_vars: int) -> ast.Expression:
         tree = ast.parse(expr.replace("^", "**"), mode="eval")
     except SyntaxError as e:
         raise FormulaError(_syntax_message(expr, e)) from None
+    except (RecursionError, MemoryError):
+        raise FormulaError(_TOO_DEEP) from None
     check(tree, rows=False, names={f"v{i}" for i in range(n_vars)} | {"t", "pi", "e"}, funcs=_funcs(np.zeros(1)))
     return tree
 
@@ -267,6 +275,8 @@ def parse_rows(expr: str) -> ast.Expression:
         tree = ast.parse(_if_calls(expr.strip()), mode="eval")
     except SyntaxError as e:
         raise FormulaError(e.msg) from None
+    except (RecursionError, MemoryError):
+        raise FormulaError(_TOO_DEEP) from None
     check(tree, rows=True)
     return tree
 
@@ -395,7 +405,10 @@ def evaluate(expr: str, signals: List[Tuple[np.ndarray, np.ndarray]], align,
         raise FormulaError("This kind of expression is not allowed.")
 
     with np.errstate(all="ignore"):
-        r = ev(tree)
+        try:
+            r = ev(tree)
+        except RecursionError:                        # ev recurses per node; ast.walk / check do not
+            raise FormulaError(_TOO_DEEP) from None
     r = np.broadcast_to(np.asarray(r, dtype=np.float64), t.shape).copy()
     inf = np.isinf(r)
     if inf.any() and report is not None:              # C3: not silent - the result says how many

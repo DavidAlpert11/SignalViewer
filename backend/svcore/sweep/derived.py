@@ -248,7 +248,10 @@ def row_formula(df: pd.DataFrame, expr: str) -> np.ndarray:
         raise DerivedError("Only numbers, \"text\", columns, + - * / ** %, comparisons, and / or / not, if() "
                            "and the listed functions")
 
-    r = ev(tree)
+    try:
+        r = ev(tree)
+    except RecursionError:                            # ev recurses per node: a formula nested past Python's stack
+        raise DerivedError("Formula: nested too deeply - split it into simpler columns") from None
     if isinstance(r, _Text):
         return np.broadcast_to(np.asarray(r.v, dtype=object), (n,)).copy()
     out = np.broadcast_to(np.asarray(r, dtype=float), (n,)).copy()
