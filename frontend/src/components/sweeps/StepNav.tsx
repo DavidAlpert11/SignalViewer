@@ -14,7 +14,7 @@ export function StepFoot({ study, next }: { study: Study; next?: string }) {
   return (
     <div className="sw-step-foot">
       {p && <button className="btn" onClick={() => goFlow(p)}>← {flowTitle(t, p)}</button>}
-      {n && <button className="btn primary" onClick={() => goFlow(n)}>{next ?? flowTitle(t, n)} →</button>}
+      {n && <button className="btn primary" onClick={() => goFlow(n)} title={n === "next" && !study.recordings ? t("swResultsNextHint") : undefined}>{next ?? flowTitle(t, n)} →</button>}
     </div>
   );
 }

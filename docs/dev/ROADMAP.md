@@ -1286,3 +1286,6 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
   test_compare_diff, test_compare_tolerances. Not done: the "noise-ratio note" (RW7's wording - no spec beyond that).
 - [x] CC23 The bundle: react / uplot / zustand and the two i18n tables (core, areas) in chunks of their own
   (vite.config.ts manualChunks) - index 698 -> 440 kB, no chunk over 500 kB, Vite's warning gone.
+- [x] CC3 (more) Checks: the flags' note and the checks file's "same verdict as the CLI" line in tooltips; Sweeps: the
+  step intros clamped to two lines (whole in the tooltip), the optimize / next-runs hints as tooltips. Settings keeps
+  its descriptions (a dialog read once). Tests: e2e test_sweeps_flow, test_checks_view.

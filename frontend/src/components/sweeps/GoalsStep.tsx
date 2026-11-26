@@ -63,7 +63,7 @@ export function GoalsSide({ study }: { study: Study }) {
   const setMore = (v: boolean) => useSweeps.setState({ goalMore: v });
   return (
     <div className="sw-side-step">
-      <p className="sw-step-intro">{t("swGoalIntro2")}</p>
+      <p className="sw-step-intro" title={t("swGoalIntro2")}>{t("swGoalIntro2")}</p>
       <div className="sw-goal-tabs" role="tablist">
         {q.goals.map((x, i) => (
           <span key={i} className={`sw-goal-tab${i === q.active ? " on" : ""}`}>
@@ -206,7 +206,7 @@ function GoalTable({ study }: { study: Study }) {
       {sel.length > 1 && <BulkBar study={study} cols={sel} outputs={outputs.map((c) => c.name)} onClear={() => setSel([])} />}
       <div className="sw-table-wrap">
         <table className="sw-table sw-goal-table sw-sticky-first">
-          <thead><tr><th>{t("swColumn")}</th><th>{t("swRange")}</th><th>{t("swLimitMin")}</th><th>{t("swLimitMax")}</th><th>{t("swGoalOptimize")}</th><th>{g.optimize.length > 1 ? t("swWeight") : ""}</th></tr></thead>
+          <thead><tr><th>{t("swColumn")}</th><th>{t("swRange")}</th><th>{t("swLimitMin")}</th><th>{t("swLimitMax")}</th><th title={t("swOptimizeMoreHint")}>{t("swGoalOptimize")}</th><th>{g.optimize.length > 1 ? t("swWeight") : ""}</th></tr></thead>
           <tbody>
             {outputs.length > 0 && <tr className="sw-goal-group"><td colSpan={6}>{t("swGoalOutputs")}</td></tr>}
             {outputs.map((c) => row(c, true))}
@@ -217,7 +217,7 @@ function GoalTable({ study }: { study: Study }) {
       </div>
       {others > 0 && <p className="hint">{t("swGoalOthers", { n: others })}</p>}
       <p className="hint sw-optimize-now" aria-live="polite">{optimizeNow(t, g, a)}</p>
-      {g.optimize.length === 1 && <p className="hint">{t("swOptimizeMoreHint")}</p>}
+      {/* CC3: "More than one to optimize?" - the Optimize column's tooltip (its header), not a paragraph */}
       {g.optimize.length >= 2 && (
         // several to optimize (owner, 2026-11-03): how they are ranked together, and their trade-off
         <div className="sw-row sw-rankby">

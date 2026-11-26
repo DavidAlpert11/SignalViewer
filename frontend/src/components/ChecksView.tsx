@@ -125,7 +125,7 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
   const flagCards = flagsLast ? 3 : FLAG_CARDS;
   const flagsSec = nFlags > 0 && (
         <section className="checks-sec" aria-label={t("chkFlagsTitle")}>
-          <h3 className="eyebrow" title={t("ovFlagsHint")}>{t("chkFlagsTitle")}</h3>
+          <h3 className="eyebrow" title={`${t("ovFlagsHint")}\n${t("chkFlagsNote")}`}>{t("chkFlagsTitle")}</h3>
           <ul className="card-list">
             {flags!.slice(0, flagCards).map((f, k) => (
               <li key={k} className="card warn" data-flag={f.kind} data-flag-signal={f.signal}>
@@ -137,7 +137,6 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
             ))}
             {nFlags > flagCards && <li className="card-meta">{t("chkFlagsMore", { n: nFlags - flagCards })}</li>}
           </ul>
-          <p className="hint log-note">{t("chkFlagsNote")}</p>
         </section>
   );
 
@@ -148,7 +147,8 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
       {cfile?.file && (
         <section className="checks-sec" aria-label={t("chkFile")} data-checks-file={fileName(cfile.file)}>
           <h3 className="eyebrow">{t("chkFile")}</h3>
-          <p className="card-meta" title={cfile.file}>{t("chkFileFrom", { file: fileName(cfile.file) })}</p>
+          {/* CC3: the file's name; what it is (the CLI's verdict) in the tooltip */}
+          <p className="card-meta" title={`${cfile.file}\n${t("chkFileFrom", { file: fileName(cfile.file) })}`}>{fileName(cfile.file)}</p>
           {cfile.error ? <p className="empty-state"><span>{t("chkFileBroken", { file: fileName(cfile.file), why: cfile.error })}</span></p> : (
             <ul className="card-list">
               {cfile.results.map((r, k) => (
