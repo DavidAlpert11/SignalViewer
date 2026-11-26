@@ -2,6 +2,10 @@
 
 ## Next – unreleased
 
+## 1.38.0 – 2026-11-26
+
+**Highlights:** calm, clear, any data. A calmer screen - one *File ▾*, language and theme in Settings, fewer words and frames, each action in one place; a workbench for any simulation or test data, not only flight logs - requirements in a checks file (settle, overshoot, rise, steady-state error, rate, tracking, order) judged in *Checks*, in a verification report, per run in a folder's table and by `signalviewer-cli check`; an automatic look at every file; templates and examples for simulations first (a Simulink servo, an HDF5 process, a Monte-Carlo folder, a model against its test).
+
 - **A calmer top row (CC1).** One labelled **File ▾** holds what is done with files: open files, open a session,
   recent files, save the session, export a recording, live links (MAVLink, a serial port, UDP / TCP) and **Clear ▸**.
   The language and the theme are chosen in **Settings** (the first group; also Ctrl+K), not three more buttons; the

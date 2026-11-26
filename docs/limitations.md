@@ -95,3 +95,8 @@
 * Story mode picks at most 12 moments; the reference object's track gives the computed ones (the other objects only through the pair).
 * MATLAB objects - a Simulink `Dataset` (`logsout`), a `SimulationOutput`, `timeseries`, `timetable` - are stored in MATLAB's own class format, which only MATLAB reads: the app names them when the file opens; `tools/matlab/sv_export.m` (run in MATLAB) saves them as plain structs it reads, each signal on its own time.
 * The automatic research (*any data*) finds commanded / measured pairs by their names (`_cmd`, `Des…`, `…_ref`, `setpoint`…); a pair named otherwise is judged by a `track` / `settle` requirement in a checks file or a profile instead. Its step metrics need a command that steps and holds for half a second.
+* Compare's *≈ noise* (1.38) reads a signal's noise from one sample to the next: a signal smoothed or interpolated
+  before it was recorded reads less noise than it has, so its differences read as more than noise.
+* The report's `[[requirements]]` plots the first four failures (`| top N` for more, `| table` for none); a checks file
+  is found beside each recording (`<name>.checks.json`, else `checks.json` in its folder) - it cannot be chosen from
+  elsewhere in the app (the command line takes `--checks FILE`).

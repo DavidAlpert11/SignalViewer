@@ -48,14 +48,15 @@ simulation engineers, and it runs entirely on your machine: no account, no cloud
 - **Runs side by side** – different clocks and rates aligned; every shared signal ranked by how much it differs.
 - **What changed?** – the signals that left their usual range, in time order, and which one led which.
 - **Pass / fail you can defend** – limits and requirements (settling, overshoot, rise time, tracking a reference,
-  rate, order of events), a golden run with tolerances, data quality; the same checks headless in CI.
+  rate, order of events), a golden run with tolerances, data quality; a verification report with a verdict per
+  requirement and run, a verdict column per run for a Monte-Carlo folder; the same checks headless in CI.
 - **It looks by itself** – every file is searched for numbers that are not numbers, oscillations and every
   commanded / measured pair (how far it stays from its command, how its steps settle); a flight log adds its health
   check; your own rules apply to every file they match.
 - **Sweeps** – the parameter sets that hold in every scenario, and a loop that runs your simulation until the best
   stops changing.
 - **No point left out** – numbers always use all the data; plots are reduced only so that every spike is still drawn.
-- **One file to send** – one click writes a ready report made of parts (commanded vs actual, navigation errors between objects, the scenario and its special moments, and the main differences between files with the central region of the change), or write it like Markdown, with `[[tab.plot]]` for a plot and `{{ max(Roll) }}` for a value of every sample, a live preview beside it; an offline HTML page that opens with how the conclusion was reached, PDF and Word from the same text - or **in LaTeX, as in Overleaf, offline** (a PDF preview from your own TeX, a project for Overleaf); a plot or a tab sent live onto a Confluence page (every sample, one click).
+- **One file to send** – one click writes a ready report made of parts (the requirements' verdict, commanded vs actual, navigation errors between objects, the scenario and its special moments, and the main differences between files with the central region of the change), or write it like Markdown, with `[[tab.plot]]` for a plot and `{{ max(Roll) }}` for a value of every sample, a live preview beside it; an offline HTML page that opens with how the conclusion was reached, PDF and Word from the same text - or **in LaTeX, as in Overleaf, offline** (a PDF preview from your own TeX, a project for Overleaf); a plot or a tab sent live onto a Confluence page (every sample, one click).
 - **English and Hebrew** (right to left), light and dark themes.
 
 ## Quick start
@@ -176,6 +177,7 @@ df = rec.to_dataframe(["Pressure", "MotorTemp"], t0=100, t1=500)
 
 ```bash
 signalviewer-cli check   runs/*.parquet --checks checks.json --junit results.xml   # limits and requirements
+signalviewer-cli check   runs/*.mat                                                 # each file's own <name>.checks.json
 signalviewer-cli compare golden.csv runs/*.csv --tol-pct 2                          # against a golden run
 signalviewer-cli validate                                                           # 29 passed, 0 failed
 ```
@@ -218,14 +220,14 @@ Exit codes and JUnit XML for CI; also export, a Sweeps table from a folder of re
 **Signal Viewer** – סביבת עבודה הנדסית לניתוח ואימות של נתוני מדידה וסדרות זמן מכל מקור: ניסויי טיסה, רכב וספסל, פלט סימולציות, ROS 2 ו־CAN, וסריקות פרמטרים. הכול על המחשב שלכם, בלי חשבון ובלי אינטרנט.
 
 - **מוצאים מה השתבש:** שני סמנים סביב הרגע ו*מה השתנה?* – מה זז ראשון ומי הוביל את מי.
-- **שופטים ריצה:** מגבלות ודרישות (התייצבות, חריגה, זמן עלייה, מעקב אחרי ייחוס, קצב, סדר אירועים), טולרנסים מול ריצת ייחוס ואיכות נתונים – פסיקה אחת לכל קובץ, ואותן בדיקות גם ב־CI.
+- **שופטים ריצה:** מגבלות ודרישות (התייצבות, חריגה, זמן עלייה, מעקב אחרי ייחוס, קצב, סדר אירועים), טולרנסים מול ריצת ייחוס ואיכות נתונים – פסיקה אחת לכל קובץ, דוח אימות עם פסק דין לכל דרישה ולכל ריצה, עמודת פסק דין לכל ריצה בתיקיית מונטה־קרלו, ואותן בדיקות גם ב־CI.
 - **מסתכלת בעצמה:** בכל קובץ האפליקציה מחפשת ערכים שאינם מספרים, תנודות וכל זוג של פקודה ומדידה (כמה רחוק מהפקודה, איך המדרגות מתייצבות); ללוג טיסה יש גם בדיקת תקינות; כללים משלכם חלים על כל קובץ שמתאים להם.
 - **בוחרים פרמטרים (Sweeps):** אילו סטים עומדים בכל תרחיש, סט אחד לכמה מערכות, ולולאה שמריצה את הקוד שלכם עד התכנסות.
 - **אף נקודה לא נעלמת:** המספרים תמיד על כל הנתונים, והגרף מוקטן רק כך שכל קפיצה עדיין מצוירת.
 - **מבתים לסיגנלים:** קו תקשורת שהוקלט בית אחר בית, או NMEA גולמי של מקלט: ההודעות נמצאות לבד (כותרת, אורך, סוג, checksum, סיומת), האפליקציה מציעה מבנה – 16 ביט LSB או MSB קודם, עם סימן, 32 ביט, float, double, טקסט – או שמגדירים אותו בארבעה שלבים מודרכים – הבתים כ־hex, מספרים או ASCII, ולחיצה על בית אומרת מה הוא (כותרת, אורך, סוג, ערך), עם נוסחת המרה – כל הודעה נספרת ומוצגת לפי הסדר, והערכים הופכים להקלטה שנשמרת גם ל־CSV. אפשר גם להאזין חי לפורט טורי, UDP או TCP. חלונית *הודעות* אחת מרכזת הכול: זרמי הבתים, סוגי ההודעות של הלוגים (גם MAVLink), הקווים הפעילים וספריית מבנים.
 - **אפליקציה אחת:** חקירה, הודעות, בדיקות והדוח נפתחים כעמודים באותה מסגרת (ראש, עמודת תוכן, ומה שעובדים עליו), וחוזרים לצד הגרפים כשפעולה צריכה אותם; הדוגמאות נבנות מולכם בשניים־שלושה שלבים.
 - **מפה ותלת־ממד:** תצלומי לוויין או מפה לא מקוונת, מעל פני השטח האמיתיים – הרגע של הסמן על המסלול ובכל הגרפים יחד.
-- **שולחים את התשובה:** לחיצה אחת כותבת דוח מוכן מחלקים (פקודה מול ביצוע, שגיאות ניווט בין אובייקטים, התרחיש והרגעים המיוחדים, וההבדלים העיקריים בין קבצים עם האזור המרכזי של השינוי), או כותבים את הדוח כמו Markdown, או ב־LaTeX כמו ב־Overleaf – בלי אינטרנט ובלי להתקין דבר, בעורך עם ביטול והערות משלו – עם גרפים וערכים מהנתונים ותצוגה חיה; דוח HTML אחד שנפתח ב"התהליך בקצרה", וגם PDF ו־Word, או גרף ולשונית שנשלחים חיים ישר לדף Confluence – מדביקים את הקישור לדף וזהו (למקום שבו כתוב בדף <code dir="ltr">[[signalviewer]]</code> או מתחת לכותרת שבוחרים); או גוררים אותם אל מחוץ לחלון – לתיקייה דף אינטראקטיבי, ל־Word תמונה חדה. תיקייה של הקלטות – טבלה אחת, שורה לכל הקלטה.
+- **שולחים את התשובה:** לחיצה אחת כותבת דוח מוכן מחלקים (פסק הדין של הדרישות, פקודה מול ביצוע, שגיאות ניווט בין אובייקטים, התרחיש והרגעים המיוחדים, וההבדלים העיקריים בין קבצים עם האזור המרכזי של השינוי), או כותבים את הדוח כמו Markdown, או ב־LaTeX כמו ב־Overleaf – בלי אינטרנט ובלי להתקין דבר, בעורך עם ביטול והערות משלו – עם גרפים וערכים מהנתונים ותצוגה חיה; דוח HTML אחד שנפתח ב"התהליך בקצרה", וגם PDF ו־Word, או גרף ולשונית שנשלחים חיים ישר לדף Confluence – מדביקים את הקישור לדף וזהו (למקום שבו כתוב בדף <code dir="ltr">[[signalviewer]]</code> או מתחת לכותרת שבוחרים); או גוררים אותם אל מחוץ לחלון – לתיקייה דף אינטראקטיבי, ל־Word תמונה חדה. תיקייה של הקלטות – טבלה אחת, שורה לכל הקלטה.
 
 **התקנה:** מ־[השחרור האחרון](https://github.com/DavidAlpert11/SignalViewer/releases/latest) (Windows, Linux, macOS), או <code dir="ltr">pip install signalviewer</code>. **מדריך:** [docs/GUIDE.he.md](docs/GUIDE.he.md).
 

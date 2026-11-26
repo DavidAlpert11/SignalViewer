@@ -100,7 +100,7 @@ Verified by running the built app with no network interface at all.
 
 Build commands (Windows unless said):
 
-- `build.bat installer` → `dist\SignalViewer-Setup-1.37.0.exe`  
+- `build.bat installer` → `dist\SignalViewer-Setup-1.38.0.exe`  
   **Recommended.** One file; installs for the current user (no admin), Start-menu and desktop icons, *Open with* for data files, uninstaller
 - `build.bat portable` → `dist\SignalViewer-portable.zip`  
   Unzip anywhere and run `SignalViewer.exe` (fast start)
@@ -152,9 +152,9 @@ npm run build    # builds frontend/dist (not in git)
 Tests:
 
 ```bash
-python -m pytest backend/tests          # ~1,500 server tests (incl. damaged copies of every format)
+python -m pytest backend/tests          # ~1,550 server tests (incl. damaged copies of every format)
 pip install -r requirements-dev.txt && python -m playwright install chromium
-python -m pytest tests/e2e              # ~540 browser tests, the whole suite in one run (~30 min)
+python -m pytest tests/e2e              # ~560 browser tests, the whole suite in one run (~30 min)
 python -m pytest tests/e2e/test_features.py    # or one file: one test per catalog feature
 cd backend && mypy --config-file ../pyproject.toml app svcore signalviewer   # type check
 python tools/benchmark.py big.csv       # performance against the targets (results in docs/)
