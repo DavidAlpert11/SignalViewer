@@ -1363,7 +1363,7 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
 
 ## CH - a communication channel: patterns, anomalies, compare files (owner, 2026-11-26). Plan: TASKS.md Open specs "CH".
 - [ ] CH1 - separate TX + RX made one request / reply channel in one click (the Messages list offers it), kept in the session at once.
-- [ ] CH2 - the anomaly finder (svcore/channel.py): checksum, broken frame, length, unknown type, counter, gap, unanswered, retry, late reply, reconnect, handshake order; route /api/messages/channel.
+- [x] CH2 - the anomaly finder (svcore/channel.py): checksum, broken frame, length, unknown type, counter, gap, unanswered, retry, late reply, reconnect, handshake order; route /api/messages/channel. Done 2026-11-26: `svcore/channel.py` (`anomalies`, `count_signal`), `bytestream._walk` keeps where each frame broke (`broken`), the op `messages` what `anomalies` (the count so far); a step next to a bad frame or across a gap is not also a counter anomaly. Tests: backend test_channel (each kind injected once into a clean link), test_messages_library (the route, separate TX + RX = the same link by a direction column).
 - [ ] CH3 - the Channel block on the Messages page: the patterns beyond the content, the anomaly chips and time strip (a click goes there), the Anomalies plot.
 - [ ] CH4 - compare with similar files: a row per file, the differences marked; the report's [[messages]] with the anomaly counts and the files' table.
 - [ ] CH5 - the example (examples/channel: two recordings of one link, every anomaly kind injected, different counts).

@@ -283,11 +283,13 @@ def _len_at(b: np.ndarray, p: int, rule: Dict) -> int:
 
 
 def _walk(b: np.ndarray, P: np.ndarray, rule: Dict, h: Tuple[int, int], check: Optional[Tuple[str, int]], maxlen: int):
-    """From header to header. Returns the frames [(start, length, ok)], resyncs, bytes outside frames."""
+    """From header to header. Returns the frames [(start, length, ok)], the resyncs (where each broken frame
+    started, a byte index), bytes outside frames."""
     n = len(b)
     raw = b.tobytes()
     frames: List[Tuple[int, int, Optional[bool]]] = []
-    resyncs, outside = 0, 0
+    resyncs: List[int] = []
+    outside = 0
     j, i = 0, 0                                         # j: the next header index at or after i
     while True:
         while j < len(P) and P[j] < i:
@@ -307,7 +309,7 @@ def _walk(b: np.ndarray, P: np.ndarray, rule: Dict, h: Tuple[int, int], check: O
                 frames.append((p, L, ok))
                 i = end
                 continue
-        resyncs += 1                                    # a broken frame: its bytes up to the next header are lost
+        resyncs.append(p)                               # a broken frame: its bytes up to the next header are lost
         i = p + 1
         outside += 1
     return frames, resyncs, outside
@@ -474,7 +476,8 @@ def decode(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Optional[Di
            "byTime": None if not bt else {"after": round(bt[0], 3), "before": round(bt[1], 3)},
            "typeOffset": toff, "checksum": None if not check else {"scheme": check[0], "over": "without the header" if check[1] else "with the header"},
            "messages": {"t": tm, "type": ty, "len": ln, "ok": ok, "start": st},
-           "count": int(len(st)), "errors": int((~ok).sum()) if check else 0, "resyncs": int(resyncs), "outside": int(outside),
+           "count": int(len(st)), "errors": int((~ok).sum()) if check else 0, "resyncs": len(resyncs), "outside": int(outside),
+           "broken": t[np.asarray(resyncs, dtype=np.int64)] if resyncs else np.zeros(0),       # CH2: when each frame broke
            "inFrames": int(ln.sum()), "raw": b,
            "ckLen": 0 if not check else (1 if check[0] in SCHEMES_1 else 2)}
     out.update(characterise(tm, ty, ln, ok, bool(check)))
@@ -532,7 +535,7 @@ def characterise(tm: np.ndarray, ty: np.ndarray, ln: np.ndarray, ok: np.ndarray,
 
 # ------------------------------------------------------------------------------------------------ as signals
 
-WHATS = ("type", "length", "ok", "interval", "count", "latency")
+WHATS = ("type", "length", "ok", "interval", "count", "latency", "anomalies")
 
 
 def messages_signal(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Dict) -> Tuple[np.ndarray, np.ndarray]:
@@ -543,6 +546,8 @@ def messages_signal(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Di
         raise StreamError("Unknown message quantity \"%s\": use one of %s." % (what, ", ".join(WHATS)))
     if what == "latency":
         return latency_signal(signals, params)
+    if what == "anomalies":
+        return anomalies_signal(signals, params)
     r = decode(signals, params)
     m = r["messages"]
     t = np.asarray(m["t"], dtype=np.float64)
@@ -585,10 +590,22 @@ def latency_signal(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Dic
     return t[o], y[o]
 
 
+def anomalies_signal(signals: Sequence[Tuple[np.ndarray, np.ndarray]], params: Dict) -> Tuple[np.ndarray, np.ndarray]:
+    """CH3: the channel's anomalies so far (svcore/channel.py) - both directions when the params say so (link /
+    rxdir, as the latency), else the one stream."""
+    from svcore.channel import anomalies, count_signal
+    if params.get("link") or params.get("rxdir") not in (None, ""):
+        a, b = link_sides(signals, params)
+        sides = [("TX", a), ("RX", b)]
+    else:
+        sides = [("TX", decode(signals, params))]
+    return count_signal(anomalies(sides))
+
+
 def messages_name(n: List[str], p: Dict) -> str:
     src = n[0] if len(n) == 1 else "%s…%s" % (n[0], n[-1]) if n else "?"
     return "%s(%s)" % ({"type": "msg_type", "length": "msg_len", "ok": "msg_ok", "interval": "msg_interval",
-                        "count": "msg_count", "latency": "reply_latency"}.get(str(p.get("what")), "messages"), src)
+                        "count": "msg_count", "latency": "reply_latency", "anomalies": "anomalies"}.get(str(p.get("what")), "messages"), src)
 
 
 # ------------------------------------------------------------------------------------------------ both ways

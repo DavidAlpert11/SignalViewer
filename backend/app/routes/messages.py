@@ -4,7 +4,7 @@ byte streams of the open files listed for the Messages panel, and the structure 
 import json
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -92,6 +92,44 @@ async def messages_parse(req: StructureRequest):
             lr.id = req.id
     return {"run": lr.id, "new": new, "report": out["report"], "signals": [f"{lr.id}/{k}" for k in lr.run.signals],
             "runs": store.list()}
+
+
+class ChannelSide(BaseModel):
+    label: str                                    # TX / RX (a direction's name)
+    sources: List[str]
+    params: Optional[dict] = None                 # dir (a direction column's value), header / checksum forced
+    known: Optional[List[int]] = None             # the type ids its structure describes (else: a rare type is unknown)
+
+
+class ChannelRequest(BaseModel):
+    sides: List[ChannelSide]                      # one direction, or the two of a link (TX first)
+
+
+def _channel(req: ChannelRequest) -> Dict[str, Any]:
+    from svcore.bytestream import decode
+    from svcore.channel import anomalies
+    sides: List[Tuple[str, Dict[str, Any]]] = []
+    known: Dict[str, Sequence[int]] = {}
+    for s in req.sides[:2]:
+        sides.append((s.label, decode([store.signal(x) for x in s.sources], s.params or {})))
+        if s.known is not None:
+            known[s.label] = s.known
+    return anomalies(sides, known)
+
+
+@router.post("/api/messages/channel")
+async def messages_channel(req: ChannelRequest):
+    """CH2: a channel's patterns beyond the content (framing, requests -> replies, the handshake) and its anomalies,
+    each with its time, counted per kind - on every message."""
+    from svcore.bytestream import StreamError
+    if not req.sides:
+        fail(400, "Give the stream: one direction or the two of a link.")
+    try:
+        return await heavy(_channel, req)
+    except KeyError as e:
+        fail(404, f"Signal not found: {e} - is its file still open?")
+    except StreamError as e:
+        fail(400, str(e))
 
 
 class InspectRequest(StructureRequest):

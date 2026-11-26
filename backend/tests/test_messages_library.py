@@ -73,3 +73,22 @@ def test_streams_split_by_a_direction_column_share_one_key():
     lr = store.open_file(os.path.join(EX, "serial_link", "link_mixed.csv"))
     rows = [s for s in c.post("/api/messages/streams", json={"streams": [], "runs": [lr.id]}).json()["streams"]]
     assert len(rows) == 2 and {s["key"] for s in rows} == {f"{lr.id}/byte"}
+
+
+def test_channel_route_both_ways_and_by_a_direction_column():
+    """CH2: /api/messages/channel - the separate TX and RX signals, and the same link in one signal split by its
+    direction column, give the same anomalies."""
+    c = TestClient(app)
+    a = store.open_file(os.path.join(EX, "serial_link", "link_tx_rx.csv"))
+    pair = c.post("/api/messages/channel", json={"sides": [{"label": "TX", "sources": [f"{a.id}/tx_byte"]},
+                                                             {"label": "RX", "sources": [f"{a.id}/rx_byte"]}]}).json()
+    assert pair["counts"]["unanswered"] == 18 and pair["counts"]["reconnect"] == 1 and pair["pairs"]
+    assert len(pair["events"]["t"]) == pair["total"] == sum(pair["counts"].values())
+    b = store.open_file(os.path.join(EX, "serial_link", "link_mixed.csv"))
+    d = c.post("/api/messages/direction-values", json={"id": f"{b.id}/dir"}).json()["values"]
+    code = {x["label"]: x["v"] for x in d}
+    mixed = c.post("/api/messages/channel", json={"sides": [
+        {"label": "TX", "sources": [f"{b.id}/byte", f"{b.id}/dir"], "params": {"dir": code["TX"]}},
+        {"label": "RX", "sources": [f"{b.id}/byte", f"{b.id}/dir"], "params": {"dir": code["RX"]}}]}).json()
+    assert mixed["counts"] == pair["counts"]
+    assert c.post("/api/messages/channel", json={"sides": [{"label": "TX", "sources": ["nope/x"]}]}).status_code == 404
