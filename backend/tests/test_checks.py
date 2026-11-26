@@ -75,8 +75,12 @@ def test_errors_exit_2_and_say_what_to_do(tmp_path, capsys):
     bad.write_text('{"checks": [{"signal": "RPM"}]}')
     rc, _, se = run(capsys, "check", RUNS[0], "--checks", str(bad))
     assert rc == 2 and "neither \"lo\" nor \"hi\"" in se
-    rc, _, se = run(capsys, "check", RUNS[0])
-    assert rc == 2 and "--checks" in se
+    lone = tmp_path / "lone.csv"                       # CC15: no --checks and no checks file of its own
+    lone.write_bytes(b"Time,x\n0,1\n1,2\n")
+    rc, so, _ = run(capsys, "check", str(lone))
+    assert rc == 2 and "no checks file" in so and "--checks" in so
+    rc, _, se = run(capsys, "check", RUNS[0], "--checks", str(c), "--template", "x")
+    assert rc == 2 and "not both" in se
 
 
 def test_limits_saved_in_a_template(home, capsys):

@@ -61,6 +61,7 @@ recently used go, and are computed again when needed.
 ```bash
 signalviewer-cli check runs/*.csv --checks checks.json --junit results.xml
 signalviewer-cli check flight.bin --template "My limits"   # the limits saved on signals in the app
+signalviewer-cli check runs/*.csv                         # 1.38: each file's own checks file (<name>.checks.json, else checks.json beside it)
 ```
 
 A checks file ([example](https://github.com/DavidAlpert11/SignalViewer/blob/main/examples/checks.json)):

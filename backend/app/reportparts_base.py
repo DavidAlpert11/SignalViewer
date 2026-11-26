@@ -10,11 +10,18 @@ import numpy as np
 from svcore.docfields import format_value
 
 PALETTE = ["#3D8BFD", "#E8590C", "#2F9E44", "#AE3EC9", "#F08C00", "#0CA678", "#E64980", "#1C7ED6"]
-PARTS = ("toc", "overview", "tracking", "navigation", "states", "trajectory", "moments", "differences", "messages", "summary")
+PARTS = ("toc", "requirements", "overview", "tracking", "navigation", "states", "trajectory", "moments", "differences", "messages", "summary")
 UNITS = {"position": "m", "velocity": "m/s", "attitude": "deg"}
 
 S: Dict[str, Dict[str, Any]] = {
     "en": {
+        "none_req": "No checks file with the open files - a `<name>.checks.json` beside a recording, or a `checks.json` in its folder (what Checks and signalviewer-cli check read).",
+        "req_intro": "**{n} requirements** from {file}, judged on every sample of {runs} run(s): {ok} passed, {bad} failed.",
+        "req_verdict_pass": "**Verdict: ✔ every requirement is met.**", "req_verdict_fail": "**Verdict: ✖ {n} requirement(s) not met.**",
+        "req_runs": "**{ok} of {n} runs meet every requirement.**", "req_runs_bad": "Not met: {list}.",
+        "req_head": ["Requirement", "Verdict", "Measured", "First failed at (s)"], "req_req": "Requirement",
+        "req_skipped": "– not judged", "req_error": "⚠ error", "req_limit": "limit", "req_outside": "outside {n} times, first at {t} s",
+        "req_hl": "{r} not met - {m}", "req_plot": "{r} - where it failed",
         "none_trk": "No commanded / measured pairs in the open files (a pair is found by its names: Des…, …_cmd, …_setpoint, target…, …_ref).",
         "trk_intro": "**{n} commanded / measured pairs**, found by their names; each compared on all its samples (error = measured − commanded).",
         "trk_head": ["Commanded", "Measured", "RMS error", "Max error", "at (s)", "Bias", "Delay (s)", "Steps", "Overshoot", "Settling (s)"],
@@ -107,6 +114,13 @@ S: Dict[str, Dict[str, Any]] = {
         "no_ref": "No object named \"{r}\" (objects: {list}).", "no_base": "No open file named like \"{b}\" (files: {list}).",
     },
     "he": {
+        "none_req": "אין קובץ בדיקות לקבצים הפתוחים - `<name>.checks.json` ליד הקלטה, או `checks.json` בתיקייה שלה (מה שהבדיקות ו-signalviewer-cli check קוראים).",
+        "req_intro": "**{n} דרישות** מתוך {file}, נבדקו על כל דגימה של {runs} ריצות: {ok} עברו, {bad} נכשלו.",
+        "req_verdict_pass": "**פסק דין: ✔ כל הדרישות מתקיימות.**", "req_verdict_fail": "**פסק דין: ✖ {n} דרישות לא מתקיימות.**",
+        "req_runs": "**{ok} מתוך {n} ריצות עומדות בכל הדרישות.**", "req_runs_bad": "לא עומדות: {list}.",
+        "req_head": ["דרישה", "פסק דין", "נמדד", "נכשלה לראשונה ב- (s)"], "req_req": "דרישה",
+        "req_skipped": "– לא נבדקה", "req_error": "⚠ שגיאה", "req_limit": "גבול", "req_outside": "מחוץ לגבול {n} פעמים, לראשונה ב-{t} s",
+        "req_hl": "{r} לא מתקיימת - {m}", "req_plot": "{r} - היכן נכשלה",
         "none_trk": "אין בקבצים הפתוחים זוגות פקודה / ביצוע (זוג נמצא לפי השמות: Des…, …_cmd, …_setpoint, target…, …_ref).",
         "trk_intro": "**{n} זוגות פקודה / ביצוע**, שנמצאו לפי השמות; כל זוג מושווה על כל הדגימות (שגיאה = ביצוע − פקודה).",
         "trk_head": ["פקודה", "ביצוע", "שגיאת RMS", "שגיאה מרבית", "בזמן (ש')", "הטיה", "השהיה (ש')", "צעדים", "Overshoot", "התייצבות (ש')"],
@@ -198,7 +212,7 @@ S: Dict[str, Dict[str, Any]] = {
         "no_ref": "אין אובייקט בשם \"{r}\" (אובייקטים: {list}).", "no_base": "אין קובץ פתוח בשם כמו \"{b}\" (קבצים: {list}).",
     },
 }
-KNOWN = {"tracking": "top N, table, tol X, outside X%, skip NAME", "navigation": "ref NAME, position, velocity, attitude, top N, table",
+KNOWN = {"requirements": "top N, table", "tracking": "top N, table, tol X, outside X%, skip NAME", "navigation": "ref NAME, position, velocity, attitude, top N, table",
          "states": "min Xs, table", "trajectory": "table", "moments": "top N", "differences": "base NAME, top N, table, small X%, large X%", "summary": "top N", "toc": "", "overview": "top N, plots N, table",
          "messages": "header AA55, length N, type N, checksum NAME, table"}
 

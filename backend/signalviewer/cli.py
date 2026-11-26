@@ -100,16 +100,25 @@ def cmd_templates(a) -> int:
 def cmd_check(a) -> int:
     """T57: limits as pass / fail, one line per check, an exit code for CI and optional JUnit XML."""
     import glob
-    from app.checks import ChecksError, load_checks, run_checks, template_checks
+    from app.checks import ChecksError, checks_file_for, load_checks, run_checks, template_checks
     files = [f for pat in a.files for f in (sorted(glob.glob(pat)) or [pat])]
-    if bool(a.checks) == bool(a.template):
-        print("error: give --checks FILE.json or --template NAME (one of them).", file=sys.stderr)
+    if a.checks and a.template:
+        print("error: give --checks FILE.json or --template NAME, not both.", file=sys.stderr)
         return 2
     try:
         fixed = load_checks(a.checks) if a.checks else None
         results = []
         for f in files:
-            if fixed is None:
+            if fixed is None and not a.template:
+                # CC15: neither given - each recording's own checks file, as the app's Checks reads it
+                # (<name>.checks.json beside it, else checks.json in its folder)
+                own = checks_file_for(f)
+                if not own:
+                    msg = f"no checks file for {os.path.basename(f)} (<name>.checks.json beside it or checks.json in its folder; or give --checks)"
+                    results.append({"file": f, "error": msg, "results": [{"name": "(checks file)", "status": "error", "message": msg}]})
+                    continue
+                checks = load_checks(own)
+            elif fixed is None:
                 try:
                     checks = template_checks(a.template, f)
                 except ChecksError:
@@ -511,7 +520,8 @@ def main(argv=None) -> int:
     p = sub.add_parser("check", help="pass / fail against limits (exit code and JUnit XML for CI)",
                        description="Exit code: 0 all passed, 1 a check failed, 2 a check could not be made.")
     p.add_argument("files", nargs="+", help="data files (wildcards allowed)")
-    p.add_argument("--checks", help="a .json checks file (see app/checks.py for the format)")
+    p.add_argument("--checks", help="a .json checks file (see app/checks.py for the format); left out with no --template: "
+                   "each recording's own (<name>.checks.json beside it, else checks.json in its folder)")
     p.add_argument("--template", help="use the limits saved in this template instead (name, id or .json)")
     p.add_argument("--junit", help="also write the results as JUnit XML (CI test results)")
     p.add_argument("--json", action="store_true", help="machine-readable results on stdout")

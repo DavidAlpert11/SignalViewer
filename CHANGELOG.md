@@ -53,6 +53,11 @@
   spectrum) and *Many runs as an envelope* (the signals three or more files share). The library lists *Any data*
   first; the flight logs' templates are grouped under *Flight logs · ArduPilot / MAVLink / PX4*. Words in the maps and
   the step response say *recording* and *track*, not *flight*.
+- **A verification report (CC15).** The report's new part `[[requirements]]` judges every run against its checks file
+  - the verdict, a row per requirement (a column per run for a Monte-Carlo folder), what was measured against its
+  limit and a plot of each failure; the ready report *Verification against the requirements* puts it first and says
+  how to reproduce the verdict. `signalviewer-cli check` with no `--checks` reads each file's own checks file, as
+  *Checks* does.
 
 ## 1.37.0 – 2026-11-26
 

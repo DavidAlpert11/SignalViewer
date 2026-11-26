@@ -1302,3 +1302,12 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
   mapsAnd3d (recording, track, instrument display, a mode), investigate stepNone. Kept: the examples' own flight words
   (welcome / templates descriptions of flight examples, the drones study demo) - example content. Tests: backend
   test_templates::test_the_any_data_generators_are_first_and_the_ui_judges_their_fit; e2e test_any_data_templates (3).
+- [x] CC15 (rest) The verification report: app/reportparts.py requirements (_verdicts: each run's checks_file_for ->
+  run_checks; one run: a row per requirement with its measured value / limit and first failure; several: a column per
+  run; a plot of each failed signal around its first failure with its lo / hi; highlights for [[summary]]); scan
+  checks; PARTS / KNOWN / S en + he; reportReady.ts the Requirements category and the *Verification* ready report
+  (requirements, the recording's overview table, *How to reproduce* with the CLI line); signalviewer-cli check reads
+  each file's own checks file when --checks / --template are left out. Tests: backend
+  test_report_parts::test_the_requirements_part_judges_each_run_against_its_checks_file,
+  test_cli_api::test_cli_check_reads_each_recordings_own_checks_file, test_checks (updated); Vitest reportReady
+  (CC15).

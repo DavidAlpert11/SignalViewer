@@ -188,6 +188,8 @@ export interface ReportScan {
   tracks: number;
   /** MSG1: the byte streams with messages found (a direction split: "rx_byte RX") */
   streams?: { name: string; file: string; count: number }[];
+  /** CC15: how many of the files have a checks file beside them ([[requirements]]) */
+  checks?: number;
 }
 export interface CompareAllRow {
   name: string; runs?: string[]; baseline?: string; error?: string;

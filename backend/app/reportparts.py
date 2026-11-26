@@ -683,7 +683,106 @@ def summary(p: Part, highlights: List[Dict], o: Dict):
     p.say("\n".join("- %s %s" % (mark.get(h["level"], "•"), h["text"]) for h in hs))
 
 
-RUN = {"overview": overview, "moments": moments, "messages": messages, "tracking": tracking, "navigation": navigation, "states": states, "trajectory": trajectory, "differences": differences}
+# ------------------------------------------------------------------------------------------------ requirements
+
+def _verdicts(store, rids: Sequence[str]) -> Tuple[Optional[str], List[Tuple[str, List[dict]]], List[str]]:
+    """Each run's checks file (`<name>.checks.json` beside it, else `checks.json` in its folder - what Checks and
+    `signalviewer-cli check` read) run on the open file: (the first checks file, [(run id, results)], errors)."""
+    from app.checks import ChecksError, checks_file_for, load_checks, run_checks
+    first: Optional[str] = None
+    out: List[Tuple[str, List[dict]]] = []
+    errors: List[str] = []
+    for rid in rids:
+        lr = store.get(rid)
+        path = lr.run.file_path
+        cf = checks_file_for(path) if path else None
+        if not cf:
+            continue
+        try:
+            checks = load_checks(cf)
+        except ChecksError as e:
+            errors.append(str(e))
+            continue
+        res = run_checks(path, checks, store, rid)["results"]
+        if any(r["status"] in ("pass", "fail") for r in res):     # a folder's checks file made for other recordings
+            first = first or cf
+            out.append((rid, res))
+    return first, out, errors
+
+
+def requirements(p: Part, rids: List[str], arg: str, o: Dict):
+    """CC15: the verification - every run against its checks file: a verdict line, the requirements table (a row
+    per requirement, a column per run when there are several), and a plot of each failure where it failed."""
+    st, S_ = p.store, p.S
+    cf, runs, errors = _verdicts(st, rids)
+    flt = arg.strip().lower()
+    if flt:
+        runs = [(rid, [r for r in res if flt in str(r.get("name", "")).lower()]) for rid, res in runs]
+    for e in errors:
+        p.say("*⚠ %s*" % e)
+    if not runs or not any(res for _, res in runs):
+        p.say("*%s*" % S_["none_req"])
+        return
+    status = {"pass": S_["pass"], "fail": S_["fail"], "skipped": S_["req_skipped"], "error": S_["req_error"]}
+    n_pass = sum(1 for _, res in runs for r in res if r["status"] == "pass")
+    n_fail = sum(1 for _, res in runs for r in res if r["status"] == "fail")
+    bad_runs = [rid for rid, res in runs if any(r["status"] == "fail" for r in res)]
+    p.say(S_["req_intro"].format(n=len({r["name"] for _, res in runs for r in res}), runs=len(runs), file=os.path.basename(cf or ""),
+                                 ok=n_pass, bad=n_fail))
+    if len(runs) == 1:
+        p.say(S_["req_verdict_pass"] if not bad_runs else S_["req_verdict_fail"].format(n=n_fail))
+    else:
+        p.say(S_["req_runs"].format(ok=len(runs) - len(bad_runs), n=len(runs))
+              + (" " + S_["req_runs_bad"].format(list=", ".join(_name(st, r) for r in bad_runs)) if bad_runs else ""))
+
+    def measured(r: dict) -> str:
+        if r.get("value") is not None:
+            return "%s (%s %s)" % (fmt(r["value"]), S_["req_limit"], fmt(r.get("limit")))
+        if r["status"] == "fail" and r.get("violations"):
+            return S_["req_outside"].format(n=r["violations"], t=secs(r.get("first")))
+        return "—"
+
+    if len(runs) == 1:
+        rid, res = runs[0]
+        p.say(table(S_["req_head"], [[r["name"], status.get(r["status"], r["status"]), measured(r), secs(r.get("first")) if r["status"] == "fail" else "—"]
+                                     for r in res]))
+    else:
+        names = list(dict.fromkeys(r["name"] for _, res in runs for r in res))
+        by = {(rid, r["name"]): r for rid, res in runs for r in res}
+        rows = []
+        for n in names:
+            cells = [status.get(by[(rid, n)]["status"], "") if (rid, n) in by else "—" for rid, _ in runs]
+            rows.append([n] + cells)
+        p.say(table([S_["req_req"]] + [_name(st, rid) for rid, _ in runs], rows))
+    fails = [(rid, r) for rid, res in runs for r in res if r["status"] == "fail"]
+    for rid, r in fails:
+        who = r["name"] if len(runs) == 1 else "%s: %s" % (_name(st, rid), r["name"])
+        p.hl("fail", 20, S_["req_hl"].format(r=who, m=r.get("message", "").split(": ", 1)[-1]))
+    if o.get("table"):
+        return
+    for rid, r in fails[:o.get("top", 4)]:
+        sig = r.get("signal")
+        if not sig:
+            continue
+        sid = "%s/%s" % (rid, sig)
+        try:
+            t, _y = _sig(st, sid)
+        except KeyError:
+            continue
+        rng = None
+        at = r.get("first")
+        if at is not None and len(t):
+            w = max((float(t[-1]) - float(t[0])) * 0.15, 1e-9)
+            rng = [max(float(t[0]), at - w), min(float(t[-1]), at + w)]
+        lines = [sig_line(sid, _label(st, sid, [x for x, _ in runs]), 0)]
+        for lim, k in (("lo", 2), ("hi", 2)):
+            if r.get(lim) is not None:
+                lines.append(sig_line(p.series("%s %s" % (lim, fmt(r[lim])), [t[0], t[-1]], [r[lim], r[lim]]), "%s %s" % (lim, fmt(r[lim])), k, style="dash", width=1))
+        p.plot(S_["req_plot"].format(r=r["name"] if len(runs) == 1 else "%s · %s" % (_name(st, rid), r["name"])), lines, rng=rng,
+               caption=r.get("message", ""))
+
+
+RUN = {"requirements": requirements, "overview": overview, "moments": moments, "messages": messages, "tracking": tracking, "navigation": navigation, "states": states, "trajectory": trajectory, "differences": differences}
 
 
 def expand_all(store, text: str, items: List[dict], lang: str) -> Tuple[str, Dict[str, Tuple[np.ndarray, np.ndarray]]]:
@@ -777,6 +876,12 @@ class WithExtra:
 
 # ------------------------------------------------------------------------------------------------ the library
 
+def _checks_files(store, rids: Sequence[str]) -> int:
+    """How many of the runs have a checks file beside them (the library offers [[requirements]] then)."""
+    from app.checks import checks_file_for
+    return sum(1 for rid in rids if store.get(rid).run.file_path and checks_file_for(store.get(rid).run.file_path))
+
+
 def scan(store, rids: Optional[Sequence[str]] = None, defs: Optional[Sequence[Dict]] = None) -> Dict:
     """What the parts would find - for the Report screen's library: the files, the pairs, the objects with the
     guessed reference, the state signals, the tracks."""
@@ -793,4 +898,5 @@ def scan(store, rids: Optional[Sequence[str]] = None, defs: Optional[Sequence[Di
             "base": store.get(guess_base(store, rids)).name if rids else None,
             "states": [{"name": s.split("/", 1)[1], "file": store.get(s.split("/")[0]).name} for s in state_signals(store, rids)],
             "tracks": sum(1 for c in objs if c.get("pos") == "lla"),
+            "checks": _checks_files(store, rids),
             "streams": [{"name": s_["name"], "file": store.get(s_["rid"]).name, "count": s_["r"]["count"]} for s_ in find_streams(store, rids, defs) if not s_.get("error")]}

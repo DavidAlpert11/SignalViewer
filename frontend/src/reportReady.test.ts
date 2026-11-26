@@ -16,17 +16,18 @@ const ONE: ReportScan = { files: [{ id: "a", name: "bench.csv" }], pairs: [], ob
 
 test("the categories: each part one insert, a pair once however many files have it, the choices written only when changed", () => {
   const c = partCategories(SCAN, "en");
-  expect(c.map((x) => x.id)).toEqual(["tracking", "navigation", "scenario", "compare", "messages", "summary"]);
-  expect(c[4].empty).toBeTruthy();                                  // no byte stream: the category says so
-  const trk = c[0].parts.map((p) => p.insert);
+  expect(c.map((x) => x.id)).toEqual(["requirements", "tracking", "navigation", "scenario", "compare", "messages", "summary"]);
+  expect(c[5].empty).toBeTruthy();                                  // no byte stream: the category says so
+  const trk = c[1].parts.map((p) => p.insert);
   expect(trk).toContain("[[tracking]]");
   expect(trk.filter((x) => x.startsWith("[[tracking ctrl.roll"))).toEqual(["[[tracking ctrl.roll | top 1]]"]);
-  expect(c[1].parts[0].insert).toBe("[[navigation]]");
-  expect(partCategories(SCAN, "en", { reference: "nav" })[1].parts.map((p) => p.insert)).toContain("[[navigation | ref nav, position]]");
-  expect(partCategories(SCAN, "en", { base: "mission_gust.csv" })[3].parts[0].insert).toBe("[[differences | base mission_gust.csv]]");
+  expect(c[2].parts[0].insert).toBe("[[navigation]]");
+  expect(partCategories(SCAN, "en", { reference: "nav" })[2].parts.map((p) => p.insert)).toContain("[[navigation | ref nav, position]]");
+  expect(partCategories(SCAN, "en", { base: "mission_gust.csv" })[4].parts[0].insert).toBe("[[differences | base mission_gust.csv]]");
   const none = partCategories(ONE, "he");
-  expect(none[0].empty).toBeTruthy();
-  expect(none[3].parts).toEqual([]);
+  expect(none[1].empty).toBeTruthy();
+  expect(c[0].empty).toBeTruthy();                                  // no checks file: no requirements part
+  expect(none[4].parts).toEqual([]);
 });
 
 test("MSG1: byte streams found - the Messages category, the Link review, the automatic report's section", () => {
@@ -66,4 +67,18 @@ test("tables pasted from a spreadsheet; pipes escaped; only the pictures the tex
   expect(rowsToMarkdown([["a", "b", "c"], ["1"]])).toBe("| a | b | c |\n|---|---|---|\n| 1 |  |  |");
   const a = { name: "x", mime: "image/png", data: "AAAA", w: 1, h: 1 };
   expect(Object.keys(usedAssets("![x](asset:ab12) text", { ab12: a, cd34: a }))).toEqual(["ab12"]);
+});
+
+test("CC15: a checks file with the files - the Requirements category and the Verification report", () => {
+  const scan = { ...ONE, checks: 1 };
+  const cat = partCategories(scan, "en")[0];
+  expect(cat.id).toBe("requirements");
+  expect(cat.parts.map((p) => p.insert)).toEqual(["[[requirements]]", "[[requirements | table]]"]);
+  expect(readyReports(scan, "en").map((r) => r.id)).toEqual(["auto", "verification"]);
+  expect(readyReports(ONE, "en").map((r) => r.id)).not.toContain("verification");
+  const text = readyText("verification", scan, "en");
+  expect(text.startsWith("# Verification report - bench.csv")).toBe(true);
+  expect(text.indexOf("[[requirements]]")).toBeLessThan(text.indexOf("[[overview | table]]"));
+  expect(text).toContain("signalviewer-cli check bench.csv");
+  expect(readyText("verification", scan, "he")).toContain("# דוח אימות");
 });

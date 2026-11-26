@@ -205,3 +205,36 @@ def test_what_to_look_at_puts_a_flag_before_changes_of_state(tmp_path):
     assert "Motor" in look.splitlines()[0]                                     # the flag first
     assert "boot" not in look                                                  # the changes of state: not "to look at"
     assert "boot 3" in md                                                      # but still moments in the table
+
+
+SIM = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "simulation")
+
+
+def test_the_requirements_part_judges_each_run_against_its_checks_file(tmp_path):
+    """CC15: [[requirements]] - the servo against servo_step.checks.json (one run: a row per requirement, a verdict),
+    several Monte-Carlo runs against their folder's checks.json (a column per run), the same verdicts as Checks;
+    a file with no checks file says so in one line."""
+    from app.checks import load_checks, run_checks
+    s = Store()
+    servo = s.open_file(os.path.join(SIM, "servo_step.mat")).id
+    md, items, _ = parts(s, [servo], "requirements")
+    want = run_checks(os.path.join(SIM, "servo_step.mat"), load_checks(os.path.join(SIM, "servo_step.checks.json")), s, servo)["results"]
+    for r in want:
+        assert r["name"] in md
+    bad = [r for r in want if r["status"] == "fail"]
+    assert ("✖ %d requirement" % len(bad) if bad else "every requirement is met") in md
+    assert sum(1 for it in items if it.get("kind") == "plots") == min(len(bad), 4)     # a plot per failure
+    mc = os.path.join(SIM, "montecarlo")
+    rids = [s.open_file(os.path.join(mc, f)).id for f in sorted(f for f in os.listdir(mc) if f.endswith(".csv"))[:3]]
+    md, items, _ = parts(s, rids, "requirements", opts={"requirements": ["table"]})
+    assert "of 3 runs meet every requirement" in md
+    head = next(line for line in md.splitlines() if line.startswith("| Requirement"))
+    assert head.count("|") == 3 + 2                                   # the requirement and a column per run
+    assert not any(it.get("kind") == "plots" for it in items)         # table only
+    plain = tmp_path / "plain.csv"
+    plain.write_bytes(b"Time,x\n0,1\n1,2\n")
+    md, _, _ = parts(s, [s.open_file(str(plain)).id], "requirements")
+    assert "No checks file" in md
+    md, _, _ = parts(s, [servo], "requirements", lang="he")
+    assert "דרישות" in md
+    assert scan(s, [servo])["checks"] == 1

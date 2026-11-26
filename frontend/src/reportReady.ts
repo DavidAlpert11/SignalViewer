@@ -11,7 +11,7 @@ import { translate, type TKey } from "./i18n";
 
 type Lang = "en" | "he";
 export interface PartEntry { label: string; insert: string; title?: string }
-export interface PartCategory { id: "tracking" | "navigation" | "scenario" | "compare" | "messages" | "summary"; title: string; found: string; empty?: string; parts: PartEntry[] }
+export interface PartCategory { id: "requirements" | "tracking" | "navigation" | "scenario" | "compare" | "messages" | "summary"; title: string; found: string; empty?: string; parts: PartEntry[] }
 export interface Choice { reference?: string; base?: string }
 
 /** The library's categories for what was found. A category with nothing found says so and has no parts. */
@@ -21,6 +21,12 @@ export function partCategories(scan: ReportScan, lang: Lang, choice: Choice = {}
   const baseOpt = choice.base && choice.base !== (scan.base ?? scan.files[0]?.name) ? ` | base ${choice.base}` : "";
   const pairs = [...new Map(scan.pairs.map((p) => [p.measured, p])).values()];
   const out: PartCategory[] = [
+    // CC15: each run against its checks file - the verification's table and a plot of each failure
+    { id: "requirements", title: t("rpCatReq"), found: t("rpFoundChecks", { n: scan.checks ?? 0 }), empty: scan.checks ? undefined : t("rpNoChecks"),
+      parts: scan.checks ? [
+        { label: t("rpReqAll"), insert: "[[requirements]]", title: t("rpReqHint") },
+        { label: t("rpReqTable"), insert: "[[requirements | table]]" },
+      ] : [] },
     { id: "tracking", title: t("rpCatTracking"), found: t("rpFoundPairs", { n: scan.pairs.length }), empty: scan.pairs.length ? undefined : t("rpNoPairs"),
       parts: scan.pairs.length ? [
         { label: t("rpTrackAll"), insert: "[[tracking]]" },
@@ -63,13 +69,14 @@ export function partCategories(scan: ReportScan, lang: Lang, choice: Choice = {}
   return out;
 }
 
-export type ReadyId = "auto" | "control" | "navigation" | "compare" | "messages";
+export type ReadyId = "auto" | "verification" | "control" | "navigation" | "compare" | "messages";
 
 /** The ready reports that fit what was found (the automatic one always). */
 export function readyReports(scan: ReportScan, lang: Lang): { id: ReadyId; label: string; hint: string }[] {
   const t = (k: TKey) => translate(lang, k);
   return [
     { id: "auto" as const, label: t("rpReadyAuto"), hint: t("rpReadyAutoHint") },
+    ...(scan.checks ? [{ id: "verification" as const, label: t("rpReadyVerify"), hint: t("rpReadyVerifyHint") }] : []),
     ...(scan.pairs.length ? [{ id: "control" as const, label: t("rpReadyControl"), hint: t("rpReadyControlHint") }] : []),
     ...(scan.objects.length >= 2 ? [{ id: "navigation" as const, label: t("rpReadyNav"), hint: t("rpReadyNavHint") }] : []),
     ...((scan.streams ?? []).length ? [{ id: "messages" as const, label: t("rpReadyMessages"), hint: t("rpReadyMessagesHint") }] : []),
@@ -87,15 +94,17 @@ export function readyText(id: ReadyId, scan: ReportScan, lang: Lang, choice: Cho
   const has = { pairs: scan.pairs.length > 0, nav: scan.objects.length >= 2, states: scan.states.length > 0, tracks: scan.tracks > 0, many: scan.files.length >= 2,
     streams: (scan.streams ?? []).length > 0 };
   const want = {
+    verification: { scenario: false, tracking: has.pairs, nav: false, compare: false, messages: false },
     auto: { scenario: true, tracking: has.pairs, nav: has.nav, compare: has.many && !has.streams, messages: has.streams },
     control: { scenario: has.states, tracking: true, nav: false, compare: has.many, messages: false },
     navigation: { scenario: has.tracks, tracking: false, nav: true, compare: false, messages: false },
     compare: { scenario: false, tracking: false, nav: false, compare: true, messages: false },
     messages: { scenario: false, tracking: false, nav: false, compare: false, messages: true },
   }[id];
-  const title = { auto: "rpTitleAuto", control: "rpTitleControl", navigation: "rpTitleNav", compare: "rpTitleCompare", messages: "rpTitleMessages" }[id] as TKey;
+  const title = { verification: "rpTitleVerify", auto: "rpTitleAuto", control: "rpTitleControl", navigation: "rpTitleNav", compare: "rpTitleCompare", messages: "rpTitleMessages" }[id] as TKey;
   const out = [`# ${t(title)}${files ? ` - ${files}` : ""}`, t("rpIntro"), "[[toc]]", "[[summary]]"];
   if (id === "compare") out.push(`## ${t("rpHCompare")}`, `[[differences${base}]]`);
+  if (id === "verification") out.push(`## ${t("rpHReq")}`, "[[requirements]]", `## ${t("rpHRecording")}`, "[[overview | table]]");
   if (id === "auto") out.push(`## ${t("rpHRecording")}`, "[[overview]]");
   if (want.scenario) {
     out.push(`## ${t("rpHScenario")}`);
@@ -108,6 +117,8 @@ export function readyText(id: ReadyId, scan: ReportScan, lang: Lang, choice: Cho
   if (want.nav && has.nav) out.push(`## ${t("rpHNav")}`, `[[navigation${ref}]]`);
   if (want.compare && id !== "compare" && has.many) out.push(`## ${t("rpHCompare")}`, `[[differences${base}]]`);
   if (notes) out.push(`## ${t("rpHNotes")}`, "[[notes]]");
+  // CC15: how to judge the same files again, outside the app (CI) - the same verdict
+  if (id === "verification") out.push(`## ${t("rpHReproduce")}`, t("rpReproduce"), "```\nsignalviewer-cli check " + (scan.files.map((f) => f.name).join(" ") || "<files>") + "\n```");
   out.push(`## ${t("rpHConclusion")}`, t("rdSummaryHint"));
   return out.join("\n\n") + "\n";
 }

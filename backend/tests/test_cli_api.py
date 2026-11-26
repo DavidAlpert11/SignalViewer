@@ -116,3 +116,17 @@ def test_pypi_readme_links_are_absolute():
     assert not re.search(r'(src|href)="(?!https?:|#|mailto:|data:)', out)
     assert not re.search(r"\]\((?!https?:|#|mailto:)", out)
     assert "raw.githubusercontent.com/DavidAlpert11/SignalViewer/v1.2.3/docs/images/" in out
+
+
+def test_cli_check_reads_each_recordings_own_checks_file(tmp_path, capsys):
+    """CC15: `check` with no --checks / --template judges each file by its own checks file (as Checks in the app);
+    a file with none is an error said in its line (exit 2), the others still judged."""
+    sim = os.path.join(EX, "simulation")
+    rc = main(["check", os.path.join(sim, "servo_step.mat"), os.path.join(sim, "montecarlo", "mc_m1_f1_s1.csv"), "--json"])
+    d = json.loads(capsys.readouterr().out)
+    assert rc == 1 and d["count"]["fail"] >= 1                      # the servo overshoots its 8 %
+    assert {os.path.basename(f["file"]) for f in d["files"]} == {"servo_step.mat", "mc_m1_f1_s1.csv"}
+    plain = tmp_path / "plain.csv"
+    plain.write_bytes(b"Time,x\n0,1\n1,2\n")
+    assert main(["check", str(plain)]) == 2
+    assert "no checks file for plain.csv" in capsys.readouterr().out
