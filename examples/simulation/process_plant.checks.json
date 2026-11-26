@@ -1,0 +1,28 @@
+{
+ "checks": [
+  {
+   "name": "Temperature within 1 \u00b0C of the set point",
+   "kind": "track",
+   "signal": "plant/temperature_C",
+   "ref": "controller/setpoint_C",
+   "abs": 1.0,
+   "t0": 1200
+  },
+  {
+   "name": "Reaches the new set point in 6 minutes",
+   "kind": "settle",
+   "signal": "plant/temperature_C",
+   "target": 65,
+   "band": 1.0,
+   "by": 360,
+   "t0": 600,
+   "t1": 1500
+  },
+  {
+   "name": "Heater within 4 kW",
+   "signal": "plant/heater_kW",
+   "lo": 0,
+   "hi": 4
+  }
+ ]
+}

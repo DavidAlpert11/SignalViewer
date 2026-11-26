@@ -1,0 +1,22 @@
+{
+ "measures": [
+  {
+   "name": "overshoot_pct",
+   "signal": "pos",
+   "op": "overshoot",
+   "where": "pos_cmd > 5"
+  },
+  {
+   "name": "settle_s",
+   "signal": "pos",
+   "op": "settle",
+   "where": "pos_cmd > 5"
+  },
+  {
+   "name": "peak_current",
+   "signal": "current",
+   "op": "max"
+  }
+ ],
+ "pattern": "mc_m{mass}_f{friction}_s{seed}"
+}

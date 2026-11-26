@@ -1,0 +1,21 @@
+{
+ "checks": [
+  {
+   "name": "Overshoot at most 20 %",
+   "kind": "overshoot",
+   "signal": "pos",
+   "ref": "pos_cmd",
+   "max_pct": 20,
+   "t0": 0.5
+  },
+  {
+   "name": "Settles within 2 % in 1.5 s",
+   "kind": "settle",
+   "signal": "pos",
+   "ref": "pos_cmd",
+   "band_pct": 2,
+   "by": 1.5,
+   "t0": 0.5
+  }
+ ]
+}

@@ -11,6 +11,7 @@ Vectors of other lengths are reported as skipped (shown in the load report).
 """
 
 import os
+import re
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -68,9 +69,21 @@ def _const(consts: Optional[Dict[str, object]], name: str, obj) -> None:
             consts[name] = v
 
 
+OPAQUE = "__opaque__"         # consts key: the MATLAB objects (classdef) scipy cannot open - said in the load report
+
+
 def _walk_scipy(obj, prefix: str, out: Dict[str, np.ndarray], depth: int = 0,
                 consts: Optional[Dict[str, object]] = None):
     if depth > 6:
+        return
+    # CC14: a MATLAB object (Simulink.SimulationData.Dataset - logsout, SimulationOutput - out, timeseries) is stored
+    # in MATLAB's own class format, which only MATLAB reads: named, so the user is told how to save it readably
+    if type(obj).__name__ == "MatlabOpaque" or (isinstance(obj, np.ndarray) and obj.dtype.names
+                                                  and set(obj.dtype.names) >= {"s0", "s1", "s2", "arr"}):
+        if consts is not None:
+            found = consts.setdefault(OPAQUE, [])
+            if isinstance(found, list):
+                found.append(prefix)
         return
     if isinstance(obj, np.ndarray) and obj.dtype.names:  # struct array
         if obj.size == 1:
@@ -247,6 +260,8 @@ def load_mat(path: str, display_name: str, time_variable: Optional[str] = None) 
         if order is not None:
             a = a[order]
         run.signals[name] = Signal(name=name, data=a)
+    opaque = consts.pop(OPAQUE, None)
+    _simulink_names(run, consts)
     run.file_params = consts
     run.import_settings = {"format": "mat", "time_column": tname}
     run.time_source = tname
@@ -256,4 +271,34 @@ def load_mat(path: str, display_name: str, time_variable: Optional[str] = None) 
     run.compute_metadata()
     if cut:
         run.load_report = {**(getattr(run, "load_report", None) or {}), "cutOff": True}
+    if isinstance(opaque, list) and opaque:
+        run.load_report = {**(getattr(run, "load_report", None) or {}), "matObjects": [str(x) for x in opaque]}
     return run, skipped
+
+
+_SIM_VALUES = re.compile(r"^(?P<var>.+?)\.signals(?:\.values|\.values\[(?P<k>\d+)\])$")
+
+
+def _simulink_names(run: Run, consts: Dict[str, object]) -> None:
+    """CC14: Simulink's *Structure with time* (To Workspace, scope data) keeps a signal as `var.signals.values` with
+    its name in `var.signals.label` (or the block in `var.signals.blockName`): named `var.<label>` - the name the
+    model gave it - instead of the container's path. A name already taken keeps its path."""
+    renamed: Dict[str, Signal] = {}
+    for name, sig in run.signals.items():
+        m = _SIM_VALUES.match(name)
+        label = None
+        if m:
+            var = m.group("var")
+            lab = consts.get(f"{var}.signals.label") or consts.get(f"{var}.signals.blockName")
+            if isinstance(lab, str) and lab.strip():
+                label = re.sub(r"[\s/]+", "_", lab.strip().split("/")[-1] if "/" in lab else lab.strip())
+            new = f"{var}.{label}" if label else var
+            if m.group("k"):
+                new += f"[{m.group('k')}]"
+            if new not in run.signals and new not in renamed:
+                sig.name = new
+                renamed[new] = sig
+                continue
+        renamed[name] = sig
+    run.signals.clear()
+    run.signals.update(renamed)

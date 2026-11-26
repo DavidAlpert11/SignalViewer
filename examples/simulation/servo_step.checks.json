@@ -1,0 +1,60 @@
+{
+ "checks": [
+  {
+   "name": "Overshoot at most 8 %",
+   "kind": "overshoot",
+   "signal": "plant.pos",
+   "ref": "cmd.pos_cmd",
+   "max_pct": 8,
+   "t0": 1.0,
+   "t1": 3.99
+  },
+  {
+   "name": "Settles within 2 % in 1.5 s",
+   "kind": "settle",
+   "signal": "plant.pos",
+   "ref": "cmd.pos_cmd",
+   "band_pct": 2,
+   "by": 1.5,
+   "t0": 1.0,
+   "t1": 3.99
+  },
+  {
+   "name": "Rises in 0.6 s",
+   "kind": "rise",
+   "signal": "plant.pos",
+   "ref": "cmd.pos_cmd",
+   "within": 0.6,
+   "t0": 1.0,
+   "t1": 3.99
+  },
+  {
+   "name": "Steady-state error at most 0.05",
+   "kind": "sserror",
+   "signal": "plant.pos",
+   "ref": "cmd.pos_cmd",
+   "max": 0.05,
+   "last": 0.5,
+   "t0": 1.0,
+   "t1": 3.99
+  },
+  {
+   "name": "Current within the drive's 60 A",
+   "signal": "drive.current",
+   "lo": -60,
+   "hi": 60
+  },
+  {
+   "name": "Command before motion",
+   "kind": "order",
+   "first": {
+    "signal": "cmd.pos_cmd",
+    "above": 1
+   },
+   "then": {
+    "signal": "plant.pos",
+    "above": 0.5
+   }
+  }
+ ]
+}

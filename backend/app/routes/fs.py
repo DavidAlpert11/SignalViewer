@@ -63,6 +63,13 @@ EXAMPLES = os.environ.get("SV_EXAMPLES") or os.path.join(os.path.dirname(__file_
 # the welcome screen offers these; a set with a missing file (a trimmed install) is left out whole -
 # "the same mission flown twice" with one file would be wrong
 EXAMPLE_SETS = [
+    # CC16 (owner, 2026-11-26: simulations and tests of any kind first): a Simulink servo judged by its requirements
+    # (servo_step.checks.json beside it: Checks opens with the verdict), an HDF5 process simulation, a Monte-Carlo
+    # folder (a row per run in Sweeps, as the folder of flights), a car's cruise control: the model against its test
+    {"id": "servoStep", "open": "checks", "files": ["simulation/servo_step.mat", "simulation/servo_step.checks.json"]},
+    {"id": "processPlant", "open": "checks", "files": ["simulation/process_plant.h5", "simulation/process_plant.checks.json"]},
+    {"id": "monteCarlo", "open": "summary", "files": ["simulation/montecarlo/measures.json", "simulation/montecarlo/mc_m1_f1_s1.csv"]},
+    {"id": "cruiseSimVsTest", "files": ["simulation/cruise_sim.csv", "simulation/cruise_test.csv"]},
     {"id": "flight", "files": ["uav_flight.csv"]},
     {"id": "twoFlights", "files": ["uav_flight.csv", "uav_flight_windy.csv"]},     # T44: two tracks, Compare
     {"id": "car", "files": ["run_012.csv", "run_013.csv", "run_014.csv"]},

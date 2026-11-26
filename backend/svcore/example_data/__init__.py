@@ -73,6 +73,13 @@ def _gps_nmea(root: str) -> None:
     make_gps_nmea.main(os.path.join(root, "gps_nmea"))
 
 
+def _simulation(root: str) -> None:
+    from . import make_simulation_examples
+    make_simulation_examples.main(os.path.join(root, "simulation"))
+
+
+_MC = [f"simulation/montecarlo/mc_m{m}_f{f}_s{s}.csv" for m in ("0.8", "1", "1.3") for f in ("0.6", "1") for s in range(1, 5)]
+
 _FOLDER = [f"folder_of_flights/X8-{v}_2026-{d}.bin" for v, d in (
     ("A", "09-02"), ("A", "09-09"), ("A", "09-16"), ("A", "09-23"), ("A", "09-30"), ("A", "10-07"),
     ("B", "09-05"), ("B", "09-19"), ("B", "10-03"), ("B", "10-17"))]
@@ -92,6 +99,9 @@ GENERATORS: List[Tuple[Sequence[str], Sequence[str], Callable[[str], None]]] = [
       "serial_link/link_tx.svmsg.json", "serial_link/link_rx.svmsg.json", "serial_link/sensor_uart.csv",
       "serial_link/sensor.svmsg.json"], [], _serial_link),
     (["gps_nmea/receiver.nmea", "gps_nmea/receiver_uart.csv"], [], _gps_nmea),
+    # CC16: simulations of any kind - a Simulink servo, an HDF5 process, a Monte-Carlo folder, a model against its test
+    (["simulation/servo_step.mat", "simulation/process_plant.h5", "simulation/cruise_sim.csv", "simulation/cruise_test.csv",
+      *_MC], ["scipy", "h5py"], _simulation),
 ]
 GENERATED: Dict[str, int] = {f: i for i, (files, _, _) in enumerate(GENERATORS) for f in files}
 
