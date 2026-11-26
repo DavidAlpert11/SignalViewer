@@ -150,6 +150,25 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 .messages .msgp-addform { display: flex; flex-direction: column; gap: var(--sp-2); padding: 10px 12px; margin: 8px 0; }
 .messages .ch-offer { display: flex; align-items: center; gap: var(--sp-2); padding: 8px 10px; margin: 6px 0; font-size: 12.5px; }
 .messages .ch-offer > span { flex: 1; }
+/* CH3: the channel - patterns, anomaly chips, the time strip (a lane per kind), the list */
+.messages .ch-view { padding: 10px 12px; margin: 0 0 10px; display: flex; flex-direction: column; gap: 6px; }
+.messages .ch-view h4 { margin: 0; }
+.messages .ch-patterns { margin: 0; padding-inline-start: 16px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+.messages .ch-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; }
+.messages .ch-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.messages .ch-chip { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.messages .ch-chip.on { outline: 2px solid var(--ch); }
+.messages .ch-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ch); display: inline-block; }
+.messages .ch-strip { display: flex; flex-direction: column; gap: 2px; }
+.messages .ch-lane { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 6px; font-size: 11.5px; }
+.messages .ch-lane.dim { opacity: .3; }
+.messages .ch-lane-svg { width: 100%; height: 14px; background: color-mix(in srgb, var(--line) 35%, transparent); border-radius: 2px; }
+.messages .ch-mark { fill: var(--ch); cursor: pointer; }
+.messages .ch-axis-ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.messages .ch-table tr { cursor: pointer; }
+.messages .ch-k-checksum, .messages .ch-k-broken, .messages .ch-k-length { --ch: var(--danger); }
+.messages .ch-k-unanswered, .messages .ch-k-late, .messages .ch-k-gap { --ch: var(--warn); }
+.messages .ch-k-unknown, .messages .ch-k-counter, .messages .ch-k-retry, .messages .ch-k-reconnect, .messages .ch-k-handshake { --ch: var(--info); }
 .messages .msgp-addform-head { display: flex; align-items: center; gap: var(--sp-2); }
 .messages .msgp-addform-head h4 { margin: 0; flex: 1; font-size: var(--fs-base); color: var(--ink-strong); }
 .messages .msgp-addform .hint { margin: 0; }

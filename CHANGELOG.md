@@ -6,6 +6,14 @@
   signals (`tx_byte`, `rx_byte`; uplink / downlink...), the Messages page says they look like the two directions of one
   link: **Make one channel** keeps them as one channel of requests and replies in the session at once (one Undo).
   *Add a stream → TX and RX* keeps the pair at once too.
+- **A channel's patterns and anomalies at a glance (CH2, CH3).** A stream on the Messages page now opens with **The
+  channel**: what repeats beyond the messages' content (each direction's header, length, type byte and checksum; which
+  request each reply answers, how many were answered and how fast; the handshake and when it came again) and what
+  breaks it - bad checksums, broken frames, frames of a wrong length, unknown types, a counter or sequence number that
+  skips or repeats, a type that goes silent, requests with no reply, requests sent again, late replies, reconnects, a
+  handshake whose steps differ. Every message is checked; a chip per kind gives its count, a time strip draws each one
+  in a lane of its kind, and a click on a mark or a row of the list puts the cursor there on the plots. *Plot the
+  messages* adds an **Anomalies** plot - the count so far, a step at each one - beside the data.
 - **Found in this file (AU1).** What the app can do by itself with a file, found from its signal names, is now said
   as soon as it opens - one quiet line below the file list: command / response pairs, objects with a position, truth
   vs navigation errors, modes, sensors in several copies, actuators, byte columns, an envelope of several runs. Each is

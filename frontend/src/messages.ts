@@ -1,4 +1,4 @@
-import { api, type InspectFrame, type MessagesInspect, type SignalInfo } from "./api";
+import { api, type ChannelSide, type InspectFrame, type MessagesInspect, type SignalInfo } from "./api";
 import { findDerived } from "./peers";
 import { translate } from "./i18n";
 import { actions, useApp } from "./store";
@@ -112,6 +112,16 @@ export function streamsOf(def: MessageStream): { label: string; sources: string[
     label: i === 0 ? "TX" : codes.length > 2 ? `RX ${labels[String(c)] ?? c}` : "RX", sources: [def.sources[0], def.dir!], params: { ...prm, dir: c } }));
 }
 
+/** CH2: a definition's directions as the channel route takes them (TX first; at most two), with the type ids each
+ *  direction's structure describes (then a type it does not describe is the unknown one). */
+export function channelSides(def: MessageStream): ChannelSide[] {
+  return streamsOf(def).slice(0, 2).map((s) => {
+    const st = def.structures?.[s.label];
+    const ids = st?.kind === "binary" ? st.messages.map((m) => Number(m.id)).filter((x) => Number.isFinite(x)) : [];
+    return { label: s.label, sources: s.sources, params: s.params, ...(ids.length ? { known: ids } : {}) };
+  });
+}
+
 /** Keep the definition (one Undo step), make the message signals and plot them in a new tab. */
 export async function decodeAsMessages(def: MessageStream) {
   const st = useApp.getState();
@@ -161,10 +171,28 @@ export async function decodeAsMessages(def: MessageStream) {
       } catch { /* nothing answers anything: streaming both ways - the other plots stand */ }
     }
   }
+  // CH3: the channel's anomalies so far - a step at each one, so they line up with the data on the timeline
+  const anom: string[] = [];
+  {
+    const prm = two.length < 2 ? { what: "anomalies", ...two[0].params } : def.carries === "pair" ? { what: "anomalies", link: true }
+      : { what: "anomalies", dir: two[0].params.dir, rxdir: two[1].params.dir };
+    const src = two.length < 2 ? two[0].sources : def.carries === "pair" ? def.sources.slice(0, 2) : [def.sources[0], def.dir!];
+    const have = findDerived(useApp.getState().runs, "messages", prm, src, ["group"]);
+    if (have) anom.push(have);
+    else {
+      try {
+        const g = freeGroup(`${safe(name)}.channel`, useApp.getState().runs, ["anomalies"]);
+        const r = await api.createDerived("messages", src, { ...prm, group: g }, `${g}.anomalies`);
+        useApp.setState({ runs: r.runs });
+        anom.push(r.id);
+      } catch { /* the other plots stand */ }
+    }
+  }
   actions.plotsInNewTab([
     { title: tr("msgBytes"), ids: ids.slice(0, 4) },
     ...WHATS.map(([w, k]) => ({ title: tr(k), ids: per[w] })),
     ...(lat.length ? [{ title: tr("msgLatency"), ids: lat }] : []),
+    ...(anom.length ? [{ title: tr("msgAnomalies"), ids: anom }] : []),
   ], tr("msgTab", { name }));
   return true;
 }

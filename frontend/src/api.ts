@@ -49,6 +49,17 @@ export interface LibraryItem { key: string; name: string; kind?: "binary" | "tex
 export interface StreamRow { key: string; name: string; rid: string; file: string; ids: string[]; params: Record<string, unknown>;
   error?: string; count?: number; bytes?: number; header?: string; framing?: string; checksum?: string | null; errors?: number;
   duration?: number; typed?: boolean; types?: { type: number; count: number; rate: number | null }[] }
+/** CH2: one direction of a channel (a definition's stream), the type ids its structure describes */
+export interface ChannelSide { label: string; sources: string[]; params: Record<string, unknown>; known?: number[] }
+export type AnomalyKind = "checksum" | "broken" | "length" | "unknown" | "counter" | "gap" | "unanswered" | "retry" | "late" | "reconnect" | "handshake";
+/** CH2: a channel's anomalies in time order (columns), counted per kind and direction, and the patterns found */
+export interface ChannelInfo { kinds: AnomalyKind[]; counts: Record<AnomalyKind, number>; byDir: Record<string, Partial<Record<AnomalyKind, number>>>;
+  total: number; span: [number, number]; timeout: number;
+  events: { t: number[]; kind: AnomalyKind[]; dir: string[]; type: (number | null)[]; detail: string[] };
+  sides: { name: string; count: number; header: string; framing: string; typeOffset: number | null; checksum: string | null;
+    types: { type: number; count: number; rate: number | null }[] }[];
+  pairs: { from: string; to: string; request: number; reply: number; how: "id" | "next"; requests: number; replies: number; mean: number | null; max: number | null }[];
+  handshake: { t: number; steps: { dir: string; type: number; t: number }[] }[] }
 /** MSG4: the guided view of a byte stream (svcore/msginspect.py) - the patterns that recur, the structure (given or
  *  proposed), the first messages byte by byte (binary) or part by part (text) with their fields' values, the counts. */
 export interface InspectFrame { t: number; at: number; len?: number; id?: number | string; message: string; status: "ok" | "bad" | "unknown";
@@ -384,6 +395,8 @@ export const api = {
     call<{ run: string; new: boolean; signals: string[]; runs: RunInfo[]; report: Record<string, unknown> }>("/api/messages/parse", { sources, params, structure, name, id: id ?? null }),
   messagesInspect: (sources: string[], params: Record<string, unknown>, structure: Structure | null, n = 12) =>
     call<MessagesInspect>("/api/messages/inspect", { sources, params, structure, n }),
+  /** CH2: a channel's patterns beyond the content and its anomalies (svcore/channel.py) - one direction or two */
+  messagesChannel: (sides: ChannelSide[]) => call<ChannelInfo>("/api/messages/channel", { sides }),
   messagesStructure: (path: string) => call<{ structure: Structure }>("/api/messages/structure", { path }),
   messagesNmea: () => call<{ structure: Structure }>("/api/messages/nmea"),
   // MSG3: the structure library and the open files' byte streams (the Messages panel)

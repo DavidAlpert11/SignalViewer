@@ -5,6 +5,7 @@ import { api, type LibraryItem, type MessagesInspect } from "../api";
 import type { MessageStream, Structure } from "../store/model";
 import { addStreamToReport, applyRole, decodeAsMessages, directionCandidates, guessDirections, makeRecording, plotMessage, saveToLibrary, streamFor, streamsOf, withFieldNames } from "../messages";
 import StructureEditor from "./StructureEditor";
+import ChannelView from "./ChannelView";
 import ByteView, { type ByteRole } from "./ByteView";
 import { openMenu } from "./Overlays";
 
@@ -150,6 +151,7 @@ export default function StreamEditor({ ids, carries, library, onLibrary }: {
 
   return (
     <div className="msgp-edit">
+      {can && <ChannelView def={eff} />}
       <ol className="msg-steps">
         <li className="msg-step msg-step-1">
           <h4><span className="msg-n">1</span>{t("msgStep1")}</h4>

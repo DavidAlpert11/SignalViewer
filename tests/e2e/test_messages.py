@@ -64,7 +64,7 @@ def test_decode_as_messages_both_ways_with_a_direction_column(pg):
     pg.wait_for_timeout(1500)
     shot(pg, "msg_tab.png")
     n = S(pg, "s.ws.tabs.find(t => t.name.startsWith('Messages: byte')).plots.length")
-    assert n == 6                                                    # bytes, type, length, interval, ok, latency
+    assert n == 7                                                    # bytes, type, length, interval, ok, latency, anomalies (CH3)
     # TX and RX: two lines in each quantity's plot; the latency of the answered requests
     assert S(pg, "s.ws.tabs.find(t => t.name.startsWith('Messages: byte')).plots[1].signals.length") == 2
     assert S(pg, "s.runs.find(r => r.format === 'derived').signals.some(x => x.params?.what === 'latency' && x.samples === 284)")
