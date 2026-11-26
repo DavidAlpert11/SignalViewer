@@ -1353,3 +1353,10 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
   1 (i18n translate, PLURALS; Vitest plural.test.ts); seen and kept with reasons in the spec. Tests: Vitest; e2e
   test_checks_view, test_one_per_plot ("1 condition"), test_less_clutter, test_calm_screen, test_what_changed,
   test_report_doc, test_welcome_cards, test_judge_a_run, test_features (126).
+
+## AU - automatic finds made visible (owner, 2026-11-26). Plan: TASKS.md Open specs "AU".
+- [ ] AU1 - one *Found in this file* line in the file panel (found.ts + FoundBar), the file menu's *Found in this file ▸*, the palette.
+- [ ] AU2 - truth vs navigation of the same platform paired by names; one click to Compare objects.
+- [ ] AU3 - more finds: sensors in several copies, mode signals as lanes, effort, envelope, byte columns.
+- [ ] AU4 - *Name your signals* (Help, every Why?) and the example recording that triggers every find.
+- [ ] AU5 - docs (naming.md + .he, GUIDE, features), e2e test_found.py, CHANGELOG.

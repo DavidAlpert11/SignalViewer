@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| AU - automatic finds made visible: one *Found in this file* line, truth vs navigation compared, more finds, *Name your signals* (owner, 2026-11-26; plan in Open specs "AU"; ROADMAP "AU") | IN PROGRESS (push session, 2026-11-26) - plan pushed | AU1 the line + the file menu, AU2 truth vs navigation, AU3 redundant copies, AU4 *Name your signals* + the example, AU5 docs / e2e |
 | Release 1.38.0 - calm, clear, any data (owner, 2026-11-26; plan in Open specs; spec docs/dev/SPEC_1_38.md; ROADMAP "CC") | IN PROGRESS - on main (push session, 2026-11-26). Done: CC0, CC1, CC2, CC3, CC4, CC5, CC6, CC7, CC8, CC9, CC10, CC11, CC12, CC13, CC14, CC15, CC16, CC17, CC18, CC19, CC20, CC21, CC22, CC23 - Phase 2 done. Docs: GUIDE + GUIDE.he, features, limitations, command-line, README (en + he) updated for what is done. The welcome pictures of the three new cards made. quick_check green; e2e: every file each change touches (Log) | **Next:** (1) done - the patch is on main. (2) Phase 2 done (Settings keeps its descriptions on purpose - a dialog read once). (3) Phase 3 done (SPEC_1_38.md "Phase 3"). (4) Phase 4: version 1.38.0 in the five files + install.md, CHANGELOG heading + highlights, pictures (make_readme_media.py; 01 03 04 09 11 12 13 14 23 25 26 30 38-43 48-57 show changed screens) and the training film, mkdocs --strict, the whole e2e one file at a time, push; the owner tags. |
 | Release 1.37.0 - RW1-RW12, the three-agent review of 1.36.0 (owner, 2026-11-25: "stay on the current version or release a new one") | READY 2026-11-26: the critic and the advocate both answered "READY FOR A NEW VERSION: YES" after round 4 (/home/claude/review in the session: critic_r1-r4, advocate_r1-r4, decision, judge_r1); version in the five files + install.md, CITATION date, CHANGELOG 1.37.0 with highlights, features + GUIDE + GUIDE.he (Open ▾, Checks' verdict, Compare's Similarity tab, the report's file names), validation page, pictures 01-04 07 09 10 12 15 20-24 42 43 48 49; the whole e2e one file at a time - 100 files, 555 passed, test_file_help_menus failed under load (the test read the Open menu before it was drawn - fixed, 3 / 3), test_file_browser_edit once under load (alone: green, as in 1.36.0); quick_check, mkdocs --strict | the owner tags v1.37.0 and publishes the Release; LATER from the review: C2, C7, C9, C12-C19, "1 limits" on a Sweeps step card, the neighbours-hold column with no goal, Hebrew time ranges in the health check |
 | RW - the three-agent review of 1.36.0 (critic, advocate, judge; 2026-11-25): C1 no green verdict with nothing judged, C11 the report's paths / counts / What to look at, C5 What changed's counts, C3 a labelled Open, C4 Compare's own tab, C6 the demo's last line, C8 the similarity % and units, C10 the flag's target | built 2026-11-25 on the local branch `review-1125` (not pushed: the reviewers re-check it first); round 2 (RW9-RW12) answers the critic's and the advocate's blocking items; ROADMAP "RW"; quick_check, the e2e files of each change (see the Log) | the critic and the advocate re-review the branch; then the orchestrator pushes; later: C2 (panel widths, the Inspector on the first cursors), C7, C9, C12-C19 |
@@ -56,6 +57,62 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
 ## Open specs (waiting for the owner)
+
+- **AU - automatic finds made visible (owner, 2026-11-26, Hebrew, translated):** *"Plotting the command against
+  the actual by words like des, cmd, command lets the user plot automatically - but it is found only through Ctrl+P and
+  a search; the user cannot guess it exists. More automations like these; objects on the map by lat / long; comparing
+  objects (position, velocity and angle errors). Make them accessible, add more, and suggest to the user what to
+  record - e.g. a physical position (6dof.lat, physics.lat) and a navigation system of the same platform can be
+  compared, so he knows it is worth producing such variables."* Building without waiting (owner's word).
+
+  **1. Inventory (2026-11-26, read in the code):**
+
+  | Automation | What it recognises (the exact rule) | Where it is offered today | How hidden |
+  |---|---|---|---|
+  | Command and response | `desired.ts` `actualNames` / `setpointPairs`: a leaf with a setpoint word as prefix / suffix (`_ - .` or camel case): commanded, reference, setpoint, command, desired, demand, target, des, dem, cmd, tgt, ref, set, sp (`roll_cmd`/`roll`, `DesRoll`/`Roll`, `RDes`/`R`, `hdem`/`h`, PX4 `x_setpoint.x`/`x.x`); same file. Python twin `svcore/reportparts.py setpoint_pairs` | palette *Plot commanded / measured pairs*; the file's right-click menu (always, even with none); the template chip *Command and response* (empty plot / file panel strip, one of three chips); Checks *Any data* tracking metrics; report `[[tracking]]`; the setpoint is drawn dashed by itself | the user must know the palette word or right-click a file; the chip competes with two others |
+  | Objects on the map | `objectDetect.ts` (+ `svcore/objects.py`, one table `object_names.json`): a prefix with lat + lon (aliases), or N/E/D, E/N/U, ECEF x/y/z in metres; attitude roll/pitch/yaw or a quaternion under it or a sub-group; class by a whole prefix segment (truth: phys truth true sim model plant dyn; navigation: nav ins ekf ahrs est kf filter fusion; receiver: gps gnss ...); well-known flight-log groups | the file panel's line *N objects found · Add all · Choose… · Why?* (ObjectSuggestBar); a map's *+ Add object*; the *Position on the map* chip | visible - the model for the rest |
+  | Compare objects (truth vs navigation: position / velocity / attitude errors) | `relation.ts defaultPair` (primary truth, secondary navigation); `CompareObjectsDialog` (`makeComparison`, `svcore/objcompare.py`); report `[[navigation]]` (`guess_reference`) | only AFTER objects are on a map: a one-time *Compare objects…* line in the file panel right after adding, the map's relation box (bar menu), an object chip's right-click, the palette | **lost in practice**: nothing says it exists before a map is made; the offer goes when closed |
+  | State / mode bands | a signal with text values (`labels`) is a lane by itself | Quick look puts two as lanes; a signal's menu *Show as a state* | nothing says a file has modes |
+  | Actuator effort and saturation | `templates.ts EFFORT`: u, u1, `*_u`, effort, actuat, motor, servo, valve, throttle, pwm, duty, torque, rc_out | template library / a chip when it ranks; Checks' saturation flags | library only |
+  | Many runs as an envelope | ≥3 open files sharing a signal name | template library | library only |
+  | Compare open files | ≥2 files | a chip; the start card (files opened together) | visible |
+  | Byte streams | byte columns `byte_0..`, `b[0]`, `data0` (AddStream); a 0..255 signal (`svcore/bytestream.py`) | the Messages panel (rail), a signal's menu *Decode messages* | the user must open Messages |
+  | Health / Any-data checks | `svcore/health.py` (flight-log rules), `svcore/autocheck.py` (steps, oscillation, non-finite, pairs) | Checks page; the start card's three findings | visible after opening |
+  | What changed?, Find similar, sim vs flight alignment, Compare's similarity | structure-free (any signal) | Investigate, a span's menu, file menu *Align…*, Compare | not name-driven - out of scope here |
+
+  **2. One mechanism - the *Found in this file* line (AU1).** `frontend/src/found.ts` (pure, unit-tested): one list of
+  detectors, each `{id, n, why: matched names, run()}`; `FoundBar.tsx` takes the place of ObjectSuggestBar in the file
+  panel (the same slot, one quiet line): *"Found in uav.csv: 4 command / response pairs · 2 objects with a position ·
+  truth and navigation → errors · 2 mode signals · 3 sensors in two copies  [Why?] [×]"* - every chip one click;
+  *Why?* unfolds the matched signal names per find and a link *Which names does the app recognise?*; × remembered per
+  file name (Settings-like local memory; a file dismissed stays quiet next time). The file's right-click menu gets one
+  submenu *Found in this file ▸* with the same items (the lone *Plot commanded / measured pairs* item moves in it);
+  the palette lists the same finds (group *Found*). The objects' *Add all / Choose…* and the compare offer stay in the
+  line (one line, not two). No new button elsewhere.
+
+  **3. Truth vs navigation (AU2).** `platformPairs` in found.ts: candidates of class truth and navigation of the same
+  platform - their prefixes equal once the class segment is taken out (`uav1.truth` / `uav1.nav`, `6dof` / `ins` in a
+  file with one of each). New truth words `6dof`, `physics`, `groundtruth`; navigation `navigation`, `estimate`
+  (`object_names.json`, Python reads the same table). One click: both objects on a map (added when missing), the truth
+  the reference, the navigation the compared one, *Compare objects…* opened on them (position, velocity, attitude
+  errors, the statistics).
+
+  **4. More finds (AU3)** - built: *sensors in several copies* (`IMU[0].AccX` / `IMU[1].AccX`, `imu1.ax` / `imu2.ax`:
+  the same field under a group that differs only by its number) → a tab, one plot per field with every copy, so a
+  disagreeing sensor shows; *mode signals* → lanes on the tab; *effort / actuators* → the existing template;
+  *several runs* (≥3) → the envelope template; *byte columns* → Messages. Proposed for later (not built now): a
+  derivative pair (pos / vel) check, units consistency, events from a state change as marks, a periodic signal's
+  frequency.
+
+  **5. *Name your signals* (AU4).** Help → *Name your signals* (and every *Why?*): a page listing each find, the names
+  it recognises with examples (`pos_cmd` / `pos`, `DesRoll` / `Roll`; `truth.lat` / `nav.lat`, `6dof.lat` /
+  `ins.lat`; `imu[0].ax` / `imu[1].ax`; a text column `mode`), a CSV header to copy, and *Open the example*: a new
+  example `examples/automations/platform_run.csv` (generator `svcore/example_data/make_automations_example.py`) that
+  triggers every find. Docs: `docs/naming.md` (+ `naming.he.md`), GUIDE + GUIDE.he, features.
+
+  **6. Tests (AU5):** Vitest for every name rule (found.test.ts), backend test for the new class words and the
+  example, e2e `tests/e2e/test_found.py` (open the example → the line shows the finds → each click ends in its state:
+  a pairs tab, objects on a map, the compare dialog on truth vs ins, lanes, a copies tab; × remembered).
 
 - **1.38.0 - calm, clear, any data (owner, 2026-11-26)** - the plan below; approved by the owner ("yes, start").
   Owner, 2026-11-26: (1) the app looks light and flowing, it is clear where each thing is done, not overloaded;
@@ -298,6 +355,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-26 · AU plan written (Open specs "AU"): the inventory of the name-driven automations and the build order.
 - 2026-11-26 · Phase 3: audit_screens again (outlined 394 -> 250), a fresh agent's first clicks - fixed Checks'
   requirements line, the Report's export labels, singulars. e2e: test_checks_view, test_one_per_plot,
   test_less_clutter, test_calm_screen, test_what_changed, test_report_doc (4 / 5: the LaTeX test - no TeX here),
