@@ -173,7 +173,9 @@ export interface RunQuality { signals: SignalQuality[]; count: Record<"missing" 
 export interface TolEntry { abs?: number; pct?: number; time?: number; outside_pct?: number; skip?: boolean; [key: string]: unknown }
 export interface Tolerances { default: TolEntry; signals: Record<string, TolEntry> }
 export interface DiffTrace { t: number[]; d: (number | null)[]; lo?: (number | null)[]; hi?: (number | null)[]; out: [number, number][] }
-export interface CompareRow { id: string; valid: boolean; matchPct?: number; samples?: number; rmsDiff?: number; maxAbsDiff?: number; meanDiff?: number; rmsPct?: number; correlation?: number; withinPct?: number; pass?: boolean; outsidePct?: number; trace?: DiffTrace }
+export interface CompareRow { id: string; valid: boolean; matchPct?: number; samples?: number; rmsDiff?: number; maxAbsDiff?: number; meanDiff?: number; rmsPct?: number; correlation?: number; withinPct?: number; pass?: boolean; outsidePct?: number; trace?: DiffTrace;
+  /** CC20: the RMS difference over the baseline's own sample-to-sample noise (none for a noiseless signal) */
+  noiseRatio?: number }
 export interface CompareFileStats { run: string; mean: number | null; std: number | null; min: number | null; max: number | null; rms: number | null }
 export interface CompareDiff { run: string; rmsDiff: number; rmsPct: number; maxAbsDiff: number; meanDiff: number; stdDiff: number; correlation: number; withinPct?: number | null; pass?: boolean | null; outsidePct?: number | null }
 /** RE2: what the report's ready-made parts would find in the open files (backend/app/reportparts.py scan) */

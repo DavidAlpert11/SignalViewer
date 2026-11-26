@@ -1316,3 +1316,7 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
   CLI's summarize (svcore stays free of app). Tests: backend
   test_summary::test_a_folder_with_a_checks_file_gets_a_verdict_column_per_requirement; e2e test_welcome_cards (the
   Monte-Carlo study has the column), test_folder_of_recordings, test_sweeps_data_columns.
+- [x] CC20 (rest) The noise note: svcore/compare.py sample_noise (a robust std of the sample-to-sample differences /
+  sqrt 2) and metrics noiseRatio = RMS Δ / that noise; Compare's RMS Δ cell: the ratio in its tooltip, *≈ noise* up to
+  2× (NOISE_LEVEL). Tests: backend test_compare_noise; e2e test_compare_diff, test_compare_tolerances,
+  test_judge_a_run.

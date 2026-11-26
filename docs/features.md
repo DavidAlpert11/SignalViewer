@@ -416,6 +416,7 @@ One kind of recording among the others - with its own ready views, its health ch
 - Colour bar (same ≥ 99 % / close 90–99 % / different < 90 %) and filter pills with counts
 - A small curve shows where in time the difference is (flat = uniform)
 - The % is defined where it is shown (a tooltip); RMS Δ and Max |Δ| carry the signal's unit, *Correlation* is written out
+- An RMS Δ no larger than about twice the baseline's own sample-to-sample noise says *≈ noise* beside it (1.38, CC20; the tooltip gives the ratio) - two runs that differ only by their noise read about 1.4×
 - Click a row (1.37): the signal from every file in a *Similarity* tab of its own - later clicks flip through that one plot, your tabs and plots stay as they were (one Undo takes it back; the tab is found again after a restart, its name follows the language); Shift+click: a new plot in the active tab
 - Computed in the background with quiet progress; changing the choice cancels the running computation on the server, waits 0.35 s for further changes, and earlier choices are cached
 - The first chosen file is the baseline by default (against the mean, two files would each show half their real difference)

@@ -98,6 +98,10 @@ function ParamDiffs({ base, others, name, color }: { base: string; others: strin
   );
 }
 
+/** CC20: an RMS difference up to this many times the baseline's own noise is the noise of two runs (sqrt(2) ≈ 1.4
+ *  for two runs that differ by noise only, with room for a little of the shape) */
+const NOISE_LEVEL = 2;
+
 export default function ComparePanel() {
   const t = useT();
   const lang = useApp((s) => s.lang);
@@ -605,7 +609,11 @@ export default function ComparePanel() {
                     {baseline !== "mean" && !segment && <button className="iconbtn sm act" title={t("alignInTime")} aria-label={t("alignInTime")} onClick={() => align(r.id)}><Icon.Link /></button>}
                   </td></tr>
                   <tr>
-                    <td className="num" title={r.rmsPct !== undefined ? t("rmsPctOfRange", { p: fmtNum(r.rmsPct, lang, 3) }) : ""}>{fmtNum(r.rmsDiff, lang, 3)}</td>
+                    <td className="num" title={[r.rmsPct !== undefined ? t("rmsPctOfRange", { p: fmtNum(r.rmsPct, lang, 3) }) : "",
+                      r.noiseRatio !== undefined ? t("noiseRatioHint", { k: fmtNum(r.noiseRatio, lang, 2) }) : ""].filter(Boolean).join(" · ")}>
+                      {fmtNum(r.rmsDiff, lang, 3)}
+                      {/* CC20: a difference no larger than the two runs' own noise is said where the number is */}
+                      {r.noiseRatio !== undefined && r.noiseRatio <= NOISE_LEVEL && <span className="muted noise-tag"> {t("noiseTag")}</span>}</td>
                     <td className="num">{fmtNum(r.maxAbsDiff, lang, 3)}</td>
                     <td className="num">{fmtNum(r.correlation, lang, 4)}</td>
                     {tolSet && <td className="num">{r.pass === undefined ? <span className="muted">—</span>

@@ -61,6 +61,8 @@
 - **Many runs, each with its verdict (CC13).** A folder of runs with a `checks.json` beside them (a Monte-Carlo batch,
   a parameter grid) gets the requirements in its runs table: a column per requirement (1 met, 0 not) and *requirements
   met* - filter on it in Sweeps; `signalviewer-cli summarize` writes the same columns.
+- **Compare says when a difference is only noise (CC20).** A run's RMS difference no larger than about twice the
+  baseline's own sample-to-sample noise reads *≈ noise* beside it; the tooltip gives the ratio.
 
 ## 1.37.0 – 2026-11-26
 

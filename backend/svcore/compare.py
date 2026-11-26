@@ -117,6 +117,17 @@ def _judge(u: np.ndarray, base_u: np.ndarray, other_u: np.ndarray, band: Optiona
     return res
 
 
+def sample_noise(y: np.ndarray) -> Optional[float]:
+    """CC20: a signal's own noise, from one sample to the next - a robust std of the differences (the median absolute
+    deviation, so steps and slow changes do not count) over sqrt(2) (each difference carries two samples' noise).
+    None for a signal with no noise to read (quantised flat, too short)."""
+    if len(y) < 8:
+        return None
+    dy = np.diff(y)
+    mad = float(np.median(np.abs(dy - np.median(dy))))
+    return 1.4826 * mad / np.sqrt(2.0) if mad > 0 else None
+
+
 def metrics(base: np.ndarray, other: np.ndarray, tol_abs: Optional[float], tol_pct: Optional[float],
             period: Optional[float] = None, tol_k: int = 0) -> Dict:
     """tol_k: the time tolerance in grid samples - the baseline's band at a sample is its lowest and
@@ -150,6 +161,9 @@ def metrics(base: np.ndarray, other: np.ndarray, tol_abs: Optional[float], tol_p
         "matchPct": float(max(0.0, 100.0 - np.sqrt(np.mean(d * d)) / span * 100.0)),
         "correlation": float(np.corrcoef(b, o)[0, 1]) if np.std(b) > 0 and np.std(o) > 0 else (1.0 if np.allclose(b, o) else 0.0),
     }
+    noise = sample_noise(b)
+    if noise:                   # CC20: the difference against the baseline's own sample-to-sample noise
+        res["noiseRatio"] = float(res["rmsDiff"] / noise)
     if lo_b is not None and hi_b is not None:
         def widen(v: np.ndarray) -> np.ndarray:
             w = np.zeros(len(v))
