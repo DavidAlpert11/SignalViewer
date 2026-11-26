@@ -637,8 +637,9 @@ a page and comes back with the plots.
 
 ## The first minute
 
-Open a file and the empty plot offers the views that fit it – *Quick look* (every signal in a plot of its own)
-and the templates that match its signals; click one, or click signals in the list. Once something is plotted the
+Open a file and the empty plot offers the views that fit it – *Quick look* (every signal in a plot of its own),
+*Command and response*, *Actuator effort and saturation*, *Frequency content*, *Many runs as an envelope* (three or
+more files) – and the templates that match its signals (the flight logs' under *Flight logs*); click one, or click signals in the list. Once something is plotted the
 suggestions move to the file panel's *Views for these files*. The start card says what to do next: compare
 the files you opened together, look at a log's findings, or judge the run against a golden one.
 *Settings → Click places the cursor* makes the first click on a plot put the cursor there (Space turns it on

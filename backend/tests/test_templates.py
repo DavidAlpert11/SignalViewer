@@ -135,3 +135,21 @@ def test_builtin_reviews_name_existing_default_tabs():
         t = next(x for x in b if x["id"] == tid)
         names = [x["name"] for x in T.expand(t, b)["tabs"]]
         assert t["defaultTabs"] == ["Attitude", "Flight"] and set(t["defaultTabs"]) <= set(names)
+
+
+def test_the_any_data_generators_are_first_and_the_ui_judges_their_fit():
+    """CC15: Actuator effort, Frequency content and Many runs as an envelope are built-in generators of the *Any data*
+    group, ahead of the flight-log groups; the effort and envelope fits are the UI's (it knows the names and how many
+    files share a signal), the envelope's slot is every open file."""
+    from svcore import templates as T
+    b = T.builtin_templates()
+    ids = [t["id"] for t in b]
+    for i in ("bi-effort", "bi-spectrum", "bi-envelope"):
+        assert next(t for t in b if t["id"] == i)["group"] == "general"
+    first_flight = min(k for k, t in enumerate(b) if t["group"] != "general")
+    assert max(ids.index(i) for i in ("bi-effort", "bi-spectrum", "bi-envelope")) < first_flight
+    runs = [{"id": f"r{k}", "path": f"/x/run{k}.csv", "format": "csv", "signals": [{"name": "u"}, {"name": "y"}]} for k in range(3)]
+    by = {t["id"]: t for t in b}
+    assert T.fit(by["bi-effort"], b, runs) is None and T.fit(by["bi-envelope"], b, runs) is None
+    assert T.fit(by["bi-spectrum"], b, runs) == 1.0
+    assert T.auto_bind(T.expand(by["bi-envelope"], b), runs) == {"main": T.ALL}

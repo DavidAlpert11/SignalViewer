@@ -198,7 +198,8 @@ export const baseName = (p: string) => p.split(/[\\/]/).pop() || p;
 /** How well the open files fit each template (0..1; null: decide here - the objects generator). */
 export async function fits(all: Template[], runs: RunInfo[]): Promise<Map<string, number>> {
   const r = await api.templateFits(all);
-  return new Map(all.map((t) => [t.id, r.fits[t.id] ?? (t.generator === "pairs" ? pairsFit(runs) : objectsFit(t, runs))]));
+  return new Map(all.map((t) => [t.id, r.fits[t.id] ?? (t.generator === "pairs" ? pairsFit(runs) : t.generator === "effort" ? effortFit(runs)
+    : t.generator === "envelope" ? envelopeFit(runs) : objectsFit(t, runs))]));
 }
 /** Templates best first for the open files: how well they fit, a template made for the file's
  *  format (preferFmt) first, and a collection ahead of its parts. Shared by the library (its first
@@ -252,6 +253,37 @@ function pairsTabs(run: RunInfo | undefined, slot: string, lang: "en" | "he"): T
     const part = pairs.slice(i, i + PER_TAB);
     tabs.push({ name: `${translate(lang, "tplPairsTab")}${pairs.length > PER_TAB ? ` ${tabs.length + 1}` : ""}`, rows: part.length, cols: 1, linkX: true,
       plots: part.map((p) => ({ title: bare(p.measured), signals: [{ name: bare(p.setpoint), slot }, { name: bare(p.measured), slot }] })) });
+  }
+  return tabs;
+}
+
+/** CC15 "Actuator effort and saturation" (any file): the signals named as what drives the system - a control effort
+ *  (u, effort), an actuator, a motor, a servo, a valve, a throttle, a PWM / duty, a torque, an output - each in a plot of
+ *  its own, so a saturation (flat at a limit) or a chatter shows; Checks' automatic flags name the saturated ones. */
+const EFFORT = /^(u|u\d|u_.*|.*[._](u|effort|out|output|cmd_out))$|effort|actuat|motor|servo|valve|throttle|pwm|duty|torque|^rc_?out/i;
+function effortNames(run: RunInfo | undefined): string[] {
+  if (!run) return [];
+  const pairs = pairsOf(run);
+  const commands = new Set(pairs.map((p) => p.setpoint));         // a commanded value is not an effort
+  return run.signals.filter((s) => !s.labels && !commands.has(s.id) && EFFORT.test(s.name.split(/[./]/).pop() ?? s.name)).map((s) => s.name);
+}
+const effortFit = (runs: RunInfo[]) => (dataRuns(runs).some((r) => effortNames(r).length > 0) ? 1 : 0);
+/** CC15 "Many runs as an envelope": the signals three or more open files share, each as an envelope (min…max, the
+ *  percentile band, the median) of every run - a Monte-Carlo folder or repeated tests. */
+const ENVELOPE_MIN_RUNS = 3;
+function sharedNames(runs: RunInfo[], least: number): string[] {
+  const count = new Map<string, number>();
+  dataRuns(runs).forEach((r) => new Set(r.signals.filter((s) => !s.labels).map((s) => bare(s.name))).forEach((n) => count.set(n, (count.get(n) ?? 0) + 1)));
+  return Array.from(count).filter(([, c]) => c >= least).map(([n]) => n);
+}
+const envelopeFit = (runs: RunInfo[]) => (sharedNames(runs, ENVELOPE_MIN_RUNS).length ? 1 : 0);
+/** Four plots a tab, one signal each, in this kind of plot. */
+function onePerPlot(names: string[], slot: string, tabName: string, mode: TplPlot["mode"], most: number): TplTab[] {
+  const tabs: TplTab[] = [];
+  for (let i = 0; i < Math.min(names.length, PER_TAB * most); i += PER_TAB) {
+    const part = names.slice(i, i + PER_TAB);
+    tabs.push({ name: `${tabName}${names.length > PER_TAB ? ` ${tabs.length + 1}` : ""}`, rows: part.length, cols: 1, linkX: mode !== "fft",
+      plots: part.map((n) => ({ title: n, ...(mode && mode !== "time" ? { mode } : {}), signals: [{ name: n, slot }] })) });
   }
   return tabs;
 }
@@ -328,6 +360,9 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
     }
     extraTabs.push(...(g.generator === "quicklook" ? quickLookTabs(st.runs.find((r) => r.id === bind[slot]), slot, L)
       : g.generator === "pairs" ? pairsTabs(st.runs.find((r) => r.id === bind[slot]), slot, L)
+      : g.generator === "effort" ? onePerPlot(effortNames(st.runs.find((r) => r.id === bind[slot])), slot, translate(L, "tplEffortTab"), "time", 6)
+      : g.generator === "spectrum" ? onePerPlot((st.runs.find((r) => r.id === bind[slot])?.signals ?? []).filter((x) => !x.labels).map((x) => x.name), slot, translate(L, "tplSpectrumTab"), "fft", 6)
+      : g.generator === "envelope" ? onePerPlot(sharedNames(st.runs, ENVELOPE_MIN_RUNS), slot, translate(L, "tplEnvelopeTab"), "env", 10)
       : compareTabs(st.runs, slot, L)));
   }
   const r = await api.resolveTemplate(t, all, rbind, chosen ?? null, extraTabs);

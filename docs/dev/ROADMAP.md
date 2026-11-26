@@ -1294,3 +1294,11 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
   spanFallback); the head's sel-bar gone. Docs: GUIDE + GUIDE.he, features, investigate-tutorial; the media scripts
   (47 film, the training film) right-click. Tests: e2e test_plot_polish::test_the_span_actions_are_in_the_plots_menus,
   test_what_changed, test_conditions (helper span_action).
+- [x] CC15 (part: generic templates) + CC17 (words) Built-in generators effort (EFFORT names, the commands left out),
+  spectrum (fft plots), envelope (env plots of the signals >= 3 files share; the slot bound to every file) in
+  templates.ts onePerPlot / effortNames / sharedNames, builtin_templates.json after Command and response / Compare;
+  svcore/templates.py fit None for effort / envelope (the UI decides), ALL for envelope. Groups: *Any data*, then
+  *Flight logs · ArduPilot / MAVLink telemetry / PX4 / autopilot log vs telemetry* (ids unchanged). Generic words:
+  mapsAnd3d (recording, track, instrument display, a mode), investigate stepNone. Kept: the examples' own flight words
+  (welcome / templates descriptions of flight examples, the drones study demo) - example content. Tests: backend
+  test_templates::test_the_any_data_generators_are_first_and_the_ui_judges_their_fit; e2e test_any_data_templates (3).

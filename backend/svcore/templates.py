@@ -8,9 +8,9 @@ come from ("File", or "Autopilot log" + "Telemetry"). It may include other templ
 collection; slots with the same id are the same file). `runs` here are the run descriptions of
 Store.list() / the UI: {id, path, format, signals: [{name, labels?}]}.
 
-Built-in templates are data (builtin_templates.json). Three of them are "generators" (Quick look,
-Compare open files, Position on the map): their tabs are made from the files by the UI and handed
-to resolve() as extra tabs.
+Built-in templates are data (builtin_templates.json). Some of them are "generators" (Quick look, Command and response,
+Actuator effort, Frequency content, Compare open files, Many runs as an envelope, Position on the map): their tabs are
+made from the files by the UI and handed to resolve() as extra tabs.
 """
 
 import json
@@ -153,7 +153,7 @@ def auto_bind(e: dict, runs: List[dict], prefer: Optional[str] = None) -> Dict[s
     bind: Dict[str, str] = {}
     taken: Set[str] = set()
     for g in e["generators"]:
-        if g.get("generator") == "compare":
+        if g.get("generator") in ("compare", "envelope"):           # every open file that has the signal
             bind[g["slots"][0]["id"]] = ALL
     names_of = {s["id"]: slot_names(s["id"], e["slots"], e["tabs"]) for s in e["slots"]}
     order = sorted(e["slots"], key=lambda s: -len(names_of[s["id"]]))         # stable, like the UI's sort
@@ -191,8 +191,9 @@ def fit(t: dict, all_: List[dict], runs: List[dict]) -> Optional[float]:
         return 0.0
     e = expand(t, all_)
     if e["generators"] and not e["tabs"]:
-        # objects / pairs (CC15): the UI decides - it knows the position roles and the commanded / measured pairs
-        return None if all(g.get("generator") in ("objects", "pairs") for g in e["generators"]) else 1.0
+        # objects / pairs / effort / envelope (CC15): the UI decides - it knows the position roles, the commanded /
+        # measured pairs, the actuators' names and how many files share a signal
+        return None if all(g.get("generator") in ("objects", "pairs", "effort", "envelope") for g in e["generators"]) else 1.0
     found = total = 0
     bind = auto_bind(e, runs)
     for s in e["slots"]:

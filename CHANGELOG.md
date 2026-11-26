@@ -48,6 +48,11 @@
   into simpler parts* - like any other mistake in a formula.
 - **The span's actions in the plot's menus (CC4).** With two cursors, *Note*, *Find similar* and *What changed?* are
   the first lines of the plot's **⋯** menu and of its right-click menu - no bar of their own in the plot's head.
+- **Templates for any data first (CC15, CC17).** Three new templates made from the file itself: *Actuator effort and
+  saturation* (u, motors, servos, valves, throttle, PWM - a plot each), *Frequency content* (every signal as a
+  spectrum) and *Many runs as an envelope* (the signals three or more files share). The library lists *Any data*
+  first; the flight logs' templates are grouped under *Flight logs · ArduPilot / MAVLink / PX4*. Words in the maps and
+  the step response say *recording* and *track*, not *flight*.
 
 ## 1.37.0 – 2026-11-26
 

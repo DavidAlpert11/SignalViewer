@@ -33,6 +33,38 @@
  },
  {
   "version": 2,
+  "id": "bi-effort",
+  "group": "general",
+  "builtin": true,
+  "name": "Actuator effort and saturation",
+  "description": "@tplEffortDesc",
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotFile"
+   }
+  ],
+  "tabs": [],
+  "generator": "effort"
+ },
+ {
+  "version": 2,
+  "id": "bi-spectrum",
+  "group": "general",
+  "builtin": true,
+  "name": "Frequency content",
+  "description": "@tplSpectrumDesc",
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotFile"
+   }
+  ],
+  "tabs": [],
+  "generator": "spectrum"
+ },
+ {
+  "version": 2,
   "id": "bi-compare-files",
   "group": "general",
   "builtin": true,
@@ -46,6 +78,22 @@
   ],
   "tabs": [],
   "generator": "compare"
+ },
+ {
+  "version": 2,
+  "id": "bi-envelope",
+  "group": "general",
+  "builtin": true,
+  "name": "Many runs as an envelope",
+  "description": "@tplEnvelopeDesc",
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotAll"
+   }
+  ],
+  "tabs": [],
+  "generator": "envelope"
  },
  {
   "version": 2,
