@@ -2,6 +2,11 @@
 
 ## Next – unreleased
 
+- Fixed: **a derived signal's formula (and a Sweeps column or condition) with a number past about 1.8e308, or nested
+  deeper than Python can follow (hundreds of `-` or brackets), answered *Unexpected error … please report it*.** It
+  now says what is wrong - *The number 100000000000… is too large*, or *The formula is nested too deeply … split it
+  into simpler parts* - like any other mistake in a formula.
+
 ## 1.37.0 – 2026-11-26
 
 **Highlights:** **The app says what it checked - and only that.** Green in Checks and Sweeps means checked and fine; with nothing to judge it says so, and the automatic flags are counted. *What changed?* counts that add up, with times on the plots' clock. A report that names files, not your folders. A labelled *Open* in the top bar, and Compare's similarity list that no longer replaces your plot.

@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| Release 1.38.0 - calm, clear, any data (owner, 2026-11-26; plan in Open specs; ROADMAP "CC") | started 2026-11-26 on a local branch (session without push; handed over as one patch): CC0 the judge's JR1 + JR2 in; Phase 1 (audit and spec) under way | Phase 1: screenshots, the action map, the ArduPilot / capability audit, the spec shown to the owner once |
 | Release 1.37.0 - RW1-RW12, the three-agent review of 1.36.0 (owner, 2026-11-25: "stay on the current version or release a new one") | READY 2026-11-26: the critic and the advocate both answered "READY FOR A NEW VERSION: YES" after round 4 (/home/claude/review in the session: critic_r1-r4, advocate_r1-r4, decision, judge_r1); version in the five files + install.md, CITATION date, CHANGELOG 1.37.0 with highlights, features + GUIDE + GUIDE.he (Open ▾, Checks' verdict, Compare's Similarity tab, the report's file names), validation page, pictures 01-04 07 09 10 12 15 20-24 42 43 48 49; the whole e2e one file at a time - 100 files, 555 passed, test_file_help_menus failed under load (the test read the Open menu before it was drawn - fixed, 3 / 3), test_file_browser_edit once under load (alone: green, as in 1.36.0); quick_check, mkdocs --strict | the owner tags v1.37.0 and publishes the Release; LATER from the review: C2, C7, C9, C12-C19, "1 limits" on a Sweeps step card, the neighbours-hold column with no goal, Hebrew time ranges in the health check |
 | RW - the three-agent review of 1.36.0 (critic, advocate, judge; 2026-11-25): C1 no green verdict with nothing judged, C11 the report's paths / counts / What to look at, C5 What changed's counts, C3 a labelled Open, C4 Compare's own tab, C6 the demo's last line, C8 the similarity % and units, C10 the flag's target | built 2026-11-25 on the local branch `review-1125` (not pushed: the reviewers re-check it first); round 2 (RW9-RW12) answers the critic's and the advocate's blocking items; ROADMAP "RW"; quick_check, the e2e files of each change (see the Log) | the critic and the advocate re-review the branch; then the orchestrator pushes; later: C2 (panel widths, the Inspector on the first cursors), C7, C9, C12-C19 |
 | Release 1.36.0 - UX1-UX5: one coherent app (pages in one frame: Investigate, Messages, Checks, Report; Sweeps' page head), Add a stream, examples built step by step, the big files split (owner, 2026-11-23/24) | READY 2026-11-24: the reviewer session (session_0146GPW2guKSxqJE46HkbNSn) said "APPROVED FOR RELEASE" after 18 points answered / fixed; version in the five files + install.md, CITATION date, CHANGELOG 1.36.0 with highlights, README (English + Hebrew), GUIDE + GUIDE.he, features, limitations, validation page, pictures 09 10 23 25 26 30 38-43 48-56 and the training film; the whole e2e one file at a time - 100 files, 550 passed, test_report_doc's LaTeX test failed for want of a TeX, test_file_browser_edit failed once under load and passed alone twice; quick_check, mkdocs --strict | the owner tags v1.36.0 and publishes the Release |
@@ -55,6 +56,109 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 | Load: the e2e under heavy parallel load (5 browsers on 4 cores) still time out now and then (open_files > 30 s) | known | only under that load; the suite one file at a time is green |
 
 ## Open specs (waiting for the owner)
+
+- **1.38.0 - calm, clear, any data (owner, 2026-11-26)** - the plan below; approved by the owner ("yes, start").
+  Owner, 2026-11-26: (1) the app looks light and flowing, it is clear where each thing is done, not overloaded;
+  (2) not an ArduPilot app - decoding, viewing, automatic research and reports for simulation and test data of any
+  kind; ArduPilot is one example; (3) one finished version, nothing left for a later one.
+
+  Who does what: a session WITHOUT push starts the round on a local branch from main and hands over ONE patch with all
+  commits since main (skill sv-patch; checked with `git am` on a fresh clone). The owner gives it to a session WITH
+  push, which applies it on main, continues from TASKS.md "Current state" and pushes (prompt-1.38.0-calm.md).
+
+  Commit 0 (done): the judge's JR1 (formula 500 -> readable 400) and JR2 (test_file_browser_edit END state),
+  cherry-picked from `judge/release-1.37.1`, without its 1.37.1 bump.
+
+  ## Phase 1 - audit and spec (no code; the owner sees it once)
+  1. Screenshots of every screen (welcome, a recording with plots + Inspector, Checks, Compare, Investigate / What
+     changed?, Messages, Report, Sweeps' 5 steps, Live, Settings, palette) - dark / light, en / he - /tmp/audit/before.
+  2. "Where is each thing": every action -> every place it appears; duplicates marked.
+  3. Load count per screen: visible controls, always-on instruction lines, empty-state paragraphs.
+  4. **ArduPilot-centrism audit**: every place the app assumes a flight / a drone / ArduPilot outside a profile:
+     - welcome: FEATURED starts with `ardupilot`; 4 of 6 featured cards are flights; examples/ is mostly UAV
+       (copter_flight.bin, uav_flight*.csv, folder_of_flights, sim_vs_flight, drones, sweeps/drone_tuning);
+     - Checks: the automatic health check (svcore/health.py) is ArduPilot rules (VIBE, BATT_*, EKF, GPS); the
+       Checks panel's sub-tabs (Events, Parameters, Instruments, Hardware) are log-specific;
+     - words in the generic UI: flight, mission, flown, drone, mode band;
+     - report templates and the What-to-look-at wording; the docs' and README's order and pictures.
+  5. **Capability audit for generic research** - try each with a non-flight file and write what is missing:
+     - formats: MATLAB / Simulink `.mat` (timeseries, Simulink.SimulationData.Dataset / logsout, structs with
+       time), HDF5 groups, Parquet, CSV with several time columns, units and descriptions read from the file;
+     - a batch of simulation runs (Monte Carlo / a parameter grid) as a folder: one table of results per run;
+     - requirements: a generic requirements / checks file (limits, settling time, overshoot, rise time, steady-state
+       error, rate limits, "within X of the reference", "A before B") evaluated on every run, with a verdict per run
+       and per requirement;
+     - automatic research with no rules written: generic flags on any signal (stuck / flat, saturation at a constant,
+       spikes, NaN / gaps, time steps, oscillation, drift, a step and its response metrics) - the "health check" for
+       any data;
+     - comparison of a simulation with a test / reference run, and of a run with a baseline (tolerance bands);
+     - the report: a generic "simulation / test verification" template (requirements table, pass / fail per run,
+       the plots that show each failure, reproduction info), en + he, HTML / Word / PDF / LaTeX as today;
+     - headless: the CLI runs load -> checks -> report on a file or a folder (for CI of the user's own simulations);
+       a Python entry point for the same.
+  6. The spec: per screen before -> after; per capability what exists / what is added. Shown to the owner ONCE in
+     Hebrew (pictures, the table of duplicates, the change list); his answers go into TASKS.md "Open specs".
+     Ask him in the same message: CI on every push to main (I5, "not now" before) - yes / no.
+
+  Starting points seen in the 1.37.0 pictures (verify, do not take as given):
+  - TopBar ~15 controls -> about 8, grouped; theme and language into Settings (+ palette); Save / Download labelled
+    or under one *File ▾*.
+  - The always-on hint line above the plots -> tooltip / tour / Help.
+  - Long empty-state paragraphs (Inspector Notes, "Select a signal...", Checks "No limits set...") -> one line + "how?";
+    the Inspector closed when there is nothing to show.
+  - The floating Note / Find similar / What changed? bar over a plot -> one place (the plot's ⋯ or context menu).
+  - Sweeps: three navigation layers and two "See the results" -> the step cards + one Next; paragraphs -> one line + "?".
+  - Checks: six sub-tabs -> at most 3-4; the verdict first; log-only tabs only when the file is a log.
+  - Rail vs the Recordings / Sweeps switch: make "mode" vs "panel" obvious; tooltips say what each is for; a disabled
+    entry says why.
+  - Visual weight: one spacing scale, fewer boxes / outlines, one primary button per screen, muted secondary text,
+    the mode band once; small targets (×, close tab, drag handle) at least 24 px.
+
+  ## Phase 2 - build (one coherent change per commit; CHANGELOG / ROADMAP "CC" / TASKS in the same commit)
+  A. Calm and clear: the approved screen changes, screen by screen, e2e that click moved controls updated, GUIDE /
+     GUIDE.he / features updated.
+  B. Any data:
+     1. Profiles: the ArduPilot health check becomes one profile (chosen automatically for ArduPilot / PX4 logs);
+        a generic profile (the flags of Phase 1.5) runs on every file; a profile is a file (JSON) a user can write.
+     2. Requirements: extend checks.json into a generic requirements file (the metrics of Phase 1.5; backward
+        compatible); a verdict per run / per requirement in Checks, Sweeps and the report.
+     3. Batches: a folder of simulation runs -> results table -> Sweeps / Checks (reuse folder_of_flights' mechanism,
+        named generically).
+     4. Formats: whatever Phase 1.5 found missing (Simulink Dataset / logsout, units / descriptions from the file).
+     5. The report: a generic verification template; flight wording only in the flight template.
+     6. Headless: CLI (and a Python call) load -> checks -> report on a file or folder, exit code = verdict.
+     7. Examples (made by tools, like make_drone.py; small files): a Simulink-like `.mat` control loop (step
+        response vs requirements), a vehicle / process simulation in HDF5, a Monte-Carlo folder with a requirements
+        file, a simulation against its test run (non-flight), a bench test (exists: bench). The welcome screen
+        groups examples by task (look, compare, find what went wrong, verify against requirements, sweep, report),
+        generic first; ArduPilot / PX4 under "Flight logs".
+     8. Words: generic terms in the chrome (run, recording, signal, mode/state); flight words only in profiles,
+        templates and examples. README / docs reordered: generic first, flight logs as one section.
+  C. Technical leftovers: oxlint baseline in quick_check + CI (171 warnings today; fix no-loss-of-precision
+     chartUtil.test.ts:49 and globals mapLayers.ts:38); "1 limits" singulars; "neighbours hold" "–" with no goal;
+     Hebrew time ranges in the health check; Compare's unit on the difference plot + noise note; a new derived
+     signal's name shortened (formula in the tooltip); loaders' print() -> logging; C2 (panel widths, the Inspector on
+     the first cursors); C7, C9, C12-C19 only if /home/claude/review exists - otherwise noted and skipped.
+  D. Refactoring (behaviour unchanged, after the UI work on each file): the csv_loader <-> bin_loader cycle (shared
+     module, re-exports kept); bin_loader.py split; Globe3D / TimeChart / GeoChart split into hooks + helpers; the
+     bundle (vendor chunks for react / uplot, lazy GeoChart and rare panels; no chunk over 500 kB).
+  Not in scope: N5 (window under 930 px, documented).
+
+  ## Phase 3 - verify against the goal
+  Screenshots again (/tmp/audit/after) and the load count again; every action in one place; a separate agent that has
+  not seen the work gets the app and tasks ("open a Simulink result and check it against its requirements", "compare
+  two runs", "find what went wrong", "make a report", "change the language", "start a sweep") and says where it would
+  click first - what it cannot find in one try is fixed. Before / after shown to the owner.
+
+  ## Phase 4 - release 1.38.0
+  CLAUDE.md "Releasing" + sv-release: ci by hand, version in the five files + install.md, CHANGELOG with highlights,
+  README (en + he) and docs reviewed, pictures and film, mkdocs --strict, the whole e2e one file at a time until green,
+  TASKS / ROADMAP. The session with push pushes to main; the owner tags v1.38.0.
+
+  ## Handover rule (every stop)
+  Before a patch is made: TASKS.md "Current state" says which phase / item is done, what was tested, what is next;
+  the Log names the e2e that ran. The patch = all commits since origin/main (git format-patch), checked with git am
+  on a fresh clone, authored David Alpert <davidalpert11@gmail.com>.
 
 - **UX review 2026-11-23 (owner: "clean up the code, modular; review the design; examples that show how it is built";
   "one whole, flowing, coherent app")** - built in UX1-UX4 (ROADMAP "UX"). The principle written into components/rail.ts:
@@ -194,6 +298,9 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-26 · 1.38.0 started (owner: one finished version - calm and clear, any data, not ArduPilot-centred). CC0:
+  the judge's JR1 / JR2 cherry-picked from `judge/release-1.37.1` (without its 1.37.1 bump - that branch is superseded).
+  quick_check green; backend test_formula_limits; e2e not run yet.
 - 2026-11-25 · RW round 2 (both reviewers: YES once one blocking item each is fixed): RW9 Sweeps with no limit -
   Hold every condition / Fail / the holds column "–", Show: All; RW10 Checks - a log's health check (or a checks
   file) before the automatic flags, 3 cards + "+N more", the strip's chip from the same parts; RW11 the Similarity tab

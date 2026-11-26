@@ -1214,3 +1214,11 @@ judge's decision per item there (decision.md). Branch `review-1125`, one commit 
   test_tab_band, test_workflows, test_features -k "P01 or compare or tab".
 - [x] RW12 (C5 residual, round 2) What changed?'s timeline: a line naming the event's own signal, counted in the
   headline but not drawn (wcOnsetsEvent, .wc-onsets-event). Test: e2e test_what_changed (13).
+
+## CC - 1.38.0: calm, clear, any data (owner, 2026-11-26)
+The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocate / defender / judge round on
+1.37.0 (the judge's branch `judge/release-1.37.1` is superseded by this round).
+- [x] CC0 (judge JR1, advocate I1) A formula past Python's limits is a FormulaError, not a 500: svcore/formula.py
+  check() refuses an int past float64's range; a RecursionError in evaluate() / parse() / parse_rows() and in
+  svcore/sweep/derived.py row_formula() becomes a readable error (400). Test: backend test_formula_limits (5).
+  (judge JR2, advocate I3) e2e test_file_browser_edit waits for the END state (8 / 8 alone, 12 / 12 four at a time).
