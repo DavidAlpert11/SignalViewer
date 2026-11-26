@@ -125,3 +125,23 @@ CLI (check, compare, report, summarize, sweep - exit codes, JUnit); the Python A
 CC18 (the lint gate first, so the rest is checked) -> CC1-CC10 (screen by screen) -> CC11-CC17 -> CC19-CC20 ->
 CC21-CC23 -> Phase 3 (the same count, a fresh agent's "where would you click") -> Phase 4 (release).
 Not in scope: N5 (under 930 px, documented). Owner's call: I5 (ci on every push to main).
+
+## Measured after the first part of Phase 2 (2026-11-26, tools/audit_screens.py, dark, English)
+
+| Screen | Controls | TopBar | Prose words | Boxed |
+|---|---|---|---|---|
+| Welcome | 42 -> 36 | 17 -> 9 | 100 -> 110 (the new examples' lines) | 31 -> 25 |
+| 4 plots + Inspector | 97 -> 91 | 18 -> 11 | 62 -> 26 | 69 -> 63 |
+| Create | 72 -> 61 | 18 -> 11 | 71 -> 48 | 45 -> 39 |
+| Investigate | 59 -> 53 | 18 -> 11 | 78 -> 56 | 41 -> 35 |
+| Report | 66 -> 53 | 18 -> 11 | 37 -> 16 | 46 -> 33 |
+| Checks (flight log) | 113 -> 105 | 18 -> 11 | 102 -> 114 | 61 -> 56 |
+| Checks (bench) | 65 -> 59 | 18 -> 11 | 126 -> 113 | 47 -> 42 |
+| Sweeps - Results | 62 -> 57 | 8 -> 9 | 78 -> 54 | 54 -> 49 |
+| Settings | 64 -> 58 | 17 -> 9 | 223 -> 214 | 44 -> 38 |
+
+Against the targets: TopBar 11 with files open (the brand, the two areas, search, File, Templates, Live, undo, redo,
+⚙, Help; 9 with none) - one over the 10; prose under 40 words on the plots, Create (48), Report; not yet on Checks,
+Sweeps' Goal / Next runs and Settings; boxed down by about a tenth, not a third. Left for the push session: Checks'
+prose (its notes under the sections), Sweeps' explanation paragraphs, Settings' descriptions under a "?", and CC10's
+fewer boxes.
