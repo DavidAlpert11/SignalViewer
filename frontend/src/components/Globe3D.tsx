@@ -19,7 +19,7 @@ import { indexSpan } from "./chartUtil";
 import { pairOf, relation, type At } from "../relation";
 import RelationPanel from "./RelationPanel";
 import MapBar from "./MapBar";
-import { altAt, angleUnitOf, bearing, colorRuns, derivedAttitude, fmtDistance, groundDistance, objectAt, trackColors, trackKey, trackRequest, trackTime, visualOrder, type ObjTrack, type TrackColors, shownObjects, mapCamera, positionOpen } from "../mapObjects";
+import { altAt, angleUnitOf, bearing, colorRuns, derivedAttitude, fmtDistance, objectAt, trackColors, trackKey, trackRequest, trackTime, visualOrder, type TrackColors, shownObjects, mapCamera, positionOpen } from "../mapObjects";
 import { labelsOf, stateColor } from "../values";
 import TrackKeys from "./TrackKeys";
 import { hasWebGL } from "../webgl";
@@ -28,6 +28,7 @@ import { markNoPosition } from "../noPosition";
 import FlightDisplay from "./FlightDisplay";
 import MiniMap from "./MiniMap";
 import { errorAlong, errorColor } from "../relation";
+import { cesiumLoaded, FLY_MS, heightAt, loadCesium, ratesAt, reducedMotion, releaseWidget, SIT_M, softwareWebGL, TERRAIN_SIZE, TRACK_POINTS, type C, type ObjState, type Readout, type Track3 } from "./globe3dParts";
 
 /* The 3D view: the earth with the app's own terrain (bundled elevation) and map tiles (offline or
    online, as the map plot), the plot's objects as 3D models at the timeline's time - position,
@@ -35,80 +36,9 @@ import { errorAlong, errorColor } from "../relation";
    CesiumJS is loaded only when a 3D plot is shown, and nothing is fetched from the internet: no
    Cesium ion, its workers and data files come with the app (/cesium/). */
 
-type C = typeof import("cesium");
-let cesiumP: Promise<C> | null = null;
-let cesiumNow: C | null = null;                 // (loaded: the clean-up of a view needs it at once)
-const loadCesium = () => (cesiumP ??= (async () => {
-  (window as unknown as { CESIUM_BASE_URL: string }).CESIUM_BASE_URL = "/cesium/";
-  const m = await import("cesium");
-  m.Ion.defaultAccessToken = "";
-  cesiumNow = m;
-  return m;
-})());
-
-/** WebGL drawn by the processor (no graphics acceleration: virtual machines, remote desktop, blocked
- *  drivers). There every full-screen pass is expensive, so the 3D view uses lighter settings - one
- *  sample per pixel instead of 4 (3x the frame rate measured) and less terrain detail. */
-function softwareWebGL(): boolean {
-  try {
-    const gl = document.createElement("canvas").getContext("webgl");
-    if (!gl) return false;
-    const ext = gl.getExtension("WEBGL_debug_renderer_info");
-    const name = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
-    gl.getExtension("WEBGL_lose_context")?.loseContext();
-    return /swiftshader|llvmpipe|softpipe|basic render|software|gdi generic/i.test(name);
-  } catch { return false; }
-}
-
 /* 2026-11-16 (Out of Memory, "Fragment shader failed to compile" on the owner's PC): Cesium's render failed once
    in the full mode on this computer - every 3D view opened after it starts in the light mode (until a reload). */
 let lightOnly = false;
-
-/** Destroy a 3D view and give its graphics memory back at once. CesiumWidget.destroy frees the view's GPU
- *  objects but not its WebGL context: Cesium keeps the terrain grid's index buffers in a static cache keyed by
- *  context (TerrainProvider's regular-grid indices, `indexBuffers[context.id]`), which held every closed view's
- *  context - its canvas, framebuffers, MSAA and shadow maps - until the browser dropped the oldest of 16. */
-function releaseWidget(Cz: C, w: import("cesium").CesiumWidget) {
-  const canvas = w.canvas;
-  const id = (w.scene as unknown as { context?: { id?: string } }).context?.id;
-  w.destroy();
-  if (id !== undefined) {
-    const n = TERRAIN_SIZE;                      // the size of our terrain tiles: the only grid in the cache
-    const T = Cz.TerrainProvider as unknown as Record<"getRegularGridIndices" | "getRegularGridIndicesAndEdgeIndices" |
-      "getRegularGridAndSkirtIndicesAndEdgeIndices", (w: number, h: number) => object>;
-    for (const got of [T.getRegularGridIndices(n, n), T.getRegularGridIndicesAndEdgeIndices(n, n), T.getRegularGridAndSkirtIndicesAndEdgeIndices(n, n)]) {
-      const ix = "indices" in got ? got.indices : got;
-      const bufs = (ix as unknown as { indexBuffers?: Record<string, unknown> }).indexBuffers;
-      if (bufs) delete bufs[id];
-    }
-  }
-  // the context itself: lost now, not when the garbage collector or the browser's limit gets to it
-  const gl = (canvas.getContext("webgl2") ?? canvas.getContext("webgl")) as WebGLRenderingContext | null;
-  gl?.getExtension("WEBGL_lose_context")?.loseContext();
-  canvas.width = canvas.height = 0;
-}
-
-const TERRAIN_SIZE = 65;                        // heights per terrain tile side (CustomHeightmapTerrainProvider)
-const TRACK_POINTS = 3000;                      // drawn track: at most this many points per object
-type Track3 = ObjTrack & { alt: Float32Array | null; pitch: Float32Array | null; roll: Float32Array | null; ground: Float32Array | null };
-
-/** Height above sea level of an object at sample i (its altitude signal, by its reference; without
- *  one, on the ground / the sea). */
-function heightAt(o: MapObject, tr: Track3, i: number): number {
-  const g = tr.ground ? tr.ground[i] : 0;
-  const ground = Number.isFinite(g) ? g : 0;
-  if (!tr.alt) return ground + (o.kind === "ship" ? 0 : o.kind === "vehicle" ? 0.5 : 2);
-  const a = tr.alt[i];
-  if (!Number.isFinite(a)) return NaN;
-  if (o.altRef === "agl") return ground + a;
-  if (o.altRef === "home") {
-    let i0 = 0;
-    while (i0 < tr.alt.length && !Number.isFinite(tr.alt[i0])) i0++;
-    const g0 = tr.ground && Number.isFinite(tr.ground[i0]) ? tr.ground[i0] : 0;
-    return g0 + a;
-  }
-  return a;
-}
 
 interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void; emptyText: string; onFlat?: (reason: string) => void }
 
@@ -118,29 +48,6 @@ export default function Globe3D(props: Props) {
   const [gen, setGen] = useState(0);
   return <Globe3DView key={gen} {...props} onRenderFailed={() => { lightOnly = true; setGen((g) => g + 1); }} />;
 }
-
-/** An object's values at the time (for the data box and the relations). */
-interface ObjState { id: string; name: string; color: string; pos: import("cesium").Cartesian3; lat: number; lon: number; alt: number;
-  agl: number | null; hdg: number | null; pitch: number | null; roll: number | null; gs: number | null; vs: number | null }
-interface Readout { primary: ObjState; rel: { name: string; color: string; horiz: number; dz: number; slant: number; brg: number;
-  closure: number | null; aspect: number | null; side: "L" | "R" | null }[] }
-
-/** Ground speed and climb rate (m/s) over about a second around t. */
-function ratesAt(o: MapObject, tr: Track3, t: number): { gs: number | null; vs: number | null } {
-  const n = tr.t.length;
-  const at = (x: number) => { let lo = 0, hi = n - 1; while (hi - lo > 1) { const k = (lo + hi) >> 1; if (tr.t[k] <= x) lo = k; else hi = k; } return lo; };
-  let i0 = at(t - 0.5), i1 = Math.min(n - 1, at(t + 0.5) + 1);
-  if (i1 <= i0) { i0 = Math.max(0, i0 - 1); i1 = Math.min(n - 1, i0 + 1); }
-  const dt = tr.t[i1] - tr.t[i0];
-  if (!(dt > 0)) return { gs: null, vs: null };
-  const d = groundDistance(tr.lat[i0], tr.lon[i0], tr.lat[i1], tr.lon[i1]);
-  const dh = tr.alt ? heightAt(o, tr, i1) - heightAt(o, tr, i0) : NaN;
-  return { gs: Number.isFinite(d) ? d / dt : null, vs: Number.isFinite(dh) ? dh / dt : null };
-}
-
-const SIT_M = 15;                               // On the object: nearer than this, the camera sits on it (its model hidden)
-const FLY_MS = 1200;                            // P9: every camera change flies (~1.2 s, eased)
-const reducedMotion = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
 
 function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Props & { onRenderFailed: () => void }) {
   countRender("Globe3D");
@@ -339,7 +246,8 @@ function Globe3DView({ plot, onLoading, emptyText, onFlat, onRenderFailed }: Pro
       scene3.current = { models: new Map(), lines: null, parts: null, labels: null, links: null, linkLabels: null,
         events: null, eventLabels: null, measure: null, measurePts: null, ghosts: null, rings: null, drops: null, discs: null, recent: null, drawn: new Map(), fitted: false };
       mats.clear();
-      if (w && !w.isDestroyed() && cesiumNow) releaseWidget(cesiumNow, w);
+      const Cz = cesiumLoaded();
+      if (w && !w.isDestroyed() && Cz) releaseWidget(Cz, w);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

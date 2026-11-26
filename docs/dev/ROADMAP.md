@@ -1337,3 +1337,14 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
   by bin_loader (callers, tests that set B.LAZY_MIN, the pickled DataFlash of an existing index - its class stays in
   bin_loader). 1274 -> 1055 lines; DataFlash stays one class (its framing, repair and decoding share its state).
   Tests: backend all (1541), mypy.
+- [x] CC22 Behaviour unchanged: TimeChart's canvas drawing (the state lanes, the named conditions and What changed?'s
+  marks, the events and notes) in components/timeChartDraw.ts as functions of what they draw (the component passes its
+  refs' current values) - 1071 -> 864 lines, the plots pixel-identical (the audit's plots screen compared); GeoChart's
+  projection, view fit, shared tile cache (onTile / tileState), attributions and offline names in components/geoMap.ts
+  (1100 -> 1018); Globe3D's Cesium loading (cesiumLoaded), software-WebGL test, releaseWidget, heights / rates along a
+  track and the camera constants in components/globe3dParts.ts (1379 -> 1287; Cesium still its own lazy chunk). What
+  stays in each is the component's life cycle - its build-and-draw effect and its gestures. Tests: e2e
+  test_state_lanes, test_tab_band, test_range_notes, test_event_navigation, test_needle, test_conditions,
+  test_what_changed, test_plot_polish, test_flat_line_solo, test_damaged_note, test_globe3d (16), test_local_objects,
+  test_map_export, test_map_memory, test_map_objects, test_map_places_story_export, test_map_smooth, test_map_vectors,
+  test_object_frames, test_object_relations, test_offline_map; Vitest; oxlint.
