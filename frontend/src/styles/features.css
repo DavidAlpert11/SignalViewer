@@ -187,9 +187,6 @@
 .cond-text { font-family: ui-monospace, "IBM Plex Mono", monospace; font-size: var(--fs-s); opacity: 0.75; padding: 2px 0 0 38px; overflow-wrap: anywhere; direction: ltr; text-align: left; }
 .cond-editor { display: flex; flex-direction: column; gap: var(--sp-1); padding: 6px 0 2px; }
 .cond-actions { display: flex; gap: var(--sp-1_5); justify-content: flex-end; }
-.sel-bar { position: absolute; z-index: 5; display: flex; gap: var(--sp-1); padding: 3px; border-radius: var(--r-m);
-  background: var(--raised); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
-.sel-bar[hidden] { display: none; }
 
 /* Investigation step 3: the stretches of the condition in focus */
 .occ-section { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 6px; display: flex; flex-direction: column; gap: var(--sp-1_5); }

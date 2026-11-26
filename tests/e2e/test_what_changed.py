@@ -9,7 +9,7 @@ import shutil
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, open_files, pg, sig  # noqa: E402,F401
+from test_features import S, span_action, env, open_files, pg, sig  # noqa: E402,F401
 
 DEMO = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "investigate")
 
@@ -40,8 +40,7 @@ def _around_first_error(pg):
     pg.locator(".sig").filter(has=pg.get_by_text("Roll", exact=True)).first.click()   # Roll, not DesRoll
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.some(x => x.sig.endsWith('/Roll'))")
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 38.46, t2: 39.24, active: 1 } })")
-    pg.wait_for_selector(".sel-bar:not([hidden])")
-    pg.click(".sel-changed")
+    span_action(pg, "What changed?")
     pg.wait_for_selector(".wc-section")
     pg.select_option(".wc-scope", "all")
     pg.wait_for_selector(".wc-chead")
@@ -84,8 +83,7 @@ def test_by_default_every_signal_of_the_events_file_and_the_other_run_beside_it(
     pg.locator(".sig").filter(has=pg.get_by_text("Roll", exact=True)).nth(1).click()
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 2")
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 38.46, t2: 39.24, active: 1 } })")
-    pg.wait_for_selector(".sel-bar:not([hidden])")
-    pg.click(".sel-bar:not([hidden]) .sel-changed")
+    span_action(pg, "What changed?")
     pg.wait_for_selector(".wc-chead")
     _all_open(pg)
     assert pg.input_value(".wc-scope") == "file" and "heavy_payload" in pg.locator(".wc-scope option").first.inner_text()
@@ -109,9 +107,9 @@ def test_find_similar_takes_the_signal_that_changed_not_the_active_plots(pg):
     pg.locator(".plot").nth(0).click(position={"x": 200, "y": 10})            # Alt's plot is the active one
     pg.wait_for_function("window.__sv.state().ws.tabs[0].active === 0")
     pg.locator(".ov-flag").first.click()                                   # the first flag: cursors around it, zoomed
-    pg.wait_for_selector(".sel-bar:not([hidden])")
+    pg.wait_for_function("window.__sv.state().cursor.dual && window.__sv.state().cursor.t2 !== null")
     assert S(pg, "s.ws.tabs[0].active") == 0 and S(pg, "s.ws.tabs[0].plots[0].signals.map(x => x.sig.split('/')[1])") == ["Alt"]
-    pg.locator(".sel-bar:not([hidden]) .sel-find").first.click()
+    span_action(pg, "Find similar")
     pg.wait_for_selector(".cond-editor")
     pg.wait_for_function("/^Roll > /.test(document.querySelector(\".cond-editor [aria-label='When']\").value || document.querySelector(\".cond-editor [aria-label='When']\").textContent)")
     pg.wait_for_function("/3 stretches/.test(document.querySelector('.cond-preview').textContent)")
@@ -182,13 +180,12 @@ def test_a_long_span_reads_the_usual_level_inside_the_data_and_an_early_one_says
     pg.locator(".sig").filter(has=pg.get_by_text("Roll", exact=True)).first.click()
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 20, t2: 45, active: 1 } })")
-    pg.wait_for_selector(".sel-bar:not([hidden])")
-    pg.click(".sel-bar:not([hidden]) .sel-changed")
+    span_action(pg, "What changed?")
     pg.wait_for_selector(".wc-cluster")                              # the first gust is found
     assert "-" not in pg.inner_text(".wc-section .hint").split("read from")[1].split("–")[0]
     pg.locator(".wc-head .iconbtn").click()
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 0, t2: 1, active: 1 } })")
-    pg.click(".sel-bar:not([hidden]) .sel-changed")
+    span_action(pg, "What changed?")
     pg.wait_for_selector(".wc-noroom")
     assert pg.locator(".wc-row").count() == 0
 
@@ -201,8 +198,7 @@ def test_clusters_likeliest_first_a_plot_beside_each_and_a_tab(pg):
     pg.locator(".sig").filter(has=pg.get_by_text("Roll", exact=True)).first.click()
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 38.46, t2: 39.24, active: 1 } })")
-    pg.wait_for_selector(".sel-bar:not([hidden])")
-    pg.click(".sel-bar:not([hidden]) .sel-changed")
+    span_action(pg, "What changed?")
     pg.wait_for_selector(".wc-cluster.open .wc-cplot svg")
     assert pg.locator(".wc-cluster").count() >= 2
     assert pg.locator(".wc-cluster.open").count() == 1
@@ -242,8 +238,7 @@ def test_a_flight_log_leaves_out_the_clocks_and_constants_and_counts_them(pg):
         window.__sv.setState({ ws }); }""")
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 120, t2: 121, active: 1 } })")
-    pg.wait_for_selector(".sel-bar:not([hidden])")
-    pg.click(".sel-bar:not([hidden]) .sel-changed")
+    span_action(pg, "What changed?")
     pg.wait_for_selector(".wc-skipped")
     text = pg.inner_text(".wc-skipped")
     assert "counters / clocks 1" in text and "constant" in text
@@ -262,8 +257,7 @@ def test_who_leads_whom_above_the_clusters(pg):
     pg.locator(".sig").filter(has=pg.get_by_text("Roll", exact=True)).first.click()
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 38.46, t2: 39.24, active: 1 } })")
-    pg.wait_for_selector(".sel-bar:not([hidden])")
-    pg.click(".sel-bar:not([hidden]) .sel-changed")
+    span_action(pg, "What changed?")
     pg.wait_for_selector(".wc-chain-list li")
     lines = pg.locator(".wc-chain-list li").all_inner_texts()
     m3 = next(x for x in lines if x.startswith("Motor3 → Roll"))
@@ -303,8 +297,7 @@ def test_the_counts_add_up_and_the_first_change_has_its_time(pg):
     open_files(pg, "heavy_payload.csv")
     pg.locator(".sig").filter(has=pg.get_by_text("Roll", exact=True)).first.click()
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 38.46, t2: 39.24, active: 1 } })")
-    pg.wait_for_selector(".sel-bar:not([hidden])")
-    pg.click(".sel-changed")
+    span_action(pg, "What changed?")
     pg.wait_for_selector(".wc-section .wc-tally")
     assert pg.inner_text(".wc-head h3") == "What changed?"                         # one name for the action
     tally = pg.locator(".wc-tally")

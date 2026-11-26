@@ -44,6 +44,7 @@ import { lineLook, setpointsIn } from "../desired";
 import OccChart from "./OccChart";
 import { copyForConfluence, dragOutEnd, dragOutStart, sendToConfluence } from "../clip";
 import { addToReport } from "../reportDoc";
+import { spanMenuItems } from "../spanActions";
 
 interface Props { tab: Tab; plot: Plot; index: number; active: boolean }
 
@@ -215,7 +216,9 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       { label: t("exportKml"), run: () => { void exportFlight("kml"); } },
     ] : []),
   ];
-  const plotItems = (): MenuItem[] => [
+  const plotItems = (withSpan = true): MenuItem[] => [
+    // CC4: the span between the two cursors - a note, Find similar, What changed? - first (a time plot only)
+    ...(withSpan && onTimeAxis(plot) ? spanMenuItems(plot.id) : []),
     ...(geoPicksHidden ? [{ label: t("geoTrackShow"), run: () => setGeoPicks(true) }, { label: "", run: () => {}, sep: true }] : []),
     // review (owner, 2026-11-13: tidy the menus): every way to save or export this plot in one submenu - it was
     // six to nine lines at the top of the menu; Copy image (the everyday one) stays a line of its own
@@ -323,7 +326,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       { label: t("plAddHere"), run: () => useApp.setState({ placeEdit: { plotId: plot.id, place: { kind: "point", lat: geo.lat, lon: geo.lon, ...(geo.ground !== null ? { alt: geo.ground } : {}) } } }) },
       { label: "", run: () => {}, sep: true },
     ] : [];
-    openMenu(e, [...geoItems, ...laneItems, ...timeItems, ...plotItems()]);
+    const spanItems = onTimeAxis(plot) ? spanMenuItems(plot.id) : [];
+    openMenu(e, [...spanItems, ...geoItems, ...laneItems, ...timeItems, ...plotItems(false)]);
   };
   const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["xyz", t("modeXyz")], ["geo", t("modeGeo")], ["fft", "FFT"], ["step", t("modeStep")], ["spec", t("modeSpec")], ["env", t("modeEnv")], ["video", t("modeVideo")],
     // occ is made from the Investigate panel (it needs a condition): listed only on such a plot
@@ -692,8 +696,6 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             title={legendAt === "off" ? t("legendShow") : t("legendTop")}>
             {legendAt === "off" ? t("legendHiddenN", { n: plot.signals.length }) : t("legendBesideN", { n: plot.signals.length })}</button>
         )}
-        {/* W7: the two cursors' bar has its place here, right of the legend (TimeChart puts it in) */}
-        <span className="sel-slot" />
         <button className="iconbtn plot-more" aria-haspopup="menu" aria-label={t("plotMenu")} title={t("plotMenu")}
           onClick={openPlotMenu}><Icon.More /></button>
       </header>

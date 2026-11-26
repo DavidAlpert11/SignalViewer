@@ -79,13 +79,13 @@ are told apart by them.
   the data, save or copy the image, axis limits.
 - **Conditions** (rail → *Investigate*): the moments where something holds - `Speed > 30`,
   `abs(Vz) > 5 and Mode == "AUTO"` - in every open file that has those signals. Put both cursors
-  around something odd and press **Find similar** on the bar above them: the condition is written
+  around something odd and right-click the plot (or its ⋯) -> **Find similar**: the condition is written
   for you, with the count as you change it. Click a condition's name (or press `]` / `[`) to step
   through its stretches; the one in focus is shaded, the others are thin strips along the top.
 - **The stretches of a condition** (click its name): a table of them under the list (sort, click to go
   there), **Together in a new tab** - all of them on top of each other from their start, end or peak -
   and **What differs inside**: the signals that are most different inside the stretches than outside.
-- **What changed first?** On the selection bar: every signal of the event's file in the order it left
+- **What changed first?** Right-click the plot with two cursors (or its ⋯) -> *What changed?*: every signal of the event's file in the order it left
   its usual range around the span - candidates, not causes - and the lag between any two of them.
   Under each, the same signal in the other runs: a change that a run without the problem has too
   does not explain it alone. On a long log, filter the list or take rows and groups out with ×.

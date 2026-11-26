@@ -266,11 +266,12 @@ def ch_investigate(f, app):
         f.glide(roll)
         pg.wait_for_timeout(1400)
     f.cap("What changed? – two cursors around the moment it went wrong",
-          say="Put two cursors around the moment it went wrong, and ask: what changed?", wait=False)
+          say="Put two cursors around the moment it went wrong, right-click, and ask: what changed?", wait=False)
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 38.46, t2: 39.24, active: 1 } })")
-    pg.wait_for_selector(".sel-bar:not([hidden])", timeout=20000)
     pg.wait_for_timeout(1200)
-    f.glide(pg.locator(".sel-changed").first)
+    f.glide(pg.locator(".plot.active .plot-body").first, button="right")     # CC4: the span's actions, a right-click
+    pg.wait_for_timeout(600)
+    f.glide(pg.locator(".menu.ctx button", has_text="What changed?").first)
     pg.wait_for_selector(".wc-section", timeout=30000)
     pg.wait_for_timeout(1800)
     f.cap("The signals that left their usual range, in time order", "Wind first, then the vibration, motor 3 – and only then the roll",

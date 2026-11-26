@@ -6,7 +6,7 @@ count, stepped through, combined, hidden, deleted with undo.
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, menu_item, open_files, pg, sig  # noqa: E402,F401
+from test_features import S, span_action, env, menu_item, open_files, pg, sig  # noqa: E402,F401
 
 
 def _panel(pg):
@@ -42,8 +42,7 @@ def test_find_similar_from_the_selection(pg):
     sig(pg, "Speed").click()
     pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 1")
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 8, t2: 12, active: 1 } })")
-    pg.wait_for_selector(".sel-bar:not([hidden])")
-    pg.click(".sel-find")
+    span_action(pg, "Find similar")
     pg.wait_for_selector(".cond-editor")
     text = pg.input_value(".cond-editor [aria-label='When']")
     assert text.startswith("Speed > ")

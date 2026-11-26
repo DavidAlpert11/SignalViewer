@@ -1289,3 +1289,8 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
 - [x] CC3 (more) Checks: the flags' note and the checks file's "same verdict as the CLI" line in tooltips; Sweeps: the
   step intros clamped to two lines (whole in the tooltip), the optimize / next-runs hints as tooltips. Settings keeps
   its descriptions (a dialog read once). Tests: e2e test_sweeps_flow, test_checks_view.
+- [x] CC4 The span's actions (Note / Find similar / What changed?) in one place: first in the plot's ⋯ menu and its
+  right-click menu (spanActions.ts: spanMenuItems, findSimilar, the plot's own guess registered by TimeChart as
+  spanFallback); the head's sel-bar gone. Docs: GUIDE + GUIDE.he, features, investigate-tutorial; the media scripts
+  (47 film, the training film) right-click. Tests: e2e test_plot_polish::test_the_span_actions_are_in_the_plots_menus,
+  test_what_changed, test_conditions (helper span_action).

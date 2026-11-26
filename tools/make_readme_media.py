@@ -882,8 +882,8 @@ def _what_changed(pg):
     pg.locator(".sig").filter(has=pg.get_by_text("Roll", exact=True)).first.click()
     pg.wait_for_timeout(800)
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 38.46, t2: 39.24, active: 1 } })")
-    pg.wait_for_selector(".sel-bar:not([hidden])", timeout=20000)
-    pg.click(".sel-changed")
+    pg.locator(".plot.active .plot-more").first.click()             # CC4: the span's actions in the plot's menu
+    pg.locator(".menu.ctx button", has_text="What changed?").first.click()
     pg.wait_for_selector(".wc-section", timeout=60000); pg.wait_for_timeout(2000)
 
 
@@ -925,11 +925,12 @@ def img_47_what_changed_film(b, app):
     for t2 in (38.46, 38.62, 38.78, 38.94, 39.1, 39.24):          # the second cursor pulled across the jump
         pg.evaluate("t2 => window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 38.46, t2, active: 2 } })", t2)
         pg.wait_for_timeout(250); frame(pg, d, frames)
-    pg.wait_for_selector(".sel-bar:not([hidden])", timeout=20000)
-    btn = pg.locator(".sel-changed").first.bounding_box()
+    pg.locator(".plot.active .plot-body").first.click(button="right", position={"x": 300, "y": 80})   # CC4: right-click
+    item = pg.locator(".menu.ctx button", has_text="What changed?").first
+    btn = item.bounding_box()
     pg.mouse.move(btn["x"] + btn["width"] / 2, btn["y"] + btn["height"] / 2); pg.wait_for_timeout(300)
     frame(pg, d, frames); frame(pg, d, frames)                    # the question, under the pointer
-    pg.click(".sel-changed")
+    item.click()
     pg.wait_for_selector(".wc-section", timeout=60000); pg.wait_for_timeout(2000)
     pg.mouse.move(W - 5, H - 5); pg.wait_for_timeout(300)
     frame(pg, d, frames)

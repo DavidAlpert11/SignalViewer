@@ -1,4 +1,4 @@
-"""L7 (2026-11-13): W7 the two cursors' bar in the plot's head, W9 the views badge / a flight log's dimmed
+"""L7 (2026-11-13): CC4 the two cursors' span in the plot's menus (was W7's bar in the head), W9 the views badge / a flight log's dimmed
 message part, W13.2 the first draw-in (once per tab), T49 item 10 the cursors next to the zoom."""
 import numpy as np
 import os
@@ -8,20 +8,25 @@ pytest.importorskip("playwright.sync_api")
 from test_features import S, _csv, env, menu_item, open_files, pg, sig  # noqa: E402,F401
 
 
-def test_two_cursors_bar_sits_in_the_plot_head(pg):
+def test_the_span_actions_are_in_the_plots_menus(pg):
+    """CC4: no bar of its own - with two cursors, the plot's ⋯ menu and its right-click menu start with the span's
+    Note / Find similar / What changed?; with one cursor they are not there."""
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
+    pg.locator(".plot.active .plot-more").click()
+    assert pg.locator(".menu.ctx button", has_text="Find similar").count() == 0      # no span yet
+    pg.keyboard.press("Escape")
     pg.keyboard.press("d")                                         # two cursors
-    bar = pg.locator(".plot-head .sel-slot .sel-bar")
-    pg.wait_for_function("(() => { const b = document.querySelector('.plot-head .sel-bar'); return b && !b.hidden; })()")
-    head = pg.locator(".plot-head").first.bounding_box()
-    b = bar.bounding_box()
-    assert head["y"] <= b["y"] and b["y"] + b["height"] <= head["y"] + head["height"] + 1       # inside the head
-    legend = pg.locator(".plot-head .legend").first.bounding_box()
-    assert b["x"] >= legend["x"] + legend["width"] - 1                                        # right of the legend
-    before = b["x"]
-    pg.keyboard.press("ArrowRight")                                # the cursors move: the bar stays where it is
-    assert abs(bar.bounding_box()["x"] - before) < 1
+    pg.wait_for_function("window.__sv.state().cursor.dual && window.__sv.state().cursor.t2 !== null")
+    assert pg.locator(".sel-bar").count() == 0
+    pg.locator(".plot.active .plot-more").click()
+    first = pg.locator(".menu.ctx > button").all_inner_texts()[:3]
+    assert ["Note" in first[0], "Find similar" in first[1], "What changed?" in first[2]] == [True, True, True]
+    pg.keyboard.press("Escape")
+    pg.locator(".plot.active .plot-body").click(button="right", position={"x": 150, "y": 60})
+    assert "Find similar" in pg.locator(".menu.ctx > button").all_inner_texts()[1]
+    menu_item(pg, "What changed?")
+    pg.wait_for_selector(".wc-head")
 
 
 def test_cursor_buttons_next_to_the_zoom(pg):

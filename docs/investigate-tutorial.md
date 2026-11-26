@@ -20,7 +20,7 @@ the roll leaves its set point three times; in the light one it holds. Why?
 ## 2. Name it
 
 3. Press `d` (two cursors) and put them around the first bump (about 38.4 – 39.3 s).
-4. On the bar above the span: **Find similar**. The Investigate panel opens with a condition
+4. Right-click the plot (or open its ⋯): **Find similar**, first in the menu. The Investigate panel opens with a condition
    already written from your selection, on the signal most unusual inside it (whichever plot is
    active): `Roll > 9.86` or so. Write it plainly instead: `abs(Roll - DesRoll) > 5`, name it *Roll error*. The count shows while you type:
    **3 stretches** (all in the heavy run - hover the count: 0 in the light one).
@@ -39,7 +39,7 @@ the roll leaves its set point three times; in the light one it holds. Why?
 
 ## 4. What came first
 
-9. Click the first stretch's row (both cursors on it), then **What changed?** on the bar.
+9. Click the first stretch's row (both cursors on it), then right-click the plot -> **What changed?**.
 10. It looks at *All signals of heavy_payload.csv* - the file of the event, not only what is on
     the plots. The order: **Wind** (about −0.44 s), **Vibe_Z** (−0.3 s), **Motor3** (−0.22 s), Motor1,
     **Roll** (−0.02 s). The dashed lines on the plots are those moments. (Battery_V moves with the

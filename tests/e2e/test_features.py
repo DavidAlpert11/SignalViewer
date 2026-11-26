@@ -320,6 +320,13 @@ def menu_item(pg, label):
     pg.locator(".menu.ctx button", has_text=label).first.click()
 
 
+def span_action(pg, label):
+    """CC4: what to do with the two cursors' span ("What changed?", "Find similar", "Note") is first in the active
+    plot's ⋯ menu (and its right-click menu)."""
+    pg.locator(".plot.active .plot-more").first.click()
+    pg.locator(".menu.ctx button", has_text=label).first.click()
+
+
 def toast_text(pg):
     pg.wait_for_selector(".toast")
     return " | ".join(pg.locator(".toast").all_inner_texts())

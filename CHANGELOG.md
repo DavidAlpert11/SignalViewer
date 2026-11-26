@@ -46,6 +46,8 @@
   deeper than Python can follow (hundreds of `-` or brackets), answered *Unexpected error … please report it*.** It
   now says what is wrong - *The number 100000000000… is too large*, or *The formula is nested too deeply … split it
   into simpler parts* - like any other mistake in a formula.
+- **The span's actions in the plot's menus (CC4).** With two cursors, *Note*, *Find similar* and *What changed?* are
+  the first lines of the plot's **⋯** menu and of its right-click menu - no bar of their own in the plot's head.
 
 ## 1.37.0 – 2026-11-26
 

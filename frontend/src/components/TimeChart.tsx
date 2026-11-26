@@ -1,16 +1,15 @@
-import { createPortal } from "react-dom";
 import { countRender } from "../perf";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api, isAborted, type Series } from "../api";
 import { joinTables } from "../joinTables";
-import { actions, activeTab, DEFAULT_LINE_WIDTH, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSignal, type PreviewLine, type Range, type Tab, tabBandLanes } from "../store";
+import { actions, DEFAULT_LINE_WIDTH, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSignal, type PreviewLine, type Range, type Tab, tabBandLanes } from "../store";
 import { inkOn, labelsOf, labelText, stateColor, runsDataKey } from "../values";
 import { fmtNum, translate } from "../i18n";
 import { signalUnit } from "../units";
 import { timeUnitOf } from "../timeAxis";
 import { DASH, fade, lineLook, setpointsIn } from "../desired";
-import { openWhatChanged } from "../investigation";
+import { spanFallback } from "../spanActions";
 import { axisStyle, tickValues, timeTicks, xAxisSize, dpr, DRAG_UNI_MIN, dragUni, flag, ink, PLOT_THEME, PREVIEW_DASH, publishXView, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
 
 interface Props {
@@ -92,9 +91,6 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   const condResults = useApp((s) => s.condResults);
   const condFocus = useApp((s) => s.condFocus);
   const stripSel = useApp((s) => s.stripSel);
-  const barRef = useRef<HTMLDivElement>(null);
-  const [selSlot, setSelSlot] = useState<HTMLElement | null>(null);
-  useLayoutEffect(() => { setSelSlot(wrapRef.current?.closest(".plot")?.querySelector<HTMLElement>(".plot-head .sel-slot") ?? null); }, []);
   const changeMarks = useApp((s) => s.changeMarks);
   const changeRef = useRef<{ t: number; color: string }[]>([]);
 
@@ -568,28 +564,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       }));
       ctx.restore();
     };
-    /* the selection (both cursors) in the active plot: a small bar of what to do with it, above the
-       middle of the span - the eyes are already there */
-    const placeBar = (u: uPlot) => {
-      const bar = barRef.current;
-      if (!bar) return;
-      const c = cursorRef.current;
-      // the active plot as it is now (the plot is built once; `tab` here is from then)
-      const active = useApp.getState().ws.tabs.find((x) => x.id === tab.id)?.active ?? tab.active;
-      const show = !previewOnly && index >= 0 && active === index && c.on && c.dual && c.t1 !== null && c.t2 !== null && c.t1 !== c.t2;
-      if (!show) { bar.hidden = true; return; }
-      const a = Math.min(c.t1!, c.t2!), b = Math.max(c.t1!, c.t2!);
-      const x0 = u.scales.x.min!, x1 = u.scales.x.max!;
-      if (b < x0 || a > x1) { bar.hidden = true; return; }
-      bar.hidden = false;
-      if (bar.parentElement?.classList.contains("sel-slot")) return;      // W7: in the plot's head - it stays put
-      const mid = (u.valToPos(Math.max(a, x0), "x") + u.valToPos(Math.min(b, x1), "x")) / 2 + u.over.offsetLeft;
-      const w = bar.offsetWidth || 220;
-      bar.style.left = `${Math.max(4, Math.min(mid - w / 2, (wrapRef.current?.clientWidth ?? w) - w - 4))}px`;
-      bar.style.top = `${u.over.offsetTop + 6}px`;
-    };
     const drawOverlay = (u: uPlot) => {
-      placeBar(u);
       syncOverlay(u);
       octx.clearRect(0, 0, overlay.width, overlay.height);
       drawCursor(u, octx);
@@ -1054,26 +1029,8 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yZoom?.[0], yZoom?.[1]]);
 
-  // "Find similar": a condition from the selection. Of the signals on this tab's time plots, the one
-  // most unusual inside the selection (the server reads each one's usual level before it) - not just
-  // this plot's first line, which is often not what the user marked. Without an answer: this plot's
-  // first line, above (or below) half way from its level before the selection to its peak inside it.
-  const findSimilar = async () => {
-    const c = useApp.getState().cursor;
-    if (c.t1 === null || c.t2 === null) return;
-    const a = Math.min(c.t1, c.t2), b = Math.max(c.t1, c.t2);
-    const tb = activeTab(useApp.getState().ws);
-    const sigs = [...new Set(tb.plots.filter((p) => (p.mode ?? "time") === "time")
-      .flatMap((p) => p.signals.filter((s) => !s.state).map((s) => s.sig)))];
-    try {
-      const s = await api.suggestCondition(a, b, sigs);
-      if (s.id && s.text && s.name) {
-        useApp.setState({ panel: "investigate", condEdit: { id: "new", draft: { name: `${s.name} ${s.up ? "↑" : "↓"}`, text: s.text } } });
-        return;
-      }
-    } catch { /* this plot's own line, below */ }
-    findSimilarHere(a, b);
-  };
+  // "Find similar" (spanActions.ts) without the server's answer: this plot's first line, above (or below) half way
+  // from its level before the span to its peak inside it
   const findSimilarHere = (a: number, b: number) => {
     const u = uRef.current;
     if (!u) return;
@@ -1102,21 +1059,13 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     useApp.setState({ panel: "investigate", condEdit: { id: "new", draft } });
   };
 
-  const selBar = (
-      <div ref={barRef} className="sel-bar" hidden role="toolbar" aria-label={translate(useApp.getState().lang, "selBar")}
-        onMouseDown={(e) => e.stopPropagation()}>
-        <button className="btn sm" onClick={() => actions.addNoteAtCursor()}>✎ {translate(useApp.getState().lang, "selNote")}</button>
-        <button className="btn sm sel-find" onClick={findSimilar}>⌕ {translate(useApp.getState().lang, "selFindSimilar")}</button>
-        <button className="btn sm sel-changed" onClick={() => {
-          const c = useApp.getState().cursor;
-          if (c.t1 === null || c.t2 === null) return;
-          openWhatChanged({ a: Math.min(c.t1, c.t2), b: Math.max(c.t1, c.t2) });
-        }}>? {translate(useApp.getState().lang, "selWhatChanged")}</button>
-      </div>);
+  useEffect(() => {
+    if (previewOnly || index < 0) return;
+    spanFallback.set(plot.id, findSimilarHere);
+    return () => { spanFallback.delete(plot.id); };
+  });
   return (
     <div className="plot-canvas" ref={wrapRef}>
-      {/* W7: in the plot's head, right of the legend (a preview or a chart outside a plot: over the span, as before) */}
-      {selSlot ? createPortal(selBar, selSlot) : selBar}
     </div>
   );
 }
