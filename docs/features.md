@@ -553,6 +553,7 @@ For any recording, not only flight logs (1.27: the Log panel became *Checks*).
 ### A folder of recordings
 
 - **Sweeps ▸ Data ▸ *From a folder of recordings…*** (also *File ▾* in Sweeps, Ctrl+K and *Investigate ▸ Runs matrix ▸ Summarize a folder*): one row per recording of a folder - the same measures in each (max / min / mean / rms / final… of a signal, optionally only *where* a condition holds) and parameters from the file name (`{vehicle}_{date}`); read one file at a time (memory: one file's), any format, sub-folders not included
+- A `checks.json` beside the recordings (1.38, CC13) judges each run as *Checks* does: a column per requirement (`req: <name>`, 1 met / 0 not / empty: not judged) and `requirements met` - in Sweeps and in `signalviewer-cli summarize`
 - A `measures.json` beside the recordings (the Runs matrix's *Save measures*: `{"measures": [...], "pattern": "..."}`) is used at once; without one, the folder's first recording opens with the Runs matrix to define the measures on it, and its *Summarize a folder* remembers the folder. The same file runs from the command line: `signalviewer-cli summarize <folder> --measures measures.json`
 - The table opens in Sweeps with a *recording* column: tick rows and *Open in Recordings* opens them together (Compare-ready); a set's detail opens its runs' recordings
 - A table of recordings reads as one (2026-11-17): steps *Data → Columns → Limits → Results*, counted in recordings - no *Send runs*, no *Next runs*

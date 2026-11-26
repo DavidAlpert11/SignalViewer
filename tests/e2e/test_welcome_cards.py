@@ -198,3 +198,5 @@ def test_the_simulation_examples_open_where_they_promise(pg):
     open_example(pg, "monteCarlo")
     pg.wait_for_function("window.__sv.state().area === 'sweeps'", timeout=60000)
     pg.locator("footer.status", has_text="24 recordings").wait_for(timeout=90000)         # a row per run
+    # CC13: the folder's checks.json judged on every run - a column per requirement and "requirements met"
+    pg.wait_for_function("(() => { const s = window.__svSweeps.doc(); return JSON.stringify(s).includes('requirements met'); })()", timeout=60000)

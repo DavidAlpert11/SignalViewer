@@ -262,6 +262,28 @@ def _requirement(store, run_id: str, names: List[str], c: dict, where: str) -> D
     return res
 
 
+REQ_ALL = "requirements met"
+
+
+def verdict_columns(store: Any, run_id: str, path: str) -> Dict[str, Optional[float]]:
+    """CC13: a run's requirements as columns of the runs table - one per requirement (1 met, 0 not met, empty: not
+    judged) and `requirements met` (1 when every judged one is) - from its own checks file, as Checks judges it.
+    No checks file (or one made for other recordings): no columns."""
+    cf = checks_file_for(path)
+    if not cf:
+        return {}
+    try:
+        res = run_checks(path, load_checks(cf), store, run_id)["results"]
+    except ChecksError:
+        return {}
+    judged = [r for r in res if r["status"] in ("pass", "fail")]
+    if not judged:
+        return {}
+    out: Dict[str, Optional[float]] = {f"req: {r['name']}": (1.0 if r["status"] == "pass" else 0.0) if r in judged else None for r in res}
+    out[REQ_ALL] = 1.0 if all(r["status"] == "pass" for r in judged) else 0.0
+    return out
+
+
 def junit_xml(files: List[Dict[str, Any]]) -> str:
     """JUnit XML: one testsuite per file, one testcase per check (CI shows it as test results)."""
     rows = ['<?xml version="1.0" encoding="UTF-8"?>']

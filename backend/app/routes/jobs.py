@@ -132,8 +132,9 @@ def start_job(req: JobRequest):
             return st, st.open_file(path).id
 
         def work(job):
+            from app.checks import verdict_columns     # CC13: each run's requirements, a column each
             cols, rows, skipped = summary.summarize_files(files, measures, pattern, open_one,
-                                                          job.report, job.cancelled)
+                                                          job.report, job.cancelled, more=verdict_columns)
             if job.cancelled():
                 raise JobCancelled()
             return {"columns": cols, "rows": rows, "skipped": skipped}

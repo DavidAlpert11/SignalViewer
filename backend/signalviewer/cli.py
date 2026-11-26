@@ -275,8 +275,10 @@ def cmd_summarize(a) -> int:
     def open_file(path):
         rec = load(path)
         return rec._store, rec._id
+    from app.checks import verdict_columns             # CC13: each run's requirements (its checks file), a column each
     cols, rows, skipped = summary.summarize_files(files, measures, pattern, open_file,
-                                                  progress=lambda f, name: print(f"[{round(f * len(files)) + 1}/{len(files)}] {name}", file=sys.stderr))
+                                                  progress=lambda f, name: print(f"[{round(f * len(files)) + 1}/{len(files)}] {name}", file=sys.stderr),
+                                                  more=verdict_columns)
     with open(a.out, "w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
         w.writerow(cols)

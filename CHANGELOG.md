@@ -58,6 +58,9 @@
   limit and a plot of each failure; the ready report *Verification against the requirements* puts it first and says
   how to reproduce the verdict. `signalviewer-cli check` with no `--checks` reads each file's own checks file, as
   *Checks* does.
+- **Many runs, each with its verdict (CC13).** A folder of runs with a `checks.json` beside them (a Monte-Carlo batch,
+  a parameter grid) gets the requirements in its runs table: a column per requirement (1 met, 0 not) and *requirements
+  met* - filter on it in Sweeps; `signalviewer-cli summarize` writes the same columns.
 
 ## 1.37.0 – 2026-11-26
 

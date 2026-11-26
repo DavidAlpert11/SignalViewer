@@ -194,11 +194,12 @@ def folder_files(paths: Sequence[str]) -> List[str]:
 
 
 def summarize_files(paths: Sequence[str], measures: Sequence[dict], pattern: str, open_file,
-                    progress=lambda _f, _name: None, cancelled=lambda: False) -> Tuple[List[str], List[list], List[str]]:
+                    progress=lambda _f, _name: None, cancelled=lambda: False,
+                    more: Optional[Callable[[object, str, str], Dict[str, Optional[float]]]] = None) -> Tuple[List[str], List[list], List[str]]:
     """M2: (columns, rows, skipped) for recordings that are NOT open - one at a time: open_file(path) -> (store,
     run id) reads it into a store of its own, it is measured and closed, so memory stays one file's (measured
     flat over 50 files of 2 M rows: tools/measure_summary_memory.py). A file that cannot be read is named in
-    `skipped`, the rest go on."""
+    `skipped`, the rest go on. CC13: more(store, run id, path) -> more columns of the run (the requirements' verdicts)."""
     check(measures)
     got: List[dict] = []
     skipped: List[str] = []
@@ -213,9 +214,10 @@ def summarize_files(paths: Sequence[str], measures: Sequence[dict], pattern: str
             continue
         try:
             r = summarize_run(st, rid, measures, pattern)
+            extra = more(st, rid, path) if more else {}
         finally:
             st.remove(rid)
-        got.append({"recording": os.path.abspath(path), **r["params"], **r["values"]})
+        got.append({"recording": os.path.abspath(path), **r["params"], **r["values"], **extra})
     cols: List[str] = []
     for r in got:
         cols += [k for k in r if k not in cols]

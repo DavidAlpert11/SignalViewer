@@ -495,7 +495,8 @@ folder*). Each recording gets the same **measures** (the highest `VIBE[0].VibeZ`
 the last `BAT[0].CurrTot`…) and parameters read from its name (`{vehicle}_{date}` reads `X8-A_2026-09-02.bin`
 as vehicle X8-A, date 2026-09-02). The folder is read one file at a time, so hundreds of files of any format
 are fine. A `measures.json` beside the recordings (the Runs matrix's *Save measures*) is used at once;
-without one, the folder's first recording opens with the Runs matrix to define them on it.
+without one, the folder's first recording opens with the Runs matrix to define them on it. A `checks.json` beside
+them adds the verdict: a column per requirement (1 met, 0 not) and *requirements met* - filter on it in Sweeps.
 
 In Sweeps each row keeps a link to its recording (the *recording* column): tick the rows that need a look and
 *Open in Recordings* opens them together, their signals side by side. The welcome card *A folder of

@@ -32,7 +32,8 @@ One row per recording: its path, the parameters the pattern reads from its name,
 (`measures.json` as the Runs matrix's *Save measures…* writes it: `{"measures": [{"name": "max roll", "signal":
 "ATT.Roll", "op": "max", "where": "Mode == 1"}], "pattern": "..."}`; ops: max, min, mean, rms, std, range, first,
 final, at (with `"t"`), argmax, argmin, overshoot, settle). The files are read one at a time - the memory of one
-file. A file that cannot be read is named on stderr and left out.
+file. A file that cannot be read is named on stderr and left out. A recording with a checks file (`<name>.checks.json`,
+or `checks.json` in its folder) gets its verdict too: a column per requirement (1 met, 0 not) and `requirements met`.
 
 ## Reports
 

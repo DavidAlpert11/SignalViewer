@@ -125,3 +125,18 @@ def test_the_folder_example_tells_its_story():
     assert a == sorted(a) and a[0] < 20 < 60 < a[-1]
     b = [r[4] for r in rows if r[1] == "X8-B"]
     assert min(b) == b[-1] < 14 < min(b[:-1])
+
+
+def test_a_folder_with_a_checks_file_gets_a_verdict_column_per_requirement():
+    """CC13: the Monte-Carlo example's folder (measures.json + checks.json): each run's requirements as columns -
+    1 met / 0 not - and `requirements met`, the same verdict as Checks on that run; the heavy, low-friction runs fail."""
+    mc = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "simulation", "montecarlo")
+    res = _wait(client.post("/api/jobs", json={"kind": "summarizeFolder", "body": {"folder": mc}}).json())["result"]
+    cols = res["columns"]
+    reqs = [c for c in cols if c.startswith("req: ")]
+    assert len(reqs) == 2 and cols[-1] == "requirements met"
+    k = cols.index("requirements met")
+    met = [r[k] for r in res["rows"]]
+    assert len(met) == 24 and set(met) == {0.0, 1.0} and 0 < met.count(0.0) < 24
+    for r in res["rows"]:                                    # every requirement met <=> the run is met
+        assert r[k] == float(all(r[cols.index(c)] == 1.0 for c in reqs))

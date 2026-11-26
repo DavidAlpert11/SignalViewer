@@ -1311,3 +1311,8 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
   test_report_parts::test_the_requirements_part_judges_each_run_against_its_checks_file,
   test_cli_api::test_cli_check_reads_each_recordings_own_checks_file, test_checks (updated); Vitest reportReady
   (CC15).
+- [x] CC13 The runs table's verdict: app/checks.py verdict_columns (each run's checks_file_for -> run_checks: `req:
+  <name>` 1 / 0 / empty, `requirements met`), passed as summarize_files(more=) by the summarizeFolder job and the
+  CLI's summarize (svcore stays free of app). Tests: backend
+  test_summary::test_a_folder_with_a_checks_file_gets_a_verdict_column_per_requirement; e2e test_welcome_cards (the
+  Monte-Carlo study has the column), test_folder_of_recordings, test_sweeps_data_columns.
