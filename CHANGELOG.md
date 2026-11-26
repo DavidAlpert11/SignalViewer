@@ -65,6 +65,10 @@
   baseline's own sample-to-sample noise reads *≈ noise* beside it; the tooltip gives the ratio.
 - Sweeps' *Next runs* says less (CC3): what each kind of suggestion looks for, the *Explore* and *Split* explanations
   and the step's intro are tooltips; the counts and the budget stay on screen.
+- **Fewer frames (CC10).** The plot's signal chips and kind button, the keys' boxes, Sweeps' step cards (only the step
+  on screen is framed) and the secondary buttons are tinted instead of outlined - about a third fewer outlines across
+  the screens. Sweeps' *Goal* has one way on (the side panel's *See the results →*) and its table's explanation is the
+  limit columns' tooltip.
 
 ## 1.37.0 – 2026-11-26
 

@@ -1323,3 +1323,11 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
 - [x] CC3 (Next runs) NextRunsView: nxProposeHint on the heading's title, swExploreHint on the field's, each kind's
   hint on its label's (the robust kind's 'choose Robust to first' stays when it is off), the split's explanation on
   its row (the manual split's sum stays). Tests: e2e test_sweeps_flow, test_sweeps_workspace, test_study_common.
+- [x] CC10 (rest) Fewer outlines: .chip, .mode-btn, .kbd, .chip .tag, .btn.outline (tinted: --panel-2 / --raised on
+  hover) and Sweeps' .sw-step-btn (the step on screen keeps its frame) - no border colour, the 1 px kept transparent
+  (sizes unchanged); tools/audit_screens.py counts *outlined* (a visible frame) and lists them by kind: 394 -> 250
+  across the 19 screens (SPEC_1_38.md). CC2's leftover: Goal's second *See the results →* gone; CC3: swGoalTableHint
+  as the limit columns' tooltip. e2e test_features::test_checks_panel_for_any_file_and_a_logs_events waits for the
+  events list to settle (the any-data findings join it a moment later - it clicked a moving row, 2 of 3 runs). Tests:
+  e2e test_sweeps_flow, test_sweeps_workspace, test_sweeps_groups, test_calm_screen, test_plot_polish, test_features,
+  test_checks_view, test_welcome_cards, test_settings.

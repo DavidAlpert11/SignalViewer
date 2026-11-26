@@ -202,11 +202,11 @@ function GoalTable({ study }: { study: Study }) {
   };
   return (
     <>
-      <p className="hint">{t("swGoalTableHint")}</p>
+      {/* CC3: the step's intro already says it - the table's explanation is the limit columns' tooltip */}
       {sel.length > 1 && <BulkBar study={study} cols={sel} outputs={outputs.map((c) => c.name)} onClear={() => setSel([])} />}
       <div className="sw-table-wrap">
         <table className="sw-table sw-goal-table sw-sticky-first">
-          <thead><tr><th>{t("swColumn")}</th><th>{t("swRange")}</th><th>{t("swLimitMin")}</th><th>{t("swLimitMax")}</th><th title={t("swOptimizeMoreHint")}>{t("swGoalOptimize")}</th><th>{g.optimize.length > 1 ? t("swWeight") : ""}</th></tr></thead>
+          <thead><tr><th>{t("swColumn")}</th><th>{t("swRange")}</th><th title={t("swGoalTableHint")}>{t("swLimitMin")}</th><th title={t("swGoalTableHint")}>{t("swLimitMax")}</th><th title={t("swOptimizeMoreHint")}>{t("swGoalOptimize")}</th><th>{g.optimize.length > 1 ? t("swWeight") : ""}</th></tr></thead>
           <tbody>
             {outputs.length > 0 && <tr className="sw-goal-group"><td colSpan={6}>{t("swGoalOutputs")}</td></tr>}
             {outputs.map((c) => row(c, true))}
@@ -229,9 +229,7 @@ function GoalTable({ study }: { study: Study }) {
           <button className="btn sm" onClick={() => showPareto(study)}>{t("swShowPareto")} →</button>
         </div>
       )}
-      <div className="sw-row">
-        <button className="btn primary" onClick={() => st.setView({ step: "results" })}>{t("swGoalSeeResults")} →</button>
-      </div>
+      {/* CC2: one way on - the side panel's "See the results →" (StepFoot) and the step cards */}
     </>
   );
 }

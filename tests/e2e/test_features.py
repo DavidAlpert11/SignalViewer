@@ -2079,6 +2079,11 @@ def test_checks_panel_for_any_file_and_a_logs_events(pg):
     pg.wait_for_selector(".rail-log .rail-badge")                            # errors in the log
     pg.click(".rail-log")
     pg.locator(".log-tabs button").nth(1).click()                            # Health is first; then Events
+    # the automatic findings (CC12) join the list a moment later and move its rows: click once it has settled
+    pg.wait_for_function("""(() => { const n = document.querySelectorAll('.log-row').length;
+      const w = window.__rowsSeen = window.__rowsSeen || { n: -1, since: 0 };
+      if (n !== w.n) { w.n = n; w.since = performance.now(); return false; }
+      return n > 0 && performance.now() - w.since > 800; })()""", polling=100)
     pg.locator(".log-row", has_text="ARMED").first.click()
     pg.wait_for_function("window.__sv.state().cursor.on && Math.abs(window.__sv.state().cursor.t1 - 4) < 1e-6")
     pg.locator(".log-tabs button").nth(2).click()

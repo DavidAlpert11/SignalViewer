@@ -211,7 +211,7 @@ button, input, select { font: inherit; color: inherit; }
    A3 Components (plan §5.2): one definition each, here only - buttons, segmented, chips, pills,
    menus, toasts. Area files (styles/*.css) place them, they do not restyle them.
 --------------------------------------------------------------------------- */
-/* Buttons: default (quiet), .outline, .primary (the neutral ink, never the cursor amber), .ghost (text
+/* Buttons: default (quiet), .outline (tinted), .primary (the neutral ink, never the cursor amber), .ghost (text
    only), .danger; sizes 28 (default) and .sm 24. .iconbtn is the square one; .linkbtn / .linklike a link. */
 .iconbtn, .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1_5);
@@ -225,7 +225,8 @@ button, input, select { font: inherit; color: inherit; }
 /* review R10: a disabled button must look it (a disabled primary looked the same as an active one) */
 .iconbtn:disabled, .btn:disabled { opacity: .45; cursor: not-allowed; }
 .iconbtn:disabled:hover, .btn:disabled:hover { background: none; }
-.btn.outline { border-color: var(--line-strong); }
+.btn.outline { background: var(--panel-2); }   /* CC10: a secondary button is tinted, not framed */
+.btn.outline:hover { background: var(--raised); border-color: var(--line); }
 .btn.primary { background: var(--select); border-color: var(--select); color: var(--select-ink); font-weight: 500; }
 .btn.primary:hover { opacity: .9; background: var(--select); }
 .btn.primary:disabled:hover { background: var(--select); opacity: .45; }
@@ -373,7 +374,7 @@ table.data tr.sel, table.data tr[aria-selected="true"] { background: var(--selec
 .empty-state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); padding: 12px 14px; color: var(--muted); }
 .empty-state > p { margin: 0; }
 .sep { width: 1px; height: 20px; background: var(--line); margin-inline: 4px; }
-.kbd { font-family: var(--mono); font-size: var(--fs-xs); color: var(--faint); border: 1px solid var(--line); border-radius: var(--r-s); padding: 0 4px; }   /* D12: keys in mono */
+.kbd { font-family: var(--mono); font-size: var(--fs-xs); color: var(--faint); background: var(--panel-2); border-radius: var(--r-s); padding: 0 4px; }   /* D12: keys in mono */
 
 .search-trigger {
   display: flex; align-items: center; gap: var(--sp-2); height: 30px; width: 260px; padding-inline: 10px; white-space: nowrap; overflow: hidden;
@@ -448,9 +449,9 @@ table.data tr.sel, table.data tr[aria-selected="true"] { background: var(--selec
 .legend { display: flex; flex-wrap: wrap; gap: var(--sp-1); flex: 1 1 180px; min-width: 0; }
 .chip {
   display: inline-flex; align-items: center; gap: var(--sp-1_5); height: 22px; padding-inline: 8px 4px;
-  border: 1px solid var(--line); border-radius: var(--r-xl); background: none; cursor: pointer; max-width: 260px; color: var(--ink);
-}
-.chip:hover { border-color: var(--line-strong); }
+  border: 1px solid transparent; border-radius: var(--r-xl); background: var(--panel-2); cursor: pointer; max-width: 260px; color: var(--ink);
+}   /* CC10: a soft tint, no outline - the outline marks the selected chip only */
+.chip:hover { background: var(--raised); border-color: var(--line); }
 .chip.sel { border-color: var(--ink-strong); background: var(--panel-2); }
 .chip .sw { width: 10px; height: 3px; border-radius: var(--r-xs); flex: none; }
 .chip .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-m); }
@@ -469,7 +470,7 @@ table.data tr.sel, table.data tr[aria-selected="true"] { background: var(--selec
   font-size: 0.78em; color: var(--amber-ink); background: var(--amber-soft); border: 1px solid var(--amber); cursor: help; }
 .step-note { white-space: normal; max-width: calc(100% - 90px); }
 .fft-grid-note.fft-bursts { color: var(--muted); background: var(--panel); border-color: var(--line); }
-.mode-btn { display: inline-flex; align-items: center; gap: var(--sp-1); height: 22px; padding: 0 6px 0 8px; border: 1px solid var(--line);
+.mode-btn { display: inline-flex; align-items: center; gap: var(--sp-1); height: 22px; padding: 0 6px 0 8px; border: 1px solid transparent;
   border-radius: var(--r-m); background: var(--panel-2); color: var(--muted); font-size: var(--fs-m); }
 .mode-btn:hover, .mode-btn:focus-visible { color: var(--ink); border-color: var(--line-strong); }
 .xpick { display: inline-flex; align-items: center; gap: var(--sp-1); padding: 1px 4px; border-radius: var(--r-m); }
@@ -477,7 +478,7 @@ table.data tr.sel, table.data tr[aria-selected="true"] { background: var(--selec
 .xpick label { color: var(--muted); font-size: var(--fs-sm); font-weight: 600; }
 .xpick select { max-width: 170px; height: 24px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 0 4px; font-size: var(--fs-m); }
 .xpick .btn { height: 24px; font-size: var(--fs-m); }
-.chip .tag { font-size: var(--fs-xs); color: var(--muted); border: 1px solid var(--line); border-radius: var(--r-s); padding: 0 4px; }
+.chip .tag { font-size: var(--fs-xs); color: var(--muted); background: var(--raised); border-radius: var(--r-s); padding: 0 4px; }
 .analysis { padding: 4px 12px 16px; }
 .afield { display: flex; flex-direction: column; gap: var(--sp-1); margin-bottom: 10px; color: var(--muted); font-size: var(--fs-m); }
 .afield select, .afield input { width: 100%; height: 30px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-m); padding: 0 8px; color: var(--ink); }

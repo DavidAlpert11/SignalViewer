@@ -24,12 +24,19 @@ COUNT_JS = """() => {
      && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim().length >= 50));
   const texts = blocks.map(e => e.innerText.trim().replace(/\\s+/g, ' ').slice(0, 160));
   const words = texts.reduce((a, t) => a + t.split(' ').length, 0);
-  const borders = [...document.querySelectorAll('*')].filter(e => { if (!vis(e)) return false; const s = getComputedStyle(e);
-     return parseFloat(s.borderTopWidth) > 0 && parseFloat(s.borderLeftWidth) > 0 && parseFloat(s.borderRightWidth) > 0 && parseFloat(s.borderBottomWidth) > 0; }).length;
+  const boxedEls = [...document.querySelectorAll('*')].filter(e => { if (!vis(e)) return false; const s = getComputedStyle(e);
+     return parseFloat(s.borderTopWidth) > 0 && parseFloat(s.borderLeftWidth) > 0 && parseFloat(s.borderRightWidth) > 0 && parseFloat(s.borderBottomWidth) > 0; });
+  const borders = boxedEls.length;
+  // what the eye sees as a frame: a border on all four sides in a colour that is not transparent (a button's
+  // transparent border keeps its size, it draws nothing) and not the element's own fill
+  const seen = c => !/rgba\([^)]*,\s*0\)$|transparent/.test(c);
+  const outlinedEls = boxedEls.filter(e => { const s = getComputedStyle(e); return seen(s.borderTopColor) && seen(s.borderLeftColor) && s.borderTopColor !== s.backgroundColor; });   // a filled button's own colour is no frame
+  // which kinds of element are outlined (tag.firstClass) - where to look for outlines to take away
+  const boxedBy = {}; outlinedEls.forEach(e => { const k = e.tagName.toLowerCase() + '.' + ((e.className && e.className.toString().split(' ')[0]) || ''); boxedBy[k] = (boxedBy[k] || 0) + 1; });
   const region = e => { const r = e.closest('header.topbar, .stage-bar, .rail, .side-panel, .panel, aside, .inspector, .plot-head, .plot, .timeline, .statusbar, .sw-toolbar, .sw-steps, .sw-side, .dialog, .menu, .sw-main, main');
      return r ? (r.className || r.tagName).toString().split(' ')[0] : 'other'; };
   const list = ctrls.map(e => [region(e), (e.getAttribute('aria-label') || e.innerText || e.title || e.placeholder || '').trim().replace(/\\s+/g,' ').slice(0, 40)]).filter(x => x[1]);
-  return { list, controls: ctrls.length, topbar: top.length, proseBlocks: texts.length, proseWords: words, boxed: borders,
+  return { list, controls: ctrls.length, topbar: top.length, proseBlocks: texts.length, proseWords: words, boxed: borders, outlined: outlinedEls.length, boxedBy,
            topbarItems: top.map(b => (b.getAttribute('aria-label') || b.innerText || b.title || b.placeholder || '').trim().slice(0, 30)),
            prose: texts };
 }"""

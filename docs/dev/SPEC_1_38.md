@@ -145,3 +145,34 @@ Against the targets: TopBar 11 with files open (the brand, the two areas, search
 Sweeps' Goal / Next runs and Settings; boxed down by about a tenth, not a third. Left for the push session: Checks'
 prose (its notes under the sections), Sweeps' explanation paragraphs, Settings' descriptions under a "?", and CC10's
 fewer boxes.
+
+
+## CC10 measured (2026-11-26, push session, tools/audit_screens.py, dark, English)
+
+*Boxed* counted every element with a border on four sides, also a transparent one (every button has one, to keep its
+size) - so the audit now also counts *outlined*: a visible frame (a border colour that is not transparent and not the
+element's own fill) and lists them by kind (boxedBy). The outlines taken away: the plot's chips and mode button, the
+keys' boxes, Sweeps' step cards (only the step on screen keeps its frame), the secondary buttons (tinted instead).
+
+| Screen | Outlined | Boxed (any border) | Prose words |
+|---|---|---|---|
+| 01_welcome | 11 -> 7 | 25 -> 24 | 110 |
+| 02_plots_inspector | 27 -> 17 | 59 -> 57 | 26 |
+| 03_files_panel | 16 -> 12 | 42 -> 41 | 17 |
+| 04_create | 17 -> 11 | 39 -> 38 | 48 |
+| 05_compare | 23 -> 14 | 47 -> 46 | 53 |
+| 06_investigate | 12 -> 5 | 35 -> 34 | 58 |
+| 07_messages | 5 -> 2 | 11 -> 10 | 58 |
+| 08_report | 8 -> 2 | 33 -> 32 | 16 |
+| 09_checks_flightlog | 27 -> 18 | 56 -> 55 | 114 |
+| 10_checks_bench | 19 -> 16 | 42 -> 41 | 114 |
+| 11_sweeps_welcome | 16 -> 7 | 19 -> 18 | 105 |
+| 12_sweeps_data | 13 -> 5 | 24 -> 23 | 0 |
+| 13_sweeps_columns | 44 -> 32 | 53 -> 52 | 12 |
+| 14_sweeps_goal | 39 -> 31 | 46 -> 45 | 81 |
+| 15_sweeps_results | 30 -> 14 | 49 -> 48 | 44 |
+| 16_sweeps_next | 21 -> 11 | 26 -> 25 | 71 |
+| 17_settings | 23 -> 18 | 38 -> 37 | 214 |
+| 18_palette | 22 -> 13 | 48 -> 42 | 31 |
+| 19_templates | 21 -> 15 | 51 -> 50 | 39 |
+| **All 19** | **394 -> 250 (-37 %)** | | |
