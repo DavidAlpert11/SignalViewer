@@ -1331,3 +1331,9 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
   events list to settle (the any-data findings join it a moment later - it clicked a moving row, 2 of 3 runs). Tests:
   e2e test_sweeps_flow, test_sweeps_workspace, test_sweeps_groups, test_calm_screen, test_plot_polish, test_features,
   test_checks_view, test_welcome_cards, test_settings.
+- [x] CC21 (rest) bin_loader.py split (behaviour unchanged): svcore/ardupilot_tables.py (MODES, EVENTS, EVENT_LEVEL,
+  ERR_SUBSYS, vehicle_of - ArduPilot's domain tables apart from the reader), svcore/bin_lazy.py (_gather, _BinSource,
+  LazyField), svcore/bin_index.py (the index cache: INDEX_VERSION, _index_dir / _save / _load); every name re-exported
+  by bin_loader (callers, tests that set B.LAZY_MIN, the pickled DataFlash of an existing index - its class stays in
+  bin_loader). 1274 -> 1055 lines; DataFlash stays one class (its framing, repair and decoding share its state).
+  Tests: backend all (1541), mypy.

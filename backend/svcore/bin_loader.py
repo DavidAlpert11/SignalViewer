@@ -32,13 +32,8 @@ Progress and cancel go through csv_loader's per-thread context (the jobs bar).
 """
 
 import logging
-import hashlib
-import json
 import os
-import pickle
 import re
-import shutil
-import threading
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -77,133 +72,17 @@ COMPACT_MIN = LAZY_MIN               # logs at least this big keep exact float32
 _EAGER_TYPES = {"FMT", "FMTU", "UNIT", "MULT", "PARM", "FILE", "MSG", "MODE", "EV", "ERR"}   # always read at once
 _LOSSLESS32 = set("fbBhHM")          # format chars whose values float32 holds exactly
 
-# Flight-mode names (ArduPilot's mode numbers per vehicle). The vehicle is read from the log's
-# own start-up messages ("ArduCopter V4.5.7", "ArduPlane", "ArduRover", "ArduSub").
-MODES = {
-    "copter": {0: "STABILIZE", 1: "ACRO", 2: "ALT_HOLD", 3: "AUTO", 4: "GUIDED", 5: "LOITER", 6: "RTL",
-               7: "CIRCLE", 9: "LAND", 11: "DRIFT", 13: "SPORT", 14: "FLIP", 15: "AUTOTUNE", 16: "POSHOLD",
-               17: "BRAKE", 18: "THROW", 19: "AVOID_ADSB", 20: "GUIDED_NOGPS", 21: "SMART_RTL", 22: "FLOWHOLD",
-               23: "FOLLOW", 24: "ZIGZAG", 25: "SYSTEMID", 26: "AUTOROTATE", 27: "AUTO_RTL", 28: "TURTLE"},
-    "plane": {0: "MANUAL", 1: "CIRCLE", 2: "STABILIZE", 3: "TRAINING", 4: "ACRO", 5: "FBWA", 6: "FBWB",
-              7: "CRUISE", 8: "AUTOTUNE", 10: "AUTO", 11: "RTL", 12: "LOITER", 13: "TAKEOFF", 14: "AVOID_ADSB",
-              15: "GUIDED", 17: "QSTABILIZE", 18: "QHOVER", 19: "QLOITER", 20: "QLAND", 21: "QRTL",
-              22: "QAUTOTUNE", 23: "QACRO", 24: "THERMAL", 25: "LOITER_ALT_QLAND", 26: "AUTOLAND"},
-    "rover": {0: "MANUAL", 1: "ACRO", 3: "STEERING", 4: "HOLD", 5: "LOITER", 6: "FOLLOW", 7: "SIMPLE",
-              8: "DOCK", 9: "CIRCLE", 10: "AUTO", 11: "RTL", 12: "SMART_RTL", 15: "GUIDED", 16: "INITIALISING"},
-    "sub": {0: "STABILIZE", 1: "ACRO", 2: "ALT_HOLD", 3: "AUTO", 4: "GUIDED", 7: "CIRCLE", 9: "SURFACE",
-            16: "POSHOLD", 19: "MANUAL", 20: "MOTOR_DETECT", 21: "SURFTRAK"},
-}
-# AP_Logger.h: LogEvent
-EVENTS = {10: "ARMED", 11: "DISARMED", 15: "AUTO_ARMED", 17: "LAND_COMPLETE_MAYBE", 18: "LAND_COMPLETE",
-          19: "LOST_GPS", 21: "FLIP_START", 22: "FLIP_END", 25: "SET_HOME", 28: "NOT_LANDED",
-          30: "AUTOTUNE_INITIALISED", 31: "AUTOTUNE_OFF", 32: "AUTOTUNE_RESTART", 33: "AUTOTUNE_SUCCESS",
-          34: "AUTOTUNE_FAILED", 35: "AUTOTUNE_REACHED_LIMIT", 36: "AUTOTUNE_PILOT_TESTING", 37: "AUTOTUNE_SAVEDGAINS",
-          38: "SAVE_TRIM", 41: "FENCE_ENABLE", 42: "FENCE_DISABLE", 46: "GRIPPER_GRAB", 47: "GRIPPER_RELEASE",
-          49: "PARACHUTE_DISABLED", 50: "PARACHUTE_ENABLED", 51: "PARACHUTE_RELEASED", 52: "LANDING_GEAR_DEPLOYED",
-          53: "LANDING_GEAR_RETRACTED", 54: "MOTORS_EMERGENCY_STOPPED", 55: "MOTORS_EMERGENCY_STOP_CLEARED",
-          56: "MOTORS_INTERLOCK_DISABLED", 57: "MOTORS_INTERLOCK_ENABLED", 58: "ROTOR_RUNUP_COMPLETE",
-          59: "ROTOR_SPEED_BELOW_CRITICAL", 60: "EKF_ALT_RESET", 61: "LAND_CANCELLED_BY_PILOT", 62: "EKF_YAW_RESET",
-          67: "GPS_PRIMARY_CHANGED", 74: "STANDBY_ENABLE", 75: "STANDBY_DISABLE", 85: "EK3_SOURCES_SET_TO_PRIMARY",
-          86: "EK3_SOURCES_SET_TO_SECONDARY", 87: "EK3_SOURCES_SET_TO_TERTIARY", 90: "AIRSPEED_PRIMARY_CHANGED",
-          163: "SURFACED", 164: "NOT_SURFACED", 165: "BOTTOMED", 166: "NOT_BOTTOMED", 167: "EKF_MAG_OFFSETS_SAVED"}
-# events worth a look in the health check (the rest are information - EKF yaw / altitude resets
-# happen in most healthy flights, at the first take-off, and an emergency stop is the pilot's own)
-EVENT_LEVEL = {19: "warning", 34: "warning", 59: "warning", 51: "error"}
-# AP_Logger.h: LogErrorSubsystem (ECode 0 = resolved)
-ERR_SUBSYS = {1: "Main", 2: "Radio", 3: "Compass", 4: "Optical flow", 5: "Radio failsafe", 6: "Battery failsafe",
-              7: "GPS failsafe", 8: "GCS failsafe", 9: "Fence failsafe", 10: "Flight mode", 11: "GPS", 12: "Crash check",
-              13: "Flip", 14: "Autotune", 15: "Parachute", 16: "EKF check", 17: "EKF / inertial nav failsafe",
-              18: "Barometer", 19: "CPU load", 20: "ADS-B failsafe", 21: "Terrain", 22: "Navigation",
-              23: "Terrain failsafe", 24: "EKF primary", 25: "Thrust loss", 26: "Sensors failsafe", 27: "Leak failsafe",
-              28: "Pilot input", 29: "Vibration failsafe", 30: "Internal error", 31: "Dead-reckoning failsafe"}
-
-
 from svcore.flightlog import message_level  # noqa: E402  (one word list for .bin, .tlog and .ulg texts)
+# CC21: ArduPilot's own tables (modes, events, error subsystems) are domain content; the lazily read fields and the
+# index cache are parts of their own - the names stay importable from here (callers, tests, old pickles)
+from svcore.ardupilot_tables import ERR_SUBSYS, EVENT_LEVEL, EVENTS, MODES, vehicle_of  # noqa: E402,F401
+from svcore.bin_lazy import _BinSource, _gather, LazyField  # noqa: E402,F401
+from svcore.bin_index import _index_dir, _index_load, _index_save, INDEX_QUIET_S, INDEX_VERSION  # noqa: E402,F401
 
 
 def _f32(v) -> float:
     """A float32 parameter as written (0.15, not 0.15000000596)."""
     return float(f"{float(v):.7g}")
-
-
-def vehicle_of(texts) -> Optional[str]:
-    for _t, txt in texts[:200]:
-        low = txt.lower()
-        for key, veh in (("arducopter", "copter"), ("apm:copter", "copter"), ("apm:plane", "plane"),
-                         ("apm:rover", "rover"), ("ardupilot copter", "copter"), ("heli", "copter"),
-                         ("arduplane", "plane"), ("ardurover", "rover"), ("rover", "rover"), ("ardusub", "sub")):
-            if key in low:
-                return veh
-    return None
-
-
-
-def _gather(buf: np.ndarray, pos: np.ndarray, off: int, dt: str) -> np.ndarray:
-    """One field of the messages starting at `pos`: its bytes only, as `dt`."""
-    w = np.dtype(dt).itemsize
-    pos = pos.astype(np.int64) + off
-    if w <= 4:
-        # an unaligned 1-byte-stride view of the file as `dt`: numpy gathers the values directly
-        # (about twice as fast as copying byte rows for 2- and 4-byte fields - most of a log)
-        view = np.ndarray(shape=(len(buf) - w + 1,), dtype=dt, buffer=buf, offset=0, strides=(1,))
-        return view[pos]
-    win = np.lib.stride_tricks.as_strided(buf, shape=(len(buf) - w + 1, w), strides=(1, 1), writeable=False)
-    return np.ascontiguousarray(win[pos]).view(dt).reshape(-1)
-
-
-class _BinSource:
-    """The file a lazy log reads its values from, and how to tell that it is still the same file
-    (the bytes just before the end of what was read - like live mode's rewrite check)."""
-    def __init__(self, path: str):
-        self.path = path
-        self.byte_offset = 0
-        self.tail_sig: Optional[bytes] = None
-
-    def open(self) -> np.ndarray:
-        try:
-            with open(self.path, "rb") as f:
-                size = f.seek(0, 2)
-                if size < self.byte_offset:
-                    raise OSError
-                f.seek(max(0, self.byte_offset - 64))
-                if f.read(min(64, self.byte_offset)) != (self.tail_sig or b""):
-                    raise OSError
-        except OSError:
-            raise ValueError(f"{os.path.basename(self.path)} changed or is gone since it was opened: "
-                             "refresh it (F5) to read it again.") from None
-        return np.memmap(self.path, dtype=np.uint8, mode="r")
-
-
-class LazyField:
-    """Where one field's values are in the log: read when the signal is first used (big logs).
-    Holds the positions of its messages in time order; the values are exactly what an eager read
-    gives (same dtype, same multipliers applied the same way)."""
-    __slots__ = ("src", "pos", "off", "dt", "out", "fmult", "mult")
-
-    def __init__(self, src: _BinSource, pos: np.ndarray, off: int, dt: str, out, fmult: float, mult: float):
-        self.src, self.pos, self.off, self.dt, self.out, self.fmult, self.mult = src, pos, off, dt, out, fmult, mult
-
-    def __len__(self) -> int:
-        return len(self.pos)
-
-    @property
-    def nbytes(self) -> int:
-        return len(self.pos) * np.dtype(self.out).itemsize
-
-    def read(self) -> np.ndarray:
-        buf = self.src.open()
-        try:
-            y = _gather(buf, self.pos, self.off, self.dt).astype(self.out)
-        finally:
-            del buf                                   # unmapped: the file is not held open
-        if self.fmult != 1.0:
-            y *= self.fmult
-        if self.mult != 1.0:
-            y *= self.mult
-        return y
-
-    def concat(self, more: "LazyField") -> "LazyField":
-        return LazyField(self.src, np.concatenate([self.pos, more.pos]), self.off, self.dt, self.out, self.fmult, self.mult)
 
 
 class BinFormatError(Exception):
@@ -1000,109 +879,6 @@ def _read(path: str, start: int = 0) -> np.ndarray:
         if start:
             f.seek(start)
         return np.frombuffer(f.read(), dtype=np.uint8)
-
-
-# ---------------------------------------------------------------------------- index cache
-# A big log opened again (every start restores the last session) used to be read from scratch.
-# Its index - the time vectors and where each message is in the file, NOT the values - is kept in
-# the app's cache folder (the CSV cache's, with its size limits, cleaning and Settings button) and
-# memory-mapped when the same file is opened again: near-instant, and almost no RAM until a signal
-# is plotted. Used only when size, time stamp and a fingerprint of the bytes all match. Written
-# only for a log that is not being written to (live files change every second).
-INDEX_VERSION = 3   # v2: old GPS on its boot time (T); v3: O2 - damage left out (a v2 index keeps the phantom
-                    # signals, and its pickled DataFlash lacks the O2 fields that live mode reads)
-INDEX_QUIET_S = 60.0
-
-
-def _index_dir(path: str, st: os.stat_result) -> Optional[str]:
-    from svcore import csv_loader as cl
-    if not cl.CACHE_ENABLED:
-        return None
-    fp = cl.content_fingerprint(path, st.st_size)
-    raw = json.dumps([INDEX_VERSION, "bin", os.path.abspath(path), st.st_size, st.st_mtime_ns, fp])
-    return os.path.join(cl.CACHE_DIR, "bin-" + hashlib.sha1(raw.encode()).hexdigest())
-
-
-def _index_save(d: str, path: str, df: "DataFlash", sigs: Dict[str, tuple], end: int, report: dict):
-    """Arrays shared by several signals (one time vector per message instance) are written once."""
-    arrays: List[np.ndarray] = []
-    ids: Dict[int, int] = {}
-
-    def ref(a) -> int:
-        k = id(a)
-        if k not in ids:
-            ids[k] = len(arrays)
-            arrays.append(a)
-        return ids[k]
-
-    entries: List[tuple] = []
-    for name, v in sigs.items():
-        t, y = v[0], v[1]
-        labels = v[2] if len(v) > 2 else None
-        if isinstance(y, LazyField):
-            entries.append((name, ref(t), "lazy", (ref(y.pos), y.off, y.dt, np.dtype(y.out).str, y.fmult, y.mult), labels))
-        else:
-            entries.append((name, ref(t), "data", ref(y), labels))
-    src, df.src = df.src, None
-    try:
-        state = pickle.dumps({"df": df, "entries": entries, "end": end, "report": report}, protocol=4)
-    finally:
-        df.src = src
-
-    def write():
-        tmp = d + ".tmp"
-        try:
-            shutil.rmtree(tmp, ignore_errors=True)
-            os.makedirs(tmp)
-            for i, a in enumerate(arrays):
-                np.save(os.path.join(tmp, f"a{i}.npy"), np.ascontiguousarray(a))
-            with open(os.path.join(tmp, "state.pkl"), "wb") as f:
-                f.write(state)
-            with open(os.path.join(tmp, "meta.json"), "w", encoding="utf-8") as f:
-                json.dump({"source": os.path.abspath(path), "kind": "bin-index", "arrays": len(arrays)}, f)
-            shutil.rmtree(d, ignore_errors=True)
-            os.replace(tmp, d)
-            from svcore.csv_loader import prune_cache
-            prune_cache(keep=d, source=os.path.abspath(path))
-        except Exception as e:                 # a cache only: never fail the open for it
-            log.info(f"Could not write the log index: {e}")
-            shutil.rmtree(tmp, ignore_errors=True)
-
-    # the arrays are never changed in place (live mode replaces them), so writing them while the
-    # user already works is safe - the open does not wait for the disk
-    threading.Thread(target=write, daemon=True, name="bin-index").start()
-
-
-def _index_load(d: str, path: str):
-    meta = os.path.join(d, "meta.json")
-    if not os.path.isfile(meta):
-        return None
-    try:
-        with open(os.path.join(d, "state.pkl"), "rb") as f:
-            state = pickle.load(f)                 # the app's own cache folder, written above
-        with open(meta, encoding="utf-8") as f:
-            n = json.load(f)["arrays"]
-        arrays = [np.load(os.path.join(d, f"a{i}.npy"), mmap_mode="r") for i in range(n)]
-        try:
-            os.utime(meta)                         # last used (the cache's size limit)
-        except OSError:
-            pass
-    except Exception as e:
-        log.info(f"Damaged log index, reading the log instead: {e}")
-        shutil.rmtree(d, ignore_errors=True)
-        return None
-    df: DataFlash = state["df"]
-    df.src = _BinSource(path)
-    sigs: Dict[str, tuple] = {}
-    for name, ti, kind, payload, labels in state["entries"]:
-        t = arrays[ti]
-        if kind == "lazy":
-            pi, off, dt, out, fmult, mult = payload
-            y: Any = LazyField(df.src, arrays[pi], off, dt, np.dtype(out), fmult, mult)
-        else:
-            y = arrays[payload]
-        sigs[name] = (t, y, labels) if labels else (t, y)
-    return df, sigs, state["end"], state["report"]
 
 
 def load_bin(path: str, display_name: str) -> Tuple[Optional[Run], Dict]:
