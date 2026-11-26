@@ -1348,3 +1348,8 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
   test_what_changed, test_plot_polish, test_flat_line_solo, test_damaged_note, test_globe3d (16), test_local_objects,
   test_map_export, test_map_memory, test_map_objects, test_map_places_story_export, test_map_smooth, test_map_vectors,
   test_object_frames, test_object_relations, test_offline_map; Vitest; oxlint.
+- [x] Phase 3 A fresh agent's ten first-click tasks on the 19 screens (SPEC_1_38.md "Phase 3"): fixed - Checks'
+  chkFileNone line (where a checks file comes from), the Report's rdSaveHtml / rdExportFormats, English singular after
+  1 (i18n translate, PLURALS; Vitest plural.test.ts); seen and kept with reasons in the spec. Tests: Vitest; e2e
+  test_checks_view, test_one_per_plot ("1 condition"), test_less_clutter, test_calm_screen, test_what_changed,
+  test_report_doc, test_welcome_cards, test_judge_a_run, test_features (126).

@@ -130,7 +130,7 @@ def test_a_template_takes_the_conditions_to_the_next_flight(pg):
     pg.locator(".tpl-editor input").first.fill("Payload check")
     pg.locator(".tpl-editor .btn.primary").click()
     pg.wait_for_selector(".tpl-details h3:has-text('Payload check')")
-    assert "1 conditions" in pg.inner_text(".tpl-details .tpl-conds")
+    assert "1 condition" in pg.inner_text(".tpl-details .tpl-conds")       # Phase 3: the singular
     pg.keyboard.press("Escape")
     # a fresh start: nothing open, no conditions - then only the next flight
     rid = S(pg, "s.runs.find(r => r.name === 'heavy_payload.csv').id")
@@ -142,7 +142,7 @@ def test_a_template_takes_the_conditions_to_the_next_flight(pg):
     pg.wait_for_selector(".tpl-details .btn.primary:not([disabled])")
     pg.locator(".tpl-details .btn.primary").click()
     pg.wait_for_function("(window.__sv.state().ws.conditions || []).some(c => c.name === 'Motor3 at limit')")
-    assert "1 conditions added" in pg.locator(".toast").last.inner_text()
+    assert "1 condition added" in pg.locator(".toast").last.inner_text()
     pg.wait_for_function("Object.values(window.__sv.state().condResults).length === 1")
     light = S(pg, "s.runs.find(r => r.name === 'light_payload.csv').id")
     assert S(pg, f"Object.values(s.condResults)[0]['{light}'].count") == 0      # the light flight: never at the limit

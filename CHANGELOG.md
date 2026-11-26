@@ -69,6 +69,8 @@
   on screen is framed) and the secondary buttons are tinted instead of outlined - about a third fewer outlines across
   the screens. Sweeps' *Goal* has one way on (the side panel's *See the results →*) and its table's explanation is the
   limit columns' tooltip.
+- Clearer where to look (Phase 3, a first user's tries): *Checks* says where requirements come from when a file has
+  none; the Report's head reads *Save as HTML* and *PDF, Word… ▾*; "1 file", "1 plot" instead of "1 files", "1 plots".
 
 ## 1.37.0 – 2026-11-26
 

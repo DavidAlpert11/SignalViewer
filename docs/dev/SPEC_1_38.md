@@ -176,3 +176,18 @@ keys' boxes, Sweeps' step cards (only the step on screen keeps its frame), the s
 | 18_palette | 22 -> 13 | 48 -> 42 | 31 |
 | 19_templates | 21 -> 15 | 51 -> 50 | 39 |
 | **All 19** | **394 -> 250 (-37 %)** | | |
+
+## Phase 3 - a first user's "where would you click first" (2026-11-26)
+
+A fresh agent that had not seen the work got the 19 screenshots (dark, English) and ten tasks. Sure in one try: compare
+two runs, find what went wrong, change the language, the theme, undo, a sweep (fairly sure), the Quick look template.
+Not found in one try - fixed: **a requirements file** (Checks now says in one line, when a file has none, where it comes
+from: `<name>.checks.json` beside it; how to write one in the tooltip); **PDF** (the Report's head: *Save as HTML* and
+*PDF, Word… ▾* instead of *HTML* and *Export ▾*); **a note** - it is on the plot's right-click (*Note here*), the ⋯ menu
+with a span, the N key and the Inspector's +: a picture cannot show a right-click, kept. Also fixed: "1 files", "1 plots",
+"(1 files)" (English takes the singular after 1 - i18n translate); Goal's second *See the results →* (already gone,
+the pictures were older). Seen and kept, with the reason: the plots' hint line (shown until first used, then a tooltip -
+the audit starts each screen fresh); the mode band and a lane in a plot (a plot can show its own lane - *Show the band
+here*); the Report's own undo / ⚙ (the text editor's own history and the report's own options, not the workspace's);
+three counts of Checks' failures (the rail's badge, the verdict, the header pill - each where the eye is in its
+place); Settings' descriptions (a dialog read once).

@@ -144,6 +144,8 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
     <div className="checks" data-checks-ready={ready ? "1" : "0"} data-bad={bad} data-warn={warn} data-flags={nFlags} data-judged={judged ? "1" : "0"} data-flags-last={flagsLast ? "1" : "0"}>
       {ready && <p className={`health-sum ${tone}`} data-testid="checks-verdict" data-tone={tone}>{verdict}</p>}
 
+      {/* Phase 3 (a first user looked for where requirements are loaded): with none, one line says where they come from */}
+      {ready && !cfile?.file && <p className="hint chk-file-none" title={t("chkFileNoneHow")}>{t("chkFileNone")}</p>}
       {cfile?.file && (
         <section className="checks-sec" aria-label={t("chkFile")} data-checks-file={fileName(cfile.file)}>
           <h3 className="eyebrow">{t("chkFile")}</h3>

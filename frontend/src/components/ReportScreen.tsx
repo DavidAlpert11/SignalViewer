@@ -366,9 +366,10 @@ export default function ReportScreen() {
         <span className="rd-status" role="status">
           {updating ? t("rdUpdating") : problems.length ? <span className="rd-problems" title={problems.join("\n")}>⚠ {t("rdProblems", { n: problems.length })}</span> : null}
         </span>
+        {/* Phase 3 (a first user looked for PDF and took HTML for the export): the menu names the formats it holds */}
         {/* CC8 (owner, 2026-11-26: not overloaded): one primary export - the page (Markdown) or the PDF (LaTeX) - and every
             format in Export ▾; the report's options (its language, Markdown / LaTeX, its theme, empty / automatic) in ⚙ */}
-        {!latex ? <button className="btn primary replay-make" disabled={!!busy} onClick={() => make("html")}>{busy === "html" ? t("loading") : "HTML"}</button>
+        {!latex ? <button className="btn primary replay-make" disabled={!!busy} onClick={() => make("html")}>{busy === "html" ? t("loading") : t("rdSaveHtml")}</button>
           : <button className="btn primary rd-texpdf" disabled={!!busy || !tex?.best} title={tex?.best === "tectonic" ? t("rdTexPdfBuiltin") : tex?.best ? t("rdTexPdfHint", { e: tex.best }) : tex?.hint ?? ""}
             onClick={() => make("texpdf")}>{busy === "texpdf" ? t("loading") : t("rdTexPdf")}</button>}
         <button className="btn outline rd-export" disabled={!!busy} aria-haspopup="menu" title={t("rdExportHint")}
@@ -381,7 +382,7 @@ export default function ReportScreen() {
             ] : []),
             { label: t("rdTexPdf"), disabled: !tex?.best, run: () => make("texpdf") },
             { label: t("rdTexZip"), run: () => make("tex") },
-          ])}>{busy ? t("loading") : t("rdExport")} <Icon.Chevron width={12} height={12} /></button>
+          ])}>{busy ? t("loading") : latex ? t("rdExport") : t("rdExportFormats")} <Icon.Chevron width={12} height={12} /></button>
         <button className="iconbtn rd-options" title={t("rdOptions")} aria-label={t("rdOptions")} aria-haspopup="menu"
           onClick={(e) => openMenu(e, [
             { label: t("reportLang"), run: () => {}, items: [

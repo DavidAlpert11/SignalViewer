@@ -28,9 +28,18 @@ const he: typeof en = { ...swHe, ...templates.he, ...flightlog.he, ...investigat
 export const dictionaries = { en, he };
 export type TKey = keyof typeof en;
 
+/** Phase 3 (a first user read "1 files", "1 plots"): in English a count of 1 takes the singular of the plain plural
+ *  right after it - only these words, so nothing else is cut. */
+const PLURALS: Record<string, string> = { files: "file", plots: "plot", runs: "run", signals: "signal", tabs: "tab", sets: "set",
+  recordings: "recording", requirements: "requirement", streams: "stream", messages: "message", samples: "sample",
+  stretches: "stretch", changes: "change", times: "time", steps: "step", rows: "row", columns: "column", conditions: "condition" };
+
 export function translate(lang: Lang, key: TKey, vars?: Record<string, string | number>): string {
   let s = dictionaries[lang][key] ?? dictionaries.en[key] ?? key;
-  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, String(v));
+  if (vars) for (const [k, v] of Object.entries(vars)) {
+    if (lang === "en" && (v === 1 || v === "1")) s = s.replace(new RegExp(`\\{${k}\\} (\\w+)\\b`, "g"), (m, w: string) => (PLURALS[w] ? `{${k}} ${PLURALS[w]}` : m));
+    s = s.replace(`{${k}}`, String(v));
+  }
   return s;
 }
 
