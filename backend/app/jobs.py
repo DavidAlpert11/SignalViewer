@@ -11,7 +11,7 @@ import time
 import uuid
 from typing import Callable, Dict, Optional
 
-from svcore.csv_loader import LoadCancelled, set_progress_context
+from svcore.load_common import LoadCancelled, set_progress_context
 
 log = logging.getLogger("signalviewer").getChild(__name__)
 

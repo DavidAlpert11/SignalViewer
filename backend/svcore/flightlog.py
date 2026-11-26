@@ -77,6 +77,6 @@ class FlightLogInfo:
 
 def text_codes(values, labels: Optional[Dict[int, str]] = None):
     """Text values -> (float codes, {code: text}) - same as CSV text columns."""
-    from svcore.csv_loader import encode_text
+    from svcore.load_common import encode_text
     return encode_text(values, labels)
 

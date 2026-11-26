@@ -59,32 +59,13 @@ except Exception:  # pragma: no cover - depends on environment
 
 
 # =============================================================================
-# PROGRESS / CANCEL (used by background jobs; no-op otherwise)
+# PROGRESS / CANCEL, TEXT CODES, FINGERPRINT - shared by every loader: svcore/load_common.py (CC21; the names stay
+# importable from here, as callers and old scripts use them)
 # =============================================================================
 
-import threading as _threading
+from svcore.load_common import LoadCancelled, _ctx, _progress, content_fingerprint, encode_text, set_progress_context  # noqa: E402,F401
 
 log = logging.getLogger("signalviewer").getChild(__name__)
-
-_ctx = _threading.local()
-
-
-class LoadCancelled(Exception):
-    pass
-
-
-def set_progress_context(report=None, cancelled=None):
-    """report(fraction 0..1, phase str); cancelled() -> bool. Per thread."""
-    _ctx.report, _ctx.cancelled = report, cancelled
-
-
-def _progress(frac: float, phase: str = "read"):
-    rep = getattr(_ctx, "report", None)
-    if rep:
-        rep(max(0.0, min(1.0, frac)), phase)
-    can = getattr(_ctx, "cancelled", None)
-    if can and can():
-        raise LoadCancelled()
 
 
 # =============================================================================
@@ -251,27 +232,6 @@ def _to_numeric_array(values, dtype) -> np.ndarray:
     if kind == "b":
         return values.to_numpy().astype(dtype)
     return pd.to_numeric(values, errors="coerce").to_numpy(dtype=dtype, na_value=np.nan)
-
-
-def encode_text(values, labels: Optional[Dict[int, str]] = None) -> Tuple[np.ndarray, Dict[int, str]]:
-    """Text values -> float codes (empty -> NaN). Codes follow the order of first appearance and
-    continue an existing {code: text} map (live mode adds the new texts at the end)."""
-    s = pd.Series(np.asarray(values, dtype=object))
-    s = s.map(lambda v: v.strip() if isinstance(v, str) else v)
-    s = s.where(s.map(lambda v: isinstance(v, str) and v != ""), None)
-    codes, uniques = pd.factorize(s, sort=False, use_na_sentinel=True)
-    labels = dict(labels or {})
-    rev = {v: k for k, v in labels.items()}
-    nxt = (max(labels) + 1) if labels else 0
-    remap = np.empty(len(uniques) + 1, dtype=np.float64)
-    remap[-1] = np.nan                       # sentinel -1 -> NaN
-    for i, u in enumerate(uniques):
-        u = str(u)
-        if u not in rev:
-            rev[u], labels[nxt] = nxt, u
-            nxt += 1
-        remap[i] = rev[u]
-    return remap[codes], labels
 
 
 class _Bounded(io.RawIOBase):
@@ -491,25 +451,6 @@ def _parse_pandas_chunked(filepath, columns, skip_lines, delimiter, encoding, li
 # CACHE
 # =============================================================================
 
-def content_fingerprint(path: str, size: int, block: int = 65536, blocks: int = 16) -> str:
-    """F34: a fingerprint of the file's bytes - the first and last MB and 16 blocks in between
-    (a few MB read, whatever the size). With size and mtime it tells a re-saved file of the same
-    size and time stamp (a copy over it, a coarse file-system clock) from the one cached / read."""
-    h = hashlib.sha1(str(size).encode())
-    try:
-        with open(path, "rb") as f:
-            h.update(f.read(min(size, 1 << 20)))
-            if size > 2 << 20:
-                for k in range(1, blocks + 1):
-                    f.seek(size * k // (blocks + 1))
-                    h.update(f.read(block))
-                f.seek(max(0, size - (1 << 20)))
-                h.update(f.read(1 << 20))
-    except OSError:
-        return ""
-    return h.hexdigest()
-
-
 def _cache_key(filepath: str, size: int, mtime: float, settings: CSVImportSettings, mtime_ns: int = 0,
                fingerprint: str = "") -> str:
     raw = json.dumps([CACHE_FORMAT_VERSION, os.path.abspath(filepath), size, mtime, mtime_ns, fingerprint,
@@ -539,7 +480,7 @@ def _cache_load(key: str) -> Optional[Dict]:
             meta["signal_arrays"] = {}
         return meta
     except Exception as e:
-        print(f"[CACHE] Corrupt cache entry {key}, ignoring: {e}", flush=True)
+        log.info(f"Corrupt cache entry {key}, ignoring: {e}")
         shutil.rmtree(d, ignore_errors=True)
         return None
 
@@ -572,7 +513,7 @@ def _cache_store(key: str, meta: Dict, time: np.ndarray, sigs: Dict[str, np.ndar
         prune_cache(keep=d, source=meta.get("source"))
         return True
     except Exception as e:
-        print(f"[CACHE] Could not write cache: {e}", flush=True)
+        log.info(f"Could not write cache: {e}")
         shutil.rmtree(tmp, ignore_errors=True)
         return False
 
@@ -640,7 +581,7 @@ def prune_cache(keep: Optional[str] = None, source: Optional[str] = None) -> int
         drop(e)
         total -= e[1]
     if freed:
-        print(f"[CACHE] Freed {_fmt_bytes(freed)}", flush=True)
+        log.info(f"Freed {_fmt_bytes(freed)}")
     return freed
 
 
@@ -668,7 +609,7 @@ def preview_csv(
                 return rows[h + 1:], _unique_names(rows[h])
         return rows, [f"Col{i}" for i in range(len(rows[0]))]
     except Exception as e:
-        print(f"[ERROR] Preview failed: {e}")
+        log.warning(f"Preview failed: {e}")
         return [], []
 
 
@@ -684,7 +625,7 @@ def load_csv(
         Run object or None if failed
     """
     if not os.path.isfile(filepath):
-        print(f"[ERROR] File not found: {filepath}")
+        log.warning(f"File not found: {filepath}")
         return None
 
     if isinstance(settings, dict):
@@ -698,7 +639,7 @@ def load_csv(
         delimiter = settings.delimiter or detect_delimiter(filepath, skip_rows=settings.skip_rows or 0)
         columns, skip_lines = _header_info(filepath, settings, delimiter)
         if not columns:
-            print(f"[ERROR] Empty CSV: {filepath}")
+            log.warning(f"Empty CSV: {filepath}")
             return None
         # a decimal comma: pandas reads it (Arrow has no such option in every version we support)
         decimal = "," if detect_decimal_comma(filepath, delimiter, skip_lines) else "."
@@ -723,7 +664,7 @@ def load_csv(
             time_array = cached["time"]
             signal_arrays = cached["signal_arrays"]
             text_labels = {n: {int(k): v for k, v in l.items()} for n, l in (cached.get("labels") or {}).items()}
-            print(f"[CACHE] Opened memory-mapped cache for {os.path.basename(filepath)}", flush=True)
+            log.info(f"Opened memory-mapped cache for {os.path.basename(filepath)}")
             if cached.get("timeIsIndex"):
                 time_is_index = True
                 first = columns[time_idx]
@@ -740,7 +681,7 @@ def load_csv(
                 except LoadCancelled:
                     raise
                 except Exception as e:
-                    print(f"[LOAD] Arrow parser not usable for this file ({e}); using pandas", flush=True)
+                    log.info(f"Arrow parser not usable for this file ({e}); using pandas")
             if arrays is None:
                 arrays = _parse_pandas_chunked(filepath, source_columns, skip_lines, delimiter, settings.encoding,
                                                limit=file_size, decimal=decimal)
@@ -776,7 +717,7 @@ def load_csv(
                 except LoadCancelled:
                     raise
                 except Exception as e:
-                    print(f"[LOAD] Text columns not read ({e})", flush=True)
+                    log.info(f"Text columns not read ({e})")
             # columns with a time column of their own (by name) are taken out BEFORE the rows
             # without a main time are dropped: in such files the pairs have different lengths
             if settings.time_pairs:
@@ -796,7 +737,7 @@ def load_csv(
                     arrays.pop(tn, None)
                 if own:
                     key = None                  # not cached: the cache keeps one time vector
-                    print(f"[LOAD] {len(own)} columns use a time column of their own", flush=True)
+                    log.info(f"{len(own)} columns use a time column of their own")
             valid = np.isfinite(time_array)
             need_filter = not valid.all()
             load_report: dict = {"droppedRows": int((~valid).sum()), "sorted": False, "skippedColumns": [],
@@ -814,7 +755,7 @@ def load_csv(
             # Time must be sorted for interpolation / searchsorted / cursor
             order = None
             if len(time_array) > 1 and np.any(np.diff(time_array) < 0):
-                print("[LOAD] Time column is not monotonic - sorting rows", flush=True)
+                log.info("Time column is not monotonic - sorting rows")
                 order = np.argsort(time_array, kind="stable")
                 load_report["sorted"] = True
                 time_array = time_array[order]
@@ -841,7 +782,7 @@ def load_csv(
                         time_array, signal_arrays = reopened["time"], reopened["signal_arrays"]
 
         if len(time_array) == 0 and not own:
-            print(f"[ERROR] No valid time data: {filepath}")
+            log.warning(f"No valid time data: {filepath}")
             return None
         if own and (len(time_array) == 0 or not signal_arrays):
             # every column has its own time: the run's time is the longest one (metadata only)
@@ -877,6 +818,8 @@ def load_csv(
         remember_tail(run)
         run.compute_metadata()
 
+        # the one progress line a script / the command line shows (on stderr there - signalviewer.load, F37); the
+        # loaders' diagnostics go to the log (CC20)
         print(f"[OK] Loaded {run.csv_display_name}: {run.sample_count:,} samples, "
               f"{len(run.signals)} signals ({_fmt_bytes(_run_nbytes(run))})")
         return run
@@ -884,7 +827,7 @@ def load_csv(
     except LoadCancelled:
         raise
     except Exception as e:
-        print(f"[ERROR] Failed to load {filepath}: {e}")
+        log.warning(f"Failed to load {filepath}: {e}")
         import traceback
         traceback.print_exc()
         return None

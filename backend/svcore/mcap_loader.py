@@ -17,7 +17,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from svcore.csv_loader import _progress
+from svcore.load_common import _progress
 from svcore.models import Run, Signal
 from svcore.extras import missing
 

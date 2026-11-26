@@ -31,6 +31,7 @@ small integers in the log stay float32 in big logs (exactly the same values, hal
 Progress and cancel go through csv_loader's per-thread context (the jobs bar).
 """
 
+import logging
 import hashlib
 import json
 import os
@@ -44,7 +45,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from svcore.models import LazySignal, Run, Signal
-from svcore.csv_loader import _progress, encode_text
+from svcore.load_common import _progress, encode_text
+
+log = logging.getLogger("signalviewer").getChild(__name__)
 
 HEAD1, HEAD2, FMT_TYPE = 0xA3, 0x95, 128
 FMT_LEN = 89
@@ -1062,7 +1065,7 @@ def _index_save(d: str, path: str, df: "DataFlash", sigs: Dict[str, tuple], end:
             from svcore.csv_loader import prune_cache
             prune_cache(keep=d, source=os.path.abspath(path))
         except Exception as e:                 # a cache only: never fail the open for it
-            print(f"[CACHE] Could not write the log index: {e}", flush=True)
+            log.info(f"Could not write the log index: {e}")
             shutil.rmtree(tmp, ignore_errors=True)
 
     # the arrays are never changed in place (live mode replaces them), so writing them while the
@@ -1085,7 +1088,7 @@ def _index_load(d: str, path: str):
         except OSError:
             pass
     except Exception as e:
-        print(f"[CACHE] Damaged log index, reading the log instead: {e}", flush=True)
+        log.info(f"Damaged log index, reading the log instead: {e}")
         shutil.rmtree(d, ignore_errors=True)
         return None
     df: DataFlash = state["df"]
