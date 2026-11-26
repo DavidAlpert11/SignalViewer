@@ -77,7 +77,7 @@ alone removes most of the cursor cost even with thick lines.
 ## After the fixes
 
 All 18 browser measurements now meet their budgets (`docs/benchmark_browser.md`); same machine,
-no GPU. All 109 UI tests and 70 server tests pass.
+no GPU. All 109 UI tests and 70 server tests of that time passed.
 
 | Measurement | Before | After | Budget |
 |---|---|---|---|

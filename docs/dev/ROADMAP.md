@@ -1214,3 +1214,15 @@ judge's decision per item there (decision.md). Branch `review-1125`, one commit 
   test_tab_band, test_workflows, test_features -k "P01 or compare or tab".
 - [x] RW12 (C5 residual, round 2) What changed?'s timeline: a line naming the event's own signal, counted in the
   headline but not drawn (wcOnsetsEvent, .wc-onsets-event). Test: e2e test_what_changed (13).
+
+## JR - the judge's ruling on "stay on 1.37.0 or a new version" (advocate, defender, judge; 2026-11-26)
+Branch `judge/release-1.37.1` (not main: the owner decides on the merge).
+- [x] JR1 (advocate I1) A formula past Python's limits is a FormulaError, not a 500: svcore/formula.py check()
+  refuses an int past float64's range; a RecursionError in evaluate() / parse() / parse_rows() and in
+  svcore/sweep/derived.py row_formula() becomes a readable error (400). Test: backend test_formula_limits (5).
+- [x] JR2 (advocate I3) e2e test_file_browser_edit waits for the END state: folder A listed and the list busy before
+  the FB1 click (goto_folder returns on the typed path, not the listing); the rename's selection and the picked row.
+  8 / 8 alone, 12 / 12 four at a time.
+- LATER (judge): I2 the review's LATER list (C2, C7, C9, C12-C19...) - a 1.38.0 round; I4 an oxlint baseline in
+  quick_check / CI; N1 the big components; N2 the main bundle; N4 a long derived name. Owner's call: I5 (CI on every
+  push - M34 FR9 "not now"). Rejected: N5 (documented), N6 (the loaders' errors already reach the user as LoadError).
