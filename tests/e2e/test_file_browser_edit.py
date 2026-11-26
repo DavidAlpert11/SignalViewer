@@ -32,17 +32,21 @@ def test_new_folder_rename_and_delete_in_the_dialog(pg):
     row.hover()
     row.locator(".fs-rename").click()                                            # Rename: the name without its extension chosen
     box = dlg.locator(".fs-name-in")
-    assert box.evaluate("e => e.value.slice(e.selectionStart, e.selectionEnd)") == "flight"
+    box.wait_for()                                                               # the END state: the name chosen in the box
+    pg.wait_for_function("() => { const e = document.querySelector('.fs-dialog .fs-name-in');"
+                         " return e && e.value.slice(e.selectionStart, e.selectionEnd) === 'flight'; }", timeout=10000)
     pg.keyboard.type("flight_07")
     pg.keyboard.press("Enter")
     dlg.locator(".fs-row", has_text="flight_07.csv").wait_for()
     assert os.path.isfile(os.path.join(work, "flight_07.csv")) and not os.path.exists(os.path.join(work, "flight.csv"))
-    assert dlg.locator(".fs-row.on", has_text="flight_07.csv").count() == 1      # still the one picked
+    dlg.locator(".fs-row.on", has_text="flight_07.csv").wait_for()              # still the one picked
+    assert dlg.locator(".fs-row.on", has_text="flight_07.csv").count() == 1
     pg.locator(".fs-dialog").focus()
     pg.keyboard.press("Delete")                                                  # Delete: asked first, in the dialog
     dlg.locator(".fs-confirm", has_text="recycle bin").wait_for()
     dlg.locator(".fs-confirm-ok").click()
     dlg.locator(".fs-note", has_text="recycle bin").wait_for()
+    dlg.locator(".fs-row", has_text="flight_07.csv").wait_for(state="detached")  # the list read again
     assert not os.path.exists(os.path.join(work, "flight_07.csv"))
     assert os.path.isfile(os.path.join(pg.env["home"], ".local", "share", "Trash", "files", "flight_07.csv"))   # in the bin
     assert pg.locator(".fs-dialog").count() == 1                                 # the dialog stays open
@@ -70,6 +74,7 @@ def test_a_click_while_another_folder_loads_is_not_lost(pg):
         with open(os.path.join(d, "same.csv"), "w") as f:
             f.write("Time,V\n0,1\n1,2\n")
     _open_dialog(pg, a)
+    pg.locator(".fs-dialog .dialog-body .fs-row", has_text="same.csv").first.wait_for()   # the END state: A is listed
     held = []                                                                    # B's listing waits for the test
 
     def hold(route):
@@ -82,6 +87,8 @@ def test_a_click_while_another_folder_loads_is_not_lost(pg):
     pg.press(".crumbs input", "Enter")
     old = pg.locator(".fs-dialog .dialog-body .fs-row", has_text="same.csv").first
     old.wait_for()                                                               # still folder A's row
+    pg.locator(".fs-dialog .dialog-body[aria-busy='true']").wait_for()           # the END state: B is loading (the click
+                                                                                 # before it reached a list not yet locked)
     with pytest.raises(Exception):                                               # A's list takes no click now
         old.click(timeout=1500)
     assert held, "the listing of B was not asked for"
