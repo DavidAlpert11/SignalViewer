@@ -18,6 +18,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 | Task | Status | Next step |
 |---|---|---|
+| CH - a communication channel: patterns, anomalies, compare files (owner, 2026-11-26; plan in Open specs "CH"; ROADMAP "CH") | IN PROGRESS (push session, 2026-11-26) - inventory and plan pushed | CH1 one channel from separate TX + RX, CH2 the anomaly finder, CH3 anomalies on screen, CH4 the files compared, CH5 example, CH6 docs / e2e |
 | AU - automatic finds made visible: one *Found in this file* line, truth vs navigation compared, more finds, *Name your signals* (owner, 2026-11-26; plan in Open specs "AU"; ROADMAP "AU") | IN PROGRESS (push session, 2026-11-26) - plan pushed | AU1 the line + the file menu, AU2 truth vs navigation, AU3 redundant copies, AU4 *Name your signals* + the example, AU5 docs / e2e |
 | Release 1.38.0 - calm, clear, any data (owner, 2026-11-26; plan in Open specs; spec docs/dev/SPEC_1_38.md; ROADMAP "CC") | IN PROGRESS - on main (push session, 2026-11-26). Done: CC0, CC1, CC2, CC3, CC4, CC5, CC6, CC7, CC8, CC9, CC10, CC11, CC12, CC13, CC14, CC15, CC16, CC17, CC18, CC19, CC20, CC21, CC22, CC23 - Phase 2 done. Docs: GUIDE + GUIDE.he, features, limitations, command-line, README (en + he) updated for what is done. The welcome pictures of the three new cards made. quick_check green; e2e: every file each change touches (Log) | **Next:** (1) done - the patch is on main. (2) Phase 2 done (Settings keeps its descriptions on purpose - a dialog read once). (3) Phase 3 done (SPEC_1_38.md "Phase 3"). (4) Phase 4: version 1.38.0 in the five files + install.md, CHANGELOG heading + highlights, pictures (make_readme_media.py; 01 03 04 09 11 12 13 14 23 25 26 30 38-43 48-57 show changed screens) and the training film, mkdocs --strict, the whole e2e one file at a time, push; the owner tags. |
 | Release 1.37.0 - RW1-RW12, the three-agent review of 1.36.0 (owner, 2026-11-25: "stay on the current version or release a new one") | READY 2026-11-26: the critic and the advocate both answered "READY FOR A NEW VERSION: YES" after round 4 (/home/claude/review in the session: critic_r1-r4, advocate_r1-r4, decision, judge_r1); version in the five files + install.md, CITATION date, CHANGELOG 1.37.0 with highlights, features + GUIDE + GUIDE.he (Open ▾, Checks' verdict, Compare's Similarity tab, the report's file names), validation page, pictures 01-04 07 09 10 12 15 20-24 42 43 48 49; the whole e2e one file at a time - 100 files, 555 passed, test_file_help_menus failed under load (the test read the Open menu before it was drawn - fixed, 3 / 3), test_file_browser_edit once under load (alone: green, as in 1.36.0); quick_check, mkdocs --strict | the owner tags v1.37.0 and publishes the Release; LATER from the review: C2, C7, C9, C12-C19, "1 limits" on a Sweeps step card, the neighbours-hold column with no goal, Hebrew time ranges in the health check |
@@ -58,6 +59,50 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Open specs (waiting for the owner)
 
+- **CH - a communication channel: patterns, anomalies, compare files (owner, 2026-11-26, Hebrew, translated):**
+  *"Say I have a recording of a communication channel. I want the app to recognise repeating patterns that are beyond
+  the message content (header, checksum, a handshake process). There are TX and RX in the same signal with another
+  signal that sets the direction; and there are separate TX and RX, for which I want an option to define that they are
+  one general channel of request and reply. Then I want the app to show graphically whether there are anomalies, to
+  count them, and to compare the result with similar files."* Building without waiting (owner's word).
+
+  **1. Inventory (2026-11-26, read in the code and run on `examples/serial_link/link_tx_rx.csv` and `link_mixed.csv`):**
+
+  | The owner asked | Today | Clicks | Gap |
+  |---|---|---|---|
+  | Header, length, type, checksum found by themselves | `bytestream.decode`: the 2-byte header, a length byte / a length per type / fixed, the type byte, 7 checksum schemes; the panel's row says `AA 55 · sum8 2 bad · 5 types`, step 2 colours each byte's role | 1 (open Messages) | - |
+  | The handshake | `bytestream.exchange` / `_sessions`: the rare messages of both directions grouped; the first group opens the link, a later one is a reconnect | report only (*Add to the report*, 3-4 clicks) | not on the Messages page at all; its order never compared (a step missing or out of order goes unseen) |
+  | TX and RX in one signal + a direction column | found by itself: two rows *byte TX* / *byte RX* of one stream; step 1 says which value is TX and which RX (MSG5) | 1 | - |
+  | Separate TX and RX as one request / reply channel | found as **two unrelated streams** (*tx_byte*, *rx_byte*); *Add a stream → TX and RX* (form: kind, two selects, Add) makes the pair, kept in the session only when *Plot the messages* / *Make the recording* is pressed | 5-6 | nothing says the two look like one link; the pair is lost if the user stops before step 4 |
+  | Requests and replies, latency, unanswered, retries | `exchange`: pairs by an echoed byte or the next reply; mean / 95 % / max latency; unanswered, retries, orphans | report text; *Plot the messages* adds a *Reply latency* plot | not on the page; a late reply (a latency outlier) is not called one |
+  | Anomalies shown graphically and counted | counted in the report's text and highlights: checksum errors, resyncs, gaps (> 5 × the median interval), unanswered, retries, reconnects; *Plot the messages* plots checksum good / interval per message | report: 3-4; plots: 2 | **no one picture of the anomalies over time, no count per kind in one place**; not found at all: a frame of a wrong length for its type, an unknown (rare, unexplained) type, a counter / sequence byte that skips or repeats, a type that stops (a rate drop), a handshake out of order |
+  | Compare with similar files | `[[messages]]` over several files writes each file's sections one after the other | report: 4+ | **no table of the same channel across files** (a row per file, the differences marked) |
+
+  **2. The plan (one coherent change per commit):**
+  - **CH1 - one channel in one step.** The Messages list: two streams of one file, one TX-like and one RX-like (names;
+    else two streams whose messages answer each other), not yet one definition -> a line *tx_byte and rx_byte look like
+    the two directions of one link · Make one channel*. One click keeps the pair in the session (`ws.messageStreams`,
+    carries "pair", one Undo) and opens it; *Add a stream → TX and RX* keeps it at once too (not only at step 4).
+  - **CH2 - the anomaly finder** `backend/svcore/channel.py` (pure, on every message): per direction - bad checksum,
+    broken frame (a resync: bytes lost between headers), wrong length for the type, unknown type (rare: <= 2 and not in
+    the handshake), a counter that skips or repeats (a payload byte that steps by 1 in >= 90 % of a type's messages),
+    a gap (a periodic type silent > 3 × its period); both ways - unanswered, a retry, a late reply (latency over the
+    median + 6 × the MAD and over 2 × the median), a reconnect, a handshake whose steps differ from the first one.
+    Each anomaly: kind, time, direction, type, a short detail; counts per kind. Route `POST /api/messages/channel`.
+  - **CH3 - on screen.** The stream on the Messages page gets a *Channel* block above the four steps: what was found
+    beyond the content (header, length, type, checksum, the handshake's steps, request -> reply pairs with latency) and
+    *Anomalies*: a chip per kind with its count, and a time strip - one lane per kind, every anomaly counted (several
+    in one pixel: a taller mark and the number in its tooltip); a click on a mark (or a chip's next ›) puts the cursor
+    there on the plots (`goToTime`). *Plot the messages* adds an *Anomalies* plot: the count so far per direction (op
+    `messages`, what `anomalies`: a step at each one) so they line up with the data on the timeline.
+  - **CH4 - compare files.** In the Channel block, *Compare with similar files*: the other open files that have the
+    same signals get the same definition; one table, a row per file, a column per kind, a cell that differs from this
+    file's marked (more / fewer). The report: `[[messages]]` gets the anomaly counts per stream, and with several files a
+    table of the files (the same rows) - one way: the panel and the report read the same `channel.py`.
+  - **CH5 - an example** (`examples/channel/`, generator `make_channel.py`): two recordings of the same link (TX and RX
+    in separate signals), every anomaly kind injected, the second with different counts; Help -> Examples.
+  - **CH6 - docs** (`docs/messages.md`, GUIDE + GUIDE.he), Vitest / pytest for every detector, e2e
+    `tests/e2e/test_channel.py` (one channel, the anomalies, the files compared), CHANGELOG Next.
 - **AU - automatic finds made visible (owner, 2026-11-26, Hebrew, translated):** *"Plotting the command against
   the actual by words like des, cmd, command lets the user plot automatically - but it is found only through Ctrl+P and
   a search; the user cannot guess it exists. More automations like these; objects on the map by lat / long; comparing
@@ -355,6 +400,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-26 · CH plan written (Open specs "CH"): the inventory of the channel analysis (patterns, handshake, request / reply,
+  anomalies, files compared), run on examples/serial_link, and the build order CH1-CH6.
 - 2026-11-26 · AU plan written (Open specs "AU"): the inventory of the name-driven automations and the build order.
 - 2026-11-26 · Phase 3: audit_screens again (outlined 394 -> 250), a fresh agent's first clicks - fixed Checks'
   requirements line, the Report's export labels, singulars. e2e: test_checks_view, test_one_per_plot,
