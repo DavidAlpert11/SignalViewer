@@ -400,7 +400,7 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
-- 2026-11-26 · AU1-AU5 on main: the *Found in this file* line (found.ts, FoundBar), the file menu and Ctrl+K, truth vs navigation -> Compare objects…, sensors in copies, Help -> Name your signals + examples/automations, docs. quick_check green; mkdocs --strict; e2e test_found (5), test_map_objects, test_local_objects, test_object_relations, test_height_profile, test_map_places_story_export, test_flat_line_solo, test_map_vectors, test_map_export, test_map_smooth - green.
+- 2026-11-26 · AU1-AU5 on main: the *Found in this file* line (found.ts, FoundBar), the file menu and Ctrl+K, truth vs navigation -> Compare objects…, sensors in copies, Help -> Name your signals + examples/automations, docs. quick_check green; mkdocs --strict; e2e test_found (5), test_map_objects, test_local_objects, test_object_relations, test_height_profile, test_map_places_story_export, test_flat_line_solo, test_map_vectors, test_map_export, test_map_smooth, test_calm_screen, test_less_clutter - green; test_welcome_cards counted 19 examples in Help (now 20) - fixed forward, 13 / 13.
 - 2026-11-26 · CH2 the anomaly finder (svcore/channel.py, /api/messages/channel, op messages what anomalies): 11 kinds, each
   injected once in test_channel; the serial link demo: 4 checksum, 1 broken, 18 unanswered, 1 retry, 3 gaps, 1 reconnect,
   4 counter skips. backend test_channel test_messages_library test_bytestream test_msginspect test_protocol, mypy.
