@@ -241,7 +241,12 @@ def main() -> int:
                 for ex in exs:
                     t0 = time.time()
                     card = pg.locator(f".ex-card[data-example='{ex}']")
-                    (card if card.count() else pg.locator(".ex-card", has_text=TITLES.get(ex, ex))).first.click()
+                    if card.count():
+                        card.first.click()
+                    else:                                    # not one of the welcome's six: Help -> Examples
+                        pg.locator(".topbar .menubar-btn", has_text="Help").click()
+                        pg.locator(".menu.ctx button", has_text="Examples").click()
+                        pg.locator(".menu.ctx.sub button", has_text=TITLES.get(ex, ex)).first.click()
                     pg.wait_for_function("window.__sv.state().runs.length > 0", timeout=120000)
                     draw = map_ready(pg, a.timeout)
                     draw = None if draw is None else time.time() - t0

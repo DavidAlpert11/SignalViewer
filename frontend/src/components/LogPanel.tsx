@@ -48,7 +48,7 @@ export default function LogPanel() {
   if (!run) return <PanelFrame id="log" title={t("chkTitle")} className="log-panel" bodyClass="log-body"
     index={<p className="hint" style={{ padding: "0 14px" }}>{t("chkNone")}</p>} />;
   const isLog = !!run.log;
-  const shownTab = !isLog && (tab === "events" || tab === "hw") ? "health" : tab;
+  const shownTab = !isLog && tab === "events" ? "health" : tab;
   const runKey = `${run.samples}:${run.log?.events ?? 0}:${run.timeOffset}`;
   const tabBtn = (id: typeof tab, label: React.ReactNode) => (
     <button role="tab" aria-selected={shownTab === id} className={shownTab === id ? "on" : ""} onClick={() => setTab(id)} data-tab={id}>{label}</button>
@@ -73,17 +73,21 @@ export default function LogPanel() {
       {isLog && tabBtn("events", <>{t("logEvents")} <span className="cnt">{run.log!.events}</span>
         {run.log!.errors > 0 && <span className="lvl-dot error" title={t("logErrorsN", { n: run.log!.errors })} />}</>)}
       {tabBtn("params", <>{t("logParams")}{isLog && <> <span className="cnt">{run.log!.params}</span></>}</>)}
+      {/* CC7 (owner, 2026-11-26: not overloaded): the file's structure, its instruments and a log's hardware are one
+          tab - The file - in sections, not three tabs */}
       {tabBtn("file", t("chkTabFile"))}
-      {tabBtn("instruments", t("insTab"))}
-      {isLog && !!info?.hardware?.sections.length && tabBtn("hw", t("logHardware"))}
     </div>
   </>;
   const main = shownTab === "health" ? <Checks key={run.id} runId={run.id} isLog={isLog} runKey={runKey} />
-    : shownTab === "file" ? <FileView key={run.id} runId={run.id} runKey={runKey} />
-    : shownTab === "instruments" ? <Instruments key={run.id} runId={run.id} runKey={runKey} />
+    : shownTab === "file" || shownTab === "instruments" || shownTab === "hw" ? <>
+        <FileView key={run.id} runId={run.id} runKey={runKey} />
+        <details className="file-sec" open={shownTab === "instruments"}><summary>{t("insTab")}</summary>
+          <Instruments key={`i${run.id}`} runId={run.id} runKey={runKey} /></details>
+        {isLog && info?.hardware && info.hardware.sections.length > 0 && (
+          <details className="file-sec" open={shownTab === "hw"}><summary>{t("logHardware")}</summary><Hardware hw={info.hardware} /></details>)}
+      </>
     : !isLog ? <RunParams key={run.id} runId={run.id} />
     : !info ? <p className="hint" style={{ padding: "0 14px" }}>…</p>
-    : shownTab === "hw" && info.hardware ? <Hardware hw={info.hardware} />
     : shownTab === "events" ? <Events key={run.id} runId={run.id} info={info} lang={lang} cursorT={cursorT} markers={markers} />
       : <Params key={run.id} info={info} lang={lang} others={logRuns.filter((r) => r.id !== run.id).map((r) => ({ id: r.id, name: names.get(r.id) ?? r.name }))} />;
   return <PanelFrame id="log" title={t("chkTitle")} className="log-panel" bodyClass="log-body" index={index} main={main} indexFirst />;

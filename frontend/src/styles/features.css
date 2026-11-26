@@ -365,6 +365,10 @@
 /* 1.21: Log panel, Hardware */
 .log-tabs { flex-wrap: wrap; }
 .log-hw { padding: 0 14px 14px; overflow: auto; }
+/* CC7: The file's own sections (instruments, a log's hardware) under its structure - folded, one line each */
+.file-sec { border-top: 1px solid var(--line); }
+.file-sec > summary { cursor: pointer; padding: 8px 14px; font-weight: 600; color: var(--muted); list-style-position: inside; }
+.file-sec[open] > summary { color: var(--ink); }
 .log-hw h3 { font-size: var(--fs-m); margin: 12px 0 4px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .log-hw dl { margin: 0; }
 .log-hw dl > div { display: flex; gap: var(--sp-2); padding: 2px 0; font-size: var(--fs-ml); border-bottom: 1px solid var(--line); }

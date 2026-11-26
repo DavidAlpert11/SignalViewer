@@ -136,6 +136,39 @@ def S(pg, expr):
     return pg.evaluate(f"(() => {{ const s = window.__sv.state(); return {expr}; }})()")
 
 
+def set_language(pg, lang):
+    """CC1: the language is chosen in Settings (no top-row button): open it, pick, close - the END state is the app
+    in that language."""
+    pg.click(".topbar [aria-label='Settings'], .topbar [aria-label='הגדרות']")
+    pg.locator(".dialog.settings [role='radio']", has_text="עברית" if lang == "he" else "English").click()
+    pg.wait_for_function(f"window.__sv.state().lang === '{lang}'")
+    pg.keyboard.press("Escape")
+    pg.wait_for_selector(".dialog.settings", state="detached")
+
+
+def file_menu(pg, item, sub=None):
+    """CC1 / CC2: the top row's File ▾ (either area) - click an item, or hover one (Clear) and click its submenu's."""
+    pg.locator(".topbar .file-menu-btn").click()
+    if sub is None:
+        pg.locator(".menu.ctx button", has_text=item).first.click()
+        return
+    pg.locator(".menu.ctx button", has_text=item).first.hover()
+    pg.locator(".menu.ctx.sub button", has_text=sub).first.click()
+
+
+def open_clear_menu(pg):
+    """CC1: Clear is File ▾ → Clear ▸ (its submenu open, any language: the last item with a submenu)."""
+    pg.locator(".topbar .file-menu-btn").click()
+    pg.locator(".menu.ctx [aria-haspopup='menu']").last.hover()
+    pg.locator(".menu.ctx.sub").wait_for()
+
+
+def live_settings(pg):
+    """The live / link settings (MAVLink, a byte link): File ▾ → Live mode settings…"""
+    file_menu(pg, "Live mode settings")
+    pg.wait_for_selector(".live-pop")
+
+
 def goto_folder(pg, folder):
     try:
         pg.wait_for_function("document.querySelector('.crumbs input') && document.querySelector('.crumbs input').value !== ''", timeout=8000)
@@ -209,8 +242,8 @@ def clear_plots(pg):
 
 
 def clear_everything(pg):
-    """F35: Clear (top bar) > Clear everything, then confirm."""
-    pg.click(".area-tools [aria-label='Clear']")
+    """F35: Clear (File ▾ → Clear ▸) > Clear everything, then confirm."""
+    open_clear_menu(pg)
     pg.click(".menu.ctx button:has-text('Clear everything')")
     pg.click(".dialog-foot .btn.primary")
 
@@ -259,7 +292,10 @@ def flat_maps(pg):
 
 
 # FR11: the examples off the welcome screen - in Help -> Examples, by their label there
+# CC16: the welcome's six are the simulation examples (+ Investigate, the ArduPilot log); the rest via Help -> Examples
 EXAMPLE_MENU = {"flight": "a drone flight", "car": "three car runs", "bench": "a pump on a test bench",
+                "twoFlights": "the same mission flown twice", "simVsFlight": "a simulation against its flight",
+                "folderOfFlights": "a folder of recordings", "smartSweepDemo": "smart sweep demo",
                 "sweepTable": "a sweep: which settings hold", "commonGains": "one gain set, three drones"}
 
 
@@ -656,7 +692,7 @@ def test_T63_clear_menu_scopes(pg):
     files = lambda: state("s.runs.filter(r => r.format !== 'derived').length")
     assert state("s.ws.tabs.length") == 2
     def pick(text):
-        pg.click(".area-tools [aria-label='Clear']")
+        open_clear_menu(pg)
         pg.locator(".menu.ctx button", has_text=text).click()
     # the other tabs
     pick("The other tabs (1)")
@@ -681,7 +717,7 @@ def test_T63_clear_menu_scopes(pg):
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 1")
     assert files() == 1 and state("s.runs.some(r => r.format === 'derived')")
     # and the last scope closes the files too, after asking
-    pg.click(".area-tools [aria-label='Clear']")
+    open_clear_menu(pg)
     assert "danger" in pg.locator(".menu.ctx button", has_text="Clear everything").get_attribute("class")
     pg.keyboard.press("Escape")
 
@@ -917,7 +953,7 @@ def test_N13_matlab(pg):
 
 
 def test_N16_hebrew_rtl(pg):
-    pg.click(".topbar .btn:has-text('עברית')")
+    set_language(pg, "he")
     assert pg.evaluate("document.documentElement.dir") == "rtl"
 
 
@@ -1252,7 +1288,7 @@ def test_live_mavlink(pg):
     import socket as _s, threading
     from pymavlink.dialects.v20 import ardupilotmega as mavlink
     port = _free_port()                                   # a TCP port number is free for UDP as well, in practice
-    pg.click(".live-more")
+    live_settings(pg)
     pg.locator(".mav-section:not(.link-section) input[list]").fill(f"udpin:127.0.0.1:{port}")
     pg.get_by_role("button", name="Connect and record").click()
     pg.wait_for_function("window.__sv.state().mavlink?.running === true")
@@ -2203,7 +2239,7 @@ def test_inspector_starts_closed_and_respects_the_user(pg):
     pg.keyboard.press("Space")
     pg.wait_for_selector(".inspector")
     pg.keyboard.press("Space")
-    pg.click(".area-tools [aria-label^='Inspector']")                 # the user closes it on purpose
+    pg.click(".stage-bar .insp-toggle")                               # the user closes it on purpose (CC1: in the stage bar)
     assert pg.locator(".inspector").count() == 0
     on = S(pg, "s.cursor.on")
     pg.keyboard.press("Space")

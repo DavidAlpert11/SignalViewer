@@ -2,6 +2,32 @@
 
 ## Next – unreleased
 
+- **A calmer top row (CC1).** One labelled **File ▾** holds what is done with files: open files, open a session,
+  recent files, save the session, export a recording, live links (MAVLink, a serial port, UDP / TCP) and **Clear ▸**.
+  The language and the theme are chosen in **Settings** (the first group; also Ctrl+K), not three more buttons; the
+  Inspector's switch moved to the end of the plots' bar; *Templates* and *Live* show once files are open.
+- **Sweeps has one way through (CC2).** Its second toolbar row is gone: *Open*, *Study* and *Clear* are the top row's
+  **File ▾** (reload and *Follow the file* there too), and its undo / redo are the top row's.
+- **Requirements, not only limits (CC11).** A checks file (`checks.json`, `<name>.checks.json`) judges how a signal
+  behaves: `settle` (in a band by a time), `overshoot` (% of the step), `rise` (10 → 90 %), `sserror` (steady-state
+  error), `rate` (fastest change), `track` (within a tolerance of a reference signal) and `order` (one moment before
+  another) - beside the ranges it always had (old files read the same). The same verdict in *Checks* and
+  `signalviewer-cli check` (exit code, JUnit), each failure with what was measured and when.
+- **Every file gets an automatic look (CC12).** Beside a flight log's health check, the *any data* profile looks at
+  every file: numbers that are not numbers inside the run, a signal that oscillates, and every commanded / measured
+  pair (`Pos_cmd` / `Pos`, `DesRoll` / `Roll`) - how far it stays from its command and how its steps overshoot and
+  settle. Your own rules: a JSON file in `~/.signalviewer/profiles` (a checks file's entries, applied to every file whose
+  signals match). *Checks* says which profiles looked.
+- **Simulink's names (CC14).** A *Structure with time* (To Workspace) is named as the model names it -
+  `plant.pos`, not `plant.signals.values`; MATLAB objects only MATLAB can open (a Simulink Dataset, `logsout`,
+  timeseries) are named when the file opens, with `tools/matlab/sv_export.m` to save them readably.
+- **Examples of simulations and tests (CC16).** A Simulink servo judged by its requirements, a process simulation in
+  HDF5, a Monte-Carlo folder (a row per run in Sweeps), a car's cruise control against its test drive. The welcome
+  shows six cards, generic first; *Help → Examples* lists every example by task, the flight logs last.
+- *Checks* is lighter (CC7): at most four tabs (*Checks*, a log's *Events*, *Parameters*, *The file* - with the
+  instruments and a log's hardware as its sections, no tabs of their own), and a failed limit in plain words (*above 85 – 30 times*).
+- The frontend's lint (oxlint) runs in the quick check and in CI against a baseline: a new warning fails, the old
+  ones are fixed over time (CC18).
 - Fixed: **a derived signal's formula (and a Sweeps column or condition) with a number past about 1.8e308, or nested
   deeper than Python can follow (hundreds of `-` or brackets), answered *Unexpected error … please report it*.** It
   now says what is wrong - *The number 100000000000… is too large*, or *The formula is nested too deeply … split it

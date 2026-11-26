@@ -7,14 +7,14 @@ import os
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, open_files, pg, save_as, sig  # noqa: E402,F401
+from test_features import S, env, file_menu, open_files, pg, save_as, sig  # noqa: E402,F401
 
 
 def test_export_part_at_a_rate_and_open_it_again(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
     sig(pg, "Gear").click()
-    pg.locator(".export-rec-btn").click()
+    file_menu(pg, "Export recording…")
     dlg = pg.locator(".xr-dialog")
     dlg.wait_for()
     assert "(2)" in dlg.locator("label", has_text="In the plots on screen").inner_text()

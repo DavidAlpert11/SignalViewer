@@ -7,7 +7,7 @@ import time
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, pg  # noqa: E402,F401
+from test_features import env, open_example, pg  # noqa: E402,F401
 
 # Measured in the 1.27 final round: set to about 3x the CI machine's time.
 BUDGET_S = 30.0
@@ -15,7 +15,8 @@ BUDGET_S = 30.0
 
 def test_the_largest_example_opens_within_budget(pg):
     t0 = time.perf_counter()
-    pg.locator(".examples-line button", has_text="simulation against its flight").click()
+    pg.locator(".ex-card").first.wait_for()
+    open_example(pg, "simVsFlight")                                            # CC16: Help -> Examples
     pg.wait_for_function("window.__sv.state().busy === 0 && window.__sv.state().ws.tabs.some((t) => t.plots.filter((p) => p.signals.length).length >= 2)",
                          timeout=int(BUDGET_S * 1000) + 30000)
     pg.wait_for_function("document.querySelectorAll('.grid .plot canvas').length >= 2 && !document.querySelector('.plot-loading')",

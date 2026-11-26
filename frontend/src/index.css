@@ -312,7 +312,8 @@ button, input, select { font: inherit; color: inherit; }
 .menu-subwrap > button.open { background: var(--panel-2); }
 .menu-more { margin-inline-start: auto; padding-inline-start: 16px; color: var(--muted); }
 [dir="rtl"] .menu-more { transform: scaleX(-1); }
-.menu.ctx.sub { position: absolute; top: -5px; inset-inline-start: calc(100% - 4px); z-index: 81; }
+.menu.ctx.sub { position: absolute; top: -5px; inset-inline-start: calc(100% - 4px); z-index: 81;
+  max-height: calc(100vh - 16px); overflow-y: auto; }   /* CC16: Help -> Examples by task is long */
 .menu.ctx.sub.flip { inset-inline-start: auto; inset-inline-end: calc(100% - 4px); }
 
 /* Toasts: a raised card (shadow-md) with its action (Undo); errors marked at the start. A message with two

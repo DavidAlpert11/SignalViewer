@@ -12,20 +12,17 @@ import { requestAreaExample } from "../areaExample";
 import { summarizeFolder } from "../folderSummary";
 import { startDemoGuide } from "../demoGuide";
 
-export const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", bench: "exampleBench", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate", folderOfFlights: "exampleFolderOfFlights", commonGains: "exampleCommonGains", smartSweepDemo: "exampleSmartSweepDemo", sweepTable: "exampleSweepTable", reportDemo: "exampleReportDemo", serialLink: "exampleSerialLink", linkStructure: "exampleLinkStructure", gpsNmea: "exampleGpsNmea" } as const satisfies Record<ExampleId, string>;
-const EXAMPLE_DESC = { flight: "exampleFlightDesc", twoFlights: "exampleTwoFlightsDesc", car: "exampleCarDesc", bench: "exampleBenchDesc", ardupilot: "exampleArdupilotDesc", simVsFlight: "exampleSimVsFlightDesc", investigate: "exampleInvestigateDesc", folderOfFlights: "exampleFolderOfFlightsDesc", commonGains: "exampleCommonGainsDesc", smartSweepDemo: "exampleSmartSweepDemoDesc", sweepTable: "exampleSweepTableDesc", reportDemo: "exampleReportDemoDesc", serialLink: "exampleSerialLinkDesc", linkStructure: "exampleLinkStructureDesc", gpsNmea: "exampleGpsNmeaDesc" } as const satisfies Record<ExampleId, string>;
-const EXAMPLE_ICON = { flight: Icon.Globe, twoFlights: Icon.Compare, car: Icon.Table, bench: Icon.Analysis, ardupilot: Icon.Log, simVsFlight: Icon.Analysis, investigate: Icon.Search, folderOfFlights: Icon.Table, commonGains: Icon.Merge, smartSweepDemo: Icon.Reload, sweepTable: Icon.Table, reportDemo: Icon.Report, serialLink: Icon.Log, linkStructure: Icon.Table, gpsNmea: Icon.Globe } satisfies Record<ExampleId, unknown>;
+export const EXAMPLE_LABEL = { servoStep: "exampleServoStep", processPlant: "exampleProcessPlant", monteCarlo: "exampleMonteCarlo", cruiseSimVsTest: "exampleCruise", flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", bench: "exampleBench", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate", folderOfFlights: "exampleFolderOfFlights", commonGains: "exampleCommonGains", smartSweepDemo: "exampleSmartSweepDemo", sweepTable: "exampleSweepTable", reportDemo: "exampleReportDemo", serialLink: "exampleSerialLink", linkStructure: "exampleLinkStructure", gpsNmea: "exampleGpsNmea" } as const satisfies Record<ExampleId, string>;
+const EXAMPLE_DESC = { servoStep: "exampleServoStepDesc", processPlant: "exampleProcessPlantDesc", monteCarlo: "exampleMonteCarloDesc", cruiseSimVsTest: "exampleCruiseDesc", flight: "exampleFlightDesc", twoFlights: "exampleTwoFlightsDesc", car: "exampleCarDesc", bench: "exampleBenchDesc", ardupilot: "exampleArdupilotDesc", simVsFlight: "exampleSimVsFlightDesc", investigate: "exampleInvestigateDesc", folderOfFlights: "exampleFolderOfFlightsDesc", commonGains: "exampleCommonGainsDesc", smartSweepDemo: "exampleSmartSweepDemoDesc", sweepTable: "exampleSweepTableDesc", reportDemo: "exampleReportDemoDesc", serialLink: "exampleSerialLinkDesc", linkStructure: "exampleLinkStructureDesc", gpsNmea: "exampleGpsNmeaDesc" } as const satisfies Record<ExampleId, string>;
+const EXAMPLE_ICON = { servoStep: Icon.Analysis, processPlant: Icon.Analysis, monteCarlo: Icon.Table, cruiseSimVsTest: Icon.Compare, flight: Icon.Globe, twoFlights: Icon.Compare, car: Icon.Table, bench: Icon.Analysis, ardupilot: Icon.Log, simVsFlight: Icon.Analysis, investigate: Icon.Search, folderOfFlights: Icon.Table, commonGains: Icon.Merge, smartSweepDemo: Icon.Reload, sweepTable: Icon.Table, reportDemo: Icon.Report, serialLink: Icon.Log, linkStructure: Icon.Table, gpsNmea: Icon.Globe } satisfies Record<ExampleId, unknown>;
 
-/** FR11 (owner, 2026-11-16): six cards on the welcome screen, one of them a Sweeps example; every example (these
- *  and the others) is in Help -> Examples. */
-export const FEATURED: ExampleId[] = ["ardupilot", "investigate", "simVsFlight", "twoFlights", "folderOfFlights", "smartSweepDemo"];
+/** FR11 / CC16 (owner, 2026-11-26: simulations and tests of any kind - ArduPilot is one example, not the centre): six
+ *  cards, generic first - verify a simulation, a model against its test, many runs, find what went wrong, a
+ *  simulation converging on the PC (Sweeps), a flight log; every example is in Help -> Examples, grouped by task (EXAMPLE_TASKS). */
+export const FEATURED: ExampleId[] = ["servoStep", "cruiseSimVsTest", "monteCarlo", "investigate", "smartSweepDemo", "ardupilot"];
 
-const EXAMPLE_GROUPS = [
-  { area: "recordings", label: "areaRecordings", hint: "exampleGroupRecordings" },
-  { area: "sweeps", label: "areaSweeps", hint: "exampleGroupSweeps" },
-] as const;
 
-type Example = { id: ExampleId; paths: string[]; open?: "study" | "sweep" | "summary" | "report" | "messages" | "structure" | "map" };
+type Example = { id: ExampleId; paths: string[]; open?: "study" | "sweep" | "summary" | "report" | "messages" | "structure" | "map" | "checks" };
 
 /** An example opened as a new user would: recordings with their suggested view, a study in Sweeps. */
 export function openExample(example: Example): void {
@@ -54,6 +51,12 @@ function openPrepared(ex: Example): void {
     const paths = ex.open === "structure" ? ex.paths.slice(0, 1) : ex.paths;
     void openPaths(paths, undefined, { noStart: true }).then((ids) => startDemoGuide(ex.id, opened(paths, ids)));
   }
+  // CC16: a simulation and its requirements file beside it - opened with Checks on its verdict
+  else if (ex.open === "checks") void openPaths(ex.paths.slice(0, 1), undefined, { autoView: true }).then((ids) => {
+    const id = opened(ex.paths.slice(0, 1), ids)[0];
+    if (id) useApp.setState({ panel: "log", checksRun: id });
+    void startDemoGuide(ex.id, id ? [id] : []);
+  });
   // RV5: once its view is open, the demo's own setup and its line of what to do next
   else void openPaths(ex.paths, undefined, { autoView: true }).then((ids) => startDemoGuide(ex.id, opened(ex.paths, ids)));
 }
@@ -148,17 +151,11 @@ export default function Welcome() {
             {/* cards, not a line of links: the line did not wrap and its last example (the
                 Investigate one) ran off the screen below 1920 px */}
             <h2 className="examples-title eyebrow">{t("startFromExample")}</h2>
-            {/* review (owner, 2026-11-13: a clear demo for everything): grouped by the area each one shows */}
-            {EXAMPLE_GROUPS.map((g) => {
-              const xs = examples.filter((ex) => FEATURED.includes(ex.id) && (ex.open === "sweep" || ex.open === "study" ? "sweeps" : "recordings") === g.area)
-                .sort((a, b) => FEATURED.indexOf(a.id) - FEATURED.indexOf(b.id));
-              return xs.length > 0 && (
-                <section key={g.area} className="examples-group" aria-label={t(g.label)}>
-                  <h3 className="examples-group-title"><span className="eyebrow">{t(g.label)}</span><span className="hint">{t(g.hint)}</span></h3>
-                  <div className="examples-line">{xs.map((ex) => <ExampleCard key={ex.id} ex={ex} />)}</div>
-                </section>
-              );
-            })}
+            {/* CC9 / CC16: one grid of six, generic first (no second level of groups to read) */}
+            <div className="examples-line">
+              {FEATURED.map((id) => examples.find((ex) => ex.id === id)).filter((ex): ex is Example => !!ex)
+                .map((ex) => <ExampleCard key={ex.id} ex={ex} />)}
+            </div>
             <p className="hint examples-more">{t("examplesMore")}</p>
           </>
         )}

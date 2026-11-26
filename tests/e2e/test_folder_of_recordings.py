@@ -14,10 +14,8 @@ EXAMPLE = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "folde
 
 
 def test_the_card_sums_up_the_folder_and_opens_ticked_rows_together(pg):
-    pg.wait_for_selector(".examples-group")
-    groups = pg.locator(".examples-group").evaluate_all("els => els.map((g) => [...g.querySelectorAll('.ex-card')].map((c) => c.dataset.example))")
-    assert "folderOfFlights" in groups[0], groups                                   # a Recordings demo
-    pg.locator(".ex-card[data-example='folderOfFlights']").click()
+    pg.wait_for_selector(".ex-card")
+    open_example(pg, "folderOfFlights")                                             # CC16: Help -> Examples, Many runs
     pg.wait_for_function("window.__sv.state().area === 'sweeps'", timeout=60000)
     rows = pg.locator(".sw-raw tbody tr")
     rows.nth(9).wait_for(timeout=60000)
@@ -40,7 +38,7 @@ def test_a_folder_without_measures_is_defined_on_its_first_recording(pg, tmp_pat
     for n in ("X8-B_2026-09-05.bin", "X8-B_2026-10-17.bin"):
         shutil.copy(os.path.join(EXAMPLE, n), d / n)
     pg.locator(".areas .area-btn", has_text="Sweeps").click()
-    pg.locator(".areabar .btn", has_text="Open").click()                             # W16: folders open from Open ▾
+    pg.locator(".topbar .file-menu-btn").click()                             # W16: folders open from Open ▾
     pg.locator(".menu.ctx button", has_text="From a folder of recordings").click()
     goto_folder(pg, str(d))
     pg.click(".dialog button:has-text('Use this folder')")
@@ -64,9 +62,10 @@ def test_a_folder_of_recordings_reads_as_recordings(pg, lang):
     """M34 FR5: steps Data -> Columns -> Limits -> Results; no Send runs, no Next runs, no "sets hold"; the status
     line counts recordings; the demo's line names the copter and its one button shows it."""
     import re
+    pg.wait_for_selector(".ex-card")
+    open_example(pg, "folderOfFlights")                                             # (Help -> Examples, in English)
     if lang == "he":
         pg.evaluate("window.__sv.setState({ lang: 'he' })")
-    pg.locator(".ex-card[data-example='folderOfFlights']").click()
     pg.wait_for_selector(".sw-raw tbody tr:nth-child(10)", timeout=60000)
     guide = pg.locator(".demo-guide[data-demo='folderOfFlights']")
     guide.wait_for(timeout=30000)

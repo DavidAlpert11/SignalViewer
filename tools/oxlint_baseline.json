@@ -163,9 +163,6 @@
  "src/components/sweeps/StudyPanel.tsx": {
   "react(only-export-components)": 2
  },
- "src/components/sweeps/SweepsArea.tsx": {
-  "react(only-export-components)": 1
- },
  "src/icons.tsx": {
   "react(only-export-components)": 1
  },

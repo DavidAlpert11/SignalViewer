@@ -59,7 +59,8 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
   const q = useApp((s) => s.quality[runId]);
   const items = useLimitItems(runId);
   const [lim, setLim] = useState<Record<string, LimitResult> | null>(null);
-  const [health, setHealth] = useState<HealthReport | null | "none">(isLog ? null : "none");
+  // CC12: every file has an automatic research (the "any data" profile); a log adds its health check
+  const [health, setHealth] = useState<HealthReport | null | "none">(null);
   // review 2026-11-25 (C1): the automatic flags the strip shows (Motor3 flat at its limit) are findings too - a
   // verdict that left them out read "no problems" above a saturated motor
   const [flags, setFlags] = useState<RunOverview["flags"] | null>(null);
@@ -75,11 +76,10 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
     return () => { gone = true; };
   }, [items, runKey]);
   useEffect(() => {
-    if (!isLog) return;
     let gone = false;
     api.runHealth(runId).then((r) => { if (!gone) setHealth(r); }).catch(() => { if (!gone) setHealth("none"); });
     return () => { gone = true; };
-  }, [runId, runKey, isLog]);
+  }, [runId, runKey]);
 
   useEffect(() => {
     let gone = false;
@@ -93,6 +93,13 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
   const fileName = (p: string) => p.slice(Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\")) + 1);
   const name = (id: string) => id.slice(id.indexOf("/") + 1);
   const range = (it: LimitItem) => `${it.lo ?? "−∞"} … ${it.hi ?? "∞"}`;
+  // CC7: a failed limit in plain words - "above 85", "below 2", "outside 2 … 85" - not "outside −∞ … 85"
+  const limitBad = (n: string, lo: number | null, hi: number | null, k: number, first: number | null) => {
+    const at = first === null ? "–" : fmtTime(first, lang);
+    return lo == null ? t("chkLimitBadHi", { name: n, hi: fmtVal(hi!, lang), n: k, t: at })
+      : hi == null ? t("chkLimitBadLo", { name: n, lo: fmtVal(lo, lang), n: k, t: at })
+      : t("chkLimitBad", { name: n, range: `${fmtVal(lo, lang)} … ${fmtVal(hi, lang)}`, n: k, t: at });
+  };
   const limRows = items.map((it) => ({ it, r: lim?.[it.id] })).filter((x) => x.r);
   const badLim = limRows.filter((x) => !x.r!.pass).length;
   const qIssues = q ? q.signals.filter((s) => s.issues.length) : [];
@@ -147,12 +154,14 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
               {cfile.results.map((r, k) => (
                 <li key={k} className={`card ${r.status === "pass" ? "ok" : r.status === "fail" ? "bad" : "warn"}`} data-check={r.name} data-status={r.status}>
                   <p className="card-title">{r.status === "pass" ? t("chkFilePass", { name: r.name })
-                    : r.status === "fail" ? t("chkLimitBad", { name: r.name, range: `${r.lo ?? "−∞"} … ${r.hi ?? "∞"}`, n: r.violations ?? 0,
-                      t: r.first === undefined ? "–" : fmtTime(r.first, lang) })
+                    : r.status === "fail" && r.kind ? r.name
+                    : r.status === "fail" ? limitBad(r.name, r.lo ?? null, r.hi ?? null, r.violations ?? 0, r.first ?? null)
                     : t("chkFileNotRun", { name: r.name, why: r.message ?? "" })}</p>
-                  {r.status === "fail" && r.worstT !== undefined && (
-                    <div className="card-next"><button className="pchange span" onClick={() => actions.goToTime(r.worstT!)} title={t("healthSpan")}>
-                      {fmtTime(r.worstT, lang)}</button></div>
+                  {/* CC11: a requirement says what it measured (overshoot 11 % of the step… at 1.9 s) */}
+                  {r.kind && r.message && r.status !== "error" && r.status !== "skipped" && <p className="card-meta">{r.message.replace(/^[^:]*: /, "")}</p>}
+                  {r.status === "fail" && (r.worstT ?? r.first) !== undefined && (
+                    <div className="card-next"><button className="pchange span" onClick={() => actions.goToTime((r.worstT ?? r.first)!)} title={t("healthSpan")}>
+                      {fmtTime((r.worstT ?? r.first)!, lang)}</button></div>
                   )}
                 </li>
               ))}
@@ -170,7 +179,7 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
             {limRows.map(({ it, r }) => (
               <li key={it.id} className={`card ${r!.pass ? "ok" : "bad"}`} data-limit={name(it.id)}>
                 <p className="card-title">{r!.pass ? t("chkLimitOk", { name: name(it.id), range: range(it) })
-                  : t("chkLimitBad", { name: name(it.id), range: range(it), n: r!.spans.length || r!.violations, t: r!.first === null ? "–" : fmtTime(r!.first, lang) })}</p>
+                  : limitBad(name(it.id), it.lo, it.hi, r!.spans.length || r!.violations, r!.first)}</p>
                 {!r!.pass && r!.spans.length > 0 && (
                   <div className="card-next">
                     {r!.spans.slice(0, 4).map(([a, b], k) => (
@@ -207,17 +216,20 @@ export function Checks({ runId, isLog, runKey }: { runId: string; isLog: boolean
 
       {!flagsLast && flagsSec}
 
-      {isLog && (
-        <section className="checks-sec" aria-label={t("chkHealth")}>
-          <h3 className="eyebrow">{t("chkHealth")}</h3>
+      {/* CC12: the automatic research by profile - a log's health check, "any data" for every file, the user's own;
+          a file where nothing was found says nothing here (calm: no empty section) */}
+      {(isLog || (hRep && hRep.findings.length > 0)) && (
+        <section className="checks-sec" aria-label={t(isLog ? "chkHealth" : "chkHealthAny")} data-profiles={(hRep?.profiles ?? []).map((p) => p.name ?? p.id).join(",")}>
+          <h3 className="eyebrow">{t(isLog ? "chkHealth" : "chkHealthAny")}</h3>
           {health === null ? <p className="hint">…</p> : health === "none" ? <p className="hint">{t("healthNone")}</p> : (
             <>
-              {!health.findings.some((f) => f.level !== "ok") && (
+              {isLog && !health.findings.some((f) => f.level !== "ok") && (
                 <p className="empty-state"><span>{t("emptyFindingsText")}</span>
                   <button className="linklike" onClick={() => useApp.setState({ logMarkers: "all" })}>{t("emptyFindingsAction")}</button></p>
               )}
               <ol className="health-list">{health.findings.map((f, i) => <HealthRow key={i} f={f} runId={runId} />)}</ol>
-              <p className="hint log-note">{t("healthNote")}</p>
+              <p className="hint log-note" title={t(isLog ? "healthNote" : "healthNoteAny")}>
+                {t("chkProfiles", { list: (health.profiles ?? []).map((p) => p.id === "user" ? p.name ?? "" : t(`prof_${p.id}` as "prof_any")).join(", ") })}</p>
             </>
           )}
         </section>

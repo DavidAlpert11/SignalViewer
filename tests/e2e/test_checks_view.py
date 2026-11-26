@@ -125,7 +125,10 @@ def test_no_green_verdict_when_nothing_was_judged(pg):
                              timeout=20000)
         verdict = panel.locator("[data-testid=checks-verdict]").inner_text()
         assert "Nothing outside its limits" not in verdict
-    assert "automatic flag" in verdict and "no limits set" in verdict
+    # CC12: heavy.csv's DesRoll / Roll pair is judged by the "any data" profile (its tracking, 30 % of the range)
+    assert "automatic flag" in verdict and "to look at" in verdict
+    assert "any" in panel.locator("[data-profiles]").get_attribute("data-profiles")
+    assert panel.locator(".health-list .hrow.warning", has_text="Roll stays away from DesRoll").count() == 1
     flag = panel.locator(".card.warn[data-flag=saturated][data-flag-signal^='Motor3']")
     assert flag.count() >= 1 and "flat at its limit" in flag.first.inner_text()
     flag.first.locator(".pchange.span").click()                                   # to its moment

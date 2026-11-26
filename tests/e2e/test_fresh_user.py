@@ -14,6 +14,9 @@ import urllib.request
 
 import pytest
 
+sys.path.insert(0, os.path.dirname(__file__))
+from test_features import set_language  # noqa: E402  (CC1: the language is chosen in Settings)
+
 pw = pytest.importorskip("playwright.sync_api")
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -88,9 +91,9 @@ def test_first_run(fresh):
     pg.keyboard.press("Escape")
     pg.wait_for_selector(".scrim", state="detached")
     # Hebrew and back
-    pg.get_by_role("button", name="עברית").click()
+    set_language(pg, "he")
     pg.wait_for_function("document.documentElement.dir === 'rtl'")
-    pg.get_by_role("button", name="English").click()
+    set_language(pg, "en")
     pg.wait_for_function("document.documentElement.dir === 'ltr'")
 
 
@@ -114,7 +117,7 @@ def test_a_package_writes_the_examples_recordings_on_first_use(packaged):
     path = pg.evaluate("window.__sv.state().runs[0].path")
     assert path.startswith(os.path.join(home, ".signalviewer", "examples")) and os.path.getsize(path) > 100_000, path
     pg.locator(".brand").click()                                        # back to the welcome screen
-    pg.locator(".ex-card[data-example='folderOfFlights']").click()
+    pg.locator(".ex-card[data-example='monteCarlo']").click()          # CC16: the Monte-Carlo folder
     pg.wait_for_selector(".sw-steps", timeout=60000)                    # the folder's table in Sweeps
-    made = os.path.join(os.path.dirname(path), "folder_of_flights")
-    assert len([f for f in os.listdir(made) if f.endswith(".bin")]) == 10 and os.path.isfile(os.path.join(made, "measures.json"))
+    made = os.path.join(os.path.dirname(path), "simulation", "montecarlo")
+    assert len([f for f in os.listdir(made) if f.endswith(".csv")]) == 24 and os.path.isfile(os.path.join(made, "measures.json"))

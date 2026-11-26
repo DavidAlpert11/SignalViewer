@@ -3,14 +3,15 @@
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, open_files, pg, sig  # noqa: E402,F401
+from test_features import S, env, open_files, open_example, pg, sig  # noqa: E402,F401
 
 LINES = """() => { const s = window.__sv.state(); const col = Object.fromEntries(s.runs.map((r) => [r.id, r.color.toUpperCase()]));
   return s.ws.tabs.flatMap((t) => t.plots.flatMap((p) => p.signals.map((x) => [x.sig, x.color.toUpperCase(), col[x.sig.split('/')[0]]]))); }"""
 
 
 def test_a_simulation_against_its_flight_in_the_files_colours(pg):
-    pg.locator(".examples-line button", has_text="A simulation against its flight").click()
+    pg.locator(".ex-card").first.wait_for()
+    open_example(pg, "simVsFlight")                                            # CC16: Help -> Examples
     pg.wait_for_selector(".demo-guide[data-demo='simVsFlight']", timeout=30000)
     lines = pg.evaluate(LINES)
     assert len(lines) >= 10

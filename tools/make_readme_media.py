@@ -191,7 +191,8 @@ def sweeps_fresh(pg):
     pg.locator(".areas .area-btn", has_text="Sweeps").click()
     pg.wait_for_selector(".sw-welcome, .sw-study-wrap")
     if pg.locator(".sw-pills .sw-tbl-pill .x").count():                  # Clear > Everything (1.20)
-        pg.locator(".sw-clear-btn").click()
+        pg.locator(".topbar .file-menu-btn").click()                     # CC2: File ▾ → Clear ▸ → Everything
+        pg.locator(".menu.ctx button", has_text="Clear").first.hover()
         pg.locator(".menu.ctx button", has_text="Everything").click()
         pg.locator(".dialog-foot .btn").last.click()
     pg.wait_for_selector(".sw-welcome")
@@ -333,7 +334,7 @@ def img_11_formula_editor(b, app):
 
 def img_12_hebrew_rtl(b, app):
     ctx, pg = page(b, app); overview(pg, app)
-    pg.locator("header.topbar .btn", has_text="עברית").click(); pg.wait_for_timeout(800)
+    pg.evaluate("window.__sv.setState({ lang: 'he' })"); pg.wait_for_timeout(800)   # (CC1: in Settings)
     shot(pg, "12_hebrew_rtl"); ctx.close()
 
 
@@ -387,7 +388,8 @@ def fake_vehicle(port, stop):
 
 def live_mavlink(pg, app, seconds=8.0):
     port = free_port()
-    pg.click(".live-more"); pg.wait_for_timeout(300)
+    pg.locator(".topbar .file-menu-btn").click(); pg.locator(".menu.ctx button", has_text="Live mode settings").click()
+    pg.wait_for_timeout(300)
     pg.locator(".mav-section:not(.link-section) input[list]").fill(f"udpin:127.0.0.1:{port}")
     pg.get_by_role("button", name="Connect and record").click()
     stop = threading.Event()
@@ -769,7 +771,10 @@ def img_30_sweeps_pareto(b, app):
 
 # ----------------------------------------------------------------------------- 1.28: the tutorials' pictures
 # the examples off the welcome screen (FR11), by their label in Help -> Examples
+# CC16: the welcome's six are the simulation examples (+ Investigate, the ArduPilot log); the rest via Help -> Examples
 MENU_LABEL = {"flight": "a drone flight", "car": "three car runs", "bench": "a pump on a test bench",
+                "twoFlights": "the same mission flown twice", "simVsFlight": "a simulation against its flight",
+                "folderOfFlights": "a folder of recordings", "smartSweepDemo": "smart sweep demo",
               "sweepTable": "a sweep: which settings hold", "commonGains": "one gain set, three drones"}
 
 

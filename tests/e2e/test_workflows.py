@@ -11,6 +11,9 @@ import json, os, socket, subprocess, sys, time, urllib.request
 import numpy as np
 import pytest
 
+sys.path.insert(0, os.path.dirname(__file__))
+from test_features import open_clear_menu, open_example, set_language  # noqa: E402  (CC1: in Settings / File ▾)
+
 pw = pytest.importorskip("playwright.sync_api")
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -229,7 +232,8 @@ def test_open_an_example_from_the_welcome_screen(page, server):
 
 def test_open_the_two_flights_example(page, server):
     """T44: the same mission flown twice - both files open, with the same signals."""
-    page.locator(".examples-line button", has_text="flown twice").click()
+    page.locator(".ex-card").first.wait_for()
+    open_example(page, "twoFlights")                                    # CC16: Help -> Examples
     page.wait_for_function("document.querySelectorAll('.run-head').length === 2")
     assert page.locator(".run-head", has_text="uav_flight_windy").count() == 1
     page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length >= 2))", timeout=20000)   # T48
@@ -329,7 +333,7 @@ def test_dialogs_take_the_keyboard(page, server):
         assert page.evaluate(inside)
     page.keyboard.press("Escape")
     page.wait_for_selector(".scrim", state="detached")
-    page.locator(".area-tools [aria-label='Clear']").click(); page.locator(".menu.ctx button", has_text="Clear everything").click()
+    open_clear_menu(page); page.locator(".menu.ctx button", has_text="Clear everything").click()
     page.wait_for_function(inside)
     page.keyboard.press("Escape")
     page.wait_for_selector(".scrim", state="detached")
@@ -577,7 +581,7 @@ def test_clearer_controls(page, server):
     page.locator(".menu.ctx button", has_text="Remove from the active plot").click()
     page.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 0")
     assert "Link time" in page.locator(".stage-bar .link-x").inner_text()
-    page.locator(".area-tools [aria-label='Clear']").click(); page.locator(".menu.ctx button", has_text="Clear everything").click()
+    open_clear_menu(page); page.locator(".menu.ctx button", has_text="Clear everything").click()
     ok = page.locator(".dialog .btn.primary")
     assert ok.inner_text() == "Clear everything" and "danger" in ok.get_attribute("class")
     page.keyboard.press("Escape")
@@ -586,14 +590,14 @@ def test_clearer_controls(page, server):
 def test_builtin_templates_in_hebrew(page, server):
     """T51: in Hebrew the built-in templates (and the tabs they make) are named in Hebrew."""
     _open(page, server["data"], ["run_a.csv"])
-    page.get_by_role("button", name="עברית").click()
+    set_language(page, "he")
     page.wait_for_function("document.documentElement.dir === 'rtl'")
     chip = page.locator(".tpl-chips .chipbtn", has_text="מבט מהיר")
     chip.wait_for()
     page.locator(".stage-more").click(); page.locator(".menu.ctx button").nth(1).click()     # U7: ⋯ > clear the plots (in Hebrew)
     chip.click()
     page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.name.startsWith('מבט מהיר'))")
-    page.get_by_role("button", name="English").click()
+    set_language(page, "en")
 
 
 def test_small_window_file_header(page, server):

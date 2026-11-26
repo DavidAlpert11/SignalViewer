@@ -95,11 +95,12 @@ function MapSection({ seg }: { seg: <V extends string | number>(value: V, opts: 
 const SWEEP_LINES = [50_000, 200_000, 500_000, 1_000_000, 0];
 
 /* T18: Settings - kept between starts (prefs.ts / settings.ts), and a session file opened later
-   does not change them. Each choice has ONE place: the language stays a button in the top bar,
-   live mode's choices stay in Live ▾ (both are kept between starts the same way). */
+   does not change them. Each choice has ONE place: the language and the theme here (CC1: no longer buttons in the
+   top row; also in the palette), live mode's choices stay in File ▾ → Live (both are kept between starts the same way). */
 export default function SettingsDialog() {
   const t = useT();
   const theme = useApp((s) => s.theme);
+  const lang = useApp((s) => s.lang);
   const uiScale = useApp((s) => s.uiScale);
   const timeFormat = useApp((s) => s.timeFormat);
   const askBeforeClose = useApp((s) => s.askBeforeClose);
@@ -129,6 +130,8 @@ export default function SettingsDialog() {
           <button className="iconbtn" autoFocus onClick={close} aria-label={t("close")}><Icon.X /></button></div>
         <div className="dialog-body settings-body">
           <h3 className="set-group-title">{t("setGrpLook")}</h3>
+          <div className="set-row"><span>{t("setLanguage")}</span>
+            {seg(lang, [["en", "English"], ["he", "עברית"]], (v) => useApp.setState({ lang: v }), t("setLanguage"))}</div>
           <div className="set-row"><span>{t("theme")}</span>
             {seg(theme, [["light", t("light")], ["dark", t("dark")]], (v) => useApp.setState({ theme: v }), t("theme"))}</div>
           <div className="set-row"><span>{t("hTextSize")}</span>

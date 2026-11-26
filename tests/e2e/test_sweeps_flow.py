@@ -31,7 +31,12 @@ def _to_sweeps(pg):
 
 
 def _bar_menu(pg, button, item):
-    pg.locator(".areabar .btn", has_text=button).first.click()
+    """CC2: the area's Open / Study / Clear menus are one File ▾ in the top row (`button` names the old menu, kept
+    for reading the tests); the study's resets are in its Clear ▸."""
+    pg.locator(".topbar .file-menu-btn").click()
+    pg.locator(".menu.ctx button").first.wait_for()
+    if pg.locator(".menu.ctx > button", has_text=item).count() == 0:
+        pg.locator(".menu.ctx button", has_text="Clear").first.hover()
     pg.locator(".menu.ctx button", has_text=item).first.click()
 
 
@@ -504,8 +509,8 @@ def test_undo_redo_and_the_studies_open_again(pg):
     open studies come back after the app starts again, where they were."""
     _fresh(pg)
     _step(pg, "goals")
-    undo = pg.locator(".areabar button[aria-label='Undo']")
-    redo = pg.locator(".areabar button[aria-label='Redo']")
+    undo = pg.locator(".topbar .area-tools button[aria-label='Undo']")
+    redo = pg.locator(".topbar .area-tools button[aria-label='Redo']")
     assert undo.is_disabled()                                         # opening a table is not a change
     _condition(pg, "roll_error_deg", "<=", 5)
     pg.wait_for_function("document.querySelectorAll('.sw-goal-table tr.sw-goal-on').length === 1")
@@ -1084,7 +1089,8 @@ def test_sweeps_runs_tab_pareto_and_clear(pg):
     tabs = pg.locator(".sw-center-tabs button").all_inner_texts()
     assert tabs[0] == "Parameter sets · 45" and tabs[1] == "All runs · 810"
     # Clear > everything: closed, the notice's Undo opens it again
-    pg.locator(".sw-clear-btn").click()
+    pg.locator(".topbar .file-menu-btn").click()                                   # CC2: File ▾ → Clear ▸
+    pg.locator(".menu.ctx button", has_text="Clear").first.hover()
     menu_item(pg, "Everything")
     pg.locator(".dialog-foot .btn").last.click()
     pg.wait_for_selector(".sw-welcome")

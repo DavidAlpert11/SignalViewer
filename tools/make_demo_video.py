@@ -110,7 +110,7 @@ def record(b, app, tmp) -> tuple:
     pg = ctx.new_page()
     film = Film(pg)
     pg.goto(app.url)
-    pg.wait_for_selector(".ex-card[data-example='simVsFlight']")
+    pg.wait_for_selector(".ex-card")
     pg.evaluate("window.__sv.setState({ theme: 'dark' })")
     film.overlay()
     start = film.now()                                   # the loading before this is cut
@@ -123,7 +123,10 @@ def record(b, app, tmp) -> tuple:
 
     # 2 - two files, two clocks
     film.cap("A Simulink model (.mat) and the real flight (.bin)", "Opened together – every signal on one time axis")
-    film.glide(pg.locator(".ex-card[data-example='simVsFlight']"))
+    # (CC16: not one of the welcome's six since 1.38 - Help -> Examples -> A simulation against a test)
+    film.glide(pg.locator(".topbar .menubar-btn", has_text="Help"))
+    film.glide(pg.locator(".menu.ctx button", has_text="Examples"))
+    film.glide(pg.locator(".menu.ctx.sub button", has_text="a simulation against its flight"))
     pg.wait_for_function("window.__sv.state().runs.filter((r) => r.format !== 'derived').length === 2", timeout=30000)
     pg.wait_for_selector(".grid canvas", timeout=30000)
     pg.wait_for_timeout(2400)

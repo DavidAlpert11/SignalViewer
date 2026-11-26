@@ -4,7 +4,7 @@ values, Ctrl = both, Alt = time; double-click = everything)."""
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, pg  # noqa: E402,F401
+from test_features import S, env, pg, set_language  # noqa: E402,F401
 
 
 def close_dialog(pg):
@@ -22,45 +22,44 @@ def close_dialog(pg):
 
 
 def test_file_and_help_menus(pg):
-    assert pg.locator(".topbar .menubar-btn", has_text="File").count() == 0
-    # T-areas / D1 (one top row): the top row holds what every work area shares, and the area's own tools in their
-    # group (.area-tools) - session and Clear are the Recordings area's
-    for label in ("Settings", "Theme"):
-        assert pg.locator(f".topbar [aria-label='{label}']").count() == 1, label
-    for label in ("Open", "Save session", "Clear", "Live mode settings"):
-        assert pg.locator(f".area-tools [aria-label='{label}']").count() == 1, label
-    # review C3: the folder is a labelled Open - data files first, then a session, then the recent files
-    opener = pg.locator(".area-tools .open-menu-btn")
-    assert opener.inner_text().strip().startswith("Open")
+    # CC1 (owner, 2026-11-26: calm and clear): the top row is the name, the areas, search, the area's File ▾, its
+    # views, live, undo / redo, ⚙ and Help - language and theme are in Settings, the Inspector in the stage bar
+    assert pg.locator(".topbar [aria-label='Settings']").count() == 1
+    for gone in ("Theme", "Save session", "Clear", "Live mode settings", "Export recording…"):
+        assert pg.locator(f".topbar [aria-label='{gone}']").count() == 0, gone
+    assert pg.get_by_role("button", name="עברית").count() == 0
+    # File ▾: data files first, then a session, the recent files; save, export, the live links, Clear ▸
+    opener = pg.locator(".area-tools .file-menu-btn")
+    assert opener.inner_text().strip().startswith("File")
     opener.click()
-    pg.locator(".menu.ctx button", has_text="Recent files").wait_for()   # the END state: the whole menu is open
+    pg.locator(".menu.ctx button", has_text="Clear").wait_for()          # the END state: the whole menu is open
     items = [x.strip() for x in pg.locator(".menu.ctx button").all_inner_texts()]
     assert items[0].startswith("Open files…") and items[1].startswith("Open session…") and items[2].startswith("Recent files"), items
+    for want in ("Save session", "Export recording…", "Live mode settings…", "Clear"):
+        assert any(i.startswith(want) for i in items), (want, items)
     pg.locator(".menu.ctx button", has_text="Open files…").click()
     pg.wait_for_function("window.__sv.state().browserOpen === true")
     close_dialog(pg)
-    # Live follows the open files: it is the Recordings area's (owner, 2026-11-02) - in its tools, gone in another area
-    assert pg.locator(".topbar .live-btn").count() == 1 and pg.locator(".area-tools .live-btn").count() == 1
-    pg.evaluate("window.__sv.setState({ area: 'sweeps' })")
-    pg.wait_for_selector(".area-tools", state="detached")
+    # Live follows the open files: with none open there is nothing to follow (the links are in File ▾)
     assert pg.locator(".topbar .live-btn").count() == 0
-    pg.evaluate("window.__sv.setState({ area: 'recordings' })")
-    pg.wait_for_selector(".area-tools")
-    pg.click(".area-tools [aria-label='Clear']")
-    items = [x.strip() for x in pg.locator(".menu.ctx button").all_inner_texts()]
+    # Clear ▸: from this tab to everything
+    opener.click()
+    pg.locator(".menu.ctx button", has_text="Clear").hover()
+    pg.locator(".menu.ctx.sub button", has_text="Clear everything").wait_for()
+    items = [x.strip() for x in pg.locator(".menu.ctx.sub button").all_inner_texts()]
     for want in ("This tab's plots", "The other tabs", "All tabs", "Clear everything"):
         assert any(i.startswith(want) for i in items), items
-    assert "danger" in pg.locator(".menu.ctx button", has_text="Clear everything").get_attribute("class")
+    assert "danger" in pg.locator(".menu.ctx.sub button", has_text="Clear everything").get_attribute("class")
     pg.keyboard.press("Escape")
-    # day / night in one click, and back
+    # language and theme: in Settings (the first group), changed at once
     before = pg.evaluate("window.__sv.state().theme")
-    pg.click(".topbar [aria-label='Theme']")
-    pg.wait_for_function(f"window.__sv.state().theme !== '{before}'")
-    assert pg.evaluate("document.documentElement.dataset.theme") != before
-    pg.click(".topbar [aria-label='Theme']")
-    pg.wait_for_function(f"window.__sv.state().theme === '{before}'")
     pg.click(".topbar [aria-label='Settings']")
     pg.wait_for_function("window.__sv.state().settingsOpen === true")
+    other = "Light" if before == "dark" else "Dark"
+    pg.locator(".dialog.settings [role='radiogroup'][aria-label='Theme'] [role='radio']", has_text=other).click()
+    pg.wait_for_function(f"window.__sv.state().theme !== '{before}'")
+    assert pg.evaluate("document.documentElement.dataset.theme") != before
+    assert pg.locator(".dialog.settings [role='radiogroup'][aria-label='Language'] [role='radio']", has_text="עברית").count() == 1
     pg.keyboard.press("Escape")
     pg.wait_for_selector(".scrim", state="detached")
 
@@ -75,6 +74,12 @@ def test_file_and_help_menus(pg):
     pg.locator(".menu.ctx button", has_text="Examples").click()
     pg.locator(".menu.ctx.sub button", has_text="three car runs").click()
     pg.wait_for_function("window.__sv.state().runs.filter(r => r.format !== 'derived').length >= 3", timeout=20000)
+    # with files open: Live in the area's tools, gone in another area
+    pg.locator(".area-tools .live-btn").wait_for()
+    pg.evaluate("window.__sv.setState({ area: 'sweeps' })")
+    pg.wait_for_selector(".topbar .live-btn", state="detached")
+    pg.evaluate("window.__sv.setState({ area: 'recordings' })")
+    pg.locator(".area-tools .live-btn").wait_for()
 
     pg.locator(".topbar .menubar-btn", has_text="Help").click()
     # T66: next to Copy error details (not clicked here: it would open the PC's own browser)
@@ -95,9 +100,9 @@ def test_user_guide_in_the_app(pg):
     assert pg.locator(".dialog.guide .guide-table td", has_text="Backspace").count() == 1
     assert pg.locator(".dialog.guide code").count() > 5
     close_dialog(pg)
-    pg.get_by_role("button", name="עברית").click()
+    set_language(pg, "he")
     pg.keyboard.press("F1")
     pg.wait_for_selector(".dialog.guide h2:has-text('מדריך למשתמש')")
     pg.locator(".dialog.guide h3").nth(9).wait_for()                   # the Hebrew text, not just the title
     close_dialog(pg)
-    pg.get_by_role("button", name="English").click()
+    set_language(pg, "en")

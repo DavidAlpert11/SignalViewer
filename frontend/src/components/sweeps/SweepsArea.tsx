@@ -30,8 +30,7 @@ import FlowNav, { flowTitle, goFlow, useFlowStep } from "./FlowNav";
 import { useLeftHidden } from "../../sweeps/narrow";
 import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
-import { drawOf, recipeFiles, savedOf, useCanRedo, useCanUndo, useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
-import { emptyView, newGoal, materialize } from "../../sweeps/model";
+import { drawOf, useCanRedo, useCanUndo, useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
 import { notify, notifyError, say } from "../../sweeps/notify";
 import { activeParams, colLabel, reorderedAxes, scaleOf, scopedColumns, scopeKey, scopeMask, showMask, shownAxes } from "../../sweeps/view";
 import { hasFilter } from "../../sweeps/filters";
@@ -39,7 +38,6 @@ import { acrossFilters, filterParts, modeKeep, ownFilters, runsTabAsk, setFilter
 import { filterText } from "../../sweeps/scales";
 import { runSelection } from "../../sweeps/selection";
 import ReportDialog from "./ReportDialog";
-import { TABLE_EXTS, fileKind } from "../../sweeps/studyFile";
 import TemplatesDialog from "./TemplatesDialog";
 import { RawCenter, ZoomButtons } from "./RawStep";
 import Navigator from "./Navigator";
@@ -50,8 +48,6 @@ import { templateSummary } from "../../sweeps/templates";
 import { GoalsCenter, GoalsSide } from "./GoalsStep";
 import ResultsSide from "./ResultsSide";
 import { ReportCenter, ReportSide, exportPlot } from "./ReportStep";
-import { confirmAsk, openMenu, prompt } from "../Overlays";
-import type { SavedStudy } from "../../sweeps/state";
 import AxisMenu from "./AxisMenu";
 import CenterTabs, { TogetherTabs } from "./CenterTabs";
 import SplitBar from "./SplitBar";
@@ -60,75 +56,21 @@ import ParallelPlot from "./ParallelPlot";
 import PlotToolbar from "./PlotToolbar";
 import SetDetail from "./SetDetail";
 import SetsTable from "./SetsTable";
-import StudyPanel, { saveStudyDialog, studyReportDialog } from "./StudyPanel";
+import StudyPanel, { studyReportDialog } from "./StudyPanel";
 import { HowItWorks } from "./DemoView";
 import NewStudy from "./NewStudy";
 import SetupView from "./SetupView";
-import { chooseNewStudy, closePanel, startFromNothing, openStudyFile, redoStudy, refreshLoop, undoStudy, useStudyPanel } from "../../sweeps/studyStore";
+import { chooseNewStudy, closePanel, startFromNothing, openStudyFile, redoStudy, undoStudy, useStudyPanel } from "../../sweeps/studyStore";
 import { onStudyRequest, requestStudy, takeStudy } from "../../sweeps/studyOpen";
 import { onAreaExample, takeAreaExample } from "../../areaExample";
 import { fromFolder } from "../../folderSummary";
 import { api } from "../../api";
+import { STUDY_EXT, openFolder, openStudy, openStudyPath, openTable, saveStudy } from "../../sweeps/fileMenu";
 import "./sweeps.css";
 
 /** the middle (plot, tables) never narrower than this when a panel is dragged wider */
 const MIN_MIDDLE = 380;
 const LEFT_MIN = 220, LEFT_MAX = 320;
-const STUDY_EXT = ".svsweep", STUDY_FILE_EXT = ".svstudy.json";
-
-async function openTable(title: string) {
-  const p = await pickPath({ mode: "open", title, exts: TABLE_EXTS });
-  if (p) await useSweeps.getState().open(p);
-}
-async function openFolder(title: string) {
-  const p = await pickPath({ mode: "folder", title });
-  if (p) await useSweeps.getState().open(p);
-}
-/** C10: one *Open a saved study* for either kind - a table's `.svsweep` or a study file (`.svstudy.json`). */
-async function openStudy(title: string): Promise<string> {
-  const p = await pickPath({ mode: "open", title, exts: [STUDY_EXT, STUDY_FILE_EXT, ".json"] });
-  if (!p) return "";
-  try {
-    if (!p.endsWith(STUDY_EXT)) { await openStudyFile(p); return ""; }
-    const doc = JSON.parse((await sweepApi.loadText(p)).text) as SavedStudy;
-    if (doc.kind !== "signalviewer-sweep") return "not a study";
-    // a study saved with its tables needs no `path` (its first table may be a merged one); tables named
-    // relative to the file (a copied or shipped study) are found beside it, as the welcome card does
-    const r = resolveIn(doc, p.replace(/[\\/][^\\/]*$/, ""));
-    await useSweeps.getState().open(r.path, r);
-    return "";
-  } catch (e) { return (e as Error).message; }
-}
-
-/** A .svsweep that names its tables relative to itself (shipped with the examples, copied elsewhere): made absolute. */
-function resolveIn(doc: SavedStudy, dir: string): SavedStudy {
-  const abs = (p: string) => (!p || /^([a-zA-Z]:)?[\\/]/.test(p) ? p : `${dir}/${p}`);
-  const fix = (r: unknown): unknown => (r && typeof r === "object"
-    ? Object.fromEntries(Object.entries(r as Record<string, unknown>).map(([k, v]) => [k, k === "path" && typeof v === "string" ? abs(v) : Array.isArray(v) ? v.map(fix) : fix(v)]))
-    : r);
-  return { ...doc, path: abs(doc.path), tables: doc.tables?.map((x) => ({ ...x, recipe: fix(x.recipe) as typeof x.recipe })) };
-}
-
-/** Open a .svsweep (a table and its question) by its path - the welcome screen's sweep card. */
-export async function openStudyPath(p: string): Promise<void> {
-  const doc = JSON.parse((await sweepApi.loadText(p)).text) as SavedStudy;
-  if (doc.kind !== "signalviewer-sweep") throw new Error("not a study");
-  const r = resolveIn(doc, p.replace(/[\\/][^\\/]*$/, ""));
-  await useSweeps.getState().open(r.path, r);
-}
-
-async function saveStudy(t: TFn) {
-  const st = useSweeps.getState(), cp = useStudyPanel.getState();
-  // C10: one Save - the study file when the study needs one (C5 `fileKind`); one table with a guessed Set up
-  // (*I have results*) stays the table's own .svsweep; a study opened from its file is saved there
-  const asStudy = !st.studies.length || !!cp.path?.toLowerCase().endsWith(STUDY_FILE_EXT) || fileKind(cp.study, st.studies.length) === "svstudy";
-  if (cp.open && asStudy) { await saveStudyDialog(t); return; }
-  const study = st.studies[st.active], doc = st.saved();
-  if (!study || !doc) return;
-  if (!doc.path && !doc.tables?.length) { notify(t("swCannotSaveRows"), "error"); return; }
-  const p = await pickPath({ mode: "save", title: t("swSaveStudy"), exts: [STUDY_EXT], defaultName: study.name.replace(/\.[^.]+$/, "") + STUDY_EXT });
-  if (p) say(sweepApi.saveText(p, JSON.stringify(doc, null, 1)).then((r) => t("swSaved", { path: r.path })));
-}
 
 /* The area's keys and its commands in Ctrl+K (areaCommands.ts): registered when this code loads. */
 const tNow: TFn = (k, v) => translate(useApp.getState().lang, k, v);
@@ -201,9 +143,9 @@ export default function SweepsScreen() {
   }, []);
   const common = useStudyPanel((s) => s.open);
   const part = useSweeps((s) => s.part);
-  if (part === "new") return <><SweepsBar /><NewStudy /></>;
-  if (!common && !study) return <><SweepsBar /><SweepsWelcome /></>;
-  return <><SweepsBar /><StudyFlow /></>;
+  if (part === "new") return <><SweepsDialogs /><NewStudy /></>;
+  if (!common && !study) return <><SweepsDialogs /><SweepsWelcome /></>;
+  return <><SweepsDialogs /><StudyFlow /></>;
 }
 
 /** A study open (a table, a study file, or both): the five steps and the step shown (PLAN 2026-11-16 §7a). */
@@ -245,108 +187,31 @@ function StudyFlow() {
   );
 }
 
-function SweepsBar() {
+/** The study's undo / redo (C10: the area's one Undo), in the top row beside File ▾. */
+export function SweepsUndo() {
   const canUndo = useCanUndo(), canRedo = useCanRedo();
   const t = useT();
+  const study = useSweeps((s) => !!s.studies[s.active]);
+  const common = useStudyPanel((s) => s.open);
+  if (!study && !common) return null;
+  return <>
+    <button className="iconbtn" disabled={!canUndo} onClick={() => useSweeps.getState().undo()} title={`${t("undo")} (Ctrl+Z)`} aria-label={t("undo")}><Icon.Undo /></button>
+    <button className="iconbtn" disabled={!canRedo} onClick={() => useSweeps.getState().redo()} title={`${t("redo")} (Ctrl+Y)`} aria-label={t("redo")}><Icon.Redo /></button>
+  </>;
+}
+
+/** The study's dialogs (its report, its templates) - opened from File ▾. */
+function SweepsDialogs() {
   const studies = useSweeps((s) => s.studies);
   const active = useSweeps((s) => s.active);
   const study = studies[active];
-  const common = useStudyPanel((s) => s.open);
-  const below = (e: React.MouseEvent) => {
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    return { clientX: r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent;
-  };
-  // the ways in: one menu (they were four buttons, two with the same icon)
-  // C10: one Open ▾ - a new study, a table, a folder, a saved study of either kind (.svsweep or .svstudy.json)
-  const openMenuAt = (e: React.MouseEvent) => openMenu(below(e), [
-    { label: t("nsTitle") + "…", run: chooseNewStudy },
-    { label: "", sep: true, run: () => {} },
-    { label: t("swOpenTable"), run: () => openTable(t("swOpenTable")) },
-    { label: t("swOpenFolder"), run: () => openFolder(t("swOpenFolder")) },
-    // FL1: a folder of recordings summed up, a row each (W16: the ways to open a folder are here, not on the welcome)
-    { label: t("swFromFolder"), run: () => { void fromFolder(); } },
-    { label: t("swOpenStudy"), run: () => say(openStudy(t("swOpenStudy")).then((m) => { if (m) throw new Error(m); })) },
-  ]);
-  // what is kept of the study: the study itself, a template, a report
-  const studyMenu = (e: React.MouseEvent) => {
-    const st = useSweeps.getState();
-    const SEP = { label: "", sep: true, run: () => {} };
-    // C10: with a study file open its report is the study's (a table's own report stays in its Results)
-    const studyReport = { label: t("srMenu"), run: () => { void studyReportDialog(t); } };
-    if (!study) { openMenu(below(e), [{ label: t("swSaveStudy"), run: () => saveStudy(t) }, SEP, studyReport]); return; }
-    openMenu(below(e), [
-      { label: t("swSaveStudy"), run: () => saveStudy(t) },
-      { label: t("swStartOver"), run: () => st.resetStudy() },
-      SEP,
-      { label: t("swSaveTemplate"), run: async () => {
-        const name = (await prompt(t("swSaveTemplate"), t("swTemplateName"), study.name.replace(/\.[^.]+$/, "")))?.trim();
-        if (!name) return;
-        if (st.templates.some((x) => x.name === name) && !(await confirmAsk(t("swTplReplace"), t("swTplReplaceAsk", { n: name })))) return;
-        say(st.saveTemplate(name).then(() => t("swTemplateSaved", { n: name })));
-      } },
-      { label: t("swTemplatesMenu"), run: () => useSweeps.setState({ templatesOpen: true }) },
-
-      SEP,
-      common ? studyReport : { label: t("swReportMenu"), disabled: !study.answer, run: report },
-    ]);
-  };
-  /* Clear (owner, 2026-11-03: as in Recordings) - from the least to everything; each but the last is
-     undone with Ctrl+Z, closing the studies with the notice's Undo (they are opened again) */
-  const clearMenu = (e: React.MouseEvent) => {
-    const st = useSweeps.getState();
-    const s = st.studies[st.active];
-    openMenu(below(e), [
-      ...(s ? [
-        { label: t("swClearCharts"), run: () => st.setView({ groups: [], activeGroup: undefined, desk: undefined, rerun: [], rerunSplit: [], filters: {}, filterTab: {}, pinned: null }) },
-        { label: t("swClearGoal"), run: () => {
-          st.setQuestion(materialize({ ...s.question, goals: [newGoal("1")], active: 0, robust: undefined, split: undefined }));
-          st.setView({ ...emptyView(), step: "goals" });
-          useSweeps.getState().evaluate();
-        } },
-        { label: t("swStartOver"), run: () => st.resetStudy() },
-        { label: "", sep: true, run: () => {} },
-      ] : []),
-      ...(useStudyPanel.getState().open ? [{ label: t("cpClose"), run: closePanel }, { label: "", sep: true, run: () => {} }] : []),
-      // SF1 (owner): everything = the study file too (asked first; the notice's one Undo opens it all again)
-      { label: t("swClearAll", { n: studies.length + (common ? 1 : 0) }), danger: true, disabled: !studies.length && !common, run: async () => {
-        if (!(await confirmAsk(t("swClearAllTitle"), t("swClearAllAsk"), t("swClearAllOk"), true))) return;
-        const now = useSweeps.getState();
-        // what can be opened again (read from files): put back by the notice's Undo
-        const docs = now.studies.filter((x) => x.path || x.tables.some((tb) => recipeFiles(tb.recipe).length)).map(savedOf);
-        const file = now.common.open ? now.common : null;
-        for (let i = now.studies.length - 1; i >= 0; i--) useSweeps.getState().close(i);
-        if (file) closePanel();
-        useSweeps.setState({ part: "" });
-        const n = now.studies.length + (file ? 1 : 0);
-        useApp.getState().toast({ kind: "info", text: t("swClearedAll", { n }),
-          action: docs.length || file ? { label: t("undo"), run: async () => {
-            if (file) { useStudyPanel.setState({ ...file, past: [], future: [] }); void refreshLoop(); }
-            for (const d of docs) await useSweeps.getState().open(d.path, d);
-          } } : undefined });
-      } },
-    ]);
-  };
   useEffect(() => { useSweeps.getState().loadTemplates(); }, []);
   const reportOpen = useSweeps((s) => s.reportOpen);
   const templatesOpen = useSweeps((s) => s.templatesOpen);
-  const report = () => useSweeps.setState({ reportOpen: true });
-  return (
-    <div className="areabar" role="toolbar" aria-label={t("areaSweeps")}>
-      {(study || common) && <>
-        <button className="iconbtn" disabled={!canUndo} onClick={() => useSweeps.getState().undo()} title={`${t("undo")} (Ctrl+Z)`} aria-label={t("undo")}><Icon.Undo /></button>
-        <button className="iconbtn" disabled={!canRedo} onClick={() => useSweeps.getState().redo()} title={`${t("redo")} (Ctrl+Y)`} aria-label={t("redo")}><Icon.Redo /></button>
-      </>}
-      <button className="btn outline" onClick={openMenuAt}><Icon.Open /> {t("swOpen")} ▾</button>
-      {(study || common) && <button className="btn outline" onClick={studyMenu}>{t("swStudy")} ▾</button>}
-      {(studies.length > 0 || common) && <button className="btn outline sw-clear-btn" onClick={clearMenu} title={t("swClearHint")}><Icon.Eraser /> {t("swClear")} ▾</button>}
-      {study?.path && <button className="iconbtn" aria-label={t("swRefresh")} title={t("swRefresh")} onClick={() => useSweeps.getState().reload()}><Icon.Reload /></button>}
-      {study?.path && <label className="acheck" title={t("swFollowHint")}><input type="checkbox" checked={study.view.follow} aria-label={t("swFollow")}
-        onChange={(e) => useSweeps.getState().setView({ follow: e.target.checked })} /><span className="sw-wide">{t("swFollow")}</span></label>}
-      <div className="spacer" />
-      {reportOpen && study?.answer && <ReportDialog study={study} onClose={() => useSweeps.setState({ reportOpen: false })} />}
-      {templatesOpen && study && <TemplatesDialog study={study} onClose={() => useSweeps.setState({ templatesOpen: false })} />}
-    </div>
-  );
+  return <>
+    {reportOpen && study?.answer && <ReportDialog study={study} onClose={() => useSweeps.setState({ reportOpen: false })} />}
+    {templatesOpen && study && <TemplatesDialog study={study} onClose={() => useSweeps.setState({ templatesOpen: false })} />}
+  </>;
 }
 
 /* a few rows of the example table, to show what a results table looks like */

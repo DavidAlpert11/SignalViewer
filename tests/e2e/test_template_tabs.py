@@ -15,6 +15,9 @@ import urllib.request
 
 import pytest
 
+sys.path.insert(0, os.path.dirname(__file__))
+from test_features import set_language  # noqa: E402  (CC1: the language is chosen in Settings)
+
 pw = pytest.importorskip("playwright.sync_api")
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 REVIEW_TABS = 10            # ArduPilot · Full review: Attitude, Rates, Step response, ... Flight
@@ -87,7 +90,7 @@ def test_auto_open_takes_the_default_tabs_and_offers_the_rest(pg):
     # Hebrew / RTL: the offer is translated and stays beside the tabs
     pg.evaluate("window.__sv.state().undo()")
     pg.wait_for_selector(".more-tabs.has")
-    pg.get_by_role("button", name="עברית").click()
+    set_language(pg, "he")
     pg.wait_for_function("document.documentElement.dir === 'rtl'")
     assert "עוד" in pg.locator(".more-tabs").get_attribute("aria-label")
 

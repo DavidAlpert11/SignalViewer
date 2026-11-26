@@ -1227,3 +1227,38 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
   (after tsc) and ci.yml's frontend job. Fixed: no-loss-of-precision (chartUtil.test.ts), globals (mapLayers.ts -
   my maps load on subscribe, not while rendering), and two rules-of-hooks errors on plain functions named use*
   (demoGuide applyStructureFiles, StreamEditor patternMenu). Tests: quick_check; e2e test_messages (17).
+- [x] CC1 (owner, 2026-11-26: calm and clear) The top row: one labelled *File ▾* (open files / session / recent, save
+  session, export a recording, live links, *Clear ▸*); language and theme in Settings (its first group; the palette
+  keeps both); the Inspector's switch at the stage bar's end (InspectorToggle); *Templates* and *Live* once files are
+  open. Tests: e2e test_file_help_menus, test_export_recording, test_messages, test_features (helpers set_language,
+  file_menu, open_clear_menu, live_settings), test_workflows, test_fresh_user, test_template_tabs, test_settings,
+  test_unsaved_close, test_first_minute, test_report_doc, test_judge_a_run.
+- [x] CC2 Sweeps' second toolbar row gone: its Open / Study / Clear are the top row's *File ▾* (sweeps/fileMenu.ts
+  sweepsFileItems; reload and *Follow the file* there), its undo / redo the top row's (SweepsTools, lazy with the area).
+  Tests: e2e test_sweeps_flow (_bar_menu), test_sweeps_workspace, test_study_common, test_calm_screen,
+  test_folder_of_recordings, test_sweeps_data_columns.
+- [x] CC7 Checks: *The file* holds the instruments and a log's hardware as folded sections (no tabs of their own -
+  at most four tabs); a failed limit in plain words (chkLimitBadHi / Lo: "above 85 – 30 times"); a requirement's
+  measured value under its card. Tests: e2e test_checks_view, test_welcome_cards (the servo's verdict).
+- [x] CC9 One Open: the empty Files panel says one line ("No files yet"), its + opens the same dialog; the welcome's
+  labelled *Open files* is the way in. Test: e2e test_first_minute.
+- [x] CC11 Requirements in a checks file (svcore/requirements.py: settle, overshoot, rise, sserror, rate, track,
+  order; app/checks.py _requirement - the worst window decides; load_checks validates each kind). Tests: backend
+  test_requirements (formulas against the second-order step, a checks file of every kind on a CSV servo).
+- [x] CC12 The automatic research by profile (/api/runs/{id}/health): flight log (svcore/health.py), *any data*
+  (svcore/autocheck.py: nonFinite inside the run, oscillation, commanded / measured tracking and steps -
+  stepResponse / stepNoSettle; not the pairs on a flight log, judged by its own profile), the user's profiles
+  (~/.signalviewer/profiles/*.json: match + checks). Checks shows the section for any file with findings and names
+  the profiles. Tests: backend test_requirements::test_the_any_data_profile_and_a_user_profile; e2e test_checks_view.
+- [x] CC14 Simulink's Structure with time named var.<label> (mat_loader _simulink_names); MATLAB objects (Dataset,
+  timeseries) named in the load report (matObjects) with tools/matlab/sv_export.m. Test: backend test_mat_simulink.
+- [x] CC16 Simulation examples (svcore/example_data/make_simulation_examples.py, examples/simulation): servo_step.mat +
+  its checks, process_plant.h5 + its checks, montecarlo/ (24 runs, measures.json, checks.json), cruise_sim / _test.csv;
+  the welcome's six generic first (servoStep, cruiseSimVsTest, monteCarlo, investigate, smartSweepDemo, ardupilot),
+  *Help → Examples* by task (exampleTasks.ts), the submenu scrolls. Tests: backend test_example_data; e2e
+  test_welcome_cards (+ the simulation examples open where they promise), test_fresh_user (a package writes them),
+  test_folder_of_recordings, test_workflows, test_file_colours, test_perf_budget (opened from Help → Examples).
+- [x] CC18 see above. CC20 (part) the loaders' print() -> logging (the app's log file; the console keeps warnings).
+- [x] CC21 (part) What every loader shares - progress / cancel, text codes, the content fingerprint - in
+  svcore/load_common.py (csv_loader re-exports the names): the .bin, MCAP and flight-log readers no longer reach into
+  the CSV reader. Tests: backend all, mypy.

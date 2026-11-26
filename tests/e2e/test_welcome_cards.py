@@ -45,15 +45,15 @@ def test_hebrew_is_mirrored_and_pictures_stay(pg):
     first = pg.locator(".ex-card").first.bounding_box()
     second = pg.locator(".ex-card").nth(1).bounding_box()
     assert first["x"] > second["x"]                                    # the first card on the right
-    assert pg.locator(".ex-card.pic img").count() >= 6
+    assert pg.locator(".ex-card").count() == 6
     assert pg.eval_on_selector_all(".ex-card.pic img", "els => els.every((e) => /[\\u0590-\\u05FF]/.test(e.alt))")
 
 
 def test_a_missing_picture_falls_back_to_the_icon_card(pg):
-    pg.route("**/examples/twoFlights.*.webp", lambda r: r.fulfill(status=404, body=""))
+    pg.route("**/examples/investigate.*.webp", lambda r: r.fulfill(status=404, body=""))
     pg.reload()
-    pg.wait_for_selector(".ex-card[data-example='twoFlights']")
-    pg.wait_for_selector(".ex-card[data-example='twoFlights']:not(.pic) > svg")
+    pg.wait_for_selector(".ex-card[data-example='investigate']")
+    pg.wait_for_selector(".ex-card[data-example='investigate']:not(.pic) > svg")
     assert pg.locator(".ex-card[data-example='ardupilot'].pic img").count() == 1
 
 
@@ -64,16 +64,19 @@ def test_the_picture_space_is_reserved(pg):
 
 
 def test_every_area_has_its_demo(pg):
-    """Review (owner, 2026-11-13: a clear demo for everything): the cards grouped by area; the sweep card opens
-    the table with its question answered. FR11 (owner, 2026-11-16): six cards, one of them Sweeps'; the others in
-    Help -> Examples."""
-    pg.wait_for_selector(".examples-group")
-    groups = pg.locator(".examples-group").evaluate_all("els => els.map((g) => [...g.querySelectorAll('.ex-card')].map((c) => c.dataset.example))")
-    assert groups == [["ardupilot", "investigate", "simVsFlight", "twoFlights", "folderOfFlights"], ["smartSweepDemo"]], groups
+    """CC16 (owner, 2026-11-26: simulations and tests of any kind first, ArduPilot one example): six cards in one grid,
+    generic first; every example in Help -> Examples, grouped by task (a disabled heading each), the flight logs last.
+    The sweep example opens the table with its question answered."""
+    pg.wait_for_selector(".examples-line .ex-card")
+    cards = pg.locator(".examples-line .ex-card").evaluate_all("els => els.map((c) => c.dataset.example)")
+    assert cards == ["servoStep", "cruiseSimVsTest", "monteCarlo", "investigate", "smartSweepDemo", "ardupilot"], cards
+    assert pg.locator(".examples-group").count() == 0                     # one level: no groups to read
     assert "Help → Examples" in pg.locator(".examples-more").inner_text()
     pg.locator(".topbar .menubar-btn", has_text="Help").click()          # every example is there, the six too
     pg.locator(".menu.ctx button", has_text="Examples").click()
-    assert pg.locator(".menu.ctx.sub button").count() == 15                # 1.32.0: + the serial link (MSG1), messages to signals, raw NMEA (MSG2)
+    assert pg.locator(".menu.ctx.sub button:not([disabled])").count() == 19
+    heads = [x.strip() for x in pg.locator(".menu.ctx.sub button[disabled]").all_inner_texts()]
+    assert heads[0] == "Verify against requirements" and heads[-1].startswith("Flight logs"), heads
     pg.keyboard.press("Escape")
     open_example(pg, "sweepTable")
     pg.wait_for_function("window.__sv.state().area === 'sweeps'")
@@ -89,7 +92,7 @@ def test_the_start_page_opens_over_open_files(pg):
     pg.wait_for_function("window.__sv.state().runs.length > 0")
     pg.wait_for_selector(".ex-card", state="detached")
     pg.click(".topbar .brand")
-    pg.wait_for_selector(".ex-card[data-example='ardupilot']")
+    pg.wait_for_selector(".ex-card[data-example='servoStep']")
     pg.click(".welcome-back")
     pg.wait_for_selector(".ex-card", state="detached")
     assert pg.evaluate("window.__sv.state().runs.length") > 0          # the files stayed open
@@ -175,3 +178,23 @@ def test_a_step_done_by_hand_moves_the_line_on(pg):
     pg.wait_for_selector(".rd .demo-guide[data-step='2'] .demo-next")  # ... its button still writes the report
     pg.click(".rd .demo-guide .demo-next")
     pg.wait_for_selector(".rd .demo-guide[data-step='done']")
+
+
+def test_the_simulation_examples_open_where_they_promise(pg):
+    """CC16: the Simulink servo opens with Checks on its requirements (servo_step.checks.json beside it - the verdict
+    CI gives: the overshoot fails, the rest pass, the signals named as the model names them); the Monte-Carlo folder
+    becomes a row per run in Sweeps; the cruise control's model and test open together."""
+    open_example(pg, "servoStep")
+    pg.wait_for_function("window.__sv.state().panel === 'log'", timeout=30000)
+    panel = pg.locator("aside.log-panel")
+    panel.locator("[data-checks-file='servo_step.checks.json']").wait_for(timeout=30000)
+    assert panel.locator(".card[data-status='fail']").count() == 1
+    assert panel.locator(".card[data-status='fail'][data-check='Overshoot at most 8 %']").count() == 1
+    assert panel.locator(".card[data-status='pass']").count() == 5
+    assert "overshoot" in panel.locator(".card[data-status='fail'] .card-meta").inner_text()
+    names = pg.evaluate("window.__sv.state().runs[0].signals.map((s) => s.name)")
+    assert {"plant.pos", "cmd.pos_cmd", "drive.current"} <= set(names), names
+    _close_all(pg)
+    open_example(pg, "monteCarlo")
+    pg.wait_for_function("window.__sv.state().area === 'sweeps'", timeout=60000)
+    pg.locator("footer.status", has_text="24 recordings").wait_for(timeout=90000)         # a row per run

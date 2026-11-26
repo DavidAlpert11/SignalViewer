@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 pw = pytest.importorskip("playwright.sync_api")
-from test_features import S, env, open_files, pg, save_as, sig  # noqa: E402,F401
+from test_features import S, env, open_clear_menu, open_files, pg, save_as, sig  # noqa: E402,F401
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
 from svcore.docfields import format_value  # noqa: E402
@@ -119,7 +119,7 @@ def test_clear_and_the_report(pg):
                 "doc: { v: 1, text: '# Drive test\\n\\n[[Drive]]\\n\\n[[Drive.Speed]]\\n\\n[[toc]]' } }; return ws; })")
 
     def pick(text):
-        pg.click(".area-tools [aria-label='Clear']")
+        open_clear_menu(pg)
         pg.locator(".menu.ctx button", has_text=text).click()
 
     # all tabs: the toast says the report's 2 references are gone, and offers to clear the report too

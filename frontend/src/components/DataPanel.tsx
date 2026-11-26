@@ -682,11 +682,11 @@ export default function DataPanel() {
           </>
         )}
         <span className="split-btn">
-          {/* with files open the head also holds refresh, replace and two link toggles: the label
-              was cut to "Open fil" - from then on the + alone, its name in the tooltip */}
+          {/* the + alone, its name in the tooltip (CC9: with no file the welcome's labelled Open files is the one way in;
+              with files open the head also holds refresh, replace and two link toggles) */}
           <button className="btn outline" onClick={() => useApp.setState({ browserOpen: true })} data-tour="open"
             aria-label={t("openFiles")} title={t("openFiles")}>
-            <Icon.Plus />{!runs.some((r) => r.format !== "derived") && <> {t("openFiles")}</>}
+            <Icon.Plus />
           </button>
           <button className="btn outline split-more" aria-label={t("recentMore")} title={t("recentMore")} onClick={recentMenu}>
             <Icon.Chevron width={12} height={12} />

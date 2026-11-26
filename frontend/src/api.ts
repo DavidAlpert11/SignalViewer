@@ -6,7 +6,7 @@ export type StorageKind = "cache" | "uploads" | "tiles" | "memory";
 /** memory (P2): not on disk - the results kept in memory to be fast, with its limit and per kind */
 export type StorageInfo = Record<StorageKind, { path: string; bytes: number; limit?: number; kinds?: Record<string, { bytes: number; entries: number }> }>;
 /** The welcome screen's examples (backend routes/fs.py EXAMPLE_SETS). */
-export type ExampleId = "flight" | "twoFlights" | "car" | "bench" | "ardupilot" | "simVsFlight" | "investigate" | "folderOfFlights" | "commonGains" | "smartSweepDemo" | "sweepTable" | "reportDemo" | "serialLink" | "linkStructure" | "gpsNmea";
+export type ExampleId = "servoStep" | "processPlant" | "monteCarlo" | "cruiseSimVsTest" | "flight" | "twoFlights" | "car" | "bench" | "ardupilot" | "simVsFlight" | "investigate" | "folderOfFlights" | "commonGains" | "smartSweepDemo" | "sweepTable" | "reportDemo" | "serialLink" | "linkStructure" | "gpsNmea";
 /** P1: what an export of a map's objects reports: the rate used (lowered for a long recording) and the
  *  objects left out because they have no position (P2). */
 export interface FlightExport { path: string; objects: number; size?: number; rate: number; lowered: boolean; leftOut: string[] }
@@ -94,7 +94,7 @@ export interface RunInfo {
   timeAxis?: TimeAxisInfo;
   signals: SignalInfo[];
   report?: { skipped?: string[]; skippedColumns?: string[]; droppedRows?: number; sorted?: boolean; fromCache?: boolean; rememberedSettings?: boolean;
-    textColumns?: string[]; tooManyTexts?: string[]; timePairs?: number; vehicle?: string | null; corruptBytes?: number; damaged?: boolean; droppedMessages?: number; phantomInstances?: string[]; faultyMessages?: FaultyMessage[]; readableShare?: number; badTimestamps?: number; damagedParams?: number; damagedTexts?: number; cutOff?: boolean; damagedText?: boolean; damagedObjects?: number; noTime?: boolean; params?: number;
+    textColumns?: string[]; tooManyTexts?: string[]; timePairs?: number; vehicle?: string | null; corruptBytes?: number; damaged?: boolean; droppedMessages?: number; phantomInstances?: string[]; faultyMessages?: FaultyMessage[]; readableShare?: number; badTimestamps?: number; damagedParams?: number; damagedTexts?: number; cutOff?: boolean; matObjects?: string[]; damagedText?: boolean; damagedObjects?: number; noTime?: boolean; params?: number;
     paramValues?: Record<string, number>; logMessages?: { t: number; text: string }[] };
   description?: string;
   copy?: boolean;                        // opened from a dragged-in copy, not the original file
@@ -691,10 +691,14 @@ export interface HealthFinding {
   code: string; level: "ok" | "warning" | "error"; vals: Record<string, any>; t: number | null;
   spans: [number, number][]; signals: string[];
 }
-export interface HealthReport { findings: HealthFinding[]; errors: number; warnings: number }
+/** CC12: the profiles that looked at the file - the flight log's, "any data", the user's (an unreadable one: its error) */
+export interface HealthProfile { id: "flightlog" | "any" | "user"; name?: string; error?: string }
+export interface HealthReport { findings: HealthFinding[]; errors: number; warnings: number; profiles?: HealthProfile[] }
 /** RV2: the checks file kept with a recording, run on it (the CLI's verdict); file null = none beside it */
 export interface ChecksFileResult { name: string; status: "pass" | "fail" | "error" | "skipped"; lo?: number | null; hi?: number | null;
-  window?: string; violations?: number; first?: number; worstT?: number; message?: string }
+  window?: string; violations?: number; first?: number; worstT?: number; message?: string;
+  /** CC11: a requirement of another kind (settle, overshoot, rise, sserror, rate, track, order) - its measured value */
+  kind?: string; value?: number | null; limit?: number }
 export interface ChecksFile { file: string | null; error?: string; results: ChecksFileResult[] }
 /** T25: the error A − B over some time. */
 export interface ErrStat { n: number; rms?: number; mean?: number; maxAbs?: number; tMaxAbs?: number }

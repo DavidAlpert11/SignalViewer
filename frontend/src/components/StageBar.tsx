@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { actions, activeTab, MAX_PLOTS, rangeKey, useApp } from "../store";
 import { useT } from "../i18n";
 import { Icon } from "../icons";
-import { PlotTabs } from "./TopBar";
+import { InspectorToggle, PlotTabs } from "./TopBar";
 
 const QUICK: [number, number][] = [[1, 1], [2, 1], [3, 1], [1, 2], [2, 2], [3, 2], [3, 3]];
 
@@ -132,6 +132,8 @@ export default function StageBar() {
         </select>
       </>}
       <div className="spacer" />
+      {/* CC1: the Inspector's switch - about the plots, so at the stage bar's end (it was in the top row) */}
+      <InspectorToggle />
     </div>
   );
 }

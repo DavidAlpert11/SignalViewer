@@ -20,12 +20,14 @@ import { openMenu } from "./Overlays";
 import { copyForConfluence, dragOutEnd, dragOutStart, sendToConfluence } from "../clip";
 import { addToReport } from "../reportDoc";
 import { EXAMPLE_LABEL, openExample } from "./Welcome";
+import { EXAMPLE_TASKS } from "../exampleTasks";
 import { startTour } from "./Tour";
 import { openTemplates, templateMenuItems } from "../templateMenu";
 import { forgetMore, moreUsable, openMoreTabs, tx } from "../templates";
 import { getPref, setPref } from "../prefs";
-// the Sweeps area's open tables (its own code stays out of the main bundle, loaded with the area)
+// the Sweeps area's open tables and its File ▾ / undo (its own code stays out of the main bundle, loaded with the area)
 const SweepsTables = lazy(() => import("./sweeps/SweepsTables"));
+const SweepsTools = lazy(() => import("./sweeps/SweepsTools"));
 
 
 /** Where a menu opens under its button (left-aligned, or right-aligned in Hebrew). */
@@ -35,12 +37,11 @@ function menuAt(e: React.MouseEvent, w = 240) {
   return { clientX: rtl ? Math.max(8, r.right - w) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent;
 }
 
-/** The app's top row: what is the same in every work area - the name, the areas, search, settings,
- *  theme, language, help. What belongs to one area (the Recordings area's session, plot tabs, live,
- *  undo, Clear, Inspector) is in that area's own bar under it (areas.ts). */
+/** The app's top row (CC1, owner 2026-11-26: calm and clear): the name, the areas, search, the area's File ▾ (its
+ *  files, session, export, links, Clear), its views, live, undo / redo, then ⚙ (language, theme, Settings) and Help.
+ *  The Inspector's switch is about the plots: in the stage bar. */
 export default function TopBar() {
   const t = useT();
-  const theme = useApp((s) => s.theme);
   const area = useApp((s) => s.area);
   const at = menuAt;
 
@@ -55,8 +56,13 @@ export default function TopBar() {
       { label: t("menuGuide"), keys: "F1", run: () => useApp.setState({ guideOpen: true }) },
       { label: t("shortcuts"), keys: "?", run: () => useApp.setState({ helpOpen: true }) },
       { label: t("menuTour"), run: startTour },
+      // CC16: by task - verify, against a test, many runs, a look, bytes, flight logs (generic first)
       ...(ex.length ? [{ label: t("menuExamples"), run: () => {},
-        items: ex.filter((x) => x.id in EXAMPLE_LABEL).map((x) => ({ label: t(EXAMPLE_LABEL[x.id]), run: () => openExample(x) })) }] : []),
+        items: EXAMPLE_TASKS.flatMap((g, k) => {
+          const xs = g.ids.map((id) => ex.find((x) => x.id === id)).filter((x): x is (typeof ex)[number] => !!x);
+          return xs.length ? [...(k ? [{ label: "", run: () => {}, sep: true }] : []), { label: t(g.label), run: () => {}, disabled: true },
+            ...xs.map((x) => ({ label: "\u2003" + t(EXAMPLE_LABEL[x.id]), run: () => openExample(x) }))] : [];
+        }) }] : []),
       { label: "", run: () => {}, sep: true },
       { label: t("copyErrorDetails"), run: () => copyErrorDetails(t, useApp.getState().toast) },
       { label: t("menuReportProblem"), run: () => reportProblem(t, useApp.getState().toast) },
@@ -85,18 +91,12 @@ export default function TopBar() {
       <button className="search-trigger" data-tour="palette" onClick={() => useApp.setState({ paletteOpen: true, paletteMode: "all" })}>
         <Icon.Search width={14} height={14} /> <span>{t("commands")}</span><span className="kbd">Ctrl K</span>
       </button>
-      {/* D1 (decision 5): one top row - the Recordings area's own tools sit here, its plot tabs in the stage bar */}
+      {/* D1 (decision 5): one top row - the area's own tools sit here (CC1: File ▾, its views, live, undo / redo) */}
       {area === "recordings" && <RecordingsTools />}
+      {area === "sweeps" && <Suspense fallback={null}><SweepsTools /></Suspense>}
+      {/* CC1: the choices made once - language, theme - are in Settings (and the palette), not three buttons here */}
       <button className="iconbtn" onClick={() => useApp.setState({ settingsOpen: true })} title={`${t("settings")} (Ctrl+,)`} aria-label={t("settings")}>
         <Icon.Settings />
-      </button>
-      <button className="iconbtn theme-btn" aria-pressed={theme === "dark"} onClick={() => useApp.setState({ theme: theme === "dark" ? "light" : "dark" })}
-        title={`${t("theme")}: ${theme === "dark" ? t("dark") : t("light")}`} aria-label={t("theme")}>
-        {theme === "dark" ? <Icon.Moon /> : <Icon.Sun />}
-      </button>
-      <button className="btn" onClick={() => useApp.setState({ lang: useApp.getState().lang === "he" ? "en" : "he" })}
-        title={t("language")} aria-label={t("language")}>
-        <Icon.Globe /><span className="hide-compact">{t("language")}</span>
       </button>
       <button className="btn menubar-btn" aria-haspopup="menu" onClick={helpMenu}>{t("menuHelp")}</button>
     </header>
@@ -125,8 +125,8 @@ export function RecordingsBar() {
   return null;
 }
 
-/** The Recordings area's tools in the top row: its session, templates, live, undo / redo, Clear and the
- *  Inspector. Live follows the open files (and MAVLink): it is the Recordings area's, not the app's. */
+/** The Recordings area's tools in the top row (CC1): File ▾ (open, recent, session, export, live links, Clear),
+ *  Templates ▾, Live, undo / redo. Live follows the open files (and MAVLink): it is the Recordings area's, not the app's. */
 function RecordingsTools() {
   const t = useT();
   const streaming = useApp((s) => s.streaming);
@@ -134,51 +134,53 @@ function RecordingsTools() {
   const liveMenu = useApp((s) => s.liveMenuOpen);
   const setLiveMenu = (v: boolean) => useApp.setState({ liveMenuOpen: v });
   const mav = useApp((s) => s.mavlink);
+  const link = useApp((s) => s.rawlink);
   const lang = useApp((s) => s.lang);
   const mavOn = !!mav?.running;
   const mavQuiet = mavOn && (mav!.sinceData == null || mav!.sinceData > 3);
   const past = useApp((s) => s.past.length);
   const future = useApp((s) => s.future.length);
-  const inspectorOpen = useApp((s) => s.inspectorOpen);
-  const onPage = useApp(pageOnScreen);
   const hasRuns = useApp((s) => s.runs.some((r) => r.format !== "derived"));
   const at = menuAt;
+  // review C3 + CC1: one labelled File ▾ - what is done with files and the session (the Files panel's + stays that
+  // list's own add; Ctrl+O, Ctrl+S and the palette reach the same)
+  const fileMenu = async (e: React.MouseEvent) => {
+    const pos = at(e, 300);
+    await refreshRecent();
+    const recent = recentToOpen(8);
+    const SEP = { label: "", run: () => {}, sep: true };
+    openMenu(pos, [
+      { label: `${t("openFiles")}…`, keys: "Ctrl+O", run: () => useApp.setState({ browserOpen: true }) },
+      { label: `${t("openSession")}…`, keys: "Ctrl+Shift+O", run: () => { void openSession(); } },
+      { label: t("recentFiles"), run: () => {}, disabled: !recent.length,
+        items: recent.map((x) => ({ label: x.exists ? `${x.name}  ·  ${x.folder}` : `${x.name}  ·  ${t("notFound")}`,
+          run: () => { void openPaths([x.path]); }, disabled: !x.exists })) },
+      SEP,
+      { label: t("saveSession"), keys: "Ctrl+S", run: saveSession },
+      // E1: a part of a recording as a new file - a file action, beside Save
+      { label: t("xrMenu"), disabled: !hasRuns, run: () => useApp.setState({ exportRecOpen: true }) },
+      SEP,
+      // T12 / LINK1: a MAVLink or byte link recorded to a file that opens and is followed live
+      { label: `${t("liveSettings")}…`, run: () => setLiveMenu(true) },
+      SEP,
+      // T63 / F35: what to clear, from this tab to everything
+      { label: t("clearMenu"), run: () => {}, items: clearMenuItems() },
+    ]);
+  };
   return (
     <span className="area-tools" role="toolbar" aria-label={t(areaDef("recordings").label)}>
-      {/* review C3: a folder means "open a file" everywhere else - the bare folder here opened a *session*. One labelled
-          Open: data files, a session, a recent file (the Files panel's + stays that list's own add) */}
-      <button className="btn open-menu-btn" aria-haspopup="menu" aria-label={t("openMenu")} title={t("openMenuHint")}
-        onClick={async (e) => {
-          const pos = at(e, 300);
-          await refreshRecent();
-          const recent = recentToOpen(8);
-          openMenu(pos, [
-            { label: `${t("openFiles")}…`, keys: "Ctrl+O", run: () => useApp.setState({ browserOpen: true }) },
-            { label: `${t("openSession")}…`, keys: "Ctrl+Shift+O", run: () => { void openSession(); } },
-            { label: t("recentFiles"), run: () => {}, disabled: !recent.length,
-              items: recent.map((x) => ({ label: x.exists ? `${x.name}  ·  ${x.folder}` : `${x.name}  ·  ${t("notFound")}`,
-                run: () => { void openPaths([x.path]); }, disabled: !x.exists })) },
-          ]);
-        }}>
-        <Icon.Folder /><span className="hide-compact">{t("openMenu")}</span> <Icon.Chevron width={12} height={12} />
+      <button className="btn file-menu-btn" aria-haspopup="menu" aria-label={t("topFile")} title={t("topFileHint")} onClick={fileMenu}>
+        <Icon.Folder /><span className="hide-compact">{t("topFile")}</span> <Icon.Chevron width={12} height={12} />
       </button>
-      <button className="iconbtn" onClick={saveSession} title={`${t("saveSession")} (Ctrl+S)`} aria-label={t("saveSession")}><Icon.Save /></button>
-      {/* E1: a part of a recording as a new file - a file action, beside Save */}
-      {hasRuns && <button className="iconbtn export-rec-btn" onClick={() => useApp.setState({ exportRecOpen: true })} title={t("xrMenu")} aria-label={t("xrMenu")}><Icon.Download /></button>}
-      <button className="btn tpl-menu-btn" aria-haspopup="menu" aria-label={t("tplMenu")} title={t("tplMenu")}
-        onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          openMenu({ clientX: document.documentElement.dir === "rtl" ? Math.max(8, r.right - 240) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent, templateMenuItems(t)); }}>
+      {hasRuns && <button className="btn tpl-menu-btn" aria-haspopup="menu" aria-label={t("tplMenu")} title={t("tplMenu")}
+        onClick={(e) => openMenu(at(e), templateMenuItems(t))}>
         <Icon.Layout /><span className="hide-compact">{t("tplMenu")}</span> <Icon.Chevron width={12} height={12} />
-      </button>
-      <span className="sep" />
-      <span className="live-group">
+      </button>}
+      {/* Live re-reads the open files as they grow: with none open there is nothing to follow (the links: File ▾) */}
+      {(hasRuns || streaming || mavOn || !!link?.running) && <span className="live-group">
         <button className={`btn live-btn${streaming ? " on" : ""}`} aria-pressed={streaming} disabled={liveStarting} onClick={toggleLive}
-          title={streaming ? t("liveStopHint") : t("liveStartHint")}>
+          title={streaming ? t("liveStopHint") : t("liveStartHint")} onContextMenu={(e) => { e.preventDefault(); setLiveMenu(true); }}>
           <Icon.Live /> {liveStarting ? t("liveStarting") : t("stream")}
-        </button>
-        <button className="iconbtn live-more" aria-expanded={liveMenu} aria-label={t("liveSettings")} title={t("liveSettings")}
-          onClick={() => setLiveMenu(!liveMenu)}>
-          <Icon.Chevron width={12} height={12} />
         </button>
         {mavOn && (
           <button className={`btn mav-pill${mavQuiet ? " quiet" : ""}`} onClick={() => setLiveMenu(true)}
@@ -186,20 +188,24 @@ function RecordingsTools() {
             <span className="live-dot on" />MAVLink {mavQuiet ? "" : `${fmtNum(mav!.rate ?? 0, lang, 3)}/s`}
           </button>
         )}
-        {liveMenu && <LiveSettings onClose={() => setLiveMenu(false)} />}
-      </span>
+      </span>}
+      {liveMenu && <LiveSettings onClose={() => setLiveMenu(false)} />}
       <span className="sep" />
       <button className="iconbtn" disabled={!past} onClick={useApp.getState().undo} title={`${t("undo")} (Ctrl+Z)`} aria-label={t("undo")}><Icon.Undo /></button>
       <button className="iconbtn" disabled={!future} onClick={useApp.getState().redo} title={`${t("redo")} (Ctrl+Y)`} aria-label={t("redo")}><Icon.Redo /></button>
-      {/* T63 / F35: one Clear button, what to clear in its menu (this tab ... everything) */}
-      <button className="btn clear-btn" aria-haspopup="menu" title={t("clearMenuHint")} aria-label={t("clearMenu")}
-        onClick={(e) => openMenu(at(e, 320), clearMenuItems())}>
-        <Icon.Eraser /><span className="hide-narrow">{t("clearMenu")}</span><Icon.Chevron width={12} height={12} />
-      </button>
-      {/* UX5.1: off while a page is in the plots' place - the Inspector comes back with them */}
-      <button className="iconbtn insp-toggle" aria-pressed={inspectorOpen && !onPage} disabled={onPage} onClick={() => setInspectorByUser(!inspectorOpen)}
-        aria-label={t("inspector")} title={onPage ? t("inspectorOnPage") : t("inspector")}><Icon.Inspector /></button>
     </span>
+  );
+}
+
+/** The Inspector's switch (CC1: about the plots - the stage bar's right end; off while a page is in the plots' place,
+ *  UX5.1: the Inspector comes back with them). */
+export function InspectorToggle() {
+  const t = useT();
+  const inspectorOpen = useApp((s) => s.inspectorOpen);
+  const onPage = useApp(pageOnScreen);
+  return (
+    <button className="iconbtn insp-toggle" aria-pressed={inspectorOpen && !onPage} disabled={onPage} onClick={() => setInspectorByUser(!inspectorOpen)}
+      aria-label={t("inspector")} title={onPage ? t("inspectorOnPage") : t("inspector")}><Icon.Inspector /></button>
   );
 }
 
@@ -334,7 +340,7 @@ export function PlotTabs() {
 
 /** Live mode settings: when to stop by itself, and what to do with new files in the same folders. */
 function LiveSettings({ onClose }: { onClose: () => void }) {
-  const anchor = document.querySelector(".live-more")?.getBoundingClientRect() ?? null;
+  const anchor = (document.querySelector(".live-btn") ?? document.querySelector(".file-menu-btn"))?.getBoundingClientRect() ?? null;
   const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const autoStop = useApp((s) => s.liveAutoStop);

@@ -127,7 +127,7 @@ export default function App() {
         {inspectorOpen ? <div className="panel-slot" style={{ gridColumn: 4, gridRow: 1 }}><Inspector /></div> : <div style={{ gridColumn: 4, gridRow: 1 }} />}
       </div>
       </>,
-      sweeps: <Suspense fallback={<><div className="areabar" /><div /></>}><SweepsScreen /></Suspense>,
+      sweeps: <Suspense fallback={<div />}><SweepsScreen /></Suspense>,
       } satisfies Record<AreaId, React.ReactNode>)[area]}
       {area === "sweeps" ? <Suspense fallback={<footer className="status" />}><SweepsStatus /></Suspense>
         : <StatusBar />}

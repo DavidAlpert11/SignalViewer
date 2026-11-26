@@ -9,7 +9,7 @@ import shutil
 import pytest
 
 pw = pytest.importorskip("playwright.sync_api")
-from test_features import S, env, open_files, pg, save_as, sig  # noqa: E402,F401
+from test_features import S, env, live_settings, open_files, pg, save_as, sig  # noqa: E402,F401
 from test_report_doc import preview_has  # noqa: E402
 
 DEMO = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "serial_link")
@@ -225,7 +225,7 @@ def test_listen_to_a_udp_link_decoded_live(pg):
     s.bind(("127.0.0.1", 0))
     port = s.getsockname()[1]
     s.close()
-    pg.click(".live-more")
+    live_settings(pg)
     pg.locator(".link-conn").fill(f"udp:127.0.0.1:{port}")
     pg.locator(".link-structure").select_option(label="NMEA 0183")      # MSG3: from the structure library
     pg.locator(".link-listen").click()
@@ -249,7 +249,7 @@ def test_listen_to_a_udp_link_decoded_live(pg):
     pg.locator(".rail button[aria-label='Messages']").click()
     pg.wait_for_selector(".msgp-running .msgp-link")
     shot(pg, "msg3_running.png")
-    pg.click(".live-more")
+    live_settings(pg)
     pg.locator(".link-stop").click()
     pg.wait_for_selector(".link-listen")
     path = S(pg, "s.runs.find(r => r.name.endsWith('.svraw')).path")
@@ -286,7 +286,7 @@ def test_messages_panel_is_the_one_home(pg):
     pg.wait_for_function("(window.__sv.state().ws.report?.doc?.text || '').includes('[[messages tx_byte]]')", timeout=15000)
     assert S(pg, "s.ws.messageStreams.length") == 1
     # the saved structure is offered when listening to a link
-    pg.click(".live-more")
+    live_settings(pg)
     pg.wait_for_function("[...document.querySelectorAll('.link-structure option')].some(o => o.textContent === 'NMEA 0183')", timeout=15000)
     opts = pg.locator(".link-structure option").evaluate_all("els => els.map(e => e.textContent)")
     assert "NMEA 0183" in opts and len(opts) >= 4
@@ -470,7 +470,8 @@ def test_remove_one_field_a_message_and_a_stream(pg):
 
 def test_the_inspector_is_not_beside_a_page(pg):
     """UX5.1: the Inspector is the plots' properties - beside the Messages page (in the plots' place) it is hidden and
-    its top-bar button is off; with the page beside the plots (⤡) it is back, as the user had it."""
+    its switch is not offered (CC1: the switch is at the stage bar's end, which the page replaces); with the page beside
+    the plots (⤡) it is back, as the user had it."""
     shutil.copy(os.path.join(DEMO, "link_tx_rx.csv"), os.path.join(pg.env["data"], "link_tx_rx.csv"))
     open_files(pg, "link_tx_rx.csv")
     pg.evaluate("window.__sv.setState({ inspectorOpen: true })")
@@ -478,7 +479,7 @@ def test_the_inspector_is_not_beside_a_page(pg):
     pg.locator(".rail button[aria-label='Messages']").click()
     pg.wait_for_selector(".page.messages")
     pg.wait_for_selector("aside.inspector", state="detached")
-    assert pg.locator(".insp-toggle").is_disabled()
+    assert pg.locator(".insp-toggle:enabled").count() == 0
     pg.locator(".page-head .panel-fill").click()                             # beside the plots
     pg.wait_for_selector("aside.inspector")
     assert not pg.locator(".insp-toggle").is_disabled()
