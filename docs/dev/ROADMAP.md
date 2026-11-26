@@ -1320,3 +1320,6 @@ The plan and its phases: TASKS.md "Open specs -> 1.38.0". Started by the advocat
   sqrt 2) and metrics noiseRatio = RMS Δ / that noise; Compare's RMS Δ cell: the ratio in its tooltip, *≈ noise* up to
   2× (NOISE_LEVEL). Tests: backend test_compare_noise; e2e test_compare_diff, test_compare_tolerances,
   test_judge_a_run.
+- [x] CC3 (Next runs) NextRunsView: nxProposeHint on the heading's title, swExploreHint on the field's, each kind's
+  hint on its label's (the robust kind's 'choose Robust to first' stays when it is off), the split's explanation on
+  its row (the manual split's sum stays). Tests: e2e test_sweeps_flow, test_sweeps_workspace, test_study_common.

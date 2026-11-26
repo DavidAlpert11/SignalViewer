@@ -99,16 +99,15 @@ export default function NextRunsView({ study, extra, lead }: { study: Study; ext
       <div className="sw-next-side">
         {lead}
         <section className="sw-propose" aria-label={t("nxPropose")}>
-        <h3 className="sw-run-title">{t("nxPropose")}</h3>
-        <p className="hint">{t("nxProposeHint")}</p>
+        {/* CC3: the explanations as tooltips - the words left on screen are the ones acted on (counts, budget) */}
+        <h3 className="sw-run-title" title={t("nxProposeHint")}>{t("nxPropose")}</h3>
         <RerunList study={study} />
         <h3>{t("swSuggestedRuns")}</h3>
-        <div className="sw-field">{t("swExplore")}
+        <div className="sw-field" title={t("swExploreHint")}>{t("swExplore")}
           <ColumnPicker options={params.map((p) => ({ id: p, label: p, group: t("swRoleParam") }))} value={exploring}
             onChange={(ids) => setNext({ focus: ids.length && ids.length < params.length ? ids : undefined })}
             presets={[{ label: t("swExploreAll"), ids: params }, ...(onMaps.length ? [{ label: t("swExploreMaps"), ids: onMaps }] : [])]}
             label={exploring.length === params.length ? t("swExploreAllN", { n: params.length }) : t("swExploreN", { n: exploring.length, of: params.length })} />
-          <span className="hint">{t("swExploreHint")}</span>
         </div>
         <label className="sw-row">{t("swBudget")}
           <input type="number" min={1} max={2000} value={budget} disabled={split === "manual"} title={split === "manual" ? t("swSplitManualHint", { n: sharesSum, b: budget }) : undefined}
@@ -118,7 +117,7 @@ export default function NextRunsView({ study, extra, lead }: { study: Study; ext
         {KINDS.map(({ k, title, hint }) => {
           const off = k === "robust" && !robustSet;
           return (
-            <label key={k} className={`sw-kind${off ? " off" : ""}`}>
+            <label key={k} className={`sw-kind${off ? " off" : ""}`} title={off ? t("swNextRobustOff") : t(hint)}>
               <input type="checkbox" disabled={off} checked={kinds.includes(k)}
                 onChange={(e) => setNext({ kinds: e.target.checked ? [...kinds, k] : kinds.filter((x) => x !== k) })} />
               {split === "manual" && kinds.includes(k) && (
@@ -126,16 +125,16 @@ export default function NextRunsView({ study, extra, lead }: { study: Study; ext
                   onClick={(e) => e.preventDefault()}
                   onChange={(e) => setNext({ shares: { ...shares, [k]: Math.max(0, Number(e.target.value) || 0) } })} />)}
               <span><b className={`sw-mark-${k}`}>{MARK[k]} {t(title)}</b>
-                {res && res.available[k] !== undefined && <span className="hint"> · {t("swFoundTaken", { f: res.available[k], n: res.taken?.[k] ?? 0 })}</span>}<br />
-                <span className="hint">{off ? t("swNextRobustOff") : t(hint)}</span></span>
+                {res && res.available[k] !== undefined && <span className="hint"> · {t("swFoundTaken", { f: res.available[k], n: res.taken?.[k] ?? 0 })}</span>}
+                {off && <><br /><span className="hint">{t("swNextRobustOff")}</span></>}</span>
             </label>
           );
         })}
-        <label className="sw-row">{t("swSplit")}
+        <label className="sw-row" title={t(split === "equal" ? "swBudgetShare" : split === "proportional" ? "swSplitPropHint" : "swSplitManualHint", { n: sharesSum, b: budget })}>{t("swSplit")}
           <select value={split} aria-label={t("swSplit")} onChange={(e) => setNext({ split: e.target.value as typeof split })}>
             <option value="equal">{t("swSplitEqual")}</option><option value="proportional">{t("swSplitProp")}</option><option value="manual">{t("swSplitManual")}</option>
           </select></label>
-        <span className="hint">{t(split === "equal" ? "swBudgetShare" : split === "proportional" ? "swSplitPropHint" : "swSplitManualHint", { n: sharesSum, b: budget })}</span>
+        {split === "manual" && <span className="hint">{t("swSplitManualHint", { n: sharesSum, b: budget })}</span>}
 
         <button className="btn primary" disabled={busy || !kinds.length} onClick={run}>{t("swSuggest")}</button>
         </section>

@@ -63,6 +63,8 @@
   met* - filter on it in Sweeps; `signalviewer-cli summarize` writes the same columns.
 - **Compare says when a difference is only noise (CC20).** A run's RMS difference no larger than about twice the
   baseline's own sample-to-sample noise reads *≈ noise* beside it; the tooltip gives the ratio.
+- Sweeps' *Next runs* says less (CC3): what each kind of suggestion looks for, the *Explore* and *Split* explanations
+  and the step's intro are tooltips; the counts and the budget stay on screen.
 
 ## 1.37.0 – 2026-11-26
 
