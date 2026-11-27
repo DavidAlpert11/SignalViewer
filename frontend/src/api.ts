@@ -48,7 +48,11 @@ export interface LibraryItem { key: string; name: string; kind?: "binary" | "tex
 /** MSG3: a byte stream of an open file (one direction), its messages at a glance. `key`: its definition's sources. */
 export interface StreamRow { key: string; name: string; rid: string; file: string; ids: string[]; params: Record<string, unknown>;
   error?: string; count?: number; bytes?: number; header?: string; framing?: string; checksum?: string | null; errors?: number;
-  duration?: number; typed?: boolean; types?: { type: number; count: number; rate: number | null }[] }
+  duration?: number; typed?: boolean; types?: { type: number; count: number; rate: number | null }[];
+  /** CH7: this direction's anomalies (svcore/channel.py; a definition's two directions read together) */
+  anomalies?: { total: number; counts: Partial<Record<AnomalyKind, number>> } }
+/** CH1 / CH8: two streams that look like one link's two directions - by their names, or one answers the other */
+export interface StreamLink { tx: string; rx: string; why: "names" | "replies" }
 /** CH2: one direction of a channel (a definition's stream), the type ids its structure describes */
 export interface ChannelSide { label: string; sources: string[]; params: Record<string, unknown>; known?: number[] }
 export type AnomalyKind = "checksum" | "broken" | "length" | "unknown" | "counter" | "gap" | "unanswered" | "retry" | "late" | "reconnect" | "handshake";
@@ -407,7 +411,7 @@ export const api = {
   messagesLibraryReveal: () => call<{ folder: string }>("/api/messages/library/reveal", {}),
   /** MSG5: a direction column's values (2..most), each with its count and its text */
   directionValues: (id: string) => call<{ values: { v: number; n: number; label: string | null }[]; distinct: number; most: number }>("/api/messages/direction-values", { id }),
-  messagesStreams: (streams: unknown[], runs?: string[]) => call<{ streams: StreamRow[] }>("/api/messages/streams", { streams, runs: runs ?? null }),
+  messagesStreams: (streams: unknown[], runs?: string[]) => call<{ streams: StreamRow[]; links: StreamLink[] }>("/api/messages/streams", { streams, runs: runs ?? null }),
   reportParts: (runs?: string[], streams?: unknown[]) => call<ReportScan>("/api/report/parts", { runs: runs ?? null, streams: streams ?? null }),
   /** the page (Markdown) - or, for a report written in LaTeX (RE3), the PDF this computer's TeX made (a token) / its error */
   reportPreview: (body: Record<string, unknown>) =>

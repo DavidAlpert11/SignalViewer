@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { actions, useApp } from "../store";
 import { fmtNum, useT } from "../i18n";
-import { api, type LibraryItem, type StreamRow } from "../api";
-import { forgetStream, isMessageLog, keepChannel, linkCandidates, messageTypes } from "../messages";
+import { api, type AnomalyKind, type LibraryItem, type StreamLink, type StreamRow } from "../api";
+import { forgetStream, isMessageLog, keepChannel, messageTypes } from "../messages";
 import { Icon } from "../icons";
 import { confirmAsk, openMenu } from "./Overlays";
 import StreamEditor from "./StreamEditor";
@@ -29,6 +29,7 @@ export default function MessagesPanel() {
   const link = useApp((s) => s.rawlink);
   const mav = useApp((s) => s.mavlink);
   const [rows, setRows] = useState<StreamRow[] | null>(null);
+  const [links, setLinks] = useState<StreamLink[]>([]);
   const [lib, setLib] = useState<{ folder: string; items: LibraryItem[] } | null>(null);
   const [open, setOpen] = useState<string[]>([]);
   // streams added by hand (Add a stream, a signal's right-click) - listed though the app did not find them itself
@@ -45,7 +46,7 @@ export default function MessagesPanel() {
     let live = true;
     if (!scan.length) { setRows([]); return; }
     setRows((r) => r ?? null);
-    api.messagesStreams(defs ?? [], scan.map((r) => r.id)).then((r) => { if (live) setRows(r.streams); }).catch(() => { if (live) setRows([]); });
+    api.messagesStreams(defs ?? [], scan.map((r) => r.id)).then((r) => { if (live) { setRows(r.streams); setLinks(r.links ?? []); } }).catch(() => { if (live) setRows([]); });
     return () => { live = false; };
   }, [seen]);                                  // eslint-disable-line react-hooks/exhaustive-deps
   const loadLib = () => { api.messagesLibrary().then(setLib).catch(() => {}); };
@@ -75,8 +76,9 @@ export default function MessagesPanel() {
   const toast = (text: string, undo: boolean) => useApp.getState().toast({ kind: "info", text, ...(undo ? { undoesWs: true, action: { label: t("undo"), run: () => useApp.getState().undo() } } : {}) });
 
   const listed = new Set(groups.flatMap(([k]) => k.split(",")));
-  // CH1: a file's TX-like and RX-like streams - one channel of requests and replies in one click (kept at once)
-  const links = linkCandidates(rows ?? [], defs ?? []);
+  // CH1 / CH8: two streams that look like one link (names, or replies) - one channel in one click (kept at once)
+  const held = new Set((defs ?? []).flatMap((d) => d.sources));            // kept: no longer offered (before the list reloads)
+  const fileName = (id: string) => runs.find((r) => r.id === id.slice(0, id.indexOf("/")))?.name ?? "";
   const oneChannel = (tx: string, rx: string) => {
     keepChannel(tx, rx);
     setAdded((a) => a.filter((k) => k !== tx && k !== rx));
@@ -121,13 +123,20 @@ export default function MessagesPanel() {
         <span className="msgp-dir-line">{dirLabel(r) && <><b dir="ltr">{dirLabel(r)}</b>{" "}</>}
           {t("msgpMsgs", { n: fmtNum(r.count ?? 0, lang, 6) })} · <bdi dir="ltr">{r.header}</bdi>
           {r.checksum ? <> · <bdi dir="ltr">{r.checksum}</bdi>{r.errors ? <span className="msgp-bad"> {t("msgpBad", { n: r.errors })}</span> : null}</> : null}
-          {" · "}{t("msgpTypes", { n: r.types?.length ?? 0 })}</span>
+          {" · "}{t("msgpTypes", { n: r.types?.length ?? 0 })}
+          {r.anomalies && (r.anomalies.total
+            ? <span className="msgp-anom" title={Object.entries(r.anomalies.counts).map(([k, n]) => `${t(`chK_${k as AnomalyKind}` as never)}: ${n}`).join("\n")}>
+                {" · "}⚠ {t("chAnomalies", { n: fmtNum(r.anomalies.total, lang, 6) })}</span>
+            : <span className="msgp-anom ok">{" · "}✓ {t("chNoAnomalies")}</span>)}</span>
         {r.typed && <span className="msgp-types" dir="ltr">{(r.types ?? []).slice(0, 8).map((x) => (
           <span key={x.type} className="chip-s" title={`${x.count}`}>{hex(x.type)} {x.rate ? `${fmtNum(x.rate, lang, 3)} Hz` : `×${x.count}`}</span>))}</span>}
       </>}
     </div>
   ));
-  const fileOf = (ids: string[], rs: StreamRow[]) => rs[0]?.file ?? runs.find((r) => r.id === ids[0].slice(0, ids[0].indexOf("/")))?.name;
+  const fileOf = (ids: string[], rs: StreamRow[]) => {
+    const names = [...new Set(ids.map((id) => runs.find((r) => r.id === id.slice(0, id.indexOf("/")))?.name).filter(Boolean))];
+    return names.length > 1 ? names.join(" + ") : rs[0]?.file ?? names[0];       // CH8: TX and RX from two files
+  };
 
   const running = (link?.running || mav?.running) && (
     <section className="card info msgp-running">
@@ -153,9 +162,11 @@ export default function MessagesPanel() {
       {rows === null && !groups.length && <p className="hint">{t("msgpLooking")}</p>}
       {rows !== null && !groups.length && <p className="hint msgp-none">{t("msgpNoStreams")}</p>}
       {!page && addForm}
-      {links.map((l) => (
+      {links.filter((l) => !held.has(l.tx) && !held.has(l.rx)).map((l) => (
         <div key={l.tx} className="card info ch-offer" data-tx={l.tx} data-rx={l.rx}>
-          <span>{t("chOffer", { tx: bare(l.tx), rx: bare(l.rx) })}</span>
+          <span>{l.tx.slice(0, l.tx.indexOf("/")) === l.rx.slice(0, l.rx.indexOf("/"))
+            ? t(l.why === "replies" ? "chOfferReplies" : "chOffer", { tx: bare(l.tx), rx: bare(l.rx) })
+            : t("chOfferFiles", { tx: bare(l.tx), rx: bare(l.rx), a: fileName(l.tx), b: fileName(l.rx) })}</span>
           <button className="btn primary sm ch-make" onClick={() => oneChannel(l.tx, l.rx)}>{t("chMake")}</button>
         </div>))}
       {groups.map(([key, rs]) => {

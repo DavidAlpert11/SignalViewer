@@ -285,15 +285,62 @@ class StreamsRequest(BaseModel):
     runs: Optional[List[str]] = None              # the files to look in (default: every open one)
 
 
-def _streams(defs: List[dict], only: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+# CH1 / CH8: a name that says which way the bytes go
+_TX_NAME = re.compile(r"(^|[^a-z])(tx|send|sent|transmit|out|up|uplink|cmd|command|request|req)([^a-z]|$)", re.I)
+_RX_NAME = re.compile(r"(^|[^a-z])(rx|recv|receive|received|in|down|downlink|tlm|telemetry|reply|resp|response)([^a-z]|$)", re.I)
+
+
+def _direction(name: str) -> Optional[str]:
+    tx, rx = bool(_TX_NAME.search(name)), bool(_RX_NAME.search(name))
+    return "tx" if tx and not rx else "rx" if rx and not tx else None
+
+
+def _links(free: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """CH1 / CH8: streams that look like the two directions of one link - in one file by their names (exactly one
+    TX-like and one RX-like), or anywhere (two files too) when the messages of one answer the other's (a request ->
+    reply pair with an echoed id, or a handshake), their times overlapping. TX: the side that asks."""
+    from svcore.bytestream import exchange
+    out: List[Dict[str, Any]] = []
+    used: set = set()
+    by: Dict[str, List[Dict[str, Any]]] = {}
+    for s in free:
+        by.setdefault(s["rid"], []).append(s)
+    for ss in by.values():
+        tx = [s for s in ss if _direction(s["ids"][0].split("/", 1)[1]) == "tx"]
+        rx = [s for s in ss if _direction(s["ids"][0].split("/", 1)[1]) == "rx"]
+        if len(tx) == 1 and len(rx) == 1:
+            out.append({"tx": tx[0]["ids"][0], "rx": rx[0]["ids"][0], "why": "names"})
+            used.update((tx[0]["ids"][0], rx[0]["ids"][0]))
+    rest = [s for s in free if s["ids"][0] not in used][:12]
+    for i, a in enumerate(rest):
+        for b in rest[i + 1:]:
+            if a["ids"][0] in used or b["ids"][0] in used:
+                continue
+            ra, rb = a["r"], b["r"]
+            ta, tb = ra["messages"]["t"], rb["messages"]["t"]
+            if not len(ta) or not len(tb) or min(ta[-1], tb[-1]) <= max(ta[0], tb[0]):
+                continue                                  # their times do not overlap
+            e = exchange(ra, rb, ("A", "B"))
+            good = [q for q in e["pairs"] if q["replies"] >= 2 and (q["how"] == "id" or q["requests"] <= 10)]
+            if not good:
+                continue
+            first = max(good, key=lambda q: q["replies"])["from"] == "A"
+            out.append({"tx": (a if first else b)["ids"][0], "rx": (b if first else a)["ids"][0], "why": "replies"})
+            used.update((a["ids"][0], b["ids"][0]))
+    return out
+
+
+def _streams(defs: List[dict], only: Optional[List[str]] = None) -> Dict[str, Any]:
     from app.reportparts import find_streams
+    from svcore.channel import anomalies
     rids = [i for i in store.order if i in store.runs and (only is None or i in only)]
     owner: Dict[str, str] = {}                    # a source signal -> the definition it belongs to (sources joined)
     for d in defs:
         for s in d.get("sources") or []:
             owner[str(s)] = ",".join(str(x) for x in d.get("sources") or [])
     out = []
-    for s in find_streams(store, rids, defs):
+    found = find_streams(store, rids, defs)
+    for s in found:
         ids = s["ids"]
         # the key a definition of these bytes has: its sources (a direction column is not one of them)
         key = owner.get(ids[0]) or (",".join(ids) if s["params"].get("dir") is None else ids[0])
@@ -308,11 +355,24 @@ def _streams(defs: List[dict], only: Optional[List[str]] = None) -> List[Dict[st
                        types=[{"type": x["type"], "count": x["count"], "rate": x["rate"]} for x in r["types"][:12]],
                        typed=r["typeOffset"] is not None)
         out.append(row)
-    return out
+    # CH7: each stream's anomalies at once - a key's two directions read together (requests and replies), else alone
+    by_key: Dict[str, List[int]] = {}
+    for i, row in enumerate(out):
+        if "error" not in row:
+            by_key.setdefault(row["key"], []).append(i)
+    for key, idx in by_key.items():
+        idx = sorted(idx, key=lambda i: 0 if re.search(r"(^|[^a-z])tx([^a-z]|$)", out[i]["name"], re.I) else 1)
+        sides = [(("TX", "RX")[k] if len(idx) == 2 else "TX", found[i]["r"]) for k, i in enumerate(idx[:2])]
+        res = anomalies(sides)
+        for k, i in enumerate(idx[:2]):
+            out[i]["anomalies"] = {"total": sum(res["byDir"].get(sides[k][0], {}).values()), "counts": res["byDir"].get(sides[k][0], {})}
+    free = [s for s, row in zip(found, out) if "error" not in row and len(s["ids"]) == 1 and s["params"].get("dir") is None
+            and s["ids"][0] not in owner and row["key"] == s["ids"][0]]
+    return {"streams": out, "links": _links(free)}
 
 
 @router.post("/api/messages/streams")
 async def messages_streams(req: StreamsRequest):
     """The byte streams in the open files (the defined ones and the ones found by themselves), each with its
     messages at a glance - count, header, checksum, the types and their rates - for the Messages panel."""
-    return {"streams": await heavy(_streams, req.streams or [], req.runs)}
+    return await heavy(_streams, req.streams or [], req.runs)

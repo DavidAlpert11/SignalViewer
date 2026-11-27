@@ -420,6 +420,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-27 · CH7 + CH8 (anomalies in the list; TX / RX across files, offered by replies). quick_check green before them (CH1-CH6);
+  backend test_channel test_messages_library; e2e test_channel (4).
 - 2026-11-27 · CH1-CH6 checked on main: e2e test_channel (3), test_messages (17), test_welcome_cards (13), test_report_parts
   (3), test_fresh_user (6). Round 2 planned (Open specs CH §3).
 - 2026-11-27 · CH6 docs: messages.md (the channel, each anomaly's rule, the example), GUIDE (+ a Messages section) + GUIDE.he,

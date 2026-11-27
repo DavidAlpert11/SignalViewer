@@ -95,3 +95,32 @@ def test_the_channel_example_compares_two_recordings(pg):
     pg.wait_for_function("(window.__sv.state().ws.report?.doc?.text || '').includes('[[messages]]')", timeout=30000)
     from test_report_doc import preview_has
     preview_has(pg, "the same channel in 2 files", "link_run2.csv")
+
+
+def _two_loggers(folder, shift=0.0):
+    """The serial link's TX and RX in two files whose names say nothing (two loggers; the second's clock `shift` s off)."""
+    import csv
+    rows = list(csv.reader(open(os.path.join(DEMO, "link_tx_rx.csv"))))[1:]
+    with open(os.path.join(folder, "logger_a.csv"), "w", newline="\n") as f:
+        f.write("time,port1\n" + "".join("%s,%s\n" % (r[0], r[1]) for r in rows if r[1]))
+    with open(os.path.join(folder, "logger_b.csv"), "w", newline="\n") as f:
+        f.write("time,port2\n" + "".join("%.6f,%s\n" % (float(r[0]) + shift, r[2]) for r in rows if r[2]))
+
+
+def test_tx_in_one_file_rx_in_another_answering_each_other(pg):
+    """CH7 / CH8 (owner, 2026-11-27): each stream's anomalies in the list at once; a TX in one file and an RX in
+    another are offered as one channel because one answers the other - its requests, replies and anomalies."""
+    _two_loggers(pg.env["data"])
+    open_files(pg, "logger_a.csv", "logger_b.csv")
+    messages_page(pg)
+    badge = pg.locator(".msgp-stream", has_text="port1").locator(".msgp-anom")
+    badge.wait_for(timeout=30000)
+    assert "anomalies" in badge.inner_text()
+    offer = pg.locator(".ch-offer")
+    offer.wait_for(timeout=30000)
+    assert "logger_a.csv" in offer.inner_text() and "logger_b.csv" in offer.inner_text()
+    offer.locator(".ch-make").click()
+    pg.wait_for_function("(window.__sv.state().ws.messageStreams || []).some(m => m.carries === 'pair' && m.sources[0].endsWith('/port1') && m.sources[1].endsWith('/port2'))")
+    pg.locator(".ch-chip[data-kind=unanswered]").wait_for(timeout=30000)
+    assert pg.locator(".ch-chip[data-kind=unanswered] b").inner_text() == "18"
+    assert "0x10 → RX 0x90" in pg.locator(".ch-view").inner_text()

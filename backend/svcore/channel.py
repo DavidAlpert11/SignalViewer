@@ -11,7 +11,8 @@ The patterns themselves are found by `bytestream.decode` (header, length, type, 
                     broken     a frame that broke off (its length ran past the next header): the walk resynced
                     length     a frame of a length its type never has otherwise (>= 90 % of the type share one length)
                     unknown    a type the structure does not describe; without a structure, a type seen at most twice
-                               among >= 200 messages that is not a handshake step
+                               among >= 200 messages, on its own (rare messages of several types within 1 s of
+                               each other are a handshake's steps)
                     counter    a payload byte that steps by one from message to message of a type (>= 90 %) skips
                                (messages lost on the way) or repeats (the same one sent again)
                     gap        a periodic type silent for more than 3 x its period (a rate drop)
@@ -54,6 +55,10 @@ def _side(r: Dict, name: str, ev: _Events, known: Optional[Sequence[int]], hs_ty
     for tb in r.get("broken", ()):
         ev.add("broken", tb, name, None)
     n = len(t)
+    # the rare messages (a type seen at most twice): a few of them close together are a handshake's steps, even with
+    # one direction alone - only a rare message on its own is an unknown one
+    rare = {x["type"] for x in r["types"] if x["count"] <= 2}
+    rare_at = [(float(t[i]), int(ty[i])) for i in np.flatnonzero(np.isin(ty, list(rare)))] if typed and rare else []
     for x in r["types"]:
         v = x["type"]
         sel = np.flatnonzero(ty == v) if typed else np.arange(n)
@@ -72,9 +77,14 @@ def _side(r: Dict, name: str, ev: _Events, known: Optional[Sequence[int]], hs_ty
                         ev.add("unknown", t[i], name, v, "not in the structure")
             elif x["count"] <= 2 and n >= 200 and (name, v) not in hs_types:
                 for i in sel:
-                    ev.add("unknown", t[i], name, v, "seen %d× in %d messages" % (x["count"], n))
+                    if not _with_others(t[i], v, rare_at):
+                        ev.add("unknown", t[i], name, v, "seen %d× in %d messages" % (x["count"], n))
         _counter(r, name, ev, sel, v if typed else None)
         _gaps(t[sel], name, ev, v if typed else None, x)
+
+
+def _with_others(at: float, v: int, rare_at: List[Tuple[float, int]]) -> bool:
+    return any(abs(tt - at) <= 1.0 and ty != v for tt, ty in rare_at)
 
 
 def _counter(r: Dict, name: str, ev: _Events, sel: np.ndarray, v: Optional[int]):

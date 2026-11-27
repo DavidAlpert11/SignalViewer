@@ -150,6 +150,8 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 .messages .msgp-addform { display: flex; flex-direction: column; gap: var(--sp-2); padding: 10px 12px; margin: 8px 0; }
 .messages .ch-offer { display: flex; align-items: center; gap: var(--sp-2); padding: 8px 10px; margin: 6px 0; font-size: 12.5px; }
 .messages .ch-offer > span { flex: 1; }
+.messages .msgp-anom { color: var(--warn); }
+.messages .msgp-anom.ok { color: var(--muted); }
 /* CH3: the channel - patterns, anomaly chips, the time strip (a lane per kind), the list */
 .messages .ch-view { padding: 10px 12px; margin: 0 0 10px; display: flex; flex-direction: column; gap: 6px; }
 .messages .ch-view h4 { margin: 0; }

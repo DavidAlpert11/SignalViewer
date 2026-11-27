@@ -18,6 +18,12 @@
   with the same signals beside it, read the same way: a row per file, a column per kind of anomaly, each count against
   this file's (more in red, fewer in green). The report's `[[messages]]` adds the same table - with one file, the
   channel's anomalies by kind.
+- **Every stream's anomalies at once (CH7).** The Messages list says for each stream - one file by itself, before
+  anything is opened - how many anomalies it has (✓ none), each kind in its tooltip; a channel's two directions are
+  read together (requests and their replies).
+- **TX in one file, RX in another (CH8).** *Add a stream → TX and RX* takes the two signals from any open files, and
+  the list offers a channel by itself when one stream **answers** the other (a reply echoing its request's id, a
+  handshake) - not only when their names say TX and RX - in one file or in two files of one link.
 - **Example: one link recorded twice (CH5).** *Help → Examples → one link recorded twice* - TX and RX in two signals,
   every kind of anomaly injected, the second recording on a worse day: make one channel, see its anomalies, compare
   the two, write the report.

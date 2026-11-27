@@ -92,3 +92,42 @@ def test_channel_route_both_ways_and_by_a_direction_column():
         {"label": "RX", "sources": [f"{b.id}/byte", f"{b.id}/dir"], "params": {"dir": code["RX"]}}]}).json()
     assert mixed["counts"] == pair["counts"]
     assert c.post("/api/messages/channel", json={"sides": [{"label": "TX", "sources": ["nope/x"]}]}).status_code == 404
+
+
+def _split_link(tmp_path, shift=0.0):
+    """The serial link's TX and RX written to two files with names that say nothing - two loggers (the second's clock
+    `shift` s off)."""
+    import csv
+    rows = list(csv.reader(open(os.path.join(EX, "serial_link", "link_tx_rx.csv"))))[1:]
+    a, b = tmp_path / "logger_a.csv", tmp_path / "logger_b.csv"
+    a.write_bytes(("time,port1\n" + "".join("%s,%s\n" % (r[0], r[1]) for r in rows if r[1])).encode())
+    b.write_bytes(("time,port2\n" + "".join("%.6f,%s\n" % (float(r[0]) + shift, r[2]) for r in rows if r[2])).encode())
+    return store.open_file(str(a)), store.open_file(str(b))
+
+
+def test_streams_answering_each_other_are_offered_as_one_channel_across_files(tmp_path):
+    """CH7 / CH8: each stream's anomalies in the list; two files whose bytes answer each other (no telling names):
+    one channel offered, TX the side that asks - and as one definition, the same anomalies as the link in one file."""
+    c = TestClient(app)
+    a, b = _split_link(tmp_path)
+    r = c.post("/api/messages/streams", json={"streams": [], "runs": [a.id, b.id]}).json()
+    assert {"tx": f"{a.id}/port1", "rx": f"{b.id}/port2", "why": "replies"} in r["links"]
+    row = next(x for x in r["streams"] if x["key"] == f"{a.id}/port1")
+    assert row["anomalies"]["counts"]["checksum"] == 2 and row["anomalies"]["total"] == sum(row["anomalies"]["counts"].values())
+    pair = {"id": "m", "sources": [f"{a.id}/port1", f"{b.id}/port2"], "carries": "pair"}
+    r = c.post("/api/messages/streams", json={"streams": [pair], "runs": [a.id, b.id]}).json()
+    mine = [x for x in r["streams"] if x["key"] == f"{a.id}/port1,{b.id}/port2"]
+    assert len(mine) == 2 and not r["links"]
+    assert next(x for x in mine if x["ids"] == [f"{a.id}/port1"])["anomalies"]["counts"]["unanswered"] == 18
+
+
+def test_link_by_names_only_when_clear():
+    """CH1 (the rule moved to the server with CH8): one TX-like and one RX-like name in a file - not across files by
+    names alone, not when ambiguous."""
+    from app.routes.messages import _links
+    empty = {"messages": {"t": []}}
+    s = lambda i: {"rid": i.split("/")[0], "ids": [i], "r": empty}
+    assert _links([s("a/tx_byte"), s("a/rx_byte")]) == [{"tx": "a/tx_byte", "rx": "a/rx_byte", "why": "names"}]
+    assert _links([s("a/uplink"), s("a/downlink"), s("a/sensor_byte")]) == [{"tx": "a/uplink", "rx": "a/downlink", "why": "names"}]
+    assert _links([s("a/tx_byte"), s("b/rx_byte")]) == []
+    assert _links([s("a/tx1"), s("a/tx2"), s("a/rx")]) == []
