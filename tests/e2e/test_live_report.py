@@ -136,7 +136,11 @@ def _ins_csv(path, t):
 
 def _open_instruments(pg):
     pg.locator(".rail button[aria-label='Checks']").click()
-    pg.locator("aside.log-panel .log-tabs [data-tab=instruments]").click()
+    # CC7 (1.38): the instruments are a section of the tab *The file*
+    pg.locator("aside.log-panel .log-tabs [data-tab=file]").click()
+    sec = pg.locator("aside.log-panel details.file-sec", has=pg.locator("summary", has_text="Instruments"))
+    if not sec.evaluate("d => d.open"):
+        sec.locator("summary").click()
     pg.wait_for_selector("aside.log-panel .instruments")
 
 
