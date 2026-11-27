@@ -1222,6 +1222,20 @@ def img_54_gps_nmea(b, app):
     shot(pg, "54_gps_nmea"); ctx.close()
 
 
+def img_58_channel(b, app):
+    """CH (1.39): one link recorded twice - the channel on the Messages page: every anomaly by kind and whose it is (the
+    link's, likely the sniffer's, no effect seen) on its time strip, and the second recording compared by itself."""
+    ctx, pg = page(b, app)
+    _help_example(pg, "one link recorded twice")
+    pg.wait_for_selector(".demo-guide[data-demo=channel] .demo-next", timeout=60000)
+    pg.locator(".demo-guide .demo-next").click()
+    pg.wait_for_selector(".ch-compare-t tr[data-file='link_run2.csv']", timeout=60000)
+    pg.evaluate("() => document.querySelector('.demo-guide button[aria-label]')?.click()")
+    pg.evaluate("() => document.querySelector('.msgp-current').scrollIntoView({block: 'start'})")
+    pg.wait_for_timeout(1200)
+    shot(pg, "58_channel"); ctx.close()
+
+
 SCENES = [(n, f) for n, f in sorted(globals().items()) if n.startswith("img_")]
 
 

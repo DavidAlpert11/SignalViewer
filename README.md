@@ -45,6 +45,12 @@ simulation engineers, and it runs entirely on your machine: no account, no cloud
   messages found by themselves (the byte patterns that repeat: header, footer; length, type, checksum), the template
   proposed – 16-bit LSB or MSB first, signed, 32-bit, floats – or defined by clicking the bytes in four guided steps,
   and the values become a recording you can save as CSV; or listen live to a serial port, UDP or TCP.
+- **A communication channel checked** – TX and RX, in one file or two, made one channel of requests and replies;
+  every anomaly counted on every message (bad checksums, lost and broken frames, missing or late replies, counter
+  skips, silences, reconnects) and whether it is the link's or likely the sniffer's; similar recordings compared by
+  themselves, the one that stands out marked.
+- **Found in this file** – what the app can do by itself with a file, found from its signal names (command and
+  response, objects on a map, truth vs navigation, modes, sensors in copies), said in one line as it opens.
 - **Runs side by side** – different clocks and rates aligned; every shared signal ranked by how much it differs.
 - **What changed?** – the signals that left their usual range, in time order, and which one led which.
 - **Pass / fail you can defend** – limits and requirements (settling, overshoot, rise time, tracking a reference,
@@ -137,6 +143,15 @@ message counted and in its order, and a recording of its own, saved as CSV like 
 the message types of the logs (MAVLink included), the links running now and a library of structures.
 [Messages: from bytes to signals](https://davidalpert11.github.io/SignalViewer/messages/)
 
+**A communication channel.** Beyond each message's content the app finds what repeats - the header, the checksum,
+which reply answers which request, the handshake - and what breaks it, on every message: bad checksums, broken or
+lost frames, wrong lengths, unknown types, counter skips, silences, missing and late replies, retries, reconnects, a
+handshake out of order. Each is drawn on a time strip and said whose it most likely is: the link's, or the sniffer's
+(the link shows the bytes were fine). TX and RX may come from two files, even with two clocks apart; the same channel
+in similar recordings is compared by itself, the one that stands out marked.
+
+<p align="center"><a href="docs/images/58_channel.png"><img src="docs/images/58_channel.png" alt="The channel on the Messages page: every anomaly by kind and whose it is on a time strip, and the second recording of the same link compared by itself - what stands out" width="80%"></a></p>
+
 <table>
 <tr>
 <td width="50%" valign="top"><a href="docs/images/53_messages_structure.png"><img src="docs/images/53_messages_structure.png" alt="The Messages panel: the structure proposed - header A5 5A, the type byte, xor8, the footer 0D 0A, and each message's fields with their type and byte order"></a></td>
@@ -225,6 +240,8 @@ Exit codes and JUnit XML for CI; also export, a Sweeps table from a folder of re
 - **בוחרים פרמטרים (Sweeps):** אילו סטים עומדים בכל תרחיש, סט אחד לכמה מערכות, ולולאה שמריצה את הקוד שלכם עד התכנסות.
 - **אף נקודה לא נעלמת:** המספרים תמיד על כל הנתונים, והגרף מוקטן רק כך שכל קפיצה עדיין מצוירת.
 - **מבתים לסיגנלים:** קו תקשורת שהוקלט בית אחר בית, או NMEA גולמי של מקלט: ההודעות נמצאות לבד (כותרת, אורך, סוג, checksum, סיומת), האפליקציה מציעה מבנה – 16 ביט LSB או MSB קודם, עם סימן, 32 ביט, float, double, טקסט – או שמגדירים אותו בארבעה שלבים מודרכים – הבתים כ־hex, מספרים או ASCII, ולחיצה על בית אומרת מה הוא (כותרת, אורך, סוג, ערך), עם נוסחת המרה – כל הודעה נספרת ומוצגת לפי הסדר, והערכים הופכים להקלטה שנשמרת גם ל־CSV. אפשר גם להאזין חי לפורט טורי, UDP או TCP. חלונית *הודעות* אחת מרכזת הכול: זרמי הבתים, סוגי ההודעות של הלוגים (גם MAVLink), הקווים הפעילים וספריית מבנים.
+- **ערוץ תקשורת:** TX ו-RX, בקובץ אחד או בשניים, מוגדרים כערוץ אחד של בקשות ותשובות; כל חריגה נספרת על כל הודעה (checksum שגוי, הודעות שאבדו ונשברו, תשובות חסרות או מאוחרות, דילוג במונה, שקט, התחברות מחדש) – ולכל אחת אם היא של הקו או כנראה של הסניפר; הקלטות דומות מושוות מעצמן, וזו שבולטת מסומנת.
+- **נמצא בקובץ:** מה שהאפליקציה יכולה לעשות לבד עם קובץ, לפי שמות הסיגנלים (פקודה מול ביצוע, אובייקטים על מפה, אמת מול ניווט, מצבים, חיישנים בכמה עותקים) – בשורה אחת כשהוא נפתח.
 - **אפליקציה אחת:** חקירה, הודעות, בדיקות והדוח נפתחים כעמודים באותה מסגרת (ראש, עמודת תוכן, ומה שעובדים עליו), וחוזרים לצד הגרפים כשפעולה צריכה אותם; הדוגמאות נבנות מולכם בשניים־שלושה שלבים.
 - **מפה ותלת־ממד:** תצלומי לוויין או מפה לא מקוונת, מעל פני השטח האמיתיים – הרגע של הסמן על המסלול ובכל הגרפים יחד.
 - **שולחים את התשובה:** לחיצה אחת כותבת דוח מוכן מחלקים (פסק הדין של הדרישות, פקודה מול ביצוע, שגיאות ניווט בין אובייקטים, התרחיש והרגעים המיוחדים, וההבדלים העיקריים בין קבצים עם האזור המרכזי של השינוי), או כותבים את הדוח כמו Markdown, או ב־LaTeX כמו ב־Overleaf – בלי אינטרנט ובלי להתקין דבר, בעורך עם ביטול והערות משלו – עם גרפים וערכים מהנתונים ותצוגה חיה; דוח HTML אחד שנפתח ב"התהליך בקצרה", וגם PDF ו־Word, או גרף ולשונית שנשלחים חיים ישר לדף Confluence – מדביקים את הקישור לדף וזהו (למקום שבו כתוב בדף <code dir="ltr">[[signalviewer]]</code> או מתחת לכותרת שבוחרים); או גוררים אותם אל מחוץ לחלון – לתיקייה דף אינטראקטיבי, ל־Word תמונה חדה. תיקייה של הקלטות – טבלה אחת, שורה לכל הקלטה.

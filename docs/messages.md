@@ -186,6 +186,8 @@ offered once - **Make one channel in each**. Any other two signals, from any ope
 A lost reply is also a step missing from the reply's own sequence number, a retry repeats the request's: the counter
 says so too - each kind is what that part of the link saw.
 
+![The channel on the Messages page: every anomaly by kind and whose it is on a time strip, and the second recording of the same link compared by itself](images/58_channel.png){ .sv-shot loading=lazy }
+
 ### The link's, or the sniffer's?
 
 A recording made by a **sniffer** (a tap on the line, a logger beside the devices) can have glitches of its own: a

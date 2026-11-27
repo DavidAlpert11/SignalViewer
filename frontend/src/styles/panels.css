@@ -181,7 +181,7 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 .messages .ch-c-none .ch-cause-mark { opacity: .45; border-style: dotted; }
 .messages .ch-mark.ch-c-capture { fill: none; stroke: var(--ch); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .messages .ch-mark.ch-c-none { opacity: .45; }
-.messages .ch-chip-cap { font-size: 11px; color: var(--muted); }
+.messages .ch-chip-cap { font-size: 11px; opacity: .8; }
 .messages .ch-compare { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .messages .ch-compare-t tr.ch-this th { font-weight: 700; }
 /* CH10: the files compared - a strip per file, a bar per count, what stands out */
