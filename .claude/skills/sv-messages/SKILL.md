@@ -5,7 +5,7 @@ description: Work on Signal Viewer's messages - byte streams (TX / RX / both wit
 
 # Messages: from bytes to a recording
 
-User docs: `docs/messages.md`. Decisions: `docs/dev/TASKS.md` (MSG1, MSG2, MSG3, MSG4, LINK1).
+User docs: `docs/messages.md`. Decisions: `docs/dev/TASKS.md` (MSG1, MSG2, MSG3, MSG4, LINK1, CH).
 
 ## The flow (what the user does, in the Messages panel - 4 steps)
 
@@ -29,16 +29,18 @@ User docs: `docs/messages.md`. Decisions: `docs/dev/TASKS.md` (MSG1, MSG2, MSG3,
 | framing found by itself (2-byte header, length / type / fixed, checksum schemes), per-type numbers, request / reply | `backend/svcore/bytestream.py` |
 | structures: check, parse binary (`frames_binary`) and text, suggest, NMEA, ICD layouts | `backend/svcore/protocol.py` |
 | the guided view: patterns, frames with roles, values | `backend/svcore/msginspect.py` |
+| a channel's anomalies (11 kinds, on every message), the count so far (op `messages` what `anomalies`) | `backend/svcore/channel.py`, route `/api/messages/channel` |
 | routes: suggest, parse, inspect, library, streams | `backend/app/routes/messages.py` |
 | live links (serial / UDP / TCP) -> `.svraw` | `backend/svcore/rawlink.py`, `app/routes/live.py` |
 | report part | `backend/app/reportparts_messages.py` (`messages`, `find_streams`), run by `app/reportparts.py` |
 | panel, steps, byte view, structure form | `frontend/src/components/MessagesPanel.tsx`, `StreamEditor.tsx`, `ByteView.tsx`, `StructureEditor.tsx` |
+| the channel block (patterns, anomaly chips / strip / list, files compared); *Make one channel* | `components/ChannelView.tsx`; `messages.ts linkCandidates`, `keepChannel`, `channelSides` |
 | actions (decode, make the recording, report, library) | `frontend/src/messages.ts` |
 | strings | `frontend/src/i18n/live.ts` (msg*, msgp*, msgStep*) |
-| examples | `examples/report_demo` (serial link), `examples/serial_link`, `backend/svcore/example_data/make_serial_link.py` |
+| examples | `examples/report_demo` (serial link), `examples/serial_link`, `backend/svcore/example_data/make_serial_link.py`; `examples/channel` (one link twice, every anomaly kind: `make_channel.py`) |
 
 ## Tests
 
 `backend/tests/test_bytestream.py`, `test_protocol.py`, `test_msginspect.py`, `test_messages_library.py`,
-`test_rawlink.py`; e2e `tests/e2e/test_messages.py` (the panel, the steps, make the recording). Every message
+`test_rawlink.py`, `test_channel.py`; e2e `tests/e2e/test_messages.py`, `test_channel.py` (the panel, the steps, make the recording). Every message
 counts: a frame with a bad checksum is left out **and counted**, never sampled (CLAUDE.md).

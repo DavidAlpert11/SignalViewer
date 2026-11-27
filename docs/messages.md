@@ -126,6 +126,50 @@ whole message goes only from its own 🗑, after a question that says how many f
   the order, rates, gaps, requests and replies, the handshake (see
   [Writing a report](reports.md#messages-in-a-byte-stream)). *Report → Ready reports → Link review* writes it all.
 
+## A communication channel: patterns, anomalies, similar files
+
+A link has more in it than its messages' values: a **header**, a **length** or **type** byte and a **checksum** in
+every message, **requests** answered by **replies**, a **handshake** that opens the link. Signal Viewer finds these
+by itself and then reads what breaks them.
+
+**One channel from TX and RX.** Both directions in one signal with a direction column are split by themselves (step
+1 says which value is TX and which RX). When TX and RX are **two signals** of one file (`tx_byte` / `rx_byte`,
+`uplink` / `downlink`, `cmd` / `tlm`…), the list says *they look like the two directions of one link* -
+**Make one channel** keeps them as one channel of requests and replies in the session at once (one *Undo*). With
+other names: **Add a stream → TX and RX**.
+
+**The channel** opens above the four steps of a stream:
+
+- **The patterns beyond the content** - each direction's header, how its length is known, the type byte, the
+  checksum; each request → reply pair (paired by an id the reply echoes, or by the next reply), how many were
+  answered, the mean and the longest latency; the handshake's steps and each time it came.
+- **The anomalies**, counted on **every** message, a chip per kind with its count:
+
+| Kind | What it means |
+|---|---|
+| Bad checksum | the message's checksum fails |
+| Broken frame | a message broke off (its length ran past the next header); the bytes up to the next header are lost |
+| Wrong length | a message of a length its type never has otherwise (≥ 90 % of the type share one length) |
+| Unknown type | a type the structure does not describe (once a recording was made from it); before that, a type seen once or twice in ≥ 200 messages that is not a handshake step |
+| Counter skip | a byte that counts up by one from message to message of a type (≥ 90 %) jumps (messages lost) or repeats (one sent again). A step next to a bad message or across a silence is that anomaly's, not counted twice |
+| Silence | a type sent on its own clock is silent for more than 3 × its period |
+| No reply | a request whose reply never came (within 0.5 s) |
+| Sent again | a request sent again before its reply came |
+| Late reply | a reply far later than usual: over the median + 6 × the median deviation, and over twice the median |
+| Reconnect | the handshake again after the first one |
+| Handshake differs | a handshake whose steps differ from the first one (a step missing, out of order) |
+
+  A **time strip** draws each anomaly in a lane of its kind - several in one pixel make one taller mark whose
+  tooltip says how many, so none is left out. A click on a chip shows only that kind; a click on a mark, or on a row
+  of **the list**, puts the cursor there on the plots. **Plot the messages** adds an **Anomalies** plot: the count so
+  far, a step at each one, under the data on the same time axis.
+- **Compare with similar files** - every other open file with the same signals, read the same way: a row per file,
+  a column per kind, each count against this file's (more in red, fewer in green). The report's `[[messages]]` adds
+  the same table (with one file: the channel's anomalies by kind).
+
+A lost reply is also a step missing from the reply's own sequence number, a retry repeats the request's: the counter
+says so too - each kind is what that part of the link saw.
+
 ## The structure file
 
 ### A binary structure
@@ -223,4 +267,5 @@ then *Listen* on `udp:0.0.0.0:5600` with `examples/serial_link/sensor.svmsg.json
 | **a serial link, byte by byte** | the messages found by themselves (TX: header AA 55, a length byte, sum8; RX: EB 90, CRC-16), a handshake, commands and their ACKs, lost ones, a retry, a dropout and a reconnect - in a *Link review* report |
 | **messages to signals** | the same link with its two structure files (`link_tx.svmsg.json`, `link_rx.svmsg.json`): angles MSB first and LSB first, a 32-bit altitude, a float, flag bits, scales and units - two recordings, plotted |
 | (in the same folder) `sensor_uart.csv` + `sensor.svmsg.json` | a sensor board with a **footer** and no length byte: `A5 5A`, type, payload, xor8, `0D 0A` - IMU (i16 LSB first), barometer (a 32-bit pressure), magnetometer (MSB first); opened in *Messages*, step 2 finds the header, the footer, the xor8 before it and every field's type and byte order |
+| **one link recorded twice** | `channel/link_run1.csv` and `link_run2.csv`: TX and RX in two signals, every kind of anomaly injected (the generator's table: `backend/svcore/example_data/make_channel.py`) - 15 in the first, 33 in the second; make one channel, compare the two, write the report |
 | **a GPS receiver's raw NMEA** | `receiver.nmea` opens as a recording at once (a loop on the map, the fix lost for 5 s, one bad checksum, a maker's own `$PDEMO` sentence); `receiver_uart.csv` is the same receiver byte by byte - open it in *Messages*: step 2 proposes NMEA |

@@ -522,6 +522,18 @@ again. To try it without a logger: `python tools/live_demo.py` writes an aircraf
 keep moving – open both files, add an object from each, press Live. *Checks › Instruments* shows the
 newest values as big readouts while live.
 
+### Messages and communication channels { #messages }
+
+A signal of bytes (whole numbers 0..255, or columns `byte_0…byte_N`) opens in **Messages** (the left rail, or
+right-click → *Decode as messages…*): the app finds the messages by itself (header, length, type, checksum) and four
+steps turn them into a recording. For a link, **The channel** on top shows what repeats beyond the content - the
+framing of each direction, which reply answers which request and how fast, the handshake - and every **anomaly**
+counted by kind and drawn on a time strip: bad checksums, broken frames, wrong lengths, unknown types, counter skips,
+silences, missing / late replies, retries, reconnects, a handshake out of order. A click on one goes there on the
+plots. TX and RX in two signals become one channel with **Make one channel**; **Compare with similar files** puts the
+same channel in the other open files beside it, a row per file. Try *Help → Examples → one link recorded twice*.
+Details: [Messages](messages.md).
+
 ## 13. Sweeps: which parameters hold
 
 **Sweeps** (the top bar, next to *Recordings*) is for the results of a run envelope: a table with a
