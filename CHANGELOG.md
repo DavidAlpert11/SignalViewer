@@ -24,6 +24,11 @@
 - **TX in one file, RX in another (CH8).** *Add a stream → TX and RX* takes the two signals from any open files, and
   the list offers a channel by itself when one stream **answers** the other (a reply echoing its request's id, a
   handshake) - not only when their names say TX and RX - in one file or in two files of one link.
+- **Similar files compared by themselves (CH10).** With other open files holding the same signals, the channel shows
+  the same channel in each of them without a click (up to eight; more: a button): a row per file with a small strip of
+  its anomalies over time, a bar for each count, each count against this file's, a count far above the other files'
+  marked ⚠ - and **what differs between the files**: the file that stands out, a message type only one file has, a
+  rate or a reply time far from the others', another header or checksum. The report's `[[messages]]` says the same.
 - **Two loggers, two clocks (CH9).** When TX and RX were recorded by two loggers whose clocks disagree, hardly any
   request reads as answered. The app pairs requests and replies by the id the reply echoes, whatever the delay: the
   list offers them as one link saying how far apart the clocks look, and the channel moves RX's file by that much in

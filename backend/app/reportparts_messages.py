@@ -318,6 +318,33 @@ def anomaly_table(p: Part, streams: List[Dict], rids: Sequence[str]):
     p.say(S_["msg_anom_files"].format(n=len({rid for rid, _n, _r in rows}), f=_name(p.store, rows[0][0])) if files else S_["msg_anom"])
     p.say(table(S_["msg_anom_head"] + [S_["msg_anom_k"][k] for k in kinds], out))
     p.say(S_["msg_anom_cause"])
+    if files:
+        differences(p, [("%s (%s)" % (_name(p.store, rid), name) if len(rows) > len({x for x, _n, _r in rows}) else _name(p.store, rid), r)
+                        for rid, name, r in rows])
+
+
+def differences(p: Part, rows: List[Tuple[str, Dict]]):
+    """CH10: what differs between the files (svcore/channel.compare_files) - a file that stands out, the patterns that
+    changed; each a line, a file that stands out also a highlight."""
+    from svcore.channel import compare_files
+    S_ = p.S
+    c = compare_files(rows)
+    lines = []
+    for x in c["standsOut"]:
+        lines.append(S_["msg_cmp_out"].format(file=x["file"], n=x["value"], kind=S_["msg_anom_k"][x["kind"]], o=fmt(x["others"])))
+        p.hl("warn", 3 + x["value"] - x["others"], S_["msg_cmp_out"].format(file=x["file"], n=x["value"], kind=S_["msg_anom_k"][x["kind"]],
+                                                                         o=fmt(x["others"])).replace("**", ""))
+    for x in c["patterns"]:
+        w = x["what"]
+        args = dict(file=x["file"], dir=x["dir"], t=hexb(x["type"]) if "type" in x else "", v=x.get("value"), o=x.get("others"), n=x.get("count"))
+        if w in ("rate",):
+            args.update(v=fmt(x["value"]), o=fmt(x["others"]))
+        if w == "latency":
+            args.update(v="%.3g" % (x["value"] * 1000), o="%.3g" % (x["others"] * 1000), r=hexb(x["reply"]))
+        lines.append(S_["msg_cmp_" + w].format(**args))
+    if lines:
+        p.say(S_["msg_cmp"])
+        p.say("\n".join("- " + ln for ln in lines))
 
 
 def structure(r: Dict, S_: Dict[str, Any]) -> List[List[str]]:

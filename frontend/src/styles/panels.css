@@ -182,6 +182,18 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 .messages .ch-chip-cap { font-size: 11px; color: var(--muted); }
 .messages .ch-compare { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .messages .ch-compare-t tr.ch-this th { font-weight: 700; }
+/* CH10: the files compared - a strip per file, a bar per count, what stands out */
+.messages .ch-compare h5 { margin: 4px 0 0; font-size: 12.5px; }
+.messages .ch-compare-wrap { max-width: 100%; overflow-x: auto; }
+.messages .ch-cell { position: relative; white-space: nowrap; min-width: 46px; }
+.messages .ch-bar { position: absolute; inset-inline-start: 0; bottom: 2px; height: 3px; background: var(--line-strong); border-radius: 2px; }
+.messages .ch-out { background: var(--warn-soft); }
+.messages .ch-out .ch-bar { background: var(--warn); }
+.messages .ch-mini-cell { min-width: 120px; }
+.messages .ch-mini { width: 120px; height: 12px; display: block; background: color-mix(in srgb, var(--line) 35%, transparent); border-radius: 2px; }
+.messages .ch-diffs { font-size: 12.5px; }
+.messages .ch-diffs ul { margin: 2px 0 0; padding-inline-start: 18px; }
+.messages .ch-diff-out { color: var(--warn); }
 .messages .ch-more { color: var(--danger); font-weight: 600; }
 .messages .ch-less { color: var(--ok); font-weight: 600; }
 .messages .ch-k-checksum, .messages .ch-k-broken, .messages .ch-k-length { --ch: var(--danger); }

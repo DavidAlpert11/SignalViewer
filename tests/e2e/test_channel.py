@@ -91,9 +91,12 @@ def test_the_channel_example_compares_two_recordings(pg):
     if SHOT:
         view.screenshot(path=os.path.join(SHOT, "channel_causes.png"))
     pg.locator(".ch-cause[data-cause=capture]").click()
-    pg.locator(".ch-compare-go").click()
+    # CH10: by itself - the second recording beside it, nothing to click
     row = pg.locator(".ch-compare-t tr[data-file='link_run2.csv']")
     row.wait_for(timeout=30000)
+    assert pg.locator(".ch-compare-go").count() == 0 and pg.locator(".ch-compare-t .ch-mini").count() == 2
+    assert "ch-out" in row.locator("td[data-kind=checksum]").get_attribute("class")          # 7 against 2: stands out
+    assert "stands out: 7 × Bad checksum" in pg.locator(".ch-diffs").inner_text()
     assert pg.locator(".ch-compare-t tr.ch-this td[data-kind=all]").inner_text() == "23"
     assert row.locator("td[data-kind=all] .ch-more").inner_text().startswith("42")          # more: marked, +19
     assert "+19" in row.locator("td[data-kind=all]").inner_text()

@@ -72,6 +72,13 @@ export interface ChannelInfo { kinds: AnomalyKind[]; counts: Record<AnomalyKind,
   clock: { shift: number; pairs: number; of: number; request: number; reply: number } | null;
   pairs: { from: string; to: string; request: number; reply: number; how: "id" | "next"; requests: number; replies: number; mean: number | null; max: number | null }[];
   handshake: { t: number; steps: { dir: string; type: number; t: number }[] }[] }
+/** CH10: the same channel in several files (svcore/channel.compare_files) */
+export interface ChannelCompare {
+  files: { name: string; error?: string; total?: number; counts?: Record<AnomalyKind, number>; byCause?: Record<AnomalyCause, number>;
+    span?: [number, number]; events?: { t: number[]; kind: AnomalyKind[]; cause: AnomalyCause[] } }[];
+  standsOut: { file: string; kind: AnomalyKind; value: number; others: number }[];
+  patterns: { file: string; what: "header" | "checksum" | "framing" | "type" | "notype" | "rate" | "latency"; dir: string;
+    type?: number; reply?: number; count?: number; value?: number | string; others?: number | string }[] }
 /** MSG4: the guided view of a byte stream (svcore/msginspect.py) - the patterns that recur, the structure (given or
  *  proposed), the first messages byte by byte (binary) or part by part (text) with their fields' values, the counts. */
 export interface InspectFrame { t: number; at: number; len?: number; id?: number | string; message: string; status: "ok" | "bad" | "unknown";
@@ -409,6 +416,8 @@ export const api = {
     call<MessagesInspect>("/api/messages/inspect", { sources, params, structure, n }),
   /** CH2: a channel's patterns beyond the content and its anomalies (svcore/channel.py) - one direction or two */
   messagesChannel: (sides: ChannelSide[]) => call<ChannelInfo>("/api/messages/channel", { sides }),
+  /** CH10: the same channel in several files - each file's anomalies and what differs between them */
+  messagesChannelCompare: (files: { name: string; sides: ChannelSide[] }[]) => call<ChannelCompare>("/api/messages/channel-compare", { files }),
   messagesStructure: (path: string) => call<{ structure: Structure }>("/api/messages/structure", { path }),
   messagesNmea: () => call<{ structure: Structure }>("/api/messages/nmea"),
   // MSG3: the structure library and the open files' byte streams (the Messages panel)

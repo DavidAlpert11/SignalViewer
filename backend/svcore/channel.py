@@ -424,3 +424,66 @@ def count_signal(res: Dict) -> Tuple[np.ndarray, np.ndarray]:
     tt = np.concatenate([[t0], t, [max(t1, t[-1] if len(t) else t1)]])
     yy = np.concatenate([[0.0], np.arange(1, len(t) + 1, dtype=np.float64), [float(len(t))]])
     return tt, yy
+
+
+# ------------------------------------------------------------------------------------------------ similar files
+
+def compare_files(rows: Sequence[Tuple[str, Dict]]) -> Dict:
+    """CH10 (owner, 2026-11-27: "a comparison with other similar files - whether there are anomalies between them - with
+    graphical indications, automatically"): the same channel in several recordings [(file, anomalies(...))].
+
+    stands out  a file whose count of a kind is far above the others' (over twice their median and 3 more): what
+                happened in that recording and not in the others
+    patterns    what differs in the channel itself: a header / checksum / framing not the others', a message type only
+                some files have, a type's rate or a reply's mean time more than a fifth / a half off the others'"""
+    out_s: List[Dict] = []
+    out_p: List[Dict] = []
+    if len(rows) < 2:
+        return {"standsOut": out_s, "patterns": out_p}
+    for k in KINDS:
+        vals = [r["counts"][k] for _n, r in rows]
+        for i, (name, _r) in enumerate(rows):
+            others = vals[:i] + vals[i + 1:]
+            med = float(np.median(others))
+            if vals[i] > 2 * med and vals[i] >= med + 3:
+                out_s.append({"file": name, "kind": k, "value": vals[i], "others": med})
+    n = len(rows)
+    for side in range(max(len(r["sides"]) for _n, r in rows)):
+        have = [(name, r["sides"][side]) for name, r in rows if len(r["sides"]) > side]
+        for what in ("header", "checksum", "framing"):
+            vals_ = [str(s_[what]) for _n, s_ in have]
+            common = max(set(vals_), key=vals_.count)
+            for name, s_ in have:
+                if str(s_[what]) != common:
+                    out_p.append({"file": name, "what": what, "dir": s_["name"], "value": str(s_[what]), "others": common})
+        types: Dict[int, Dict[str, Dict]] = {}
+        for name, s_ in have:
+            for x in s_["types"]:
+                types.setdefault(x["type"], {})[name] = x
+        for v, by in types.items():
+            if len(by) <= n // 2:
+                for name in by:
+                    out_p.append({"file": name, "what": "type", "dir": have[0][1]["name"], "type": v, "count": by[name]["count"]})
+            elif len(by) < len(have):
+                for name, _s in have:
+                    if name not in by:
+                        out_p.append({"file": name, "what": "notype", "dir": have[0][1]["name"], "type": v})
+            rates = {name: x["rate"] for name, x in by.items() if x.get("rate")}
+            if len(rates) >= 2 and min(x["count"] for x in by.values()) >= 10:
+                for name, rt in rates.items():
+                    med = float(np.median([q for nm, q in rates.items() if nm != name]))
+                    if med > 0 and abs(rt - med) > 0.2 * med:
+                        out_p.append({"file": name, "what": "rate", "dir": have[0][1]["name"], "type": v, "value": rt, "others": med})
+    lat: Dict[Tuple[str, int, int], Dict[str, float]] = {}
+    for name, r in rows:
+        for q in r["pairs"]:
+            if q.get("mean") is not None and q["replies"] >= 5:
+                lat.setdefault((q["from"], q["request"], q["reply"]), {})[name] = q["mean"]
+    for (d, x, y), by_ in lat.items():
+        if len(by_) < 2:
+            continue
+        for name, mean in by_.items():
+            med = float(np.median([m_ for nm, m_ in by_.items() if nm != name]))
+            if med > 0 and abs(mean - med) > 0.5 * med:
+                out_p.append({"file": name, "what": "latency", "dir": d, "type": x, "reply": y, "value": mean, "others": med})
+    return {"standsOut": out_s, "patterns": out_p}

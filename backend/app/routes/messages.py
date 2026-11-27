@@ -132,6 +132,43 @@ async def messages_channel(req: ChannelRequest):
         fail(400, str(e))
 
 
+class CompareFile(BaseModel):
+    name: str
+    sides: List[ChannelSide]
+
+
+class ChannelCompareRequest(BaseModel):
+    files: List[CompareFile]                      # the same channel in each file, this file first
+
+
+def _channel_compare(req: ChannelCompareRequest) -> Dict[str, Any]:
+    from svcore.bytestream import StreamError
+    from svcore.channel import compare_files
+    rows: List[Dict[str, Any]] = []
+    done = []
+    for f in req.files[:20]:
+        try:
+            r = _channel(ChannelRequest(sides=f.sides))
+        except KeyError as e:
+            rows.append({"name": f.name, "error": f"Signal not found: {e} - is its file still open?"})
+            continue
+        except StreamError as e:
+            rows.append({"name": f.name, "error": str(e)})
+            continue
+        done.append((f.name, r))
+        ev = r["events"]
+        rows.append({"name": f.name, "total": r["total"], "counts": r["counts"], "byCause": r["byCause"], "span": r["span"],
+                     "events": {"t": ev["t"], "kind": ev["kind"], "cause": ev["cause"]}, "clock": r["clock"]})
+    return {"files": rows, **compare_files(done)}
+
+
+@router.post("/api/messages/channel-compare")
+async def messages_channel_compare(req: ChannelCompareRequest):
+    """CH10: the same channel in several open files - each file's anomalies (counts, causes, when) and what differs
+    between them (a file that stands out, the patterns that changed)."""
+    return await heavy(_channel_compare, req)
+
+
 class InspectRequest(StructureRequest):
     n: int = 10                                   # how many of the first messages to show
 

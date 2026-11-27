@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { actions, useApp } from "../store";
 import { fmtNum, useT } from "../i18n";
-import { api, type AnomalyCause, type AnomalyKind, type ChannelInfo, type ChannelSide, type RunInfo } from "../api";
+import { api, type AnomalyCause, type AnomalyKind, type ChannelInfo } from "../api";
 import type { MessageStream } from "../store/model";
 import { channelSides } from "../messages";
 import { applySyncOffset } from "../sync";
+import ChannelCompare from "./ChannelCompare";
 
 /* CH3 (owner, 2026-11-26: "recognise the repeating patterns beyond the message content - header, checksum, a
    handshake ... show graphically whether there are anomalies and count them"): the stream's channel at a glance, above
@@ -20,25 +21,12 @@ const KIND_KEY: Record<AnomalyKind, string> = {
   checksum: "chK_checksum", broken: "chK_broken", length: "chK_length", unknown: "chK_unknown", counter: "chK_counter", gap: "chK_gap",
   unanswered: "chK_unanswered", retry: "chK_retry", late: "chK_late", reconnect: "chK_reconnect", handshake: "chK_handshake" };
 
-/** CH4: the same channel's sides in another open file - its signals of the same names (else null). */
-function sidesIn(sides: ChannelSide[], run: RunInfo): ChannelSide[] | null {
-  const names = new Set(run.signals.map((x) => x.name));
-  const move = (id: string) => `${run.id}/${id.slice(id.indexOf("/") + 1)}`;
-  if (!sides.every((s) => s.sources.every((id) => names.has(id.slice(id.indexOf("/") + 1))))) return null;
-  return sides.map((s) => ({ ...s, sources: s.sources.map(move) }));
-}
-
 export default function ChannelView({ def }: { def: MessageStream }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const runs = useApp((s) => s.runs);
   const sides = useMemo(() => channelSides(def), [def]);
   const home = sides[0]?.sources[0]?.split("/")[0];
-  // CH4: the other open files with the same signals - the same channel in similar recordings
-  const similar = runs.filter((r) => r.format !== "derived" && r.id !== home).map((r) => ({ run: r, sides: sidesIn(sides, r) }))
-    .filter((x): x is { run: RunInfo; sides: ChannelSide[] } => !!x.sides);
-  const [cmp, setCmp] = useState<{ key: string; rows: { name: string; info: ChannelInfo | null; error?: string }[] } | null>(null);
-  const [comparing, setComparing] = useState(false);
   // the definition, and the data under it (a file moved in time, read again): either changes, the channel is read again
   const dataVersion = useApp((s) => s.dataVersion);
   const key = JSON.stringify(sides) + "|" + dataVersion;
@@ -68,20 +56,6 @@ export default function ChannelView({ def }: { def: MessageStream }) {
     return { k, bins: [...bins.entries()] };
   });
   const go = (i: number) => actions.goToTime(ev.t[i]);
-  const compare = async () => {
-    setComparing(true);
-    const rows: { name: string; info: ChannelInfo | null; error?: string }[] = [{ name: runs.find((r) => r.id === home)?.name ?? "", info }];
-    for (const x of similar) {
-      try { rows.push({ name: x.run.name, info: await api.messagesChannel(x.sides) }); }
-      catch (e) { rows.push({ name: x.run.name, info: null, error: String((e as Error).message) }); }
-    }
-    setCmp({ key, rows });
-    setComparing(false);
-  };
-  const cmpRows = cmp?.key === key ? cmp.rows : null;
-  const cmpKinds = cmpRows ? info.kinds.filter((k) => cmpRows.some((r) => (r.info?.counts[k] ?? 0) > 0)) : [];
-  const diff = (v: number, b: number) => (v === b ? <>{fmtNum(v, lang, 6)}</>
-    : <span className={v > b ? "ch-more" : "ch-less"}>{fmtNum(v, lang, 6)} <bdi dir="ltr">({v > b ? "+" : "−"}{fmtNum(Math.abs(v - b), lang, 6)})</bdi></span>);
   const shown = ev.t.map((_x, i) => i).filter((i) => (!only || ev.kind[i] === only) && (!cause || ev.cause[i] === cause));
   // a mark's look says its cause: solid - the link's, hollow - likely the capture's, faint - no effect seen; a column
   // with several takes the strongest (the link's over the others)
@@ -162,25 +136,7 @@ export default function ChannelView({ def }: { def: MessageStream }) {
         </div>
       )}
 
-      {similar.length > 0 && (
-        <div className="ch-compare">
-          <button className="btn outline sm ch-compare-go" disabled={comparing} onClick={() => void compare()}>
-            {t("chCompare", { n: similar.length })}</button>
-          {cmpRows && (
-            <table className="msgp-table ch-compare-t">
-              <thead><tr><th>{t("chFile")}</th><th>{t("chAll")}</th>{cmpKinds.map((k) => <th key={k} data-kind={k}>{t(KIND_KEY[k] as never)}</th>)}</tr></thead>
-              <tbody>{cmpRows.map((r, i) => (
-                <tr key={r.name + i} className={i === 0 ? "ch-this" : ""} data-file={r.name}>
-                  <th scope="row">{r.name}</th>
-                  {r.info ? <>
-                    <td data-kind="all">{i === 0 ? fmtNum(r.info.total, lang, 6) : diff(r.info.total, cmpRows[0].info?.total ?? 0)}</td>
-                    {cmpKinds.map((k) => <td key={k} data-kind={k}>{i === 0 ? fmtNum(r.info!.counts[k], lang, 6) : diff(r.info!.counts[k], cmpRows[0].info?.counts[k] ?? 0)}</td>)}
-                  </> : <td colSpan={cmpKinds.length + 1} className="hint">⚠ {r.error}</td>}
-                </tr>))}</tbody>
-            </table>)}
-          {cmpRows && <p className="hint">{t("chCompareHint")}</p>}
-        </div>
-      )}
+      {home && <ChannelCompare sides={sides} home={home} reread={key} kindKey={KIND_KEY} />}
 
       {shown.length > 0 && (
         <details className="ch-list">

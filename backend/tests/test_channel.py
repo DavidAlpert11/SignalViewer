@@ -207,3 +207,19 @@ def test_two_clocks_apart_are_found_from_the_echoed_ids():
     again = anomalies([("TX", a), ("RX", decode([(tb + 2.5 - c["shift"], yb)]))])
     assert again["clock"] is None and again["counts"]["unanswered"] == 2
     assert run("unanswered")["clock"] is None                       # one clock: nothing said
+
+
+def test_similar_files_compared_what_stands_out_and_what_changed():
+    """CH10: three recordings of one link - the one with many bad checksums stands out; a type only one has, and a reply
+    time a file has far from the others', are said."""
+    from svcore.channel import compare_files
+    clean, unknown = run(), run("unknown")
+    (ta, ya), (tb, yb) = link()
+    slow = anomalies([("TX", decode([(ta, ya)])), ("RX", decode([(tb + 0.01, yb)]))])      # every reply 10 ms later
+    noisy = {**clean, "counts": {**clean["counts"], "checksum": 9}}
+    c = compare_files([("a", clean), ("b", unknown), ("c", slow), ("d", noisy)])
+    assert c["standsOut"] == [{"file": "d", "kind": "checksum", "value": 9, "others": 0.0}]
+    assert {"file": "b", "what": "type", "dir": "TX", "type": 0x77, "count": 1} in c["patterns"]
+    lat = [x for x in c["patterns"] if x["what"] == "latency"]
+    assert [x["file"] for x in lat] == ["c"] and lat[0]["value"] > 2 * lat[0]["others"]
+    assert compare_files([("a", clean)]) == {"standsOut": [], "patterns": []}
