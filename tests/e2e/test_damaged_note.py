@@ -1,6 +1,7 @@
 """O2: a damaged flight log opens with what could be read, and the note after opening says what was
 left out (no phantom IMU[149] signals in the list)."""
 import os
+import re
 import subprocess
 import sys
 
@@ -19,6 +20,6 @@ def test_damaged_bin_says_what_was_left_out(pg):
     open_files(pg, "damaged.bin")
     pg.wait_for_selector(".toast:has-text('damaged bytes skipped')")
     note = " | ".join(pg.locator(".toast").all_inner_texts())
-    assert "messages next to damage left out" in note, note
+    assert re.search(r"\d+ messages? next to damage left out", note), note          # 1.38: "1 message" (singular at 1)
     names = S(pg, "s.runs.filter(r => r.format !== 'derived').flatMap(r => r.signals.map(x => x.name))")
     assert names and not any(n.startswith("IMU[") and not n.startswith(("IMU[0]", "IMU[1]")) for n in names), names

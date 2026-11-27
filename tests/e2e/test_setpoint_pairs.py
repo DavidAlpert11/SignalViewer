@@ -1,5 +1,5 @@
 """P (owner, 2026-11-16): the commanded / measured pairs of a log in one click - a new tab with a plot per pair,
-the setpoint dashed beside its measured value, one Undo; from the file's menu and from Ctrl+K."""
+the setpoint dashed beside its measured value, one Undo; from the file's menu (*Found in this file ▸*, 1.39) and from Ctrl+K."""
 import os
 import shutil
 
@@ -16,7 +16,9 @@ def test_pairs_in_one_click_and_one_undo(pg):
     open_files(pg, "copter_flight.bin")
     tabs = S(pg, "s.ws.tabs.length")
     pg.locator(".run-head").first.click(button="right")
-    menu_item(pg, "Plot the commanded / measured pairs")
+    # AU1 (1.39): the file's menu lists it under *Found in this file ▸*
+    pg.locator(".menu.ctx button", has_text="Found in this file").first.hover()
+    pg.locator(".menu.ctx.sub button", has_text="command / response pairs").click()
     pg.wait_for_function(f"window.__sv.state().ws.tabs.length === {tabs + 1}")
     assert S(pg, "s.ws.tabs.at(-1).name") == "Commanded / measured"
     assert S(pg, "s.ws.tabs.at(-1).plots.length") == 6                  # ATT Roll / Pitch / Yaw, RATE R / P / Y

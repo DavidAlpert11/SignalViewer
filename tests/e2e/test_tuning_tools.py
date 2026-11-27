@@ -1,5 +1,5 @@
 """Tuning tools (since 1.21): Filter review (the IMU batch sampler, the harmonic notches and the gyro low-pass on an
-FFT plot), the Step response plot, the Log panel's Hardware tab and the Compare panel's time tolerance (a step's
+FFT plot), the Step response plot, the Checks panel's Hardware section (tab The file) and the Compare panel's time tolerance (a step's
 timing). (FR12: was test_release_1_21.py.)
 
     python -m pytest tests/e2e/test_tuning_tools.py -q
@@ -51,7 +51,9 @@ def test_filter_review_and_hardware(pg):
     pg.wait_for_selector(".plot-canvas[data-notches]", state="detached")
     # Log panel > Hardware: the frame and the IMU from its device id
     pg.locator(".rail button[aria-label='Checks']").click()
-    pg.locator(".log-tabs [role=tab]", has_text="Hardware").click()
+    # CC7 (1.38): the hardware is a section of the tab *The file*
+    pg.locator(".log-tabs [role=tab]", has_text="The file").click()
+    pg.locator("details.file-sec summary", has_text="Hardware").click()
     hw = pg.locator(".log-hw").inner_text()
     assert "Quad X" in hw and "ICM42688 (SPI 2, address 0x01)" in hw
 
