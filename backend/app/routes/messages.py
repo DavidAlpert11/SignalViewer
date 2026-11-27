@@ -365,7 +365,9 @@ def _streams(defs: List[dict], only: Optional[List[str]] = None) -> Dict[str, An
         sides = [(("TX", "RX")[k] if len(idx) == 2 else "TX", found[i]["r"]) for k, i in enumerate(idx[:2])]
         res = anomalies(sides)
         for k, i in enumerate(idx[:2]):
-            out[i]["anomalies"] = {"total": sum(res["byDir"].get(sides[k][0], {}).values()), "counts": res["byDir"].get(sides[k][0], {})}
+            ev = res["events"]
+            out[i]["anomalies"] = {"total": sum(res["byDir"].get(sides[k][0], {}).values()), "counts": res["byDir"].get(sides[k][0], {}),
+                                   "capture": sum(1 for d, c in zip(ev["dir"], ev["cause"]) if d == sides[k][0] and c == "capture")}
     free = [s for s, row in zip(found, out) if "error" not in row and len(s["ids"]) == 1 and s["params"].get("dir") is None
             and s["ids"][0] not in owner and row["key"] == s["ids"][0]]
     return {"streams": out, "links": _links(free)}

@@ -24,8 +24,15 @@
 - **TX in one file, RX in another (CH8).** *Add a stream → TX and RX* takes the two signals from any open files, and
   the list offers a channel by itself when one stream **answers** the other (a reply echoing its request's id, a
   handshake) - not only when their names say TX and RX - in one file or in two files of one link.
+- **The link's, or the sniffer's? (CH12)** A recording made by a sniffer can have glitches of its own while the bytes
+  between the devices were fine. Each anomaly now says whose it most likely is, read from how the link itself
+  behaved: **the link's** (a request sent again, no reply until the handshake came again, the device's counter stopped
+  with a silence, a late reply), **likely the capture's** (a request with a bad checksum answered all the same, a
+  request missing from the capture whose reply is there, the device's counter running on through a silence) or **no
+  effect seen** (the link carried on). *Whose:* filters the strip and the list; marks are solid, hollow or faint; the
+  list, the comparison and the report count the three.
 - **Example: one link recorded twice (CH5).** *Help → Examples → one link recorded twice* - TX and RX in two signals,
-  every kind of anomaly injected, the second recording on a worse day: make one channel, see its anomalies, compare
+  every kind of anomaly injected, a sniffer's own glitches among them, the second recording on a worse day: make one channel, see its anomalies, compare
   the two, write the report.
 - **Found in this file (AU1).** What the app can do by itself with a file, found from its signal names, is now said
   as soon as it opens - one quiet line below the file list: command / response pairs, objects with a position, truth

@@ -166,8 +166,31 @@ def test_the_channel_example_writes_what_git_has_with_every_kind(tmp_path):
     for f in ("link_run1.csv", "link_run2.csv"):
         assert (tmp_path / f).read_bytes() == open(os.path.join(ex, f), "rb").read()
     one, two = _counts(os.path.join(ex, "link_run1.csv")), _counts(os.path.join(ex, "link_run2.csv"))
-    assert one["counts"] == {"checksum": 1, "broken": 1, "length": 1, "unknown": 1, "counter": 5, "gap": 1, "unanswered": 2,
+    assert one["counts"] == {"checksum": 2, "broken": 1, "length": 1, "unknown": 1, "counter": 6, "gap": 3, "unanswered": 6,
                              "retry": 1, "late": 1, "reconnect": 1, "handshake": 0}
-    assert two["counts"] == {"checksum": 5, "broken": 0, "length": 0, "unknown": 2, "counter": 10, "gap": 2, "unanswered": 6,
+    assert two["counts"] == {"checksum": 7, "broken": 0, "length": 0, "unknown": 2, "counter": 11, "gap": 4, "unanswered": 10,
                              "retry": 1, "late": 4, "reconnect": 2, "handshake": 1}
+    assert (one["total"], two["total"]) == (23, 42)
     assert all(one["counts"][k] or two["counts"][k] for k in KINDS)
+
+
+def test_the_sniffers_own_anomalies_told_from_the_links():
+    """CH12 (owner, 2026-11-27): a sniffer's glitch while the bytes between the devices were fine - told by how the link
+    itself behaved (make_channel.py's table): a misread request that was answered, a request missing from the capture
+    whose reply is there, an RX dropout through which the device's counter ran on (and the replies missing in it) -
+    the capture's; a silence where the device's counter stopped - the link's."""
+    import os
+    from svcore.example_data import REPO_EXAMPLES
+    one = _counts(os.path.join(REPO_EXAMPLES, "channel", "link_run1.csv"))
+    c = one["causes"]
+    assert c["checksum"] == {"link": 0, "capture": 1, "none": 1}
+    assert c["gap"] == {"link": 1, "capture": 2, "none": 0} and c["unanswered"] == {"link": 0, "capture": 4, "none": 2}
+    assert c["counter"]["capture"] == 1 and c["retry"] == {"link": 1, "capture": 0, "none": 0}
+    assert one["byCause"] == {"link": 5, "capture": 8, "none": 10}
+    ev = one["events"]
+    i = next(k for k in range(one["total"]) if ev["kind"][k] == "checksum" and ev["cause"][k] == "capture")
+    assert ev["t"][i] == pytest.approx(16.0, abs=0.01) and "answered" in ev["why"][i]
+    # the serial link demo (no sniffer faults): its dropout and the replies missing in it are the link's (a reconnect)
+    from svcore.example_data import REPO_EXAMPLES as R
+    demo = _counts(os.path.join(R, "serial_link", "link_tx_rx.csv"))
+    assert demo["causes"]["unanswered"]["link"] == 15 and demo["byCause"]["capture"] == 0

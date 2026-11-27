@@ -33,12 +33,17 @@ GAP_PERIODS = 3.0
 LATE_MADS = 6.0
 
 
+CAUSES = ("link", "capture", "none")
+Row = Tuple[float, str, str, Optional[int], str, Dict]
+
+
 class _Events:
     def __init__(self):
-        self.rows: List[Tuple[float, str, str, Optional[int], str]] = []
+        self.rows: List[Row] = []
 
-    def add(self, kind: str, t: float, side: str, typ: Optional[int], detail: str = ""):
-        self.rows.append((float(t), kind, side, None if typ is None else int(typ), detail))
+    def add(self, kind: str, t: float, side: str, typ: Optional[int], detail: str = "", **ref):
+        """ref: what the cause needs to know (the message index, the counter's offset and missing values...)"""
+        self.rows.append((float(t), kind, side, None if typ is None else int(typ), detail, ref))
 
 
 def _hex(v: Optional[int]) -> str:
@@ -51,7 +56,7 @@ def _side(r: Dict, name: str, ev: _Events, known: Optional[Sequence[int]], hs_ty
     typed = r["typeOffset"] is not None
     if r["checksum"]:
         for i in np.flatnonzero(~ok):
-            ev.add("checksum", t[i], name, int(ty[i]) if typed else None, r["checksum"]["scheme"])
+            ev.add("checksum", t[i], name, int(ty[i]) if typed else None, r["checksum"]["scheme"], i=int(i))
     for tb in r.get("broken", ()):
         ev.add("broken", tb, name, None)
     n = len(t)
@@ -79,19 +84,19 @@ def _side(r: Dict, name: str, ev: _Events, known: Optional[Sequence[int]], hs_ty
                 for i in sel:
                     if not _with_others(t[i], v, rare_at):
                         ev.add("unknown", t[i], name, v, "seen %d× in %d messages" % (x["count"], n))
-        _counter(r, name, ev, sel, v if typed else None)
-        _gaps(t[sel], name, ev, v if typed else None, x)
+        j = _counter(r, name, ev, sel, v if typed else None)
+        _gaps(r, sel, name, ev, v if typed else None, x, j)
 
 
 def _with_others(at: float, v: int, rare_at: List[Tuple[float, int]]) -> bool:
     return any(abs(tt - at) <= 1.0 and ty != v for tt, ty in rare_at)
 
 
-def _counter(r: Dict, name: str, ev: _Events, sel: np.ndarray, v: Optional[int]):
+def _counter(r: Dict, name: str, ev: _Events, sel: np.ndarray, v: Optional[int]) -> Optional[int]:
     """A sequence byte (an id, a counter) in the payload: the offset whose byte steps by one most often. A step next to
     a corrupted frame is the checksum's anomaly, one across a silence the gap's - not counted twice."""
     if len(sel) < 10:
-        return
+        return None
     m = r["messages"]
     pays = [_payload(r, int(i)) for i in sel]
     width = min(min(len(p_) for p_ in pays), 8)
@@ -105,7 +110,7 @@ def _counter(r: Dict, name: str, ev: _Events, sel: np.ndarray, v: Optional[int])
     if per > 0:
         keep &= dt <= GAP_PERIODS * per
     if keep.sum() < 9:
-        return
+        return None
     best = None
     for j in range(width):
         col = np.array([int(p_[j]) for p_ in pays], dtype=np.int64)
@@ -114,17 +119,22 @@ def _counter(r: Dict, name: str, ev: _Events, sel: np.ndarray, v: Optional[int])
         if f >= 0.9 and (best is None or f > best[0]):
             best = (f, j, col, d)
     if best is None:
-        return
+        return None
     _f, j, col, d = best
     for k in np.flatnonzero((d != 1) & keep):
         if d[k] == 0:
-            ev.add("counter", tt[k + 1], name, v, "byte %d repeats %d" % (j, col[k + 1]))
+            ev.add("counter", tt[k + 1], name, v, "byte %d repeats %d" % (j, col[k + 1]), j=j, repeat=True, missing=[], since=float(tt[k]))
         else:
-            ev.add("counter", tt[k + 1], name, v, "byte %d jumps %d → %d (%d missing)" % (j, col[k], col[k + 1], d[k] - 1))
+            ev.add("counter", tt[k + 1], name, v, "byte %d jumps %d → %d (%d missing)" % (j, col[k], col[k + 1], d[k] - 1), j=j,
+                   repeat=False, missing=[int((col[k] + x) % 256) for x in range(1, int(d[k]))], since=float(tt[k]))
+    return j
 
 
-def _gaps(tt: np.ndarray, name: str, ev: _Events, v: Optional[int], x: Dict):
-    """A periodic type that goes silent: an interval over 3 x its period (median), the type steady otherwise."""
+def _gaps(r: Dict, sel: np.ndarray, name: str, ev: _Events, v: Optional[int], x: Dict, j: Optional[int]):
+    """A periodic type that goes silent: an interval over 3 x its period (median), the type steady otherwise. With a
+    counter in the type, how far it moved across the silence: as many as the periods missed - the device kept
+    sending (the capture missed them); by one - the device itself stopped."""
+    tt = r["messages"]["t"][sel]
     if len(tt) < 20 or not x.get("period"):
         return
     d = np.diff(tt)
@@ -132,7 +142,13 @@ def _gaps(tt: np.ndarray, name: str, ev: _Events, v: Optional[int], x: Dict):
     if per <= 0 or float(np.mean(np.abs(d - per) <= 0.5 * per)) < 0.8:      # not sent on its own clock
         return
     for k in np.flatnonzero(d > GAP_PERIODS * per):
-        ev.add("gap", tt[k], name, v, "silent %.3g s (period %.3g s)" % (d[k], per))
+        moved = None
+        if j is not None:
+            a, b = _payload(r, int(sel[k])), _payload(r, int(sel[k + 1]))
+            if len(a) > j and len(b) > j:
+                moved = int((int(b[j]) - int(a[j])) % 256)
+        ev.add("gap", tt[k], name, v, "silent %.3g s (period %.3g s)" % (d[k], per), to=float(tt[k + 1]),
+               periods=int(round(d[k] / per)), moved=moved)
 
 
 def _late(q: Dict, ev: _Events):
@@ -144,6 +160,133 @@ def _late(q: Dict, ev: _Events):
     lim = max(med + LATE_MADS * mad, 2 * med)
     for k in np.flatnonzero(lat > lim):
         ev.add("late", q["t"][k], q["from"], q["request"], "%.3g ms (usually %.3g ms)" % (lat[k] * 1000, med * 1000))
+
+
+# ------------------------------------------------------------------------------------------------ the cause
+
+def _ids(r: Dict, typ: int, off: int) -> Tuple[np.ndarray, np.ndarray]:
+    """The times and the id byte (payload offset `off`) of every message of a type, a corrupted one too (-1: too short)."""
+    m = r["messages"]
+    idx = np.flatnonzero(m["type"] == typ)
+    vals = []
+    for i in idx:
+        p_ = _payload(r, int(i))
+        vals.append(int(p_[off]) if len(p_) > off else -1)
+    return m["t"][idx], np.asarray(vals, dtype=np.int64)
+
+
+def _causes(sides: Dict[str, Dict], ex: Optional[Dict], rows: List[Row], timeout: float) -> List[Tuple[str, str]]:
+    """CH12 (owner, 2026-11-27: "sometimes the signals are a sniffer's, not part of the traffic: a bug only in the
+    sniffing while the bytes between the devices were fine - if the pattern carries on despite the anomaly, it is
+    probably the sniffer's"): each anomaly's cause, from how the link itself behaved around it -
+
+        link      the link shows it: a request sent again, no reply and then a reconnect, the device's counter stopped
+                  with a silence, a late reply, a handshake again
+        capture   the other side proves the bytes were fine on the wire - a request with a bad checksum answered (its id
+                  echoed), a request missing from the capture whose reply is there, a reply to a broken frame, the
+                  device's counter running on through a silence
+        none      nothing reacted: the link carried on as if nothing happened (the capture's, most likely - but the
+                  link alone cannot prove it)
+
+    Returns (cause, why) per row."""
+    pairs = [q for q in (ex or {}).get("pairs", []) if q["how"] == "id" and q["echo"]]
+    reconnects = [h["t"] for h in (ex or {}).get("handshake", [])[1:]]
+    cache: Dict[Tuple[str, int, int], Tuple[np.ndarray, np.ndarray]] = {}
+
+    def ids(side: str, typ: int, off: int):
+        k = (side, typ, off)
+        if k not in cache:
+            cache[k] = _ids(sides[side], typ, off)
+        return cache[k]
+
+    def reconnected(end: float) -> bool:
+        """the handshake came again right as a silence ended (the link was re-made)"""
+        return any(end - timeout <= h <= end + 1.0 for h in reconnects)
+
+    def silent_until_reconnect(q: Dict, t0: float) -> bool:
+        """no reply of this pair from t0 until the handshake came again, within 2 s: the link was down"""
+        nxt = [h for h in reconnects if t0 < h <= t0 + 2.0]
+        return bool(nxt) and not any(t0 < x <= nxt[0] for x in q["t"])
+
+    def as_request(side: str, typ: Optional[int]):
+        return next((q for q in pairs if q["from"] == side and q["request"] == typ), None)
+
+    def as_reply(side: str, typ: Optional[int]):
+        return next((q for q in pairs if q["to"] == side and q["reply"] == typ), None)
+
+    gaps: List[Tuple[str, float, float, Tuple[str, str]]] = []
+    out: List[Tuple[str, str]] = []
+    for t, kind, side, typ, _detail, ref in rows:            # the gaps first: what falls in one follows its cause
+        if kind == "gap":
+            if reconnected(ref["to"]):
+                c = ("link", "the handshake came again right after it")
+            elif ref.get("moved") is not None and ref["moved"] >= max(2, ref["periods"] - 1):
+                c = ("capture", "the device's counter ran on through it: it kept sending, the capture missed them")
+            elif ref.get("moved") == 1:
+                c = ("link", "the device's counter stopped with it: the device itself did not send")
+            else:
+                c = ("none", "the link carried on after it")
+            gaps.append((side, t, ref["to"], c))
+
+    def in_gap(side: str, t: float) -> Optional[Tuple[str, str]]:
+        return next((c for s_, a, b, c in gaps if s_ == side and a <= t <= b), None)
+
+    for t, kind, side, typ, _detail, ref in rows:
+        if kind in ("retry", "late", "reconnect", "handshake"):
+            out.append(("link", "the devices did it"))
+        elif kind == "gap":
+            out.append(next(c for s_, a, _b, c in gaps if s_ == side and a == t))
+        elif kind == "checksum":
+            q, qr = as_request(side, typ), as_reply(side, typ)
+            if q:
+                tr, vr = ids(side, q["request"], q["echo"]["request"])
+                me = int(vr[np.argmin(np.abs(tr - t))])
+                tb, vb = ids(q["to"], q["reply"], q["echo"]["reply"])
+                answered = bool(np.any((tb > t) & (tb <= t + timeout) & (vb == me)))
+                again = bool(np.any((tr > t) & (tr <= t + 3 * timeout) & (vr == me)))
+                out.append(("link", "sent again: the device did not take it") if again else
+                           ("capture", "answered (its id echoed): the device read it whole") if answered else
+                           ("link", "no reply came: the device did not take it"))
+            elif qr:
+                tb, vb = ids(side, qr["reply"], qr["echo"]["reply"])
+                me = int(vb[np.argmin(np.abs(tb - t))])
+                tr, vr = ids(qr["from"], qr["request"], qr["echo"]["request"])
+                again = bool(np.any((tr > t) & (tr <= t + 3 * timeout) & (vr == me)))
+                out.append(("link", "its request was sent again") if again else ("none", "the link carried on after it"))
+            else:
+                out.append(("none", "the link carried on after it"))
+        elif kind == "broken":
+            orphan = any(t < o <= t + timeout for q in (ex or {}).get("pairs", []) for o in q["orphans"])
+            out.append(("capture", "a reply came for it: it was whole on the wire") if orphan else
+                       ("none", "the link carried on after it"))
+        elif kind == "counter":
+            g = in_gap(side, t)
+            q, qr = as_request(side, typ), as_reply(side, typ)
+            if ref.get("repeat"):
+                out.append(("link", "the same one sent again"))
+            elif g:
+                out.append(g)
+            elif q and q["echo"]["request"] == ref["j"]:
+                tb, vb = ids(q["to"], q["reply"], q["echo"]["reply"])
+                near = (tb >= ref["since"]) & (tb <= t + timeout)
+                seen = sum(1 for v in ref["missing"] if np.any(near & (vb == v)))
+                out.append(("capture", "their replies are there: the requests were on the wire") if seen == len(ref["missing"]) else
+                           ("none", "the link carried on after it"))
+            elif qr and qr["echo"]["reply"] == ref["j"]:
+                tr, vr = ids(qr["from"], qr["request"], qr["echo"]["request"])
+                again = any(np.sum((tr >= ref["since"]) & (tr <= t + 3 * timeout) & (vr == v)) > 1 for v in ref["missing"])
+                out.append(("link", "their requests were sent again") if again else
+                           ("none", "the link carried on after it"))
+            else:
+                out.append(("none", "the link carried on after it"))
+        elif kind == "unanswered":
+            q = ref["q"]
+            g = in_gap(q["to"], t)
+            out.append(("link", "no reply until the handshake came again") if silent_until_reconnect(q, t) else
+                       g if g else ("none", "not sent again: the link carried on"))
+        else:                                                # length, unknown
+            out.append(("none", "the link carried on after it"))
+    return out
 
 
 def anomalies(sides: Sequence[Tuple[str, Dict]], known: Optional[Dict[str, Sequence[int]]] = None,
@@ -163,7 +306,7 @@ def anomalies(sides: Sequence[Tuple[str, Dict]], known: Optional[Dict[str, Seque
     if ex:
         for q in ex["pairs"]:
             for u in q["unanswered"]:
-                ev.add("unanswered", u, q["from"], q["request"], "no %s %s" % (q["to"], _hex(q["reply"])))
+                ev.add("unanswered", u, q["from"], q["request"], "no %s %s" % (q["to"], _hex(q["reply"])), q=q)
             for u in q["retries"]:
                 ev.add("retry", u, q["from"], q["request"], "")
             _late(q, ev)
@@ -180,16 +323,21 @@ def anomalies(sides: Sequence[Tuple[str, Dict]], known: Optional[Dict[str, Seque
                     ev.add("handshake", h["t"], h["steps"][0]["dir"], h["steps"][0]["type"],
                            " → ".join("%s %s" % (d, _hex(x)) for d, x in steps))
     rows = sorted(ev.rows, key=lambda e: (e[0], KINDS.index(e[1])))
+    why = _causes(dict(sides), ex, rows, timeout)
     counts = {k: 0 for k in KINDS}
     by_dir: Dict[str, Dict[str, int]] = {name: {} for name, _r in sides}
-    for _t, k, d, _ty, _x in rows:
+    by_cause: Dict[str, Dict[str, int]] = {k: {c: 0 for c in CAUSES} for k in KINDS}
+    for (_t, k, d, _ty, _x, _ref), (c, _w) in zip(rows, why):
         counts[k] += 1
         by_dir.setdefault(d, {})[k] = by_dir.get(d, {}).get(k, 0) + 1
+        by_cause[k][c] += 1
     t0 = min((float(r["messages"]["t"][0]) for _n, r in sides if r["count"]), default=0.0)
     t1 = max((float(r["messages"]["t"][-1]) for _n, r in sides if r["count"]), default=0.0)
     return {"kinds": list(KINDS), "counts": counts, "byDir": by_dir, "total": len(rows), "span": [t0, t1],
             "events": {"t": [e[0] for e in rows], "kind": [e[1] for e in rows], "dir": [e[2] for e in rows],
-                       "type": [e[3] for e in rows], "detail": [e[4] for e in rows]},
+                       "type": [e[3] for e in rows], "detail": [e[4] for e in rows],
+                       "cause": [c for c, _w in why], "why": [w for _c, w in why]},
+            "causes": by_cause, "byCause": {c: sum(by_cause[k][c] for k in KINDS) for c in CAUSES},
             "sides": [{"name": name, "count": r["count"], "header": r["header"], "framing": r["framing"],
                        "typeOffset": r["typeOffset"], "checksum": (r["checksum"] or {}).get("scheme"),
                        "types": [{"type": x["type"], "count": x["count"], "rate": x["rate"]} for x in r["types"]]}

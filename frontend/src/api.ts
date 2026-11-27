@@ -50,16 +50,20 @@ export interface StreamRow { key: string; name: string; rid: string; file: strin
   error?: string; count?: number; bytes?: number; header?: string; framing?: string; checksum?: string | null; errors?: number;
   duration?: number; typed?: boolean; types?: { type: number; count: number; rate: number | null }[];
   /** CH7: this direction's anomalies (svcore/channel.py; a definition's two directions read together) */
-  anomalies?: { total: number; counts: Partial<Record<AnomalyKind, number>> } }
+  anomalies?: { total: number; counts: Partial<Record<AnomalyKind, number>>; capture?: number } }
 /** CH1 / CH8: two streams that look like one link's two directions - by their names, or one answers the other */
 export interface StreamLink { tx: string; rx: string; why: "names" | "replies" }
 /** CH2: one direction of a channel (a definition's stream), the type ids its structure describes */
 export interface ChannelSide { label: string; sources: string[]; params: Record<string, unknown>; known?: number[] }
+/** CH12: the link shows it / the link shows the bytes were fine (the capture's) / nothing reacted */
+export type AnomalyCause = "link" | "capture" | "none";
 export type AnomalyKind = "checksum" | "broken" | "length" | "unknown" | "counter" | "gap" | "unanswered" | "retry" | "late" | "reconnect" | "handshake";
 /** CH2: a channel's anomalies in time order (columns), counted per kind and direction, and the patterns found */
 export interface ChannelInfo { kinds: AnomalyKind[]; counts: Record<AnomalyKind, number>; byDir: Record<string, Partial<Record<AnomalyKind, number>>>;
   total: number; span: [number, number]; timeout: number;
-  events: { t: number[]; kind: AnomalyKind[]; dir: string[]; type: (number | null)[]; detail: string[] };
+  events: { t: number[]; kind: AnomalyKind[]; dir: string[]; type: (number | null)[]; detail: string[]; cause: AnomalyCause[]; why: string[] };
+  /** CH12: per kind, how many are the link's, likely the capture's (a sniffer's glitch), or had no effect seen */
+  causes: Record<AnomalyKind, Record<AnomalyCause, number>>; byCause: Record<AnomalyCause, number>;
   sides: { name: string; count: number; header: string; framing: string; typeOffset: number | null; checksum: string | null;
     types: { type: number; count: number; rate: number | null }[] }[];
   pairs: { from: string; to: string; request: number; reply: number; how: "id" | "next"; requests: number; replies: number; mean: number | null; max: number | null }[];

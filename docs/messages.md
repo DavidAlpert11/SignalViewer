@@ -170,6 +170,22 @@ other names: **Add a stream → TX and RX**.
 A lost reply is also a step missing from the reply's own sequence number, a retry repeats the request's: the counter
 says so too - each kind is what that part of the link saw.
 
+### The link's, or the sniffer's?
+
+A recording made by a **sniffer** (a tap on the line, a logger beside the devices) can have glitches of its own: a
+byte misread, a message missed, a moment not captured - while the bytes between the devices were fine. The recording
+holds only what the sniffer saw, so the app reads the **link's own behaviour** around each anomaly and gives it a
+cause (*Whose:* above the strip; a click shows only that cause):
+
+| Cause | When | Drawn |
+|---|---|---|
+| **the link's** | the link shows it: the request was sent again, no reply came until the handshake came again, a silence where the device's own counter stopped (it did not send), a late reply, a reconnect | solid |
+| **likely the capture's** | the link shows the bytes were fine: a request captured with a bad checksum was **answered** (its id echoed), a request missing from the capture has its **reply**, a broken frame got a reply, through a silence the device's **counter ran on** (it kept sending; the replies missing then follow that silence) | hollow |
+| **no effect seen** | nothing reacted - the link carried on as if nothing happened. Most likely the capture's too (the pattern went on despite the anomaly), but the recording alone cannot prove it, so it is said apart | faint |
+
+The list gives each anomaly's cause and why; the chips say how many of each kind are likely the capture's; the
+Messages list, *Compare with similar files* and the report's table count the three causes.
+
 ## The structure file
 
 ### A binary structure
@@ -267,5 +283,5 @@ then *Listen* on `udp:0.0.0.0:5600` with `examples/serial_link/sensor.svmsg.json
 | **a serial link, byte by byte** | the messages found by themselves (TX: header AA 55, a length byte, sum8; RX: EB 90, CRC-16), a handshake, commands and their ACKs, lost ones, a retry, a dropout and a reconnect - in a *Link review* report |
 | **messages to signals** | the same link with its two structure files (`link_tx.svmsg.json`, `link_rx.svmsg.json`): angles MSB first and LSB first, a 32-bit altitude, a float, flag bits, scales and units - two recordings, plotted |
 | (in the same folder) `sensor_uart.csv` + `sensor.svmsg.json` | a sensor board with a **footer** and no length byte: `A5 5A`, type, payload, xor8, `0D 0A` - IMU (i16 LSB first), barometer (a 32-bit pressure), magnetometer (MSB first); opened in *Messages*, step 2 finds the header, the footer, the xor8 before it and every field's type and byte order |
-| **one link recorded twice** | `channel/link_run1.csv` and `link_run2.csv`: TX and RX in two signals, every kind of anomaly injected (the generator's table: `backend/svcore/example_data/make_channel.py`) - 15 in the first, 33 in the second; make one channel, compare the two, write the report |
+| **one link recorded twice** | `channel/link_run1.csv` and `link_run2.csv`: TX and RX in two signals, every kind of anomaly injected (the generator's table: `backend/svcore/example_data/make_channel.py`) - 23 in the first, 42 in the second, with the sniffer's own glitches beside the link's (a misread request that was answered, a request missed with its reply there, an RX dropout through which the device's counter ran on); make one channel, compare the two, write the report |
 | **a GPS receiver's raw NMEA** | `receiver.nmea` opens as a recording at once (a loop on the map, the fix lost for 5 s, one bad checksum, a maker's own `$PDEMO` sentence); `receiver_uart.csv` is the same receiver byte by byte - open it in *Messages*: step 2 proposes NMEA |

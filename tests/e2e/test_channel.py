@@ -80,13 +80,23 @@ def test_the_channel_example_compares_two_recordings(pg):
     pg.locator(".demo-guide .demo-next").click()
     view = pg.locator(".ch-view[data-total]")
     view.wait_for(timeout=30000)
-    assert view.get_attribute("data-total") == "15"                     # make_channel.py: run1's anomalies
+    assert view.get_attribute("data-total") == "23"                     # make_channel.py: run1's anomalies
+    # CH12: whose - 5 the link's, 8 likely the capture's (a sniffer's glitch the link shows), 10 no effect seen
+    cause = lambda c: pg.locator(f".ch-cause[data-cause={c}] b").inner_text()
+    assert (cause("link"), cause("capture"), cause("none")) == ("5", "8", "10")
+    pg.locator(".ch-cause[data-cause=capture]").click()
+    pg.locator(".ch-list summary").click()
+    assert pg.locator(".ch-table tbody tr").count() == 8 and pg.locator(".ch-table tbody td.ch-c-capture").count() == 8
+    assert pg.locator(".ch-mark.ch-c-capture").count() >= 1 and pg.locator(".ch-mark.ch-c-link").count() == 0
+    if SHOT:
+        view.screenshot(path=os.path.join(SHOT, "channel_causes.png"))
+    pg.locator(".ch-cause[data-cause=capture]").click()
     pg.locator(".ch-compare-go").click()
     row = pg.locator(".ch-compare-t tr[data-file='link_run2.csv']")
     row.wait_for(timeout=30000)
-    assert pg.locator(".ch-compare-t tr.ch-this td[data-kind=all]").inner_text() == "15"
-    assert row.locator("td[data-kind=all] .ch-more").inner_text().startswith("33")          # more: marked, +18
-    assert "+18" in row.locator("td[data-kind=all]").inner_text()
+    assert pg.locator(".ch-compare-t tr.ch-this td[data-kind=all]").inner_text() == "23"
+    assert row.locator("td[data-kind=all] .ch-more").inner_text().startswith("42")          # more: marked, +19
+    assert "+19" in row.locator("td[data-kind=all]").inner_text()
     assert row.locator("td[data-kind=broken] .ch-less").count() == 1                     # 0 against 1: fewer
     assert row.locator("td[data-kind=handshake] .ch-more").count() == 1
     if SHOT:

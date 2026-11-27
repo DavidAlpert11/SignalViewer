@@ -168,6 +168,16 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 .messages .ch-mark { fill: var(--ch); cursor: pointer; }
 .messages .ch-axis-ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
 .messages .ch-table tr { cursor: pointer; }
+/* CH12: the cause - solid: the link's, hollow: likely the capture's, faint: no effect seen */
+.messages .ch-causes { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 12.5px; }
+.messages .ch-cause { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.messages .ch-cause.on { outline: 2px solid var(--line-strong); }
+.messages .ch-cause-mark { width: 9px; height: 9px; border-radius: 2px; display: inline-block; border: 1.5px solid var(--muted); }
+.messages .ch-c-link .ch-cause-mark { background: var(--muted); }
+.messages .ch-c-none .ch-cause-mark { opacity: .45; border-style: dotted; }
+.messages .ch-mark.ch-c-capture { fill: none; stroke: var(--ch); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.messages .ch-mark.ch-c-none { opacity: .45; }
+.messages .ch-chip-cap { font-size: 11px; color: var(--muted); }
 .messages .ch-compare { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .messages .ch-compare-t tr.ch-this th { font-weight: 700; }
 .messages .ch-more { color: var(--danger); font-weight: 600; }

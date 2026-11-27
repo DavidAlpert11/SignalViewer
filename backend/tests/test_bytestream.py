@@ -164,8 +164,8 @@ def test_report_part_on_the_demo():
     assert "**Anomalies - the same channel in 2 files** (each cell against the first file, link_tx_rx.csv)" in md
     rows = [ln for ln in md.splitlines() if ln.startswith("| link_")]
     assert len(rows) == 2 and "| No reply |" in md and "(+" not in rows[1] and "(-" not in rows[1]
-    assert rows[0] == "| link_tx_rx.csv | tx_byte ↔ rx_byte | 33 | 4 | 1 | 5 | 3 | 18 | 1 | 1 |"
-    assert rows[1] == "| link_mixed.csv | byte TX ↔ byte RX | 33 | 4 | 1 | 5 | 3 | 18 | 1 | 1 |"
+    assert rows[0] == "| link_tx_rx.csv | tx_byte ↔ rx_byte | 33 | 21 | 0 | 12 | 4 | 1 | 5 | 3 | 18 | 1 | 1 |"
+    assert rows[1] == "| link_mixed.csv | byte TX ↔ byte RX | 33 | 21 | 0 | 12 | 4 | 1 | 5 | 3 | 18 | 1 | 1 |"
 
 
 def test_defined_streams_tx_rx_both():

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { actions, useApp } from "../store";
 import { fmtNum, useT } from "../i18n";
-import { api, type AnomalyKind, type ChannelInfo, type ChannelSide, type RunInfo } from "../api";
+import { api, type AnomalyCause, type AnomalyKind, type ChannelInfo, type ChannelSide, type RunInfo } from "../api";
 import type { MessageStream } from "../store/model";
 import { channelSides } from "../messages";
 
@@ -42,6 +42,7 @@ export default function ChannelView({ def }: { def: MessageStream }) {
   const [info, setInfo] = useState<ChannelInfo | null>(null);
   const [err, setErr] = useState("");
   const [only, setOnly] = useState<AnomalyKind | null>(null);
+  const [cause, setCause] = useState<AnomalyCause | null>(null);          // CH12: one cause only (null: all)
   useEffect(() => {
     let live = true;
     const id = window.setTimeout(() => {
@@ -60,7 +61,7 @@ export default function ChannelView({ def }: { def: MessageStream }) {
   // per kind: the events in each column of the strip (every one counted)
   const lanes = kinds.map((k) => {
     const bins = new Map<number, number[]>();
-    ev.t.forEach((x, i) => { if (ev.kind[i] === k) { const c = col(x); bins.set(c, [...(bins.get(c) ?? []), i]); } });
+    ev.t.forEach((x, i) => { if (ev.kind[i] === k && (!cause || ev.cause[i] === cause)) { const c = col(x); bins.set(c, [...(bins.get(c) ?? []), i]); } });
     return { k, bins: [...bins.entries()] };
   });
   const go = (i: number) => actions.goToTime(ev.t[i]);
@@ -78,7 +79,10 @@ export default function ChannelView({ def }: { def: MessageStream }) {
   const cmpKinds = cmpRows ? info.kinds.filter((k) => cmpRows.some((r) => (r.info?.counts[k] ?? 0) > 0)) : [];
   const diff = (v: number, b: number) => (v === b ? <>{fmtNum(v, lang, 6)}</>
     : <span className={v > b ? "ch-more" : "ch-less"}>{fmtNum(v, lang, 6)} <bdi dir="ltr">({v > b ? "+" : "−"}{fmtNum(Math.abs(v - b), lang, 6)})</bdi></span>);
-  const shown = ev.t.map((_x, i) => i).filter((i) => !only || ev.kind[i] === only);
+  const shown = ev.t.map((_x, i) => i).filter((i) => (!only || ev.kind[i] === only) && (!cause || ev.cause[i] === cause));
+  // a mark's look says its cause: solid - the link's, hollow - likely the capture's, faint - no effect seen; a column
+  // with several takes the strongest (the link's over the others)
+  const markCause = (is: number[]): AnomalyCause => (is.some((i) => ev.cause[i] === "link") ? "link" : is.some((i) => ev.cause[i] === "capture") ? "capture" : "none");
   const secs = (x: number) => `${x.toFixed(Math.abs(x) < 100 ? 3 : 1)} s`;      // fixed decimals: no 3.000e-4
   const ms = (x: number | null) => (x == null ? "—" : `${fmtNum(x * 1000, lang, 3)} ms`);
 
@@ -109,9 +113,19 @@ export default function ChannelView({ def }: { def: MessageStream }) {
           {kinds.map((k) => (
             <button key={k} className={`chip-s ch-chip ch-k-${k}${only === k ? " on" : ""}`} data-kind={k} aria-pressed={only === k}
               title={t("chChipTitle")} onClick={() => setOnly(only === k ? null : k)}>
-              <i className="ch-dot" />{t(KIND_KEY[k] as never)} <b>{fmtNum(info.counts[k], lang, 6)}</b></button>))}
+              <i className="ch-dot" />{t(KIND_KEY[k] as never)} <b>{fmtNum(info.counts[k], lang, 6)}</b>
+              {info.causes[k].capture > 0 && <span className="ch-chip-cap">{t("chChipCapture", { n: info.causes[k].capture })}</span>}</button>))}
         </span>
       </div>
+      {info.total > 0 && (
+        <div className="ch-causes" role="group" aria-label={t("chCausesLabel")}>
+          <span className="hint">{t("chCausesLead")}</span>
+          {(["link", "capture", "none"] as const).map((c) => (
+            <button key={c} className={`chip-s ch-cause ch-c-${c}${cause === c ? " on" : ""}`} data-cause={c} aria-pressed={cause === c}
+              title={t(`chCauseHint_${c}` as never)} disabled={!info.byCause[c]} onClick={() => setCause(cause === c ? null : c)}>
+              <i className="ch-cause-mark" />{t(`chCause_${c}` as never)} <b>{fmtNum(info.byCause[c], lang, 6)}</b></button>))}
+        </div>
+      )}
 
       {kinds.length > 0 && (
         <div className="ch-strip" role="img" aria-label={t("chStripLabel")}>
@@ -120,9 +134,9 @@ export default function ChannelView({ def }: { def: MessageStream }) {
               <span className="ch-lane-name">{t(KIND_KEY[k] as never)}</span>
               <svg viewBox={`0 0 ${W} 14`} preserveAspectRatio="none" className="ch-lane-svg">
                 {bins.map(([c, is]) => (
-                  <rect key={c} className="ch-mark" x={c} y={is.length > 1 ? 0 : 3} width={4} height={is.length > 1 ? 14 : 8}
+                  <rect key={c} className={`ch-mark ch-c-${markCause(is)}`} x={c} y={is.length > 1 ? 0 : 3} width={4} height={is.length > 1 ? 14 : 8}
                     onClick={() => go(is[0])}>
-                    <title>{`${is.length}× ${t(KIND_KEY[k] as never)} · ${secs(ev.t[is[0]])}${is.length > 1 ? ` – ${secs(ev.t[is[is.length - 1]])}` : ""}`}</title>
+                    <title>{`${is.length}× ${t(KIND_KEY[k] as never)} · ${secs(ev.t[is[0]])}${is.length > 1 ? ` – ${secs(ev.t[is[is.length - 1]])}` : ""}\n${t(`chCause_${ev.cause[is[0]]}` as never)}: ${ev.why[is[0]]}`}</title>
                   </rect>))}
               </svg>
             </div>))}
@@ -154,11 +168,12 @@ export default function ChannelView({ def }: { def: MessageStream }) {
         <details className="ch-list">
           <summary>{t("chList", { n: fmtNum(shown.length, lang, 6) })}</summary>
           <table className="msgp-table ch-table">
-            <thead><tr><th>t</th><th>{t("chKind")}</th><th>{t("msgDirOf")}</th><th>{t("msgpType")}</th><th>{t("chDetail")}</th></tr></thead>
+            <thead><tr><th>t</th><th>{t("chKind")}</th><th>{t("msgDirOf")}</th><th>{t("msgpType")}</th><th>{t("chDetail")}</th><th>{t("chCauseCol")}</th></tr></thead>
             <tbody>{shown.slice(0, LIST_MAX).map((i) => (
               <tr key={i} tabIndex={0} onClick={() => go(i)} onKeyDown={(e) => { if (e.key === "Enter") go(i); }}>
                 <td dir="ltr">{fmtNum(ev.t[i], lang, 5)}</td><td>{t(KIND_KEY[ev.kind[i]] as never)}</td><td dir="ltr">{ev.dir[i]}</td>
-                <td dir="ltr">{hex(ev.type[i])}</td><td dir="ltr">{ev.detail[i]}</td></tr>))}</tbody>
+                <td dir="ltr">{hex(ev.type[i])}</td><td dir="ltr">{ev.detail[i]}</td>
+                <td className={`ch-c-${ev.cause[i]}`} title={ev.why[i]}><i className="ch-cause-mark" /> {t(`chCause_${ev.cause[i]}` as never)}</td></tr>))}</tbody>
           </table>
           {shown.length > LIST_MAX && <p className="hint">{t("chListMore", { n: LIST_MAX, all: fmtNum(shown.length, lang, 6) })}</p>}
         </details>

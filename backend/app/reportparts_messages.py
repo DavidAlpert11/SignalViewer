@@ -313,9 +313,11 @@ def anomaly_table(p: Part, streams: List[Dict], rids: Sequence[str]):
     out = []
     for k_, (rid, name, r) in enumerate(rows):
         out.append([_name(p.store, rid), name, cell(r["total"], base["total"], k_ == 0)]
+                   + [cell(r["byCause"][c], base["byCause"][c], k_ == 0) for c in ("link", "capture", "none")]
                    + [cell(r["counts"][k], base["counts"][k], k_ == 0) for k in kinds])
     p.say(S_["msg_anom_files"].format(n=len({rid for rid, _n, _r in rows}), f=_name(p.store, rows[0][0])) if files else S_["msg_anom"])
     p.say(table(S_["msg_anom_head"] + [S_["msg_anom_k"][k] for k in kinds], out))
+    p.say(S_["msg_anom_cause"])
 
 
 def structure(r: Dict, S_: Dict[str, Any]) -> List[List[str]]:

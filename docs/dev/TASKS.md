@@ -122,6 +122,9 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
     stands out against the others marked (a count far above the others' median), and what differs in the patterns
     themselves (a type only one file has, a rate or a reply time that changed, another header / checksum). The report
     the same.
+  - **CH12 (owner, same day: "sometimes the signals are a sniffer's ... if the pattern carries on despite the
+    anomaly it is probably the sniffer's bug")** - each anomaly's cause: the link's / likely the capture's / no effect
+    seen, from how the link behaved around it (only positive proof makes it the capture's). Built.
   - **CH11 - docs, tests;** then **release 1.39.0** prepared (AU + CH; 1.38.0 stays as prepared - not tagged yet).
 - **AU - automatic finds made visible (owner, 2026-11-26, Hebrew, translated):** *"Plotting the command against
   the actual by words like des, cmd, command lets the user plot automatically - but it is found only through Ctrl+P and
@@ -420,6 +423,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-27 · CH12 the link's or the sniffer's (channel._causes, the example with sniffer glitches 23 / 42, *Whose:*). backend
+  test_channel test_bytestream test_messages_library; e2e test_channel (4).
 - 2026-11-27 · CH7 + CH8 (anomalies in the list; TX / RX across files, offered by replies). quick_check green before them (CH1-CH6);
   backend test_channel test_messages_library; e2e test_channel (4).
 - 2026-11-27 · CH1-CH6 checked on main: e2e test_channel (3), test_messages (17), test_welcome_cards (13), test_report_parts

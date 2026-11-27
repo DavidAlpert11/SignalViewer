@@ -126,7 +126,8 @@ export default function MessagesPanel() {
           {" · "}{t("msgpTypes", { n: r.types?.length ?? 0 })}
           {r.anomalies && (r.anomalies.total
             ? <span className="msgp-anom" title={Object.entries(r.anomalies.counts).map(([k, n]) => `${t(`chK_${k as AnomalyKind}` as never)}: ${n}`).join("\n")}>
-                {" · "}⚠ {t("chAnomalies", { n: fmtNum(r.anomalies.total, lang, 6) })}</span>
+                {" · "}⚠ {t("chAnomalies", { n: fmtNum(r.anomalies.total, lang, 6) })}
+                {r.anomalies.capture ? <span className="ch-chip-cap"> ({t("chChipCapture", { n: r.anomalies.capture })})</span> : null}</span>
             : <span className="msgp-anom ok">{" · "}✓ {t("chNoAnomalies")}</span>)}</span>
         {r.typed && <span className="msgp-types" dir="ltr">{(r.types ?? []).slice(0, 8).map((x) => (
           <span key={x.type} className="chip-s" title={`${x.count}`}>{hex(x.type)} {x.rate ? `${fmtNum(x.rate, lang, 3)} Hz` : `×${x.count}`}</span>))}</span>}
