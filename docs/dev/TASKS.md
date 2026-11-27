@@ -424,6 +424,10 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-27 · Release 1.39.0: the whole e2e one file at a time - 104 files, 555 passed, 7 failed in 5 files. Stale since 1.38 /
+  AU (fixed in the tests, 2fac537): test_damaged_note ('1 message' singular), test_setpoint_pairs (the pairs under *Found in
+  this file ▸*), test_tuning_tools (Hardware a section of *The file*); test_live_report (3) and test_report_doc (1, LaTeX:
+  no TeX here) re-run alone (see the next line).
 - 2026-11-27 · CH13 fix: *Plot the messages* kept the proposed structure and made the stray 0x77 a known type (22 for 23,
   seen in the narrow panel); a structure names the known types only once a recording was made from it. e2e test_channel
   -k example fails without the fix, passes with it.
