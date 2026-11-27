@@ -289,6 +289,70 @@ def _causes(sides: Dict[str, Dict], ex: Optional[Dict], rows: List[Row], timeout
     return out
 
 
+# ------------------------------------------------------------------------------------------------ two clocks
+
+CLOCK_MAX = 24 * 3600.0
+
+
+def _id_columns(r: Dict, typ: int) -> List[Tuple[int, np.ndarray, bool]]:
+    """The payload bytes of a type that take many values (an id, a sequence number): (offset, values per message,
+    whether it counts up by one like a sequence number)."""
+    m = r["messages"]
+    idx = np.flatnonzero(m["type"] == typ) if r["typeOffset"] is not None else np.arange(len(m["t"]))
+    if len(idx) < 5:
+        return []
+    pays = [_payload(r, int(i)) for i in idx]
+    width = min(min(len(p_) for p_ in pays), 8)
+    out = []
+    for j in range(width):
+        col = np.array([int(p_[j]) for p_ in pays], dtype=np.int64)
+        if len(np.unique(col)) >= min(16, max(5, len(col) // 2)):
+            out.append((j, col, float(np.mean(np.diff(col) % 256 == 1)) >= 0.8))
+    return out
+
+
+def clock_offset(ra: Dict, rb: Dict) -> Optional[Dict]:
+    """CH9 (owner, 2026-11-27: "TX from one file, RX from another"): two loggers' clocks apart. A request type of A and
+    a reply type of B carrying the same id byte: every pair of the same id gives a delay (reply - request); when most
+    requests share one delay (to 2 ms) that is the clocks' offset plus the reply time. Returns the delay to move B by
+    so the fastest of those replies comes 1 ms after its request: {shift, pairs, of, request, reply} - else None."""
+    best = None
+    ta_all, tb_all = ra["messages"], rb["messages"]
+    for x in np.unique(ta_all["type"]).tolist():
+        ca = _id_columns(ra, int(x))
+        if not ca:
+            continue
+        tx = ta_all["t"][ta_all["type"] == x] if ra["typeOffset"] is not None else ta_all["t"]
+        for y in np.unique(tb_all["type"]).tolist():
+            ty_ = tb_all["t"][tb_all["type"] == y] if rb["typeOffset"] is not None else tb_all["t"]
+            if not 0.5 <= len(ty_) / len(tx) <= 2:
+                continue
+            for _j, va, sa in ca:
+                for _k, vb, sb in _id_columns(rb, int(y)):
+                    d = []
+                    for v in np.intersect1d(va, vb):
+                        dd = np.subtract.outer(ty_[vb == v], tx[va == v]).ravel()
+                        d.append(dd[np.abs(dd) <= CLOCK_MAX])
+                    if not d:
+                        continue
+                    dd = np.concatenate(d)
+                    if len(dd) < 5:
+                        continue
+                    key = np.round(dd / 0.002).astype(np.int64)          # 2 ms bins
+                    vals, cnt = np.unique(key, return_counts=True)
+                    near = np.abs(key - vals[np.argmax(cnt)]) <= 2       # the peak and its neighbours (jitter)
+                    n = int(near.sum())
+                    # an echoed sequence number on both sides first: values that merely follow each other (a measured
+                    # value after its command) also line up, at their own lag
+                    score = (sa and sb, n)
+                    if n >= max(5, 0.6 * min(len(tx), len(ty_))) and (best is None or score > best[0]):
+                        best = (score, float(dd[near].min()), int(x), int(y), int(min(len(tx), len(ty_))))
+    if best is None:
+        return None
+    (_seq, n), fastest, x, y, of = best
+    return {"shift": fastest - 0.001, "pairs": n, "of": of, "request": x, "reply": y}
+
+
 def anomalies(sides: Sequence[Tuple[str, Dict]], known: Optional[Dict[str, Sequence[int]]] = None,
               timeout: float = 0.5) -> Dict:
     """The anomalies of a channel: one or two directions [(name, decode result)] - two are paired with
@@ -322,6 +386,12 @@ def anomalies(sides: Sequence[Tuple[str, Dict]], known: Optional[Dict[str, Seque
                 if steps != first:
                     ev.add("handshake", h["t"], h["steps"][0]["dir"], h["steps"][0]["type"],
                            " → ".join("%s %s" % (d, _hex(x)) for d, x in steps))
+    # CH9: hardly anything answered in time - two clocks apart? (then every request would read as unanswered)
+    clock = None
+    if ex is not None and sum(q["replies"] for q in ex["pairs"]) < 0.5 * max(1, sum(q["requests"] for q in ex["pairs"])):
+        guess = clock_offset(sides[0][1], sides[1][1])
+        if guess and abs(guess["shift"]) > timeout:
+            clock = guess
     rows = sorted(ev.rows, key=lambda e: (e[0], KINDS.index(e[1])))
     why = _causes(dict(sides), ex, rows, timeout)
     counts = {k: 0 for k in KINDS}
@@ -342,7 +412,7 @@ def anomalies(sides: Sequence[Tuple[str, Dict]], known: Optional[Dict[str, Seque
                        "typeOffset": r["typeOffset"], "checksum": (r["checksum"] or {}).get("scheme"),
                        "types": [{"type": x["type"], "count": x["count"], "rate": x["rate"]} for x in r["types"]]}
                       for name, r in sides],
-            "pairs": pairs, "timeout": timeout,
+            "pairs": pairs, "timeout": timeout, "clock": clock,
             "handshake": [{"t": h["t"], "steps": [{"dir": s["dir"], "type": s["type"], "t": s["t"]} for s in h["steps"]]} for h in hs]}
 
 

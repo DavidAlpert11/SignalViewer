@@ -4,6 +4,7 @@ import { fmtNum, useT } from "../i18n";
 import { api, type AnomalyCause, type AnomalyKind, type ChannelInfo, type ChannelSide, type RunInfo } from "../api";
 import type { MessageStream } from "../store/model";
 import { channelSides } from "../messages";
+import { applySyncOffset } from "../sync";
 
 /* CH3 (owner, 2026-11-26: "recognise the repeating patterns beyond the message content - header, checksum, a
    handshake ... show graphically whether there are anomalies and count them"): the stream's channel at a glance, above
@@ -38,7 +39,9 @@ export default function ChannelView({ def }: { def: MessageStream }) {
     .filter((x): x is { run: RunInfo; sides: ChannelSide[] } => !!x.sides);
   const [cmp, setCmp] = useState<{ key: string; rows: { name: string; info: ChannelInfo | null; error?: string }[] } | null>(null);
   const [comparing, setComparing] = useState(false);
-  const key = JSON.stringify(sides);
+  // the definition, and the data under it (a file moved in time, read again): either changes, the channel is read again
+  const dataVersion = useApp((s) => s.dataVersion);
+  const key = JSON.stringify(sides) + "|" + dataVersion;
   const [info, setInfo] = useState<ChannelInfo | null>(null);
   const [err, setErr] = useState("");
   const [only, setOnly] = useState<AnomalyKind | null>(null);
@@ -90,6 +93,21 @@ export default function ChannelView({ def }: { def: MessageStream }) {
     <section className="ch-view card" data-total={info.total}>
       <h4>{t("chTitle")}</h4>
       <p className="hint">{t("chHint")}</p>
+      {info.clock && (() => {
+        // CH9: two loggers' clocks apart - every request would read as unanswered; RX's file moved by the shift (its
+        // own time offset, with Undo) when TX and RX come from two files
+        const c = info.clock;
+        const rxRun = sides[1]?.sources[0]?.split("/")[0];
+        const rx = runs.find((r) => r.id === rxRun);
+        const two = !!rx && rxRun !== home;
+        return (
+          <div className="card warn ch-clock" data-shift={c.shift}>
+            <span>{t("chClock", { s: c.shift.toFixed(3), n: fmtNum(c.pairs, lang, 6), of: fmtNum(c.of, lang, 6), req: hex(c.request), rep: hex(c.reply) })}</span>
+            {two ? <button className="btn primary sm ch-clock-go" onClick={() => void applySyncOffset(rx.id, (rx.timeOffset ?? 0) - c.shift)}>
+              {t("chClockGo", { file: rx.name, s: (-c.shift).toFixed(3) })}</button>
+              : <span className="hint">{t("chClockOne")}</span>}
+          </div>);
+      })()}
       <ul className="ch-patterns">
         {info.sides.map((s) => (
           <li key={s.name} className="ch-side"><b dir="ltr">{s.name}</b>{" "}

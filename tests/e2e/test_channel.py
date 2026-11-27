@@ -134,3 +134,21 @@ def test_tx_in_one_file_rx_in_another_answering_each_other(pg):
     pg.locator(".ch-chip[data-kind=unanswered]").wait_for(timeout=30000)
     assert pg.locator(".ch-chip[data-kind=unanswered] b").inner_text() == "18"
     assert "0x10 → RX 0x90" in pg.locator(".ch-view").inner_text()
+
+
+def test_two_loggers_two_clocks_aligned_in_one_click(pg):
+    """CH9: the RX logger's clock 7 s ahead - offered as one link with the shift; its channel says so and one click moves
+    the RX file (its time offset, Undo): the requests are answered again."""
+    _two_loggers(pg.env["data"], shift=7.0)
+    open_files(pg, "logger_a.csv", "logger_b.csv")
+    messages_page(pg)
+    offer = pg.locator(".ch-offer")
+    offer.wait_for(timeout=30000)
+    assert "7.00" in offer.inner_text()
+    offer.locator(".ch-make").click()
+    clock = pg.locator(".ch-clock")
+    clock.wait_for(timeout=30000)
+    assert abs(float(clock.get_attribute("data-shift")) - 7.0) < 0.01
+    clock.locator(".ch-clock-go").click()
+    pg.wait_for_function("Math.abs(window.__sv.state().runs.find(r => r.name === 'logger_b.csv').timeOffset + 7.0) < 0.01", timeout=30000)
+    pg.wait_for_function("document.querySelector('.ch-chip[data-kind=unanswered] b')?.textContent === '18' && !document.querySelector('.ch-clock')", timeout=30000)

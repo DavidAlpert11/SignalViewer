@@ -24,6 +24,10 @@
 - **TX in one file, RX in another (CH8).** *Add a stream → TX and RX* takes the two signals from any open files, and
   the list offers a channel by itself when one stream **answers** the other (a reply echoing its request's id, a
   handshake) - not only when their names say TX and RX - in one file or in two files of one link.
+- **Two loggers, two clocks (CH9).** When TX and RX were recorded by two loggers whose clocks disagree, hardly any
+  request reads as answered. The app pairs requests and replies by the id the reply echoes, whatever the delay: the
+  list offers them as one link saying how far apart the clocks look, and the channel moves RX's file by that much in
+  one click (its time offset, with Undo).
 - **The link's, or the sniffer's? (CH12)** A recording made by a sniffer can have glitches of its own while the bytes
   between the devices were fine. Each anomaly now says whose it most likely is, read from how the link itself
   behaved: **the link's** (a request sent again, no reply until the handshake came again, the device's counter stopped

@@ -300,6 +300,7 @@ def _links(free: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     TX-like and one RX-like), or anywhere (two files too) when the messages of one answer the other's (a request ->
     reply pair with an echoed id, or a handshake), their times overlapping. TX: the side that asks."""
     from svcore.bytestream import exchange
+    from svcore.channel import clock_offset
     out: List[Dict[str, Any]] = []
     used: set = set()
     by: Dict[str, List[Dict[str, Any]]] = {}
@@ -318,15 +319,24 @@ def _links(free: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 continue
             ra, rb = a["r"], b["r"]
             ta, tb = ra["messages"]["t"], rb["messages"]["t"]
-            if not len(ta) or not len(tb) or min(ta[-1], tb[-1]) <= max(ta[0], tb[0]):
-                continue                                  # their times do not overlap
-            e = exchange(ra, rb, ("A", "B"))
-            good = [q for q in e["pairs"] if q["replies"] >= 2 and (q["how"] == "id" or q["requests"] <= 10)]
-            if not good:
+            if not len(ta) or not len(tb):
                 continue
-            first = max(good, key=lambda q: q["replies"])["from"] == "A"
-            out.append({"tx": (a if first else b)["ids"][0], "rx": (b if first else a)["ids"][0], "why": "replies"})
-            used.update((a["ids"][0], b["ids"][0]))
+            good = []
+            if min(ta[-1], tb[-1]) > max(ta[0], tb[0]):        # their times overlap: does one answer the other?
+                e = exchange(ra, rb, ("A", "B"))
+                good = [q for q in e["pairs"] if q["replies"] >= 2 and (q["how"] == "id" or q["requests"] <= 10)]
+            if good:
+                first = max(good, key=lambda q: q["replies"])["from"] == "A"
+                out.append({"tx": (a if first else b)["ids"][0], "rx": (b if first else a)["ids"][0], "why": "replies"})
+                used.update((a["ids"][0], b["ids"][0]))
+            elif a["rid"] != b["rid"]:
+                # CH9: two loggers, two clocks - the echoed ids say who answers whom and how far apart they are
+                for x, y, flip in ((a, b, False), (b, a, True)):
+                    c = clock_offset(x["r"], y["r"])
+                    if c:
+                        out.append({"tx": x["ids"][0], "rx": y["ids"][0], "why": "clock", "shift": c["shift"]})
+                        used.update((a["ids"][0], b["ids"][0]))
+                        break
     return out
 
 

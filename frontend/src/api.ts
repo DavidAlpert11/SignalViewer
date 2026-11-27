@@ -52,7 +52,9 @@ export interface StreamRow { key: string; name: string; rid: string; file: strin
   /** CH7: this direction's anomalies (svcore/channel.py; a definition's two directions read together) */
   anomalies?: { total: number; counts: Partial<Record<AnomalyKind, number>>; capture?: number } }
 /** CH1 / CH8: two streams that look like one link's two directions - by their names, or one answers the other */
-export interface StreamLink { tx: string; rx: string; why: "names" | "replies" }
+export interface StreamLink { tx: string; rx: string; why: "names" | "replies" | "clock";
+  /** CH9: "clock" - how far RX's clock looks ahead of TX's (s; the fastest reply read as 1 ms) */
+  shift?: number }
 /** CH2: one direction of a channel (a definition's stream), the type ids its structure describes */
 export interface ChannelSide { label: string; sources: string[]; params: Record<string, unknown>; known?: number[] }
 /** CH12: the link shows it / the link shows the bytes were fine (the capture's) / nothing reacted */
@@ -66,6 +68,8 @@ export interface ChannelInfo { kinds: AnomalyKind[]; counts: Record<AnomalyKind,
   causes: Record<AnomalyKind, Record<AnomalyCause, number>>; byCause: Record<AnomalyCause, number>;
   sides: { name: string; count: number; header: string; framing: string; typeOffset: number | null; checksum: string | null;
     types: { type: number; count: number; rate: number | null }[] }[];
+  /** CH9: nearly nothing answered in time, yet the echoed ids pair them at a steady delay: two clocks apart */
+  clock: { shift: number; pairs: number; of: number; request: number; reply: number } | null;
   pairs: { from: string; to: string; request: number; reply: number; how: "id" | "next"; requests: number; replies: number; mean: number | null; max: number | null }[];
   handshake: { t: number; steps: { dir: string; type: number; t: number }[] }[] }
 /** MSG4: the guided view of a byte stream (svcore/msginspect.py) - the patterns that recur, the structure (given or

@@ -194,3 +194,16 @@ def test_the_sniffers_own_anomalies_told_from_the_links():
     from svcore.example_data import REPO_EXAMPLES as R
     demo = _counts(os.path.join(R, "serial_link", "link_tx_rx.csv"))
     assert demo["causes"]["unanswered"]["link"] == 15 and demo["byCause"]["capture"] == 0
+
+
+def test_two_clocks_apart_are_found_from_the_echoed_ids():
+    """CH9: RX recorded by a logger whose clock is 2.5 s ahead - nothing answers in time; the echoed ids give the
+    offset, and with RX moved by it the link reads as before."""
+    (ta, ya), (tb, yb) = link("unanswered")
+    a, b = decode([(ta, ya)]), decode([(tb + 2.5, yb)])
+    r = anomalies([("TX", a), ("RX", b)])
+    c = r["clock"]
+    assert c and c["request"] == 0x10 and c["reply"] == 0x90 and c["shift"] == pytest.approx(2.5 + 0.004 - 0.001, abs=0.003)
+    again = anomalies([("TX", a), ("RX", decode([(tb + 2.5 - c["shift"], yb)]))])
+    assert again["clock"] is None and again["counts"]["unanswered"] == 2
+    assert run("unanswered")["clock"] is None                       # one clock: nothing said

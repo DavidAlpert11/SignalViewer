@@ -423,6 +423,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-27 · CH9 two clocks (clock_offset, the offer, *Move <file> by …*). backend test_channel test_messages_library, mypy;
+  e2e test_channel (5).
 - 2026-11-27 · CH12 the link's or the sniffer's (channel._causes, the example with sniffer glitches 23 / 42, *Whose:*). backend
   test_channel test_bytestream test_messages_library; e2e test_channel (4).
 - 2026-11-27 · CH7 + CH8 (anomalies in the list; TX / RX across files, offered by replies). quick_check green before them (CH1-CH6);

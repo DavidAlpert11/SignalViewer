@@ -131,3 +131,16 @@ def test_link_by_names_only_when_clear():
     assert _links([s("a/uplink"), s("a/downlink"), s("a/sensor_byte")]) == [{"tx": "a/uplink", "rx": "a/downlink", "why": "names"}]
     assert _links([s("a/tx_byte"), s("b/rx_byte")]) == []
     assert _links([s("a/tx1"), s("a/tx2"), s("a/rx")]) == []
+
+
+def test_two_loggers_with_two_clocks_are_offered_with_the_shift(tmp_path):
+    """CH9: the second logger's clock 7 s ahead - nothing overlaps in answers; the echoed ids still pair them, the offer
+    says the shift, and the channel says it too."""
+    c = TestClient(app)
+    a, b = _split_link(tmp_path, shift=7.0)
+    r = c.post("/api/messages/streams", json={"streams": [], "runs": [a.id, b.id]}).json()
+    link = next(x for x in r["links"] if x["tx"] == f"{a.id}/port1")
+    assert link["rx"] == f"{b.id}/port2" and link["why"] == "clock" and link["shift"] == pytest.approx(7.0, abs=0.01)
+    ch = c.post("/api/messages/channel", json={"sides": [{"label": "TX", "sources": [f"{a.id}/port1"]},
+                                                           {"label": "RX", "sources": [f"{b.id}/port2"]}]}).json()
+    assert ch["clock"]["shift"] == pytest.approx(link["shift"], abs=1e-6)

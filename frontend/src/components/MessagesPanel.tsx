@@ -165,7 +165,8 @@ export default function MessagesPanel() {
       {!page && addForm}
       {links.filter((l) => !held.has(l.tx) && !held.has(l.rx)).map((l) => (
         <div key={l.tx} className="card info ch-offer" data-tx={l.tx} data-rx={l.rx}>
-          <span>{l.tx.slice(0, l.tx.indexOf("/")) === l.rx.slice(0, l.rx.indexOf("/"))
+          <span>{l.why === "clock" ? t("chOfferClock", { tx: bare(l.tx), rx: bare(l.rx), a: fileName(l.tx), b: fileName(l.rx), s: (l.shift ?? 0).toFixed(3) })
+            : l.tx.slice(0, l.tx.indexOf("/")) === l.rx.slice(0, l.rx.indexOf("/"))
             ? t(l.why === "replies" ? "chOfferReplies" : "chOffer", { tx: bare(l.tx), rx: bare(l.rx) })
             : t("chOfferFiles", { tx: bare(l.tx), rx: bare(l.rx), a: fileName(l.tx), b: fileName(l.rx) })}</span>
           <button className="btn primary sm ch-make" onClick={() => oneChannel(l.tx, l.rx)}>{t("chMake")}</button>
