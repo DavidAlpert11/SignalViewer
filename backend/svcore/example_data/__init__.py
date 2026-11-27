@@ -68,6 +68,11 @@ def _serial_link(root: str) -> None:
     make_serial_link.main(os.path.join(root, "serial_link"))
 
 
+def _channel(root: str) -> None:
+    from . import make_channel
+    make_channel.main(os.path.join(root, "channel"))
+
+
 def _gps_nmea(root: str) -> None:
     from . import make_gps_nmea
     make_gps_nmea.main(os.path.join(root, "gps_nmea"))
@@ -104,6 +109,8 @@ GENERATORS: List[Tuple[Sequence[str], Sequence[str], Callable[[str], None]]] = [
       "serial_link/link_tx.svmsg.json", "serial_link/link_rx.svmsg.json", "serial_link/sensor_uart.csv",
       "serial_link/sensor.svmsg.json"], [], _serial_link),
     (["gps_nmea/receiver.nmea", "gps_nmea/receiver_uart.csv"], [], _gps_nmea),
+    # CH5: one link recorded twice, every anomaly kind injected - the channel's anomalies compared across files
+    (["channel/link_run1.csv", "channel/link_run2.csv"], [], _channel),
     # CC16: simulations of any kind - a Simulink servo, an HDF5 process, a Monte-Carlo folder, a model against its test
     (["simulation/servo_step.mat", "simulation/process_plant.h5", "simulation/cruise_sim.csv", "simulation/cruise_test.csv",
       *_MC], ["scipy", "h5py"], _simulation),

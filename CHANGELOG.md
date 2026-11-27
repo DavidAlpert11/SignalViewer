@@ -14,6 +14,13 @@
   handshake whose steps differ. Every message is checked; a chip per kind gives its count, a time strip draws each one
   in a lane of its kind, and a click on a mark or a row of the list puts the cursor there on the plots. *Plot the
   messages* adds an **Anomalies** plot - the count so far, a step at each one - beside the data.
+- **The same channel in similar files (CH4).** *Compare with similar files* in the channel puts every other open file
+  with the same signals beside it, read the same way: a row per file, a column per kind of anomaly, each count against
+  this file's (more in red, fewer in green). The report's `[[messages]]` adds the same table - with one file, the
+  channel's anomalies by kind.
+- **Example: one link recorded twice (CH5).** *Help → Examples → one link recorded twice* - TX and RX in two signals,
+  every kind of anomaly injected, the second recording on a worse day: make one channel, see its anomalies, compare
+  the two, write the report.
 - **Found in this file (AU1).** What the app can do by itself with a file, found from its signal names, is now said
   as soon as it opens - one quiet line below the file list: command / response pairs, objects with a position, truth
   vs navigation errors, modes, sensors in several copies, actuators, byte columns, an envelope of several runs. Each is

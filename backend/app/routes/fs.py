@@ -85,6 +85,8 @@ EXAMPLE_SETS = [
     # MSG2: the same link with its two structure files: each direction's messages become a recording of their own
     {"id": "linkStructure", "open": "structure", "files": ["serial_link/link_tx_rx.csv", "serial_link/link_tx.svmsg.json",
                                                             "serial_link/link_rx.svmsg.json"]},
+    # CH5: one link recorded twice (TX and RX as two signals) - one channel, its anomalies, the two files compared
+    {"id": "channel", "open": "messages", "files": ["channel/link_run1.csv", "channel/link_run2.csv"]},
     # MSG2: a GPS receiver's raw NMEA - opened as a recording at once; and its serial port byte by byte
     {"id": "gpsNmea", "open": "map", "files": ["gps_nmea/receiver.nmea", "gps_nmea/receiver_uart.csv"]},
     # AU4: one platform named the way the app recognises by itself - the *Found in this file* line lights up

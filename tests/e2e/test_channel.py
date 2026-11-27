@@ -68,3 +68,30 @@ def test_the_channel_block_counts_and_shows_the_anomalies(pg):
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => p.signals.some(s => s.sig.endsWith('.anomalies'))))", timeout=30000)
     n = S(pg, "s.runs.find(r => r.format === 'derived').signals.find(x => x.name.endsWith('.anomalies')).samples")
     assert n == total + 2                                  # from 0 at the first message to the last one
+
+
+def test_the_channel_example_compares_two_recordings(pg):
+    """CH4 / CH5: Help -> Examples -> one link recorded twice: one channel in a step, its anomalies, the second
+    recording beside it (each count against the first's), then the report with the files' table."""
+    pg.locator(".topbar .menubar-btn", has_text="Help").click()
+    pg.locator(".menu.ctx button", has_text="Examples").click()
+    pg.locator(".menu.ctx.sub button", has_text="one link recorded twice").click()
+    pg.wait_for_selector(".demo-guide[data-demo=channel][data-step='1'] .demo-next", timeout=30000)
+    pg.locator(".demo-guide .demo-next").click()
+    view = pg.locator(".ch-view[data-total]")
+    view.wait_for(timeout=30000)
+    assert view.get_attribute("data-total") == "15"                     # make_channel.py: run1's anomalies
+    pg.locator(".ch-compare-go").click()
+    row = pg.locator(".ch-compare-t tr[data-file='link_run2.csv']")
+    row.wait_for(timeout=30000)
+    assert pg.locator(".ch-compare-t tr.ch-this td[data-kind=all]").inner_text() == "15"
+    assert row.locator("td[data-kind=all] .ch-more").inner_text().startswith("33")          # more: marked, +18
+    assert "+18" in row.locator("td[data-kind=all]").inner_text()
+    assert row.locator("td[data-kind=broken] .ch-less").count() == 1                     # 0 against 1: fewer
+    assert row.locator("td[data-kind=handshake] .ch-more").count() == 1
+    if SHOT:
+        view.screenshot(path=os.path.join(SHOT, "channel_compare.png"))
+    pg.locator(".demo-guide[data-step='2'] .demo-next").click()
+    pg.wait_for_function("(window.__sv.state().ws.report?.doc?.text || '').includes('[[messages]]')", timeout=30000)
+    from test_report_doc import preview_has
+    preview_has(pg, "the same channel in 2 files", "link_run2.csv")

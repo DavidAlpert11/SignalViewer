@@ -74,7 +74,7 @@ def test_every_area_has_its_demo(pg):
     assert "Help → Examples" in pg.locator(".examples-more").inner_text()
     pg.locator(".topbar .menubar-btn", has_text="Help").click()          # every example is there, the six too
     pg.locator(".menu.ctx button", has_text="Examples").click()
-    assert pg.locator(".menu.ctx.sub button:not([disabled])").count() == 20   # AU4: + what the app finds by itself
+    assert pg.locator(".menu.ctx.sub button:not([disabled])").count() == 21   # AU4: + what the app finds by itself; CH5: + one link recorded twice
     heads = [x.strip() for x in pg.locator(".menu.ctx.sub button[disabled]").all_inner_texts()]
     assert heads[0] == "Verify against requirements" and heads[-1].startswith("Flight logs"), heads
     pg.keyboard.press("Escape")

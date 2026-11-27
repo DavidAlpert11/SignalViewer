@@ -10,7 +10,7 @@ import type { TKey } from "./i18n";
 import { applyTemplate } from "./templates";
 import { applySyncOffset } from "./sync";
 import { openAutoReport } from "./reportReady";
-import { decodeAsMessages, makeRecording, streamFor } from "./messages";
+import { decodeAsMessages, keepChannel, makeRecording, streamFor } from "./messages";
 import type { MessageStream } from "./store/model";
 import { openWhatChanged } from "./investigation";
 
@@ -80,6 +80,15 @@ export const DEMOS: Partial<Record<ExampleId, Demo>> = {
       { text: "demoLink3", act: "demoLink3Act", go: () => openAutoReport("messages") },
     ],
     done: "demoLinkDone",
+  },
+  // CH5: one link recorded twice -> one channel (its patterns and anomalies) -> the report of both files compared
+  channel: {
+    setup: (runs) => plotRaw(runs[0], ["tx_byte", "rx_byte"]),
+    steps: [
+      { text: "demoCh1", act: "demoCh1Act", go: (runs) => openChannel(runs[0]) },
+      { text: "demoCh2", act: "demoLink3Act", go: () => openAutoReport("messages") },
+    ],
+    done: "demoChDone",
   },
   // the same link and its structure files -> each direction's messages a recording of their own
   linkStructure: {
@@ -227,6 +236,14 @@ function linkDef(run: string): MessageStream {
 function openLink(run: string) {
   const d = linkDef(run);
   useApp.setState({ panel: "messages", msgFocus: { ids: d.sources, carries: "pair" } });
+}
+
+/** CH1: the link's TX and RX kept as one channel, its page open (what *Make one channel* does). */
+function openChannel(run: string) {
+  const [tx, rx] = [sigId(run, "tx_byte"), sigId(run, "rx_byte")];
+  if (!tx || !rx) throw new Error("no tx_byte / rx_byte");
+  keepChannel(tx, rx);
+  useApp.setState({ panel: "messages", msgFocus: { ids: [tx, rx], carries: "pair" } });
 }
 
 /** The link's two structure files (beside it in the example's folder) as the structures of TX and RX - one Undo step;

@@ -144,3 +144,30 @@ def test_the_serial_link_example_counts():
     c = r["counts"]
     assert (c["checksum"], c["broken"], c["unanswered"], c["retry"], c["reconnect"], c["handshake"]) == (4, 1, 18, 1, 1, 0)
     assert c["gap"] == 3 and c["late"] == 0
+
+
+def _counts(path):
+    import csv
+    rows = list(csv.reader(open(path)))[1:]
+    t = np.array([float(r[0]) for r in rows])
+    a = np.array([float(r[1]) if r[1] else np.nan for r in rows])
+    b = np.array([float(r[2]) if r[2] else np.nan for r in rows])
+    return anomalies([("TX", decode([(t, a)])), ("RX", decode([(t, b)]))])
+
+
+def test_the_channel_example_writes_what_git_has_with_every_kind(tmp_path):
+    """CH5: the two recordings of one link (make_channel.py's table): every anomaly kind in one of them, the counts
+    different between them."""
+    import os
+    from svcore.example_data import REPO_EXAMPLES
+    from svcore.example_data.make_channel import main
+    main(str(tmp_path))
+    ex = os.path.join(REPO_EXAMPLES, "channel")
+    for f in ("link_run1.csv", "link_run2.csv"):
+        assert (tmp_path / f).read_bytes() == open(os.path.join(ex, f), "rb").read()
+    one, two = _counts(os.path.join(ex, "link_run1.csv")), _counts(os.path.join(ex, "link_run2.csv"))
+    assert one["counts"] == {"checksum": 1, "broken": 1, "length": 1, "unknown": 1, "counter": 5, "gap": 1, "unanswered": 2,
+                             "retry": 1, "late": 1, "reconnect": 1, "handshake": 0}
+    assert two["counts"] == {"checksum": 5, "broken": 0, "length": 0, "unknown": 2, "counter": 10, "gap": 2, "unanswered": 6,
+                             "retry": 1, "late": 4, "reconnect": 2, "handshake": 1}
+    assert all(one["counts"][k] or two["counts"][k] for k in KINDS)

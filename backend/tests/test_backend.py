@@ -559,7 +559,7 @@ def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
     from app.routes import fs as m
     r = client.get("/api/examples").json()
     assert [x["id"] for x in r] == ["servoStep", "processPlant", "monteCarlo", "cruiseSimVsTest",           # CC16: simulations first
-                                    "flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "reportDemo", "serialLink", "linkStructure", "gpsNmea", "automations", "investigate",
+                                    "flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "reportDemo", "serialLink", "linkStructure", "channel", "gpsNmea", "automations", "investigate",
                                     "folderOfFlights", "sweepTable", "commonGains", "smartSweepDemo"] and len(r[6]["paths"]) == 3
     assert [x.get("open") for x in r[-3:]] == ["sweep", "study", "study"] and r[-1]["paths"][-1].endswith("demo.svstudy.json")
     assert all(os.path.isfile(p) for x in r for p in x["paths"])
@@ -570,7 +570,7 @@ def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
     # owner, 2026-11-18: a recording the app can write counts as there (svcore/example_data); a set with a file
     # that is neither shipped nor written by code (the sweeps' tables, a folder's measures.json) is left out
     assert [x["id"] for x in r] == ["cruiseSimVsTest", "flight", "twoFlights", "car", "bench", "ardupilot", "simVsFlight", "reportDemo",
-                                    "serialLink", "linkStructure", "gpsNmea", "automations", "investigate"]
+                                    "serialLink", "linkStructure", "channel", "gpsNmea", "automations", "investigate"]
     assert r[1]["paths"] == [str(tmp_path / "uav_flight.csv")]                      # all shipped: as they are
     assert r[2]["paths"][1] == str(tmp_path / "made" / "uav_flight_windy.csv")      # else where they will be written
 
