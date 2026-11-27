@@ -103,6 +103,26 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
     in separate signals), every anomaly kind injected, the second with different counts; Help -> Examples.
   - **CH6 - docs** (`docs/messages.md`, GUIDE + GUIDE.he), Vitest / pytest for every detector, e2e
     `tests/e2e/test_channel.py` (one channel, the anomalies, the files compared), CHANGELOG Next.
+
+  **3. Round 2 (owner, 2026-11-27, Hebrew, translated):** *"Note: anomaly checks are needed inside one file by itself
+  too. Also an option to check the handshake and the anomalies between a TX / RX pair. An option to define a signal as
+  TX and another, even from another file, as RX. Besides these anomalies, a comparison with other similar files -
+  whether there are anomalies between them - with graphical indications, and on the whole automatically. Continue
+  from the current state up to a stable release. Think what else could help here automatically."* The plan:
+  - **CH7 - one file by itself:** every stream in the Messages list shows its anomaly count (and the kinds) at once,
+    without opening it - the list reads `channel.anomalies` per stream.
+  - **CH8 - TX in one file, RX in another:** *Add a stream → TX and RX* takes the two from any open files (said with
+    each file's name); the app also offers a channel by itself when two streams **answer each other** (a request ->
+    reply found), not only by their names - in one file or across files whose times overlap.
+  - **CH9 - two clocks:** TX and RX from two loggers: when the replies sit at a steady shift from their requests (an
+    echoed id gives the pairs), the channel says how far apart the clocks look and one click moves RX's file by it
+    (the file's own time offset - one Undo); without it, every request would read as unanswered.
+  - **CH10 - the files compared by themselves, with pictures:** with similar files open the comparison runs by
+    itself: a row per file with a bar per count, a small strip of each file's anomalies over its time, the file that
+    stands out against the others marked (a count far above the others' median), and what differs in the patterns
+    themselves (a type only one file has, a rate or a reply time that changed, another header / checksum). The report
+    the same.
+  - **CH11 - docs, tests;** then **release 1.39.0** prepared (AU + CH; 1.38.0 stays as prepared - not tagged yet).
 - **AU - automatic finds made visible (owner, 2026-11-26, Hebrew, translated):** *"Plotting the command against
   the actual by words like des, cmd, command lets the user plot automatically - but it is found only through Ctrl+P and
   a search; the user cannot guess it exists. More automations like these; objects on the map by lat / long; comparing
@@ -400,6 +420,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-27 · CH1-CH6 checked on main: e2e test_channel (3), test_messages (17), test_welcome_cards (13), test_report_parts
+  (3), test_fresh_user (6). Round 2 planned (Open specs CH §3).
 - 2026-11-27 · CH6 docs: messages.md (the channel, each anomaly's rule, the example), GUIDE (+ a Messages section) + GUIDE.he,
   features, skill sv-messages. mkdocs --strict.
 - 2026-11-27 · CH4 the files compared (Messages: *Compare with similar files*; [[messages]]'s anomaly table) and CH5 the example
