@@ -71,6 +71,8 @@ def test_the_channel_block_counts_and_shows_the_anomalies(pg):
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => p.signals.some(s => s.sig.endsWith('.anomalies'))))", timeout=30000)
     n = S(pg, "s.runs.find(r => r.format === 'derived').signals.find(x => x.name.endsWith('.anomalies')).samples")
     assert n == total + 2                                  # from 0 at the first message to the last one
+    # the structure proposed meanwhile (kept with the plots) does not make a stray type known: the count stays
+    pg.wait_for_function(f"document.querySelector('.ch-view')?.dataset.total === '{total}'", timeout=30000)
 
 
 def test_the_channel_example_compares_two_recordings(pg):
@@ -111,6 +113,10 @@ def test_the_channel_example_compares_two_recordings(pg):
     assert row.locator("td[data-kind=handshake] .ch-more").count() == 1
     if SHOT:
         view.screenshot(path=os.path.join(SHOT, "channel_compare.png"))
+    # Plot the messages keeps the structure the app proposed - it lists the stray 0x77 too, yet it is still unknown
+    pg.locator(".msg-go").click()
+    pg.wait_for_selector(".main .side.messages .ch-view", timeout=30000)
+    pg.wait_for_function("document.querySelector('.ch-view')?.dataset.total === '23' && !!document.querySelector('.ch-chip[data-kind=unknown]')", timeout=30000)
     pg.locator(".demo-guide[data-step='2'] .demo-next").click()
     pg.wait_for_function("(window.__sv.state().ws.report?.doc?.text || '').includes('[[messages]]')", timeout=30000)
     from test_report_doc import preview_has

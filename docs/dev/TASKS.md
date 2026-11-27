@@ -423,6 +423,9 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-27 · CH13 fix: *Plot the messages* kept the proposed structure and made the stray 0x77 a known type (22 for 23,
+  seen in the narrow panel); a structure names the known types only once a recording was made from it. e2e test_channel
+  -k example fails without the fix, passes with it.
 - 2026-11-27 · CH13 clarity pass (one offer for several files, the channel's head, patterns folded, byte streams out of the
   data-quality notice). backend test_quality; e2e test_channel (5); screenshots en + he looked at.
 - 2026-11-27 · CH10 similar files compared by themselves (compare_files, channel-compare, ChannelCompare, the report).

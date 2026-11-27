@@ -102,7 +102,9 @@ export function streamsOf(def: MessageStream): { label: string; sources: string[
  *  direction's structure describes (then a type it does not describe is the unknown one). */
 export function channelSides(def: MessageStream): ChannelSide[] {
   return streamsOf(def).slice(0, 2).map((s) => {
-    const st = def.structures?.[s.label];
+    // a structure says which types are known only once a recording was made from it: one merely proposed (kept with
+    // *Plot the messages* too) lists every type seen, the stray ones as well
+    const st = def.made?.some((m) => m.label === s.label) ? def.structures?.[s.label] : undefined;
     const ids = st?.kind === "binary" ? st.messages.map((m) => Number(m.id)).filter((x) => Number.isFinite(x)) : [];
     return { label: s.label, sources: s.sources, params: s.params, ...(ids.length ? { known: ids } : {}) };
   });
