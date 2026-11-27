@@ -214,19 +214,30 @@ def _causes(sides: Dict[str, Dict], ex: Optional[Dict], rows: List[Row], timeout
     def as_reply(side: str, typ: Optional[int]):
         return next((q for q in pairs if q["to"] == side and q["reply"] == typ), None)
 
+    def own_counter(side: str, typ: Optional[int]) -> bool:
+        """the counter is the device's own: both directions known (a reply's sequence number may be the requester's,
+        echoed) and this type is not a reply that echoes its request's id"""
+        return ex is not None and as_reply(side, typ) is None
+
     gaps: List[Tuple[str, float, float, Tuple[str, str]]] = []
     out: List[Tuple[str, str]] = []
     for t, kind, side, typ, _detail, ref in rows:            # the gaps first: what falls in one follows its cause
         if kind == "gap":
             if reconnected(ref["to"]):
                 c = ("link", "the handshake came again right after it")
-            elif ref.get("moved") is not None and ref["moved"] >= max(2, ref["periods"] - 1):
+            elif own_counter(side, typ) and ref.get("moved") is not None and ref["moved"] >= max(2, ref["periods"] - 1):
                 c = ("capture", "the device's counter ran on through it: it kept sending, the capture missed them")
-            elif ref.get("moved") == 1:
+            elif own_counter(side, typ) and ref.get("moved") == 1:
                 c = ("link", "the device's counter stopped with it: the device itself did not send")
             else:
                 c = ("none", "the link carried on after it")
             gaps.append((side, t, ref["to"], c))
+
+    # a silence in the same direction at the same time as one the device's own counter explains follows it (a reply type's
+    # silence there is the same capture dropout - its own numbers are echoed, they prove nothing by themselves)
+    gaps = [(s_, a, b, c) if c[0] != "none" else
+            next(((s_, a, b, c2) for s2, a2, b2, c2 in gaps if s2 == s_ and c2[0] != "none" and a2 <= b and a <= b2), (s_, a, b, c))
+            for s_, a, b, c in gaps]
 
     def in_gap(side: str, t: float) -> Optional[Tuple[str, str]]:
         return next((c for s_, a, b, c in gaps if s_ == side and a <= t <= b), None)

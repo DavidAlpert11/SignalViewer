@@ -424,6 +424,9 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-27 · CH12 fix found by the release's pictures: RX alone called the device's real dropout *the capture's* (an ACK's
+  echoed sequence number is the requester's); now only the device's own counter with both directions known proves it.
+  test_channel (21), test_messages_library, test_bytestream, mypy; e2e test_channel + test_messages (22); pictures 55 56 58.
 - 2026-11-27 · Re-run alone: test_live_report 3 failed the same way (the Instruments tab is a section of *The file* since 1.38
   CC7) - fixed in the test, 6 / 6; test_report_doc 4 / 5, the LaTeX test fails only for want of a TeX here (as in 1.35-1.38).
 - 2026-11-27 · Release 1.39.0: the whole e2e one file at a time - 104 files, 555 passed, 7 failed in 5 files. Stale since 1.38 /

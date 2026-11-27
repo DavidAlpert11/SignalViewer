@@ -223,3 +223,16 @@ def test_similar_files_compared_what_stands_out_and_what_changed():
     lat = [x for x in c["patterns"] if x["what"] == "latency"]
     assert [x["file"] for x in lat] == ["c"] and lat[0]["value"] > 2 * lat[0]["others"]
     assert compare_files([("a", clean)]) == {"standsOut": [], "patterns": []}
+
+
+def test_one_direction_alone_does_not_call_a_dropout_the_capture():
+    """CH12: RX alone - an ACK's sequence number is the requester's, echoed: across the device's real dropout it jumps
+    too, which is no proof that the device kept sending (only both directions, or the device's own counter, can say)."""
+    import csv
+    import os
+    from svcore.example_data import REPO_EXAMPLES
+    rows = list(csv.reader(open(os.path.join(REPO_EXAMPLES, "serial_link", "link_tx_rx.csv"))))[1:]
+    t = np.array([float(r[0]) for r in rows])
+    b = np.array([float(r[2]) if r[2] else np.nan for r in rows])
+    r = anomalies([("RX", decode([(t, b)]))])
+    assert r["counts"]["gap"] == 3 and r["byCause"]["capture"] == 0
