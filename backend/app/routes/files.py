@@ -418,8 +418,14 @@ async def run_quality_route(run_id: str):
         return hit[1]
 
     def work():
-        items = ((name, s.time if s.time is not None else run.time, s.data, store.is_state(f"{run_id}/{name}"))
-                 for name, s in list(run.signals.items()))
+        from svcore.bytestream import is_byte_stream
+
+        def kind(name, s, t):
+            if store.is_state(f"{run_id}/{name}"):
+                return True
+            return "stream" if is_byte_stream(name, t, s.data) else False
+        items = ((name, t, s.data, kind(name, s, t))
+                 for name, s in list(run.signals.items()) for t in [s.time if s.time is not None else run.time])
         res = run_quality(items)
         res["sorted"] = bool((lr.load_report or {}).get("sorted"))     # the CSV reader put rows in time order
         return res

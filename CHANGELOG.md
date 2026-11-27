@@ -24,6 +24,10 @@
 - **TX in one file, RX in another (CH8).** *Add a stream → TX and RX* takes the two signals from any open files, and
   the list offers a channel by itself when one stream **answers** the other (a reply echoing its request's id, a
   handshake) - not only when their names say TX and RX - in one file or in two files of one link.
+- **A clearer Messages page (CH13).** The channel leads with its anomalies and whose they are; what repeats beyond
+  the content is one line that opens into its details; the same pair of TX / RX names in several files is offered once
+  (*Make one channel in each*, one Undo); a byte stream's bursts and the empty cells of a TX / RX table are no longer
+  called missing values or gaps by the data-quality check when a file opens.
 - **Similar files compared by themselves (CH10).** With other open files holding the same signals, the channel shows
   the same channel in each of them without a click (up to eight; more: a button): a row per file with a small strip of
   its anomalies over time, a bar for each count, each count against this file's, a count far above the other files'

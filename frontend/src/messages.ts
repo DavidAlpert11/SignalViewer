@@ -64,13 +64,20 @@ export function streamFor(ids: string[]): MessageStream {
    one click keeps the pair in the session. */
 /** CH1: TX and RX kept as one channel of requests and replies (one Undo step), its header / checksum as found. */
 export function keepChannel(tx: string, rx: string): MessageStream {
+  return keepChannels([[tx, rx]])[0];
+}
+
+/** CH13: the same link in several files made one channel in each - one Undo step for all. */
+export function keepChannels(pairs: [string, string][]): MessageStream[] {
   const st = useApp.getState();
-  const key = [tx, rx].join(",");
-  const old = (st.ws.messageStreams ?? []).find((m) => m.sources.join(",") === key);
-  if (old) return old;
-  const def: MessageStream = { id: uid(), sources: [tx, rx], carries: "pair" };
-  st.commit((ws) => { ws.messageStreams = [...(ws.messageStreams ?? []).filter((m) => !m.sources.some((x) => x === tx || x === rx) || m.sources.length > 1), def]; return ws; });
-  return def;
+  const have = st.ws.messageStreams ?? [];
+  const defs = pairs.map(([tx, rx]) => have.find((m) => m.sources.join(",") === `${tx},${rx}`) ?? { id: uid(), sources: [tx, rx], carries: "pair" as const });
+  const fresh = defs.filter((d) => !have.includes(d));
+  if (fresh.length) {
+    const used = new Set(fresh.flatMap((d) => d.sources));
+    st.commit((ws) => { ws.messageStreams = [...(ws.messageStreams ?? []).filter((m) => m.sources.length > 1 || !used.has(m.sources[0])), ...fresh]; return ws; });
+  }
+  return defs;
 }
 
 /** The streams of a definition: (label, sources, params) - both ways: one per direction value. */

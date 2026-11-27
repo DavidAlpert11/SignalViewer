@@ -49,3 +49,20 @@ def test_route(tmp_path):
         assert c.get(f"/api/runs/{rid}/quality").json() == q                      # kept
     finally:
         c.delete(f"/api/runs/{rid}")
+
+
+def test_a_byte_stream_is_not_called_missing_or_gappy():
+    """CH13: TX and RX bytes in two columns - each row holds one direction's byte, the bytes come in bursts: that is
+    what a byte stream is, not a data problem (the open file's notice said "2 of 2 signals need a look")."""
+    from app.main import app
+    ex = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "channel", "link_run1.csv")
+    c = TestClient(app, base_url="http://127.0.0.1")
+    rid = c.post("/api/files/open", json={"paths": [ex]}).json()["opened"][0]["id"]
+    try:
+        q = c.get(f"/api/runs/{rid}/quality").json()
+        assert q["withIssues"] == 0 and all(x.get("stream") for x in q["signals"])
+    finally:
+        c.delete(f"/api/runs/{rid}")
+    from svcore.bytestream import is_byte_stream
+    t = np.arange(400) * 0.01
+    assert not is_byte_stream("throttle", t, (t * 7) % 100 // 1)                 # whole numbers 0..100: not bytes

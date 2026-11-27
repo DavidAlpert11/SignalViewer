@@ -423,6 +423,8 @@ task ticked in `ROADMAP.md`, the user-facing line in `CHANGELOG.md`, and a line 
 
 ## Log
 
+- 2026-11-27 · CH13 clarity pass (one offer for several files, the channel's head, patterns folded, byte streams out of the
+  data-quality notice). backend test_quality; e2e test_channel (5); screenshots en + he looked at.
 - 2026-11-27 · CH10 similar files compared by themselves (compare_files, channel-compare, ChannelCompare, the report).
   backend test_channel test_bytestream, mypy; e2e test_channel (5).
 - 2026-11-27 · CH9 two clocks (clock_offset, the offer, *Move <file> by …*). backend test_channel test_messages_library, mypy;

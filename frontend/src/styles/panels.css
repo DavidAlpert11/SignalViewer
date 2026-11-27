@@ -157,6 +157,8 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 /* CH3: the channel - patterns, anomaly chips, the time strip (a lane per kind), the list */
 .messages .ch-view { padding: 10px 12px; margin: 0 0 10px; display: flex; flex-direction: column; gap: 6px; }
 .messages .ch-view h4 { margin: 0; }
+.messages .ch-patterns-d summary { cursor: pointer; font-size: 12.5px; }
+.messages .ch-patterns-d[open] summary { margin-bottom: 4px; }
 .messages .ch-patterns { margin: 0; padding-inline-start: 16px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
 .messages .ch-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; }
 .messages .ch-chips { display: flex; flex-wrap: wrap; gap: 4px; }

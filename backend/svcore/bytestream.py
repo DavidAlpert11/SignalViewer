@@ -78,6 +78,22 @@ def is_byte_like(y: np.ndarray) -> bool:
     return bool(np.all(np.abs(s - np.round(s)) < 1e-6) and len(np.unique(s)) >= 8)
 
 
+_BYTE_NAME = re.compile(r"(^|[._ ])(byte|bytes|raw|rx|tx|data|uart|serial|port\d*)([._ \d\[\]]|$)", re.I)
+
+
+def is_byte_stream(name: str, t: np.ndarray, y: np.ndarray) -> bool:
+    """CH13: a signal that carries a byte stream - byte-like, named like bytes or with messages found in it. Its pauses
+    and empty cells (another direction's rows) are what it is: the data-quality check does not call them problems."""
+    if not is_byte_like(y):
+        return False
+    if _BYTE_NAME.search(name):
+        return True
+    try:
+        return decode([(np.asarray(t), np.asarray(y))])["count"] >= 20
+    except StreamError:
+        return False
+
+
 # ------------------------------------------------------------------------------------------------ checksums
 
 def _crc_table(poly: int, reflected: bool) -> List[int]:

@@ -82,25 +82,20 @@ export default function ChannelView({ def }: { def: MessageStream }) {
               : <span className="hint">{t("chClockOne")}</span>}
           </div>);
       })()}
-      <ul className="ch-patterns">
-        {info.sides.map((s) => (
-          <li key={s.name} className="ch-side"><b dir="ltr">{s.name}</b>{" "}
-            {t("chSideLine", { n: fmtNum(s.count, lang, 6), h: s.header, types: s.types.length })}
-            {" · "}<bdi dir="ltr">{s.framing}</bdi>{s.typeOffset != null ? <> · {t("msgTypeByte", { at: s.typeOffset })}</> : null}
-            {" · "}{s.checksum ? <bdi dir="ltr">{s.checksum}</bdi> : t("chNoChecksum")}</li>))}
-        {info.pairs.map((p) => (
-          <li key={`${p.from}${p.request}`} className="ch-pair" dir="auto">
-            <bdi dir="ltr">{p.from} {hex(p.request)} → {p.to} {hex(p.reply)}</bdi>{" · "}
-            {t(p.how === "id" ? "chPairById" : "chPairNext")}{" · "}
-            {t("chPairLine", { a: fmtNum(p.replies, lang, 6), n: fmtNum(p.requests, lang, 6), mean: ms(p.mean), max: ms(p.max) })}</li>))}
-        {info.handshake.length > 0 && (
-          <li className="ch-hs">{t("chHandshake")}{" "}<bdi dir="ltr">{info.handshake[0].steps.map((s) => `${s.dir} ${hex(s.type)}`).join(" → ")}</bdi>
-            {" · "}{t("chHandshakeAt", { at: info.handshake.map((h) => secs(h.t)).join(", ") })}</li>)}
-        {sides.length === 2 && !info.pairs.length && <li className="hint">{t("chNoPairs")}</li>}
-      </ul>
 
       <div className="ch-head">
-        <b>{info.total ? t("chAnomalies", { n: fmtNum(info.total, lang, 6) }) : t("chNoAnomalies")}</b>
+        <b className="ch-total">{info.total ? t("chAnomalies", { n: fmtNum(info.total, lang, 6) }) : t("chNoAnomalies")}</b>
+        {info.total > 0 && (
+          <span className="ch-causes" role="group" aria-label={t("chCausesLabel")}>
+            <span className="hint">{t("chCausesLead")}</span>
+            {(["link", "capture", "none"] as const).map((c) => (
+              <button key={c} className={`chip-s ch-cause ch-c-${c}${cause === c ? " on" : ""}`} data-cause={c} aria-pressed={cause === c}
+                title={t(`chCauseHint_${c}` as never)} disabled={!info.byCause[c]} onClick={() => setCause(cause === c ? null : c)}>
+                <i className="ch-cause-mark" />{t(`chCause_${c}` as never)} <b>{fmtNum(info.byCause[c], lang, 6)}</b></button>))}
+          </span>
+        )}
+      </div>
+      {kinds.length > 0 && (
         <span className="ch-chips">
           {kinds.map((k) => (
             <button key={k} className={`chip-s ch-chip ch-k-${k}${only === k ? " on" : ""}`} data-kind={k} aria-pressed={only === k}
@@ -108,15 +103,6 @@ export default function ChannelView({ def }: { def: MessageStream }) {
               <i className="ch-dot" />{t(KIND_KEY[k] as never)} <b>{fmtNum(info.counts[k], lang, 6)}</b>
               {info.causes[k].capture > 0 && <span className="ch-chip-cap">{t("chChipCapture", { n: info.causes[k].capture })}</span>}</button>))}
         </span>
-      </div>
-      {info.total > 0 && (
-        <div className="ch-causes" role="group" aria-label={t("chCausesLabel")}>
-          <span className="hint">{t("chCausesLead")}</span>
-          {(["link", "capture", "none"] as const).map((c) => (
-            <button key={c} className={`chip-s ch-cause ch-c-${c}${cause === c ? " on" : ""}`} data-cause={c} aria-pressed={cause === c}
-              title={t(`chCauseHint_${c}` as never)} disabled={!info.byCause[c]} onClick={() => setCause(cause === c ? null : c)}>
-              <i className="ch-cause-mark" />{t(`chCause_${c}` as never)} <b>{fmtNum(info.byCause[c], lang, 6)}</b></button>))}
-        </div>
       )}
 
       {kinds.length > 0 && (
@@ -135,6 +121,29 @@ export default function ChannelView({ def }: { def: MessageStream }) {
           <div className="ch-lane ch-axis"><span /><span className="ch-axis-ends" dir="ltr"><span>{secs(t0)}</span><span>{secs(t1)}</span></span></div>
         </div>
       )}
+
+      {/* CH13: what repeats beyond the content - one line, its details on a click */}
+      <details className="ch-patterns-d">
+        <summary>{t("chPatternsSum", { h: info.sides.map((x) => x.header).join(" / "),
+          p: info.pairs.length ? t("chPatternsPairs", { n: info.pairs.length }) : t("chPatternsNoPairs"),
+          hs: info.handshake.length ? t("chPatternsHs", { n: info.handshake[0].steps.length, k: info.handshake.length }) : t("chPatternsNoHs") })}</summary>
+        <ul className="ch-patterns">
+        {info.sides.map((s) => (
+          <li key={s.name} className="ch-side"><b dir="ltr">{s.name}</b>{" "}
+            {t("chSideLine", { n: fmtNum(s.count, lang, 6), h: s.header, types: s.types.length })}
+            {" · "}<bdi dir="ltr">{s.framing}</bdi>{s.typeOffset != null ? <> · {t("msgTypeByte", { at: s.typeOffset })}</> : null}
+            {" · "}{s.checksum ? <bdi dir="ltr">{s.checksum}</bdi> : t("chNoChecksum")}</li>))}
+        {info.pairs.map((p) => (
+          <li key={`${p.from}${p.request}`} className="ch-pair" dir="auto">
+            <bdi dir="ltr">{p.from} {hex(p.request)} → {p.to} {hex(p.reply)}</bdi>{" · "}
+            {t(p.how === "id" ? "chPairById" : "chPairNext")}{" · "}
+            {t("chPairLine", { a: fmtNum(p.replies, lang, 6), n: fmtNum(p.requests, lang, 6), mean: ms(p.mean), max: ms(p.max) })}</li>))}
+        {info.handshake.length > 0 && (
+          <li className="ch-hs">{t("chHandshake")}{" "}<bdi dir="ltr">{info.handshake[0].steps.map((s) => `${s.dir} ${hex(s.type)}`).join(" → ")}</bdi>
+            {" · "}{t("chHandshakeAt", { at: info.handshake.map((h) => secs(h.t)).join(", ") })}</li>)}
+        {sides.length === 2 && !info.pairs.length && <li className="hint">{t("chNoPairs")}</li>}
+        </ul>
+      </details>
 
       {home && <ChannelCompare sides={sides} home={home} reread={key} kindKey={KIND_KEY} />}
 

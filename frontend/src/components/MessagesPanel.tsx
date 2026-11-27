@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { actions, useApp } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { api, type AnomalyKind, type LibraryItem, type StreamLink, type StreamRow } from "../api";
-import { forgetStream, isMessageLog, keepChannel, messageTypes } from "../messages";
+import { forgetStream, isMessageLog, keepChannels, messageTypes } from "../messages";
 import { Icon } from "../icons";
 import { confirmAsk, openMenu } from "./Overlays";
 import StreamEditor from "./StreamEditor";
@@ -79,12 +79,22 @@ export default function MessagesPanel() {
   // CH1 / CH8: two streams that look like one link (names, or replies) - one channel in one click (kept at once)
   const held = new Set((defs ?? []).flatMap((d) => d.sources));            // kept: no longer offered (before the list reloads)
   const fileName = (id: string) => runs.find((r) => r.id === id.slice(0, id.indexOf("/")))?.name ?? "";
-  const oneChannel = (tx: string, rx: string) => {
-    keepChannel(tx, rx);
-    setAdded((a) => a.filter((k) => k !== tx && k !== rx));
-    useApp.setState({ msgFocus: { ids: [tx, rx], carries: "pair" } });
-    toast(t("chMade", { tx: bare(tx), rx: bare(rx) }), true);
+  const oneChannel = (ls: StreamLink[]) => {
+    keepChannels(ls.map((l) => [l.tx, l.rx]));
+    setAdded((a) => a.filter((k) => !ls.some((l) => k === l.tx || k === l.rx)));
+    useApp.setState({ msgFocus: { ids: [ls[0].tx, ls[0].rx], carries: "pair" } });
+    toast(t(ls.length > 1 ? "chMadeMany" : "chMade", { tx: bare(ls[0].tx), rx: bare(ls[0].rx), n: ls.length }), true);
   };
+  // CH13: the same pair of names, one file each, offered once ("in 2 files") - one click makes the channel in each
+  const offers = (() => {
+    const by = new Map<string, StreamLink[]>();
+    for (const l of links.filter((x) => !held.has(x.tx) && !held.has(x.rx))) {
+      const one = l.why !== "clock" && l.tx.slice(0, l.tx.indexOf("/")) === l.rx.slice(0, l.rx.indexOf("/"));
+      const k = one ? `${bare(l.tx)}|${bare(l.rx)}` : `${l.tx}|${l.rx}`;
+      by.set(k, [...(by.get(k) ?? []), l]);
+    }
+    return [...by.values()];
+  })();
   const formOpen = adding ?? (rows !== null && !groups.length);
   const streamMenu = (e: React.MouseEvent, key: string, ids: string[], title: string) => {
     const isDef = defined.has(key), isFound = found.has(key);
@@ -151,7 +161,7 @@ export default function MessagesPanel() {
     </section>
   );
   const addForm = <AddStream files={files} listed={listed} open={formOpen && files.length > 0} onOpen={setAdding}
-    onAdd={(ids, c) => { if (c === "pair") keepChannel(ids[0], ids[1]); useApp.setState({ msgFocus: { ids, ...(c ? { carries: c } : {}) } }); }} />;
+    onAdd={(ids, c) => { if (c === "pair") keepChannels([[ids[0], ids[1]]]); useApp.setState({ msgFocus: { ids, ...(c ? { carries: c } : {}) } }); }} />;
 
   const streams = (
     <section className="msgp-sec msgp-streams">
@@ -163,14 +173,16 @@ export default function MessagesPanel() {
       {rows === null && !groups.length && <p className="hint">{t("msgpLooking")}</p>}
       {rows !== null && !groups.length && <p className="hint msgp-none">{t("msgpNoStreams")}</p>}
       {!page && addForm}
-      {links.filter((l) => !held.has(l.tx) && !held.has(l.rx)).map((l) => (
-        <div key={l.tx} className="card info ch-offer" data-tx={l.tx} data-rx={l.rx}>
-          <span>{l.why === "clock" ? t("chOfferClock", { tx: bare(l.tx), rx: bare(l.rx), a: fileName(l.tx), b: fileName(l.rx), s: (l.shift ?? 0).toFixed(3) })
+      {offers.map((ls) => { const l = ls[0]; return (
+        <div key={l.tx} className="card info ch-offer" data-tx={l.tx} data-rx={l.rx} data-files={ls.length}>
+          <span>{ls.length > 1 ? t("chOfferMany", { tx: bare(l.tx), rx: bare(l.rx), n: ls.length, files: ls.map((x) => fileName(x.tx)).join(", ") })
+            : files.length > 1 && l.why !== "clock" && l.tx.slice(0, l.tx.indexOf("/")) === l.rx.slice(0, l.rx.indexOf("/")) ? `${fileName(l.tx)}: ` : ""}
+            {ls.length > 1 ? null : l.why === "clock" ? t("chOfferClock", { tx: bare(l.tx), rx: bare(l.rx), a: fileName(l.tx), b: fileName(l.rx), s: (l.shift ?? 0).toFixed(3) })
             : l.tx.slice(0, l.tx.indexOf("/")) === l.rx.slice(0, l.rx.indexOf("/"))
             ? t(l.why === "replies" ? "chOfferReplies" : "chOffer", { tx: bare(l.tx), rx: bare(l.rx) })
             : t("chOfferFiles", { tx: bare(l.tx), rx: bare(l.rx), a: fileName(l.tx), b: fileName(l.rx) })}</span>
-          <button className="btn primary sm ch-make" onClick={() => oneChannel(l.tx, l.rx)}>{t("chMake")}</button>
-        </div>))}
+          <button className="btn primary sm ch-make" onClick={() => oneChannel(ls)}>{t(ls.length > 1 ? "chMakeMany" : "chMake")}</button>
+        </div>); })}
       {groups.map(([key, rs]) => {
         const ids = key.split(",");
         const on = page ? current?.[0] === key && !formOpen : open.includes(key);

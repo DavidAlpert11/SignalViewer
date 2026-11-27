@@ -45,7 +45,10 @@ def test_the_channel_block_counts_and_shows_the_anomalies(pg):
     pg.locator(".ch-offer .ch-make").click()
     view = pg.locator(".ch-view[data-total]")
     view.wait_for(timeout=30000)
-    # the patterns beyond the content: both framings, the command answered by its ACK, the handshake
+    # the patterns beyond the content: one line, its details on a click - both framings, the command answered by its
+    # ACK, the handshake
+    assert "header AA 55 / EB 90" in view.locator(".ch-patterns-d summary").inner_text()
+    view.locator(".ch-patterns-d summary").click()
     txt = view.inner_text()
     assert "AA 55" in txt and "EB 90" in txt and "0x10 → RX 0x90" in txt and "Handshake" in txt
     # every anomaly of the demo counted (svcore/channel.py, test_channel): one chip per kind
@@ -78,6 +81,10 @@ def test_the_channel_example_compares_two_recordings(pg):
     pg.locator(".menu.ctx.sub button", has_text="one link recorded twice").click()
     pg.wait_for_selector(".demo-guide[data-demo=channel][data-step='1'] .demo-next", timeout=30000)
     pg.locator(".demo-guide .demo-next").click()
+    # CH13: the second file's TX / RX offered once, saying its file (the first one's is made by the demo's step)
+    offer = pg.locator(".ch-offer")
+    offer.wait_for(timeout=30000)
+    assert offer.count() == 1 and offer.inner_text().startswith("link_run2.csv: ")
     view = pg.locator(".ch-view[data-total]")
     view.wait_for(timeout=30000)
     assert view.get_attribute("data-total") == "23"                     # make_channel.py: run1's anomalies
@@ -87,7 +94,7 @@ def test_the_channel_example_compares_two_recordings(pg):
     pg.locator(".ch-cause[data-cause=capture]").click()
     pg.locator(".ch-list summary").click()
     assert pg.locator(".ch-table tbody tr").count() == 8 and pg.locator(".ch-table tbody td.ch-c-capture").count() == 8
-    assert pg.locator(".ch-mark.ch-c-capture").count() >= 1 and pg.locator(".ch-mark.ch-c-link").count() == 0
+    assert pg.locator(".ch-strip .ch-mark.ch-c-capture").count() >= 1 and pg.locator(".ch-strip .ch-mark.ch-c-link").count() == 0
     if SHOT:
         view.screenshot(path=os.path.join(SHOT, "channel_causes.png"))
     pg.locator(".ch-cause[data-cause=capture]").click()
@@ -136,6 +143,7 @@ def test_tx_in_one_file_rx_in_another_answering_each_other(pg):
     pg.wait_for_function("(window.__sv.state().ws.messageStreams || []).some(m => m.carries === 'pair' && m.sources[0].endsWith('/port1') && m.sources[1].endsWith('/port2'))")
     pg.locator(".ch-chip[data-kind=unanswered]").wait_for(timeout=30000)
     assert pg.locator(".ch-chip[data-kind=unanswered] b").inner_text() == "18"
+    pg.locator(".ch-patterns-d summary").click()
     assert "0x10 → RX 0x90" in pg.locator(".ch-view").inner_text()
 
 

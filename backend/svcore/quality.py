@@ -10,7 +10,7 @@
 
 Signals that share one time vector (the columns of a CSV, the fields of one log message) are checked
 for time once. Everything is O(n) and vectorised; a big log is checked in a background job."""
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -81,14 +81,16 @@ def issues(q: Dict[str, Any]) -> List[str]:
                              ("backwards", q.get("backwards")), ("rateChanges", q.get("rateChanges"))) if bad]
 
 
-def run_quality(signals: Iterable[Tuple[str, np.ndarray, np.ndarray, bool]], progress=None, total: int = 0) -> Dict[str, Any]:
+def run_quality(signals: Iterable[Tuple[str, np.ndarray, np.ndarray, Union[bool, str]]], progress=None, total: int = 0) -> Dict[str, Any]:
     """Every signal of a run: [{name, ...checks, issues}], and how many signals have each problem.
     Each item is (name, t, y, state): a state or event signal (a mode, a message, a text) is logged when
-    it changes - its pauses, repeated times and rate are what it is, not problems; only its values count."""
+    it changes - its pauses, repeated times and rate are what it is, not problems; only its values count. state
+    "stream": a byte stream (bytestream.is_byte_stream) - its bursts and its empty cells too."""
     seen: Dict[int, Tuple[np.ndarray, Dict[str, Any]]] = {}
     rows: List[dict] = []
     count = {k: 0 for k in ("missing", "gaps", "duplicates", "backwards", "rateChanges")}
     for i, (name, t, y, state) in enumerate(signals):
+        stream = state == "stream"                  # CH13: a byte stream - bursts and empty cells are what it is
         if state:
             tq: Dict[str, Any] = {**time_quality(t[:0]), "n": int(len(t)), "event": True}
         else:
@@ -99,6 +101,8 @@ def run_quality(signals: Iterable[Tuple[str, np.ndarray, np.ndarray, bool]], pro
                 seen[key] = hit
             tq = hit[1]
         q = signal_quality(t, y, tq)
+        if stream:
+            q.update(missing=0, missingPct=0.0, stream=True)
         q["issues"] = issues(q)
         for k in q["issues"]:
             count[k] += 1
