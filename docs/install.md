@@ -100,7 +100,7 @@ Verified by running the built app with no network interface at all.
 
 Build commands (Windows unless said):
 
-- `build.bat installer` → `dist\SignalViewer-Setup-1.38.0.exe`  
+- `build.bat installer` → `dist\SignalViewer-Setup-1.39.0.exe`  
   **Recommended.** One file; installs for the current user (no admin), Start-menu and desktop icons, *Open with* for data files, uninstaller
 - `build.bat portable` → `dist\SignalViewer-portable.zip`  
   Unzip anywhere and run `SignalViewer.exe` (fast start)

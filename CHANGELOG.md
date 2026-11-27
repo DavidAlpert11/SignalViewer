@@ -2,6 +2,15 @@
 
 ## Next – unreleased
 
+## 1.39.0 – 2026-11-27
+
+**Highlights:** a communication channel checked, and what a file allows found by itself. TX and RX - in one signal,
+two signals or two files, even with two clocks apart - become one channel of requests and replies in one click; every
+anomaly is counted on every message and drawn on a time strip, each said to be the link's or most likely the
+sniffer's; similar recordings are compared by themselves and the one that stands out is marked; a new example (one
+link recorded twice). *Found in this file* says at once what the app can do with a file from its signal names, and
+*Name your signals* tells what to record.
+
 - **One channel from separate TX and RX (CH1).** When a file holds the bytes sent and the bytes received in two
   signals (`tx_byte`, `rx_byte`; uplink / downlink...), the Messages page says they look like the two directions of one
   link: **Make one channel** keeps them as one channel of requests and replies in the session at once (one Undo).
