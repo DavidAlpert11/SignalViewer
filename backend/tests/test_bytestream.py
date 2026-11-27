@@ -160,6 +160,12 @@ def test_report_part_on_the_demo():
     assert "**The messages in order** (the first 40" in md and "0x01 0x02 0x20 0x20" in md
     assert any(h["level"] == "warn" for h in p.highlights)
     assert {s_["name"] for s_ in scan(st)["streams"]} == set(names)
+    # CH4: the anomalies of the same link in the two files - a row each, the second against the first (the same)
+    assert "**Anomalies - the same channel in 2 files** (each cell against the first file, link_tx_rx.csv)" in md
+    rows = [ln for ln in md.splitlines() if ln.startswith("| link_")]
+    assert len(rows) == 2 and "| No reply |" in md and "(+" not in rows[1] and "(-" not in rows[1]
+    assert rows[0] == "| link_tx_rx.csv | tx_byte ↔ rx_byte | 33 | 4 | 1 | 5 | 3 | 18 | 1 | 1 |"
+    assert rows[1] == "| link_mixed.csv | byte TX ↔ byte RX | 33 | 4 | 1 | 5 | 3 | 18 | 1 | 1 |"
 
 
 def test_defined_streams_tx_rx_both():

@@ -203,6 +203,7 @@ def messages(p: Part, rids: List[str], arg: str, o: Dict, defs: Optional[Sequenc
         if cs and r["errors"]:
             err_lines.append(sig_line(p.series(name + " errors", t, np.cumsum(~m["ok"]).astype(np.float64)), name, len(err_lines)))
     lat_lines = links(p, streams, rids)
+    anomaly_table(p, streams, rids)
     if o.get("table"):
         return
     if lat_lines:
@@ -275,6 +276,46 @@ def links(p: Part, streams: List[Dict], rids: Sequence[str]) -> List[dict]:
                     lab = "%s: %s" % (_name(p.store, rid), lab)
                 lines.append(sig_line(p.series(lab + " latency", q["t"], q["lat"]), lab, len(lines)))
     return lines
+
+
+def channels(streams: List[Dict]) -> List[Tuple[str, str, List[Tuple[str, Dict]]]]:
+    """The channels of these streams: a file's two streams are one link (TX first, as `links`), else each stream alone.
+    (rid, name, [(direction, decode)]) each."""
+    by: Dict[str, List[Dict]] = {}
+    for s_ in streams:
+        by.setdefault(s_["rid"], []).append(s_)
+    out = []
+    for rid, ss in by.items():
+        if len(ss) == 2:
+            ss = sorted(ss, key=lambda x: (0 if re.search(r"tx|send|out|up", x["name"], re.I) else 1, x["name"]))
+            out.append((rid, "%s ↔ %s" % (ss[0]["name"], ss[1]["name"]), [("TX", ss[0]["r"]), ("RX", ss[1]["r"])]))
+        else:
+            out += [(rid, s_["name"], [("TX", s_["r"])]) for s_ in ss]
+    return out
+
+
+def anomaly_table(p: Part, streams: List[Dict], rids: Sequence[str]):
+    """CH4: the anomalies of each channel (svcore/channel.py) - a row per file and channel, a column per kind found;
+    with several files, each cell against the first file's (the same channel in similar recordings)."""
+    from svcore.channel import KINDS, anomalies
+    S_ = p.S
+    rows = [(rid, name, anomalies(sides)) for rid, name, sides in channels(streams)]
+    if not rows:
+        return
+    kinds = [k for k in KINDS if any(r["counts"][k] for _i, _n, r in rows)]
+    if not kinds:
+        p.say(S_["msg_anom_none"])
+        return
+    files = len({rid for rid, _n, _r in rows}) > 1
+    base = rows[0][2]
+    def cell(v: int, b: int, first: bool) -> str:
+        return str(v) if first or not files or v == b else "%d (%+d)" % (v, v - b)
+    out = []
+    for k_, (rid, name, r) in enumerate(rows):
+        out.append([_name(p.store, rid), name, cell(r["total"], base["total"], k_ == 0)]
+                   + [cell(r["counts"][k], base["counts"][k], k_ == 0) for k in kinds])
+    p.say(S_["msg_anom_files"].format(n=len({rid for rid, _n, _r in rows}), f=_name(p.store, rows[0][0])) if files else S_["msg_anom"])
+    p.say(table(S_["msg_anom_head"] + [S_["msg_anom_k"][k] for k in kinds], out))
 
 
 def structure(r: Dict, S_: Dict[str, Any]) -> List[List[str]]:

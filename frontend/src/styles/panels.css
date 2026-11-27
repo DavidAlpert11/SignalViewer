@@ -166,6 +166,10 @@ table.data.cmp2 tbody + tbody tr.name-row td { border-top: 1px solid var(--line)
 .messages .ch-mark { fill: var(--ch); cursor: pointer; }
 .messages .ch-axis-ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
 .messages .ch-table tr { cursor: pointer; }
+.messages .ch-compare { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.messages .ch-compare-t tr.ch-this th { font-weight: 700; }
+.messages .ch-more { color: var(--danger); font-weight: 600; }
+.messages .ch-less { color: var(--ok); font-weight: 600; }
 .messages .ch-k-checksum, .messages .ch-k-broken, .messages .ch-k-length { --ch: var(--danger); }
 .messages .ch-k-unanswered, .messages .ch-k-late, .messages .ch-k-gap { --ch: var(--warn); }
 .messages .ch-k-unknown, .messages .ch-k-counter, .messages .ch-k-retry, .messages .ch-k-reconnect, .messages .ch-k-handshake { --ch: var(--info); }

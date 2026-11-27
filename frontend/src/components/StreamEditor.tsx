@@ -151,7 +151,9 @@ export default function StreamEditor({ ids, carries, library, onLibrary }: {
 
   return (
     <div className="msgp-edit">
-      {can && <ChannelView def={eff} />}
+      {/* CH3: the types a structure describes are the known ones only once it is kept (a recording made from it) - a
+          structure merely proposed lists every type seen, the stray ones too */}
+      {can && <ChannelView def={{ ...eff, structures: kept?.structures }} />}
       <ol className="msg-steps">
         <li className="msg-step msg-step-1">
           <h4><span className="msg-n">1</span>{t("msgStep1")}</h4>
