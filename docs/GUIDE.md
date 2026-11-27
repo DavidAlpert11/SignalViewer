@@ -529,9 +529,11 @@ right-click → *Decode as messages…*): the app finds the messages by itself (
 steps turn them into a recording. For a link, **The channel** on top shows what repeats beyond the content - the
 framing of each direction, which reply answers which request and how fast, the handshake - and every **anomaly**
 counted by kind and drawn on a time strip: bad checksums, broken frames, wrong lengths, unknown types, counter skips,
-silences, missing / late replies, retries, reconnects, a handshake out of order. A click on one goes there on the
-plots. TX and RX in two signals become one channel with **Make one channel**; **Compare with similar files** puts the
-same channel in the other open files beside it, a row per file. Try *Help → Examples → one link recorded twice*.
+silences, missing / late replies, retries, reconnects, a handshake out of order - each with **whose** it most likely
+is: the link's, the sniffer's (the link shows the bytes were fine) or no effect seen. A click on one goes there on the
+plots. TX and RX in two signals - even from two files, even with two clocks apart - become one channel with **Make one
+channel**; the same channel in the other open files is compared by itself, a row per file, with what stands out.
+Try *Help → Examples → one link recorded twice*.
 Details: [Messages](messages.md).
 
 ## 13. Sweeps: which parameters hold

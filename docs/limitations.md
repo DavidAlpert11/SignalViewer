@@ -49,6 +49,11 @@
   back to back says nothing by its time); a direction column has 2 to 32 values; a payload that may hold the
   footer's bytes needs a length byte or a size per message (escaping is not undone). Request / reply pairing looks
   within 0.5 s. A recording made from messages has no file: the session keeps its definition and makes it again.
+* A channel's anomalies (1.39): request / reply pairing looks within 0.5 s (not settable yet). *Whose* an anomaly is
+  reads the link's own behaviour around it: *likely the capture's* needs positive proof (an answered request, a reply
+  that is there, a device counter that ran on) - a protocol without ids, counters or replies leaves most anomalies as
+  *no effect seen*. Two clocks apart are found only through an id the reply echoes; a clock that drifts during the
+  recording is not followed. *Compare with similar files* needs the same signal names in each file.
 * The Messages panel (1.32): it looks for byte streams in the open files that are not logs (a `.tlog`, `.bin`, `.ulg`
   or `.mcap` is listed by its message types instead); a log's message types are its signals grouped by the name before
   the first dot, the count and rate those of its fields. An ICD layout used as a structure keeps its own time field as

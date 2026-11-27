@@ -132,18 +132,26 @@ A link has more in it than its messages' values: a **header**, a **length** or *
 every message, **requests** answered by **replies**, a **handshake** that opens the link. Signal Viewer finds these
 by itself and then reads what breaks them.
 
+**At a glance in the list.** Each stream in *Byte streams* says at once how many anomalies it has (⚠ *18 anomalies
+(6 capture)*, or ✓ *No anomaly found*; its tooltip lists the kinds) - one file by itself, before anything is opened.
+
 **One channel from TX and RX.** Both directions in one signal with a direction column are split by themselves (step
-1 says which value is TX and which RX). When TX and RX are **two signals** of one file (`tx_byte` / `rx_byte`,
-`uplink` / `downlink`, `cmd` / `tlm`…), the list says *they look like the two directions of one link* -
-**Make one channel** keeps them as one channel of requests and replies in the session at once (one *Undo*). With
-other names: **Add a stream → TX and RX**.
+1 says which value is TX and which RX). When TX and RX are **two signals**, the list offers them as one channel of
+requests and replies:
 
-**The channel** opens above the four steps of a stream:
+- by their **names** in one file (`tx_byte` / `rx_byte`, `uplink` / `downlink`, `cmd` / `tlm`…);
+- because one **answers** the other (a reply echoes its request's id, or a handshake) - whatever their names, in one
+  file or in **two files** (two loggers on one link);
+- with **two clocks**: when the two files' clocks disagree, hardly any request reads as answered in time - but the
+  echoed ids still pair them, at one steady delay. The offer says how far apart the clocks look, and the channel
+  then says it again with **Move <file> by … s** (the file's own time offset, with *Undo*).
 
-- **The patterns beyond the content** - each direction's header, how its length is known, the type byte, the
-  checksum; each request → reply pair (paired by an id the reply echoes, or by the next reply), how many were
-  answered, the mean and the longest latency; the handshake's steps and each time it came.
-- **The anomalies**, counted on **every** message, a chip per kind with its count:
+**Make one channel** keeps the pair in the session at once (one *Undo*); the same pair of names in several files is
+offered once - **Make one channel in each**. Any other two signals, from any open files: **Add a stream → TX and RX**.
+
+**The channel** opens above the four steps of a stream. It leads with what breaks the link's patterns:
+
+- **The anomalies**, counted on **every** message, with *Whose:* (below) and a chip per kind with its count:
 
 | Kind | What it means |
 |---|---|
@@ -163,9 +171,17 @@ other names: **Add a stream → TX and RX**.
   tooltip says how many, so none is left out. A click on a chip shows only that kind; a click on a mark, or on a row
   of **the list**, puts the cursor there on the plots. **Plot the messages** adds an **Anomalies** plot: the count so
   far, a step at each one, under the data on the same time axis.
-- **Compare with similar files** - every other open file with the same signals, read the same way: a row per file,
-  a column per kind, each count against this file's (more in red, fewer in green). The report's `[[messages]]` adds
-  the same table (with one file: the channel's anomalies by kind).
+- **What repeats beyond the content** - one line (*header AA 55 / EB 90 · 3 kinds of request answered by a reply · a
+  handshake of 4 steps (2 ×)*); a click opens it: each direction's header, how its length is known, the type byte,
+  the checksum; each request → reply pair (paired by an id the reply echoes, or by the next reply), how many were
+  answered, the mean and the longest reply time; the handshake's steps and each time it came.
+- **The same channel in the other open files** with the same signals, read the same way and **by itself** (up to
+  eight files; more: *Compare with similar files*): a row per file with a small strip of its anomalies over its own
+  time, a bar for each count, each count against this file's (more in red, fewer in green), a count far above the
+  other files' (over twice their median and 3 more) marked ⚠ - and **what differs between the files**: the file that
+  stands out, a message type only one file has (or one file lacks), a type's rate more than a fifth off the others',
+  a reply time more than half off, another header, checksum or framing. The report's `[[messages]]` adds the same
+  table and the same list (with one file: the channel's anomalies by kind and cause).
 
 A lost reply is also a step missing from the reply's own sequence number, a retry repeats the request's: the counter
 says so too - each kind is what that part of the link saw.
